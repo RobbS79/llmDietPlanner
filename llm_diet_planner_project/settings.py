@@ -170,10 +170,23 @@ REST_FRAMEWORK = {
 
 # Encrypted Model Fields Configuration (GDPR compliance)
 # Generate a key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-FIELD_ENCRYPTION_KEY = config(
-    'FIELD_ENCRYPTION_KEY',
-    default='dummy-key-change-in-production-use-command-above'
-)
+_field_encryption_key = config('FIELD_ENCRYPTION_KEY', default=None)
+
+if _field_encryption_key is None:
+    # Generate a valid key if not provided (for development/testing only)
+    # WARNING: In production, always set FIELD_ENCRYPTION_KEY as an environment variable
+    # Generated keys should be persistent across deployments
+    import warnings
+    from cryptography.fernet import Fernet
+    _field_encryption_key = Fernet.generate_key().decode()
+    if not DEBUG:
+        warnings.warn(
+            "FIELD_ENCRYPTION_KEY not set in production! Generated a temporary key. "
+            "Set FIELD_ENCRYPTION_KEY environment variable with a persistent key.",
+            UserWarning
+        )
+
+FIELD_ENCRYPTION_KEY = _field_encryption_key
 
 # Celery Configuration
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
