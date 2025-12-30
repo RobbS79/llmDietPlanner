@@ -29,3 +29,7 @@ coverage/
 .pytest_cache/
 htmlcov/
 
+# React - keep source but ignore node_modules and build
+frontend/node_modules/
+frontend/build/
+

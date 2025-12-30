@@ -1,4 +1,22 @@
 # Production Dockerfile
+# Build stage for React
+FROM node:18-alpine AS react-builder
+
+WORKDIR /app/frontend
+
+# Copy package files
+COPY frontend/package*.json ./
+
+# Install dependencies (need all for build)
+RUN npm ci
+
+# Copy frontend source
+COPY frontend/ .
+
+# Build React app
+RUN npm run build
+
+# Python/Django stage
 FROM python:3.11-slim
 
 # Set environment variables
@@ -19,6 +37,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
 COPY . /app/
+
+# Copy React build from builder stage
+COPY --from=react-builder /app/frontend/build /app/frontend/build
 
 # Copy and make startup script executable
 COPY start.sh /app/start.sh
