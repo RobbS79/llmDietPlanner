@@ -28,5 +28,5 @@ RUN chmod +x /app/start.sh
 EXPOSE 8000
 
 # Use startup script that runs migrations and collectstatic before starting gunicorn
-CMD ["/app/start.sh"]
+CMD ["bash", "/app/start.sh"]
 
