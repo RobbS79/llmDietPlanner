@@ -87,14 +87,24 @@ class RegistrationView(APIView):
             uid, token = generate_email_verification_token(user)
             
             # Build verification URL
-            verification_url = request.build_absolute_uri(
-                reverse('login_app:verify-email') + f'?uid={uid}&token={token}'
-            )
+            try:
+                verify_path = reverse('login_app:verify-email')
+                verification_url = request.build_absolute_uri(
+                    f'{verify_path}?uid={uid}&token={token}'
+                )
+            except Exception as url_error:
+                # Fallback if reverse fails (shouldn't happen, but be safe)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to build verification URL: {str(url_error)}")
+                verification_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?uid={uid}&token={token}"
             
-            # Send verification email
-            send_mail(
-                subject='Verify your email address',
-                message=f'''
+            # Send verification email (don't fail registration if email fails)
+            email_sent = False
+            try:
+                send_mail(
+                    subject='Verify your email address',
+                    message=f'''
 Hello {user.username},
 
 Thank you for registering with LLM Diet Planner!
@@ -109,18 +119,24 @@ If you did not register for this account, please ignore this email.
 
 Best regards,
 LLM Diet Planner Team
-                ''',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
+                    ''',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=True,  # Don't raise exception if email fails
+                )
+                email_sent = True
+            except Exception as email_error:
+                # Log the error but don't fail registration
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to send verification email to {user.email}: {str(email_error)}")
             
             # Return standardized response
             response_data: Dict[str, Any] = {
                 "user_id": user.id,
                 "username": user.username,
                 "email": user.email,
-                "message": "Registration successful. Please check your email to verify your account."
+                "message": "Registration successful. Please check your email to verify your account." if email_sent else "Registration successful. Email verification may be delayed."
             }
             
             return Response(
@@ -134,6 +150,9 @@ LLM Diet Planner Team
             
         except ValueError as e:
             # Pydantic validation errors
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Registration validation error: {str(e)}")
             return Response(
                 {
                     "status": "error",
@@ -143,6 +162,11 @@ LLM Diet Planner Team
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
+            # Log the full exception for debugging
+            import logging
+            import traceback
+            logger = logging.getLogger(__name__)
+            logger.error(f"Registration error: {str(e)}\n{traceback.format_exc()}")
             return Response(
                 {
                     "status": "error",
