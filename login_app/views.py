@@ -16,6 +16,7 @@ from typing import Dict, Any
 from rest_framework_simplejwt.tokens import RefreshToken
 from .schemas import RegistrationRequest, LoginRequest, EmailVerificationRequest
 from .utils import generate_email_verification_token, verify_email_token
+from .tasks import send_verification_email_task
 
 
 class RegistrationView(APIView):
@@ -86,25 +87,37 @@ class RegistrationView(APIView):
             # Generate email verification token
             uid, token = generate_email_verification_token(user)
             
-            # Build verification URL
+            # Build base URL for verification link
+            base_url = request.build_absolute_uri('/').rstrip('/')
+            
+            # Send verification email asynchronously via Celery
+            # This ensures registration completes immediately and email is sent reliably
             try:
-                verify_path = reverse('login_app:verify-email')
-                verification_url = request.build_absolute_uri(
-                    f'{verify_path}?uid={uid}&token={token}'
+                send_verification_email_task.delay(
+                    user_id=user.id,
+                    uid=uid,
+                    token=token,
+                    base_url=base_url
                 )
-            except Exception as url_error:
-                # Fallback if reverse fails (shouldn't happen, but be safe)
+                email_sent = True
+            except Exception as email_task_error:
+                # If Celery is not available, log warning but don't fail registration
+                # Email will need to be sent manually or Celery needs to be configured
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to build verification URL: {str(url_error)}")
-                verification_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?uid={uid}&token={token}"
-            
-            # Send verification email (don't fail registration if email fails)
-            email_sent = False
-            try:
-                send_mail(
-                    subject='Verify your email address',
-                    message=f'''
+                logger.warning(
+                    f"Failed to queue verification email task for {user.email}. "
+                    f"Celery may not be running. Error: {str(email_task_error)}"
+                )
+                # Fallback: try to send synchronously (will fail if email backend not configured)
+                try:
+                    verify_path = reverse('login_app:verify-email')
+                    verification_url = request.build_absolute_uri(
+                        f'{verify_path}?uid={uid}&token={token}'
+                    )
+                    send_mail(
+                        subject='Verify your email address',
+                        message=f'''
 Hello {user.username},
 
 Thank you for registering with LLM Diet Planner!
@@ -119,25 +132,33 @@ If you did not register for this account, please ignore this email.
 
 Best regards,
 LLM Diet Planner Team
-                    ''',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    fail_silently=True,  # Don't raise exception if email fails
-                )
-                email_sent = True
-            except Exception as email_error:
-                # Log the error but don't fail registration
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to send verification email to {user.email}: {str(email_error)}")
+                        ''',
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[user.email],
+                        fail_silently=False,
+                    )
+                    email_sent = True
+                except Exception as sync_email_error:
+                    logger.error(f"Failed to send verification email synchronously: {str(sync_email_error)}")
+                    email_sent = False
             
             # Return standardized response
             response_data: Dict[str, Any] = {
                 "user_id": user.id,
                 "username": user.username,
                 "email": user.email,
-                "message": "Registration successful. Please check your email to verify your account." if email_sent else "Registration successful. Email verification may be delayed."
+                "message": "Registration successful. Please check your email to verify your account."
             }
+            
+            # If email couldn't be sent, still return success but log the issue
+            # Admin can manually verify or fix email configuration
+            if not email_sent:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"User {user.username} ({user.email}) registered but verification email could not be sent. "
+                    f"Manual verification may be required."
+                )
             
             return Response(
                 {
