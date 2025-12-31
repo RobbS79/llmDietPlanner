@@ -23,6 +23,7 @@ from . import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/auth/", include("login_app.urls")),
     path("api/", include("diet_planner.urls")),
     # Serve React app for all other routes (catch-all, must be last)
     re_path(r'^(?!admin|api|static).*', views.react_app_view),

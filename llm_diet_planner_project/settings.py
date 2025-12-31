@@ -41,9 +41,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party apps
     "rest_framework",
+    "rest_framework_simplejwt",
     "encrypted_model_fields",
     # Local apps
     "diet_planner",
+    "login_app",
 ]
 
 MIDDLEWARE = [
@@ -155,6 +157,10 @@ if not DEBUG:
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+<<<<<<< HEAD
+=======
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+>>>>>>> develop
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -168,6 +174,43 @@ REST_FRAMEWORK = {
     ],
 }
 
+<<<<<<< HEAD
+=======
+# JWT Configuration
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+}
+
+# Email Configuration
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
+)
+EMAIL_HOST = config('EMAIL_HOST', default='localhost')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@llmdietplanner.com')
+
+# Email Verification Settings
+EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS = 24
+
+>>>>>>> develop
 # Encrypted Model Fields Configuration (GDPR compliance)
 # Generate a key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 _field_encryption_key = config('FIELD_ENCRYPTION_KEY', default=None)
@@ -177,6 +220,7 @@ if _field_encryption_key is None:
     # WARNING: In production, always set FIELD_ENCRYPTION_KEY as an environment variable
     # Generated keys should be persistent across deployments
     import warnings
+<<<<<<< HEAD
     from cryptography.fernet import Fernet
     _field_encryption_key = Fernet.generate_key().decode()
     if not DEBUG:
@@ -185,6 +229,25 @@ if _field_encryption_key is None:
             "Set FIELD_ENCRYPTION_KEY environment variable with a persistent key.",
             UserWarning
         )
+=======
+    try:
+        from cryptography.fernet import Fernet
+        _field_encryption_key = Fernet.generate_key().decode()
+        if not DEBUG:
+            warnings.warn(
+                "FIELD_ENCRYPTION_KEY not set in production! Generated a temporary key. "
+                "Set FIELD_ENCRYPTION_KEY environment variable with a persistent key.",
+                UserWarning
+            )
+    except ImportError:
+        # If cryptography is not installed, use a dummy key (will need to be set properly)
+        _field_encryption_key = 'dummy-key-please-install-cryptography-and-set-FIELD_ENCRYPTION_KEY'
+        if not DEBUG:
+            warnings.warn(
+                "cryptography package not installed. Please install it and set FIELD_ENCRYPTION_KEY.",
+                UserWarning
+            )
+>>>>>>> develop
 
 FIELD_ENCRYPTION_KEY = _field_encryption_key
 
