@@ -245,7 +245,6 @@ LLM Diet Planner Team
         except Exception as e:
             # Log the full exception for debugging
             import logging
-            import traceback
             logger = logging.getLogger(__name__)
             logger.error(f"Registration error: {str(e)}\n{traceback.format_exc()}")
             return Response(
