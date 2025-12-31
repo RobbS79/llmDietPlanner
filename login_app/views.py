@@ -16,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from typing import Dict, Any
 import sys
+import traceback
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from .schemas import RegistrationRequest, LoginRequest, EmailVerificationRequest
