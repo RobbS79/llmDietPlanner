@@ -2,6 +2,10 @@
 Admin interface for diet_planner models.
 """
 from django.contrib import admin
+from django.contrib import messages
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.core.exceptions import PermissionDenied
 from .models import DietaryGoal, DietaryPlan
 
 
@@ -37,6 +41,49 @@ class DietaryGoalAdmin(admin.ModelAdmin):
         'celery_task_id',
     ]
     date_hierarchy = 'created_at'
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Make encrypted fields readonly to prevent decryption errors in admin."""
+        readonly = list(self.readonly_fields)
+        if obj:  # Editing existing object
+            readonly.extend(['prompt', 'dietary_restrictions'])
+        return readonly
+    
+    def has_delete_permission(self, request, obj=None):
+        """Allow deletion - errors are handled in model's delete method."""
+        return True
+    
+    def delete_model(self, request, obj):
+        """Override delete to handle errors gracefully."""
+        try:
+            obj.delete()
+            messages.success(request, f"Dietary Goal {obj.id} deleted successfully.")
+        except Exception as e:
+            messages.error(
+                request,
+                f"Error deleting Dietary Goal {obj.id}: {str(e)}. "
+                "The goal may have been partially deleted. Please check the database."
+            )
+            # Re-raise to show error in admin
+            raise
+    
+    def delete_queryset(self, request, queryset):
+        """Handle bulk deletion with error handling."""
+        deleted_count = 0
+        errors = []
+        
+        for obj in queryset:
+            try:
+                obj.delete()
+                deleted_count += 1
+            except Exception as e:
+                errors.append(f"Goal {obj.id}: {str(e)}")
+        
+        if deleted_count > 0:
+            messages.success(request, f"Successfully deleted {deleted_count} dietary goal(s).")
+        
+        if errors:
+            messages.error(request, f"Errors deleting some goals: {'; '.join(errors)}")
     
     fieldsets = (
         ('User Information', {
