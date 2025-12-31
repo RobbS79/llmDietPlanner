@@ -144,6 +144,14 @@ REACT_BUILD_DIR = REACT_APP_DIR / "build"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# CSRF Configuration
+# Required for DigitalOcean App Platform and other proxy setups
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='https://squid-app-6avsy.ondigitalocean.app' if not DEBUG else 'http://localhost:8000',
+    cast=Csv()
+)
+
 # Security settings for production
 # Note: SECURE_SSL_REDIRECT is disabled because DigitalOcean App Platform handles SSL termination
 if not DEBUG:
