@@ -18,7 +18,7 @@ DEBUG_LOG_PATH = Path(__file__).parent.parent.parent / '.cursor' / 'debug.log'
 
 
 def _debug_log(hypothesis_id, location, message, data=None):
-    """Write debug log entry."""
+    """Write debug log entry to both file and Django logger."""
     try:
         log_entry = {
             "sessionId": "debug-session",
@@ -29,8 +29,14 @@ def _debug_log(hypothesis_id, location, message, data=None):
             "data": data or {},
             "timestamp": __import__('time').time() * 1000
         }
-        with open(DEBUG_LOG_PATH, 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
+        # Write to file (for local debugging)
+        try:
+            with open(DEBUG_LOG_PATH, 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+        except Exception:
+            pass
+        # Also log to Django logger (for DigitalOcean logs)
+        logger.info(f"[DEBUG {hypothesis_id}] {location}: {message} | Data: {json.dumps(data or {})}")
     except Exception:
         pass  # Don't break execution if logging fails
 
