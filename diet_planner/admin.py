@@ -166,3 +166,10 @@ try:
             'fields': ('created_at', 'updated_at')
         }),
     )
+    print("[DEBUG STARTUP] diet_planner/admin.py: DietaryPlanAdmin registered successfully", file=sys.stderr, flush=True)
+except Exception as e:
+    error_msg = str(e)
+    error_trace = traceback.format_exc()
+    print(f"[DEBUG STARTUP ERROR] diet_planner/admin.py: Failed to register DietaryPlanAdmin: {error_msg}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+    raise  # Re-raise to prevent silent failures
