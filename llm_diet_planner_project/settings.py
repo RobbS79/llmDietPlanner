@@ -157,10 +157,7 @@ if not DEBUG:
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-<<<<<<< HEAD
-=======
         'rest_framework_simplejwt.authentication.JWTAuthentication',
->>>>>>> develop
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -174,8 +171,6 @@ REST_FRAMEWORK = {
     ],
 }
 
-<<<<<<< HEAD
-=======
 # JWT Configuration
 from datetime import timedelta
 
@@ -210,7 +205,6 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@llmdietplanne
 # Email Verification Settings
 EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS = 24
 
->>>>>>> develop
 # Encrypted Model Fields Configuration (GDPR compliance)
 # Generate a key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 _field_encryption_key = config('FIELD_ENCRYPTION_KEY', default=None)
@@ -220,16 +214,6 @@ if _field_encryption_key is None:
     # WARNING: In production, always set FIELD_ENCRYPTION_KEY as an environment variable
     # Generated keys should be persistent across deployments
     import warnings
-<<<<<<< HEAD
-    from cryptography.fernet import Fernet
-    _field_encryption_key = Fernet.generate_key().decode()
-    if not DEBUG:
-        warnings.warn(
-            "FIELD_ENCRYPTION_KEY not set in production! Generated a temporary key. "
-            "Set FIELD_ENCRYPTION_KEY environment variable with a persistent key.",
-            UserWarning
-        )
-=======
     try:
         from cryptography.fernet import Fernet
         _field_encryption_key = Fernet.generate_key().decode()
@@ -247,7 +231,6 @@ if _field_encryption_key is None:
                 "cryptography package not installed. Please install it and set FIELD_ENCRYPTION_KEY.",
                 UserWarning
             )
->>>>>>> develop
 
 FIELD_ENCRYPTION_KEY = _field_encryption_key
 
