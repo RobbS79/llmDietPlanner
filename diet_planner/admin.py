@@ -28,6 +28,33 @@ try:
     class DietaryGoalAdmin(admin.ModelAdmin):
         """Admin interface for DietaryGoal model."""
         print("[DEBUG STARTUP] diet_planner/admin.py: Registering DietaryGoalAdmin", file=sys.stderr, flush=True)
+        
+        def changelist_view(self, request, extra_context=None):
+            """Override to add debug logging."""
+            import sys
+            print(f"[DEBUG ADMIN] DietaryGoalAdmin.changelist_view: User {request.user.username} accessing changelist", file=sys.stderr, flush=True)
+            try:
+                return super().changelist_view(request, extra_context)
+            except Exception as e:
+                error_msg = str(e)
+                error_trace = traceback.format_exc()
+                print(f"[DEBUG ADMIN ERROR] DietaryGoalAdmin.changelist_view: {error_msg}", file=sys.stderr, flush=True)
+                print(f"[DEBUG ADMIN ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+                raise
+        
+        def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+            """Override to add debug logging."""
+            import sys
+            print(f"[DEBUG ADMIN] DietaryGoalAdmin.changeform_view: User {request.user.username} accessing object {object_id}", file=sys.stderr, flush=True)
+            try:
+                return super().changeform_view(request, object_id, form_url, extra_context)
+            except Exception as e:
+                error_msg = str(e)
+                error_trace = traceback.format_exc()
+                print(f"[DEBUG ADMIN ERROR] DietaryGoalAdmin.changeform_view: {error_msg}", file=sys.stderr, flush=True)
+                print(f"[DEBUG ADMIN ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+                raise
+        
         list_display = [
         'id',
         'user',
@@ -132,6 +159,32 @@ try:
     @admin.register(DietaryPlan)
     class DietaryPlanAdmin(admin.ModelAdmin):
         print("[DEBUG STARTUP] diet_planner/admin.py: Registering DietaryPlanAdmin", file=sys.stderr, flush=True)
+        
+        def changelist_view(self, request, extra_context=None):
+            """Override to add debug logging."""
+            import sys
+            print(f"[DEBUG ADMIN] DietaryPlanAdmin.changelist_view: User {request.user.username} accessing changelist", file=sys.stderr, flush=True)
+            try:
+                return super().changelist_view(request, extra_context)
+            except Exception as e:
+                error_msg = str(e)
+                error_trace = traceback.format_exc()
+                print(f"[DEBUG ADMIN ERROR] DietaryPlanAdmin.changelist_view: {error_msg}", file=sys.stderr, flush=True)
+                print(f"[DEBUG ADMIN ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+                raise
+        
+        def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+            """Override to add debug logging."""
+            import sys
+            print(f"[DEBUG ADMIN] DietaryPlanAdmin.changeform_view: User {request.user.username} accessing object {object_id}", file=sys.stderr, flush=True)
+            try:
+                return super().changeform_view(request, object_id, form_url, extra_context)
+            except Exception as e:
+                error_msg = str(e)
+                error_trace = traceback.format_exc()
+                print(f"[DEBUG ADMIN ERROR] DietaryPlanAdmin.changeform_view: {error_msg}", file=sys.stderr, flush=True)
+                print(f"[DEBUG ADMIN ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+                raise
     """Admin interface for DietaryPlan model."""
     list_display = [
         'id',
