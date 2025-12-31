@@ -220,6 +220,11 @@ try:
         }),
     )
     print("[DEBUG STARTUP] diet_planner/admin.py: DietaryPlanAdmin registered successfully", file=sys.stderr, flush=True)
+    
+    # Log all registered models
+    print(f"[DEBUG STARTUP] diet_planner/admin.py: All registered models in admin: {list(admin.site._registry.keys())}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP] diet_planner/admin.py: DietaryGoal in registry: {DietaryGoal in admin.site._registry}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP] diet_planner/admin.py: DietaryPlan in registry: {DietaryPlan in admin.site._registry}", file=sys.stderr, flush=True)
 except Exception as e:
     error_msg = str(e)
     error_trace = traceback.format_exc()
