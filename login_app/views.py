@@ -201,6 +201,7 @@ LLM Diet Planner Team
             )
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class VerifyEmailView(APIView):
     """
     API endpoint for email verification.
