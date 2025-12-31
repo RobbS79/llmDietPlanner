@@ -2,6 +2,10 @@
 set -e
 
 echo "=== Starting application ==="
+
+echo "Creating migrations for diet_planner app..."
+python manage.py makemigrations diet_planner --noinput || echo "Note: makemigrations may have failed or no changes needed"
+
 echo "Running database migrations..."
 python manage.py migrate --noinput || echo "Migration failed, continuing..."
 
