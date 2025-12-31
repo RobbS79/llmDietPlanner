@@ -64,21 +64,137 @@ EMAIL_HOST_PASSWORD=your-mailgun-password
 DEFAULT_FROM_EMAIL=noreply@yourdomain.com
 ```
 
-### Option 3: Gmail SMTP (For Testing/Development)
+### Option 3: Google Workspace SMTP (Recommended for Quick Setup)
 
-⚠️ **Not recommended for production** - use a proper email service instead.
+Google Workspace allows you to use your business email for sending verification emails.
+
+#### Step 1: Enable App Passwords in Google Workspace
+
+1. **For Individual Users (if you have admin access)**:
+   - Go to https://myaccount.google.com/security
+   - Enable 2-Step Verification (required for App Passwords)
+   - Go to https://myaccount.google.com/apppasswords
+   - Generate an App Password for "Mail"
+   - Copy the 16-character password (you'll use this in Django)
+
+2. **For Google Workspace Admin (if managing organization)**:
+   - Go to https://admin.google.com
+   - Navigate to **Security** → **Access and data control** → **API controls**
+   - Ensure "Less secure app access" is enabled (if using basic auth)
+   - OR configure OAuth2 for more secure access (see OAuth2 section below)
+
+#### Step 2: Configure Django Environment Variables
+
+Add to your `.env` file:
 
 ```env
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-specific-password
-DEFAULT_FROM_EMAIL=your-email@gmail.com
+EMAIL_HOST_USER=your-email@yourdomain.com
+EMAIL_HOST_PASSWORD=your-16-character-app-password
+DEFAULT_FROM_EMAIL=your-email@yourdomain.com
 ```
 
-**Note**: You'll need to enable "App Passwords" in your Google Account settings.
+**Important Notes**:
+- Use your **full Google Workspace email** (e.g., `noreply@yourdomain.com`)
+- Use the **16-character App Password**, NOT your regular password
+- App Passwords are required if 2-Step Verification is enabled
+- If 2-Step Verification is disabled, you may need to enable "Less secure app access" (not recommended)
+
+#### Step 3: Test the Configuration
+
+```bash
+python manage.py shell
+```
+
+```python
+from django.core.mail import send_mail
+from django.conf import settings
+
+send_mail(
+    subject='Test Email from Django',
+    message='This is a test email from your Django application.',
+    from_email=settings.DEFAULT_FROM_EMAIL,
+    recipient_list=['test@example.com'],
+    fail_silently=False,
+)
+```
+
+#### Troubleshooting Google Workspace
+
+- **"Username and Password not accepted"**: 
+  - Verify you're using App Password, not regular password
+  - Check that 2-Step Verification is enabled
+  - Ensure App Password was generated correctly
+
+- **"Less secure app access" error**:
+  - Enable 2-Step Verification and use App Passwords instead
+  - OR enable "Less secure app access" in Google Admin Console (not recommended)
+
+- **"Access blocked"**:
+  - Check Google Admin Console for security policies
+  - Verify the account isn't restricted by admin policies
+  - May need to whitelist your server IP in Google Admin Console
+
+### Option 3b: Google Workspace OAuth2 (More Secure, Advanced)
+
+For production environments, OAuth2 is more secure than App Passwords.
+
+#### Prerequisites:
+1. Google Cloud Project with Gmail API enabled
+2. OAuth2 credentials (Client ID and Client Secret)
+3. Refresh token for your service account
+
+#### Setup Steps:
+
+1. **Create Google Cloud Project**:
+   - Go to https://console.cloud.google.com
+   - Create a new project or select existing
+   - Enable "Gmail API"
+
+2. **Create OAuth2 Credentials**:
+   - Go to **APIs & Services** → **Credentials**
+   - Create **OAuth 2.0 Client ID**
+   - Choose "Desktop app" or "Web application"
+   - Download credentials JSON
+
+3. **Generate Refresh Token**:
+   ```bash
+   pip install google-auth google-auth-oauthlib google-auth-httplib2
+   ```
+   
+   Run this script to get refresh token:
+   ```python
+   from google_auth_oauthlib.flow import InstalledAppFlow
+   from google.auth.transport.requests import Request
+   import pickle
+   
+   SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+   
+   flow = InstalledAppFlow.from_client_secrets_file(
+       'credentials.json', SCOPES)
+   creds = flow.run_local_server(port=0)
+   
+   print(f"Refresh Token: {creds.refresh_token}")
+   ```
+
+4. **Install Django Gmail Backend**:
+   ```bash
+   pip install django-gmailapi-backend
+   ```
+
+5. **Configure Django**:
+   ```env
+   EMAIL_BACKEND=gmailapi_backend.mail.GmailBackend
+   GMAIL_API_CLIENT_ID=your-client-id
+   GMAIL_API_CLIENT_SECRET=your-client-secret
+   GMAIL_API_REFRESH_TOKEN=your-refresh-token
+   DEFAULT_FROM_EMAIL=your-email@yourdomain.com
+   ```
+
+**Note**: OAuth2 setup is more complex but provides better security for production.
 
 ### Option 4: AWS SES (Amazon Simple Email Service)
 
