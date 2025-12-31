@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
@@ -14,6 +15,7 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from typing import Dict, Any
+import sys
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from .schemas import RegistrationRequest, LoginRequest, EmailVerificationRequest
@@ -28,6 +30,8 @@ class RegistrationView(APIView):
     Creates an inactive user and sends email verification.
     """
     permission_classes = [AllowAny]
+    # Exclude SessionAuthentication to avoid CSRF requirement
+    authentication_classes = []
     
     def post(self, request) -> Response:
         """
@@ -53,6 +57,11 @@ class RegistrationView(APIView):
             "error": null
         }
         """
+        # #region agent log
+        print(f"[DEBUG CSRF] RegistrationView.post: Request received", file=sys.stderr, flush=True)
+        print(f"[DEBUG CSRF] RegistrationView.post: Request META: {dict(request.META)}", file=sys.stderr, flush=True)
+        # #endregion
+        
         try:
             # Validate request using Pydantic schema
             schema = RegistrationRequest(**request.data)
@@ -208,6 +217,8 @@ class VerifyEmailView(APIView):
     Activates user account when token is valid.
     """
     permission_classes = [AllowAny]
+    # Exclude SessionAuthentication to avoid CSRF requirement
+    authentication_classes = []
     
     def get(self, request) -> Response:
         """
@@ -313,6 +324,8 @@ class LoginView(APIView):
     Returns JWT access and refresh tokens upon successful authentication.
     """
     permission_classes = [AllowAny]
+    # Exclude SessionAuthentication to avoid CSRF requirement
+    authentication_classes = []
     
     def post(self, request) -> Response:
         """
