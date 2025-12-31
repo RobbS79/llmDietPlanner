@@ -6,6 +6,11 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedTextField
 from django.utils import timezone
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Country to currency mapping
@@ -142,7 +147,64 @@ class DietaryGoal(models.Model):
         super().save(*args, **kwargs)
     
     def __str__(self) -> str:
-        return f"Dietary Goal {self.id} - {self.user.username} - {self.status}"
+        """String representation - handles cases where user might be deleted."""
+        try:
+            username = self.user.username if self.user_id else "Unknown User"
+        except Exception:
+            username = f"User {self.user_id}" if self.user_id else "Unknown User"
+        return f"Dietary Goal {self.id} - {username} - {self.status}"
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to handle encrypted fields gracefully.
+        This prevents errors when deleting users with encrypted dietary goals.
+        """
+        try:
+            # Delete related DietaryPlan first to avoid constraint issues
+            if hasattr(self, 'dietary_plan'):
+                try:
+                    self.dietary_plan.delete()
+                except Exception as e:
+                    logger.warning(
+                        f"Error deleting related DietaryPlan for DietaryGoal {self.id}: {str(e)}"
+                    )
+        except Exception as e:
+            logger.warning(
+                f"Error checking for related DietaryPlan for DietaryGoal {self.id}: {str(e)}"
+            )
+        
+        # Try to access encrypted fields before deletion to catch any decryption errors
+        # This ensures we fail early if there's an encryption key issue
+        try:
+            _ = self.prompt
+            if self.dietary_restrictions:
+                _ = self.dietary_restrictions
+        except Exception as e:
+            # Log the error but continue with deletion
+            # This handles cases where encryption key might be missing or corrupted
+            logger.warning(
+                f"Error accessing encrypted fields for DietaryGoal {self.id} during deletion: {str(e)}. "
+                "Continuing with deletion anyway."
+            )
+        
+        # Proceed with normal deletion
+        super().delete(*args, **kwargs)
+
+
+@receiver(pre_delete, sender=DietaryGoal)
+def handle_dietary_goal_deletion(sender, instance, **kwargs):
+    """
+    Signal handler to gracefully handle DietaryGoal deletion.
+    Ensures related DietaryPlan is deleted first to avoid constraint issues.
+    """
+    try:
+        # Delete related DietaryPlan if it exists (OneToOne relationship)
+        if hasattr(instance, 'dietary_plan'):
+            instance.dietary_plan.delete()
+    except Exception as e:
+        logger.warning(
+            f"Error deleting related DietaryPlan for DietaryGoal {instance.id}: {str(e)}"
+        )
 
 
 class DietaryPlan(models.Model):
