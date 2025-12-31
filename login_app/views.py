@@ -11,6 +11,8 @@ from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.conf import settings
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from typing import Dict, Any
 
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -19,6 +21,7 @@ from .utils import generate_email_verification_token, verify_email_token
 from .tasks import send_verification_email_task
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class RegistrationView(APIView):
     """
     API endpoint for user registration.
@@ -302,6 +305,7 @@ class VerifyEmailView(APIView):
             )
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     """
     API endpoint for user login.
