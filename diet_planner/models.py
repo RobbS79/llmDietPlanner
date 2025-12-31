@@ -19,6 +19,7 @@ DEBUG_LOG_PATH = Path(__file__).parent.parent.parent / '.cursor' / 'debug.log'
 
 def _debug_log(hypothesis_id, location, message, data=None):
     """Write debug log entry to both file and Django logger."""
+    import sys
     try:
         log_entry = {
             "sessionId": "debug-session",
@@ -35,8 +36,11 @@ def _debug_log(hypothesis_id, location, message, data=None):
                 f.write(json.dumps(log_entry) + '\n')
         except Exception:
             pass
-        # Also log to Django logger (for DigitalOcean logs)
-        logger.info(f"[DEBUG {hypothesis_id}] {location}: {message} | Data: {json.dumps(data or {})}")
+        # Log to Django logger at ERROR level (always visible)
+        log_msg = f"[DEBUG {hypothesis_id}] {location}: {message} | Data: {json.dumps(data or {})}"
+        logger.error(log_msg)  # Use ERROR level so it's always visible
+        # Also print to stderr (captured by Gunicorn/DigitalOcean)
+        print(f"[DEBUG {hypothesis_id}] {location}: {message} | Data: {json.dumps(data or {})}", file=sys.stderr, flush=True)
     except Exception:
         pass  # Don't break execution if logging fails
 

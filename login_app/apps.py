@@ -10,4 +10,8 @@ class LoginAppConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'login_app'
     verbose_name = 'Login App'
+    
+    def ready(self):
+        """Import admin when app is ready."""
+        import login_app.admin  # noqa: F401
 

@@ -2,13 +2,18 @@
 Admin configuration for login_app.
 Custom User admin to handle deletion gracefully.
 """
+import sys
+import json
+import traceback
+from pathlib import Path
+
+# Log that this module is being loaded
+print("[DEBUG STARTUP] login_app/admin.py: Module is being imported", file=sys.stderr, flush=True)
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.contrib import messages
-import json
-import traceback
-from pathlib import Path
 
 DEBUG_LOG_PATH = Path(__file__).parent.parent / '.cursor' / 'debug.log'
 
@@ -16,6 +21,7 @@ DEBUG_LOG_PATH = Path(__file__).parent.parent / '.cursor' / 'debug.log'
 def _debug_log(hypothesis_id, location, message, data=None):
     """Write debug log entry to both file and Django logger."""
     import logging
+    import sys
     logger = logging.getLogger(__name__)
     try:
         log_entry = {
@@ -33,19 +39,34 @@ def _debug_log(hypothesis_id, location, message, data=None):
                 f.write(json.dumps(log_entry) + '\n')
         except Exception:
             pass
-        # Also log to Django logger (for DigitalOcean logs)
-        logger.info(f"[DEBUG {hypothesis_id}] {location}: {message} | Data: {json.dumps(data or {})}")
+        # Log to Django logger at ERROR level (always visible)
+        log_msg = f"[DEBUG {hypothesis_id}] {location}: {message} | Data: {json.dumps(data or {})}"
+        logger.error(log_msg)  # Use ERROR level so it's always visible
+        # Also print to stderr (captured by Gunicorn/DigitalOcean)
+        print(f"[DEBUG {hypothesis_id}] {location}: {message} | Data: {json.dumps(data or {})}", file=sys.stderr, flush=True)
     except Exception:
         pass  # Don't break execution if logging fails
 
 
 # Unregister default User admin and register custom one
-admin.site.unregister(User)
+try:
+    admin.site.unregister(User)
+    print("[DEBUG STARTUP] login_app/admin.py: Unregistered default User admin", file=sys.stderr, flush=True)
+    _debug_log("STARTUP", "login_app/admin.py", "Unregistered default User admin")
+except Exception as e:
+    print(f"[DEBUG STARTUP] login_app/admin.py: Error unregistering User admin: {str(e)}", file=sys.stderr, flush=True)
+    _debug_log("STARTUP", "login_app/admin.py", f"Error unregistering User admin (may not be registered): {str(e)}")
 
-
-@admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    """Custom User admin with improved deletion handling."""
+try:
+    @admin.register(User)
+    class UserAdmin(BaseUserAdmin):
+        """Custom User admin with improved deletion handling."""
+        
+        def __init__(self, *args, **kwargs):
+            """Log when admin is initialized."""
+            super().__init__(*args, **kwargs)
+            print("[DEBUG STARTUP] login_app/admin.py: Custom UserAdmin initialized", file=sys.stderr, flush=True)
+            _debug_log("STARTUP", "login_app/admin.py:UserAdmin.__init__", "Custom UserAdmin registered successfully")
     
     def delete_model(self, request, obj):
         """Override delete to handle errors gracefully."""
@@ -129,3 +150,9 @@ class UserAdmin(BaseUserAdmin):
         
         if errors:
             messages.error(request, f"Errors deleting some users: {'; '.join(errors)}")
+except Exception as e:
+    # If admin registration fails, log it but don't break the app
+    error_msg = str(e)
+    error_trace = traceback.format_exc()
+    print(f"[DEBUG STARTUP ERROR] login_app/admin.py: Failed to register UserAdmin: {error_msg}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
