@@ -9,8 +9,30 @@ from django.utils import timezone
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 import logging
+import json
+import traceback
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+DEBUG_LOG_PATH = Path(__file__).parent.parent.parent / '.cursor' / 'debug.log'
+
+
+def _debug_log(hypothesis_id, location, message, data=None):
+    """Write debug log entry."""
+    try:
+        log_entry = {
+            "sessionId": "debug-session",
+            "runId": "run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data or {},
+            "timestamp": __import__('time').time() * 1000
+        }
+        with open(DEBUG_LOG_PATH, 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+    except Exception:
+        pass  # Don't break execution if logging fails
 
 
 # Country to currency mapping
@@ -159,36 +181,119 @@ class DietaryGoal(models.Model):
         Override delete to handle encrypted fields gracefully.
         This prevents errors when deleting users with encrypted dietary goals.
         """
+        # #region agent log
+        _debug_log("B", "models.py:DietaryGoal.delete", "Delete method entry", {
+            "goal_id": self.id,
+            "user_id": self.user_id
+        })
+        # #endregion
+        
         try:
+            # #region agent log
+            _debug_log("B", "models.py:DietaryGoal.delete", "Checking for related DietaryPlan")
+            # #endregion
+            
             # Delete related DietaryPlan first to avoid constraint issues
             if hasattr(self, 'dietary_plan'):
+                # #region agent log
+                _debug_log("B", "models.py:DietaryGoal.delete", "DietaryPlan exists, deleting it")
+                # #endregion
+                
                 try:
                     self.dietary_plan.delete()
+                    # #region agent log
+                    _debug_log("B", "models.py:DietaryGoal.delete", "DietaryPlan deleted successfully")
+                    # #endregion
                 except Exception as e:
+                    error_msg = str(e)
+                    error_trace = traceback.format_exc()
+                    
+                    # #region agent log
+                    _debug_log("B", "models.py:DietaryGoal.delete", "Error deleting DietaryPlan", {
+                        "error": error_msg,
+                        "traceback": error_trace
+                    })
+                    # #endregion
+                    
                     logger.warning(
-                        f"Error deleting related DietaryPlan for DietaryGoal {self.id}: {str(e)}"
+                        f"Error deleting related DietaryPlan for DietaryGoal {self.id}: {error_msg}"
                     )
+            else:
+                # #region agent log
+                _debug_log("B", "models.py:DietaryGoal.delete", "No DietaryPlan to delete")
+                # #endregion
         except Exception as e:
+            error_msg = str(e)
+            error_trace = traceback.format_exc()
+            
+            # #region agent log
+            _debug_log("B", "models.py:DietaryGoal.delete", "Error checking for DietaryPlan", {
+                "error": error_msg,
+                "traceback": error_trace
+            })
+            # #endregion
+            
             logger.warning(
-                f"Error checking for related DietaryPlan for DietaryGoal {self.id}: {str(e)}"
+                f"Error checking for related DietaryPlan for DietaryGoal {self.id}: {error_msg}"
             )
         
         # Try to access encrypted fields before deletion to catch any decryption errors
         # This ensures we fail early if there's an encryption key issue
+        # #region agent log
+        _debug_log("C", "models.py:DietaryGoal.delete", "Before accessing encrypted fields")
+        # #endregion
+        
         try:
             _ = self.prompt
+            # #region agent log
+            _debug_log("C", "models.py:DietaryGoal.delete", "Successfully accessed prompt field")
+            # #endregion
+            
             if self.dietary_restrictions:
                 _ = self.dietary_restrictions
+                # #region agent log
+                _debug_log("C", "models.py:DietaryGoal.delete", "Successfully accessed dietary_restrictions field")
+                # #endregion
         except Exception as e:
+            error_msg = str(e)
+            error_trace = traceback.format_exc()
+            
+            # #region agent log
+            _debug_log("C", "models.py:DietaryGoal.delete", "Error accessing encrypted fields", {
+                "error": error_msg,
+                "traceback": error_trace
+            })
+            # #endregion
+            
             # Log the error but continue with deletion
             # This handles cases where encryption key might be missing or corrupted
             logger.warning(
-                f"Error accessing encrypted fields for DietaryGoal {self.id} during deletion: {str(e)}. "
+                f"Error accessing encrypted fields for DietaryGoal {self.id} during deletion: {error_msg}. "
                 "Continuing with deletion anyway."
             )
         
+        # #region agent log
+        _debug_log("B", "models.py:DietaryGoal.delete", "Before calling super().delete()")
+        # #endregion
+        
         # Proceed with normal deletion
-        super().delete(*args, **kwargs)
+        try:
+            super().delete(*args, **kwargs)
+            # #region agent log
+            _debug_log("B", "models.py:DietaryGoal.delete", "super().delete() completed successfully")
+            # #endregion
+        except Exception as e:
+            error_msg = str(e)
+            error_trace = traceback.format_exc()
+            
+            # #region agent log
+            _debug_log("B", "models.py:DietaryGoal.delete", "Error in super().delete()", {
+                "error": error_msg,
+                "traceback": error_trace
+            })
+            # #endregion
+            
+            raise  # Re-raise to see the actual error
 
 
 @receiver(pre_delete, sender=DietaryGoal)
