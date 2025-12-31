@@ -1,6 +1,8 @@
 """
 Admin interface for diet_planner models.
 """
+import sys
+import traceback
 from django.contrib import admin
 from django.contrib import messages
 from django.http import HttpResponseRedirect
@@ -8,11 +10,25 @@ from django.urls import reverse
 from django.core.exceptions import PermissionDenied
 from .models import DietaryGoal, DietaryPlan
 
+# Log that admin module is being loaded
+print("[DEBUG STARTUP] diet_planner/admin.py: Module is being imported", file=sys.stderr, flush=True)
 
-@admin.register(DietaryGoal)
-class DietaryGoalAdmin(admin.ModelAdmin):
-    """Admin interface for DietaryGoal model."""
-    list_display = [
+try:
+    print("[DEBUG STARTUP] diet_planner/admin.py: Attempting to import models", file=sys.stderr, flush=True)
+    # Models are already imported above, but let's verify
+    print(f"[DEBUG STARTUP] diet_planner/admin.py: DietaryGoal = {DietaryGoal}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP] diet_planner/admin.py: DietaryPlan = {DietaryPlan}", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"[DEBUG STARTUP ERROR] diet_planner/admin.py: Error importing models: {str(e)}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP ERROR] Traceback: {traceback.format_exc()}", file=sys.stderr, flush=True)
+
+
+try:
+    @admin.register(DietaryGoal)
+    class DietaryGoalAdmin(admin.ModelAdmin):
+        """Admin interface for DietaryGoal model."""
+        print("[DEBUG STARTUP] diet_planner/admin.py: Registering DietaryGoalAdmin", file=sys.stderr, flush=True)
+        list_display = [
         'id',
         'user',
         'status',
@@ -103,10 +119,19 @@ class DietaryGoalAdmin(admin.ModelAdmin):
             'fields': ('created_at', 'updated_at')
         }),
     )
+    print("[DEBUG STARTUP] diet_planner/admin.py: DietaryGoalAdmin registered successfully", file=sys.stderr, flush=True)
+except Exception as e:
+    error_msg = str(e)
+    error_trace = traceback.format_exc()
+    print(f"[DEBUG STARTUP ERROR] diet_planner/admin.py: Failed to register DietaryGoalAdmin: {error_msg}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+    raise  # Re-raise to prevent silent failures
 
 
-@admin.register(DietaryPlan)
-class DietaryPlanAdmin(admin.ModelAdmin):
+try:
+    @admin.register(DietaryPlan)
+    class DietaryPlanAdmin(admin.ModelAdmin):
+        print("[DEBUG STARTUP] diet_planner/admin.py: Registering DietaryPlanAdmin", file=sys.stderr, flush=True)
     """Admin interface for DietaryPlan model."""
     list_display = [
         'id',
