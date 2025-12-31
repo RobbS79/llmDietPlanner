@@ -1,7 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './App.css';
+import { DietaryGoalForm } from './features/diet-planner/components/DietaryGoalForm';
 
 function App() {
+  const [showForm, setShowForm] = useState(false);
+  const [createdGoal, setCreatedGoal] = useState(null);
+
+  const handleGetStarted = () => {
+    setShowForm(true);
+  };
+
+  const handleFormSuccess = (goalData) => {
+    setCreatedGoal(goalData);
+    // Optionally scroll to show success message
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToHome = () => {
+    setShowForm(false);
+    setCreatedGoal(null);
+  };
+
+  if (showForm) {
+    return (
+      <div className="App">
+        <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
+          <button
+            onClick={handleBackToHome}
+            className="btn btn-secondary"
+            style={{ marginBottom: '2rem' }}
+          >
+            ← Back to Home
+          </button>
+          <DietaryGoalForm onSuccess={handleFormSuccess} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <header className="App-header">
@@ -13,7 +49,9 @@ function App() {
             Get tailored meal recommendations based on your goals, preferences, and lifestyle.
           </p>
           <div className="App-actions">
-            <button className="btn btn-primary">Get Started</button>
+            <button className="btn btn-primary" onClick={handleGetStarted}>
+              Get Started
+            </button>
             <button className="btn btn-secondary">Learn More</button>
           </div>
         </div>

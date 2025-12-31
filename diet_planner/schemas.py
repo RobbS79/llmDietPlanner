@@ -8,12 +8,16 @@ from datetime import datetime
 from enum import Enum
 
 
-class CurrencyEnum(str, Enum):
-    """Supported CEE currencies."""
-    PLN = "PLN"
-    CZK = "CZK"
-    HUF = "HUF"
-    EUR = "EUR"
+class CountryEnum(str, Enum):
+    """Supported countries."""
+    DE = "DE"  # Germany
+    PL = "PL"  # Poland
+    CZ = "CZ"  # Czech Republic
+    SK = "SK"  # Slovakia
+    HU = "HU"  # Hungary
+    RO = "RO"  # Romania
+    BG = "BG"  # Bulgaria
+    AT = "AT"  # Austria
 
 
 class DietaryGoalCreateRequest(BaseModel):
@@ -29,9 +33,15 @@ class DietaryGoalCreateRequest(BaseModel):
         max_length=2000,
         description="Optional dietary restrictions or allergies"
     )
-    currency: CurrencyEnum = Field(
-        default=CurrencyEnum.PLN,
-        description="Currency for price calculations"
+    country: CountryEnum = Field(
+        ...,
+        description="Country code where user wants to buy ingredients"
+    )
+    city: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="City where user wants to buy ingredients"
     )
     language_code: str = Field(
         default="pl",
@@ -76,6 +86,8 @@ class DietaryGoalResponse(BaseModel):
     """Response schema for a dietary goal."""
     id: int
     status: str
+    country: str
+    city: str
     currency: str
     language_code: str
     created_at: datetime

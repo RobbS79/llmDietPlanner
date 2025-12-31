@@ -55,6 +55,11 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         {goal.dietary_restrictions or 'None specified'}
         </dietary_restrictions>
         
+        <location>
+            <country>{goal.country}</country>
+            <city>{goal.city}</city>
+        </location>
+        
         <currency>
         {goal.currency}
         </currency>

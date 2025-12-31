@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from typing import Dict, Any
 
-from .models import DietaryGoal, DietaryPlan
+from .models import DietaryGoal, DietaryPlan, get_currency_for_country
 from .serializers import DietaryGoalSerializer, DietaryGoalDetailSerializer
 from .schemas import DietaryGoalCreateRequest, DietaryGoalCreateResponse
 from .tasks import process_dietary_goal_task
@@ -31,7 +31,8 @@ class DietaryGoalCreateView(APIView):
         {
             "prompt": "I want to lose 5kg in 2 months...",
             "dietary_restrictions": "No gluten, lactose intolerant",
-            "currency": "PLN",
+            "country": "PL",
+            "city": "Warsaw",
             "language_code": "pl"
         }
         
@@ -50,12 +51,17 @@ class DietaryGoalCreateView(APIView):
             # Validate request using Pydantic schema
             schema = DietaryGoalCreateRequest(**request.data)
             
+            # Auto-determine currency from country
+            currency = get_currency_for_country(schema.country.value)
+            
             # Create dietary goal
             dietary_goal = DietaryGoal.objects.create(
                 user=request.user,
                 prompt=schema.prompt,
                 dietary_restrictions=schema.dietary_restrictions,
-                currency=schema.currency.value,
+                country=schema.country.value,
+                city=schema.city,
+                currency=currency,
                 language_code=schema.language_code,
                 status=DietaryGoal.StatusChoices.PENDING
             )

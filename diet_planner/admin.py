@@ -12,6 +12,8 @@ class DietaryGoalAdmin(admin.ModelAdmin):
         'id',
         'user',
         'status',
+        'country',
+        'city',
         'currency',
         'language_code',
         'created_at',
@@ -19,6 +21,7 @@ class DietaryGoalAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         'status',
+        'country',
         'currency',
         'language_code',
         'created_at',
@@ -45,8 +48,9 @@ class DietaryGoalAdmin(admin.ModelAdmin):
         ('Status & Processing', {
             'fields': ('status', 'celery_task_id', 'completed_at')
         }),
-        ('Localization', {
-            'fields': ('currency', 'language_code')
+        ('Location', {
+            'fields': ('country', 'city', 'currency', 'language_code'),
+            'description': 'Currency is auto-determined from country'
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at')

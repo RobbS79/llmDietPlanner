@@ -8,6 +8,24 @@ from encrypted_model_fields.fields import EncryptedCharField, EncryptedTextField
 from django.utils import timezone
 
 
+# Country to currency mapping
+COUNTRY_CURRENCY_MAP = {
+    'DE': 'EUR',  # Germany
+    'AT': 'EUR',  # Austria
+    'PL': 'PLN',  # Poland
+    'CZ': 'CZK',  # Czech Republic
+    'SK': 'EUR',  # Slovakia
+    'HU': 'HUF',  # Hungary
+    'RO': 'RON',  # Romania
+    'BG': 'BGN',  # Bulgaria
+}
+
+
+def get_currency_for_country(country_code: str) -> str:
+    """Get currency code for a given country code."""
+    return COUNTRY_CURRENCY_MAP.get(country_code, 'EUR')
+
+
 class DietaryGoal(models.Model):
     """
     Stores user dietary goals with encrypted PII data.
@@ -45,7 +63,25 @@ class DietaryGoal(models.Model):
         help_text="Processing status of the dietary goal"
     )
     
-    # Localization support
+    # Location support (country/city determine currency automatically)
+    country = models.CharField(
+        max_length=2,
+        choices=[
+            ('DE', 'Germany'),
+            ('PL', 'Poland'),
+            ('CZ', 'Czech Republic'),
+            ('SK', 'Slovakia'),
+            ('HU', 'Hungary'),
+            ('RO', 'Romania'),
+            ('BG', 'Bulgaria'),
+            ('AT', 'Austria'),
+        ],
+        help_text="Country where user wants to buy ingredients"
+    )
+    city = models.CharField(
+        max_length=100,
+        help_text="City where user wants to buy ingredients"
+    )
     currency = models.CharField(
         max_length=3,
         default='PLN',
@@ -54,8 +90,10 @@ class DietaryGoal(models.Model):
             ('CZK', 'Czech Koruna'),
             ('HUF', 'Hungarian Forint'),
             ('EUR', 'Euro'),
+            ('RON', 'Romanian Leu'),
+            ('BGN', 'Bulgarian Lev'),
         ],
-        help_text="Currency for price calculations"
+        help_text="Currency for price calculations (auto-determined from country)"
     )
     language_code = models.CharField(
         max_length=5,
@@ -91,7 +129,17 @@ class DietaryGoal(models.Model):
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['status']),
+            models.Index(fields=['country']),
         ]
+    
+    def save(self, *args, **kwargs):
+        """Auto-set currency based on country before saving."""
+        if self.country and not self.currency:
+            self.currency = get_currency_for_country(self.country)
+        elif self.country:
+            # Always update currency to match country
+            self.currency = get_currency_for_country(self.country)
+        super().save(*args, **kwargs)
     
     def __str__(self) -> str:
         return f"Dietary Goal {self.id} - {self.user.username} - {self.status}"
