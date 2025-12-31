@@ -1,13 +1,67 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import LoginForm from './components/LoginForm';
+import RegistrationForm from './components/RegistrationForm';
 import './App.css';
 
-function App() {
+/**
+ * Main App Content - shows different views based on auth state
+ */
+const AppContent = () => {
+  const { isAuthenticated, user, logout, loading } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="App">
+        <div className="container" style={{ textAlign: 'center', padding: '4rem' }}>
+          <p style={{ color: 'white' }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show authentication forms if not logged in
+  if (!isAuthenticated) {
+    return (
+      <div className="App">
+        <div className="auth-page">
+          <div className="auth-header">
+            <h1 className="App-title">LLM Diet Planner</h1>
+            <p className="App-subtitle">AI-Powered Nutrition Planning</p>
+          </div>
+          {showRegister ? (
+            <RegistrationForm
+              onSwitchToLogin={() => setShowRegister(false)}
+              onSuccess={() => setShowRegister(false)}
+            />
+          ) : (
+            <LoginForm
+              onSwitchToRegister={() => setShowRegister(true)}
+              onSuccess={() => {
+                // Login successful, will be handled by auth context
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show main app content when authenticated
   return (
     <div className="App">
       <header className="App-header">
         <div className="container">
-          <h1 className="App-title">LLM Diet Planner</h1>
-          <p className="App-subtitle">AI-Powered Nutrition Planning</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1 className="App-title">LLM Diet Planner</h1>
+              <p className="App-subtitle">Welcome back, {user?.username}!</p>
+            </div>
+            <button className="btn btn-secondary" onClick={logout}>
+              Logout
+            </button>
+          </div>
           <p className="App-description">
             Create personalised diet plans with the power of artificial intelligence.
             Get tailored meal recommendations based on your goals, preferences, and lifestyle.
@@ -41,7 +95,17 @@ function App() {
       </main>
     </div>
   );
+};
+
+/**
+ * Main App Component with Auth Provider
+ */
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }
 
 export default App;
-
