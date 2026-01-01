@@ -223,15 +223,20 @@ LLM Diet Planner Team
                 "message": "Registration successful. Please check your email to verify your account."
             }
             
-            # If email couldn't be sent, still return success but log the issue
-            # Admin can manually verify or fix email configuration
+            # If email couldn't be sent, log the issue but still return success
+            # Include warning in response so frontend can inform user
             if not email_sent:
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(
                     f"User {user.username} ({user.email}) registered but verification email could not be sent. "
-                    f"Manual verification may be required."
+                    f"Please check email configuration and Celery/Redis status."
                 )
+                # Add warning to response data
+                response_data['email_sent'] = False
+                response_data['warning'] = "Registration successful, but verification email could not be sent. Please contact support."
+            else:
+                response_data['email_sent'] = True
             
             return Response(
                 {
@@ -501,6 +506,95 @@ class LoginView(APIView):
                     "status": "error",
                     "data": None,
                     "error": f"An error occurred during login: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TestEmailView(APIView):
+    """
+    Test endpoint for email configuration.
+    Only available in DEBUG mode or for superusers.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    
+    def post(self, request) -> Response:
+        """
+        Test email sending configuration.
+        
+        Request body (optional):
+        {
+            "to_email": "test@example.com"  # Defaults to DEFAULT_FROM_EMAIL if not provided
+        }
+        """
+        from django.core.mail import send_mail
+        from django.conf import settings
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        to_email = request.data.get('to_email', settings.DEFAULT_FROM_EMAIL)
+        
+        # #region agent log
+        print(f"[DEBUG EMAIL TEST] TestEmailView: Testing email to {to_email}", file=sys.stderr, flush=True)
+        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_BACKEND: {settings.EMAIL_BACKEND}", file=sys.stderr, flush=True)
+        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_HOST: {settings.EMAIL_HOST}", file=sys.stderr, flush=True)
+        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}", file=sys.stderr, flush=True)
+        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_HOST_PASSWORD: {'***' if settings.EMAIL_HOST_PASSWORD else '(not set)'}", file=sys.stderr, flush=True)
+        print(f"[DEBUG EMAIL TEST] TestEmailView: DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}", file=sys.stderr, flush=True)
+        # #endregion
+        
+        try:
+            send_mail(
+                subject='Test Email from LLM Diet Planner',
+                message='This is a test email. If you receive this, email configuration is working correctly!',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[to_email],
+                fail_silently=False,
+            )
+            
+            # #region agent log
+            print(f"[DEBUG EMAIL TEST] TestEmailView: Email sent successfully", file=sys.stderr, flush=True)
+            # #endregion
+            
+            logger.info(f"Test email sent successfully to {to_email}")
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": {
+                        "message": f"Test email sent successfully to {to_email}",
+                        "email_backend": settings.EMAIL_BACKEND,
+                        "email_host": settings.EMAIL_HOST,
+                        "from_email": settings.DEFAULT_FROM_EMAIL,
+                    },
+                    "error": None
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            error_msg = str(e)
+            error_trace = traceback.format_exc()
+            
+            # #region agent log
+            print(f"[DEBUG EMAIL TEST ERROR] TestEmailView: Failed to send test email: {error_msg}", file=sys.stderr, flush=True)
+            print(f"[DEBUG EMAIL TEST ERROR] TestEmailView: Traceback: {error_trace}", file=sys.stderr, flush=True)
+            # #endregion
+            
+            logger.error(f"Test email failed: {error_msg}")
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": {
+                        "email_backend": settings.EMAIL_BACKEND,
+                        "email_host": settings.EMAIL_HOST,
+                        "from_email": settings.DEFAULT_FROM_EMAIL,
+                        "email_host_user_set": bool(settings.EMAIL_HOST_USER),
+                        "email_host_password_set": bool(settings.EMAIL_HOST_PASSWORD),
+                    },
+                    "error": f"Failed to send test email: {error_msg}"
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

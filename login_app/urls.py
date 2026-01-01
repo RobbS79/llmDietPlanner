@@ -12,5 +12,6 @@ urlpatterns = [
     path('verify-email/', views.VerifyEmailView.as_view(), name='verify-email'),
     path('login/', views.LoginView.as_view(), name='login'),
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('test-email/', views.TestEmailView.as_view(), name='test-email'),
 ]
 
