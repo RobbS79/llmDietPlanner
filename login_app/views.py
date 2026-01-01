@@ -103,67 +103,17 @@ class RegistrationView(APIView):
             # Build base URL for verification link
             base_url = request.build_absolute_uri('/').rstrip('/')
             
-            # Send verification email asynchronously via Celery
-            # This ensures registration completes immediately and email is sent reliably
+            # Send verification email
+            # Try Celery first (if available), otherwise send synchronously
             import logging
             logger = logging.getLogger(__name__)
             
-            email_sent = False
             verify_path = reverse('login_app:verify-email')
             verification_url = request.build_absolute_uri(
                 f'{verify_path}?uid={uid}&token={token}'
             )
             
-            # #region agent log
-            print(f"[DEBUG EMAIL] RegistrationView: Attempting to send verification email to {user.email}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: Verification URL: {verification_url}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_BACKEND: {settings.EMAIL_BACKEND}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_HOST: {settings.EMAIL_HOST}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}", file=sys.stderr, flush=True)
-            # #endregion
-            
-            try:
-                # #region agent log
-                print(f"[DEBUG EMAIL] RegistrationView: Attempting to queue Celery task", file=sys.stderr, flush=True)
-                # #endregion
-                
-                send_verification_email_task.delay(
-                    user_id=user.id,
-                    uid=uid,
-                    token=token,
-                    base_url=base_url
-                )
-                email_sent = True
-                
-                # #region agent log
-                print(f"[DEBUG EMAIL] RegistrationView: Celery task queued successfully", file=sys.stderr, flush=True)
-                # #endregion
-                
-                logger.info(f"Verification email task queued for {user.email}")
-            except Exception as email_task_error:
-                # If Celery is not available, log warning but don't fail registration
-                # Email will need to be sent manually or Celery needs to be configured
-                error_msg = str(email_task_error)
-                error_trace = traceback.format_exc()
-                
-                # #region agent log
-                print(f"[DEBUG EMAIL ERROR] RegistrationView: Failed to queue Celery task: {error_msg}", file=sys.stderr, flush=True)
-                print(f"[DEBUG EMAIL ERROR] RegistrationView: Traceback: {error_trace}", file=sys.stderr, flush=True)
-                # #endregion
-                
-                logger.warning(
-                    f"Failed to queue verification email task for {user.email}. "
-                    f"Celery may not be running. Error: {error_msg}"
-                )
-                # Fallback: try to send synchronously (will fail if email backend not configured)
-                try:
-                    # #region agent log
-                    print(f"[DEBUG EMAIL] RegistrationView: Attempting synchronous email send as fallback", file=sys.stderr, flush=True)
-                    # #endregion
-                    
-                    send_mail(
-                        subject='Verify your email address',
-                        message=f'''
+            email_message = f'''
 Hello {user.username},
 
 Thank you for registering with LLM Diet Planner!
@@ -178,7 +128,65 @@ If you did not register for this account, please ignore this email.
 
 Best regards,
 LLM Diet Planner Team
-                        ''',
+            '''
+            
+            email_sent = False
+            
+            # #region agent log
+            print(f"[DEBUG EMAIL] RegistrationView: Attempting to send verification email to {user.email}", file=sys.stderr, flush=True)
+            print(f"[DEBUG EMAIL] RegistrationView: Verification URL: {verification_url}", file=sys.stderr, flush=True)
+            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_BACKEND: {settings.EMAIL_BACKEND}", file=sys.stderr, flush=True)
+            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_HOST: {settings.EMAIL_HOST}", file=sys.stderr, flush=True)
+            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}", file=sys.stderr, flush=True)
+            print(f"[DEBUG EMAIL] RegistrationView: DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}", file=sys.stderr, flush=True)
+            # #endregion
+            
+            # Try Celery first (if available)
+            celery_available = False
+            try:
+                # #region agent log
+                print(f"[DEBUG EMAIL] RegistrationView: Attempting to queue Celery task", file=sys.stderr, flush=True)
+                # #endregion
+                
+                send_verification_email_task.delay(
+                    user_id=user.id,
+                    uid=uid,
+                    token=token,
+                    base_url=base_url
+                )
+                celery_available = True
+                email_sent = True
+                
+                # #region agent log
+                print(f"[DEBUG EMAIL] RegistrationView: Celery task queued successfully", file=sys.stderr, flush=True)
+                # #endregion
+                
+                logger.info(f"Verification email task queued via Celery for {user.email}")
+            except Exception as celery_error:
+                # Celery is not available - fall back to synchronous sending
+                error_msg = str(celery_error)
+                error_trace = traceback.format_exc()
+                
+                # #region agent log
+                print(f"[DEBUG EMAIL] RegistrationView: Celery not available, using synchronous fallback", file=sys.stderr, flush=True)
+                print(f"[DEBUG EMAIL] RegistrationView: Celery error: {error_msg}", file=sys.stderr, flush=True)
+                # #endregion
+                
+                logger.info(
+                    f"Celery not available for {user.email}. "
+                    f"Falling back to synchronous email sending. Error: {error_msg}"
+                )
+            
+            # If Celery failed or is not available, send synchronously
+            if not email_sent:
+                try:
+                    # #region agent log
+                    print(f"[DEBUG EMAIL] RegistrationView: Attempting synchronous email send", file=sys.stderr, flush=True)
+                    # #endregion
+                    
+                    send_mail(
+                        subject='Verify your email address',
+                        message=email_message,
                         from_email=settings.DEFAULT_FROM_EMAIL,
                         recipient_list=[user.email],
                         fail_silently=False,
@@ -195,11 +203,16 @@ LLM Diet Planner Team
                     error_trace_sync = traceback.format_exc()
                     
                     # #region agent log
-                    print(f"[DEBUG EMAIL ERROR] RegistrationView: Synchronous email send failed: {error_msg_sync}", file=sys.stderr, flush=True)
+                    print(f"[DEBUG EMAIL ERROR] RegistrationView: Synchronous email send failed", file=sys.stderr, flush=True)
+                    print(f"[DEBUG EMAIL ERROR] RegistrationView: Error: {error_msg_sync}", file=sys.stderr, flush=True)
                     print(f"[DEBUG EMAIL ERROR] RegistrationView: Traceback: {error_trace_sync}", file=sys.stderr, flush=True)
                     # #endregion
                     
-                    logger.error(f"Failed to send verification email synchronously to {user.email}: {error_msg_sync}")
+                    logger.error(
+                        f"Failed to send verification email to {user.email}. "
+                        f"Error: {error_msg_sync}. "
+                        f"Please check email configuration (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)."
+                    )
                     email_sent = False
             
             # Return standardized response
