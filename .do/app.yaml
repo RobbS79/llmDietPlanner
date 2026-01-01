@@ -27,6 +27,24 @@ services:
         value: "redis://127.0.0.1:6379/0"
       - key: CELERY_RESULT_BACKEND
         value: "redis://127.0.0.1:6379/0"
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.smtp.EmailBackend"
+      - key: EMAIL_HOST
+        scope: RUN_TIME
+        type: SECRET
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        scope: RUN_TIME
+        type: SECRET
+      - key: EMAIL_HOST_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+      - key: DEFAULT_FROM_EMAIL
+        scope: RUN_TIME
+        type: SECRET
     routes:
       - path: /
     run_command: /app/start.sh
