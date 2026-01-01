@@ -4,7 +4,7 @@ services:
   - name: web
     github:
       repo: YOUR_GITHUB_USERNAME/llmDietPlanner
-      branch: main
+      branch: prod
       deploy_on_push: true
     dockerfile_path: Dockerfile.prod
     http_port: 8000
@@ -23,7 +23,46 @@ services:
         type: SECRET
       - key: ALLOWED_HOSTS
         value: "your-app-name.ondigitalocean.app"
+      - key: CELERY_BROKER_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: CELERY_RESULT_BACKEND
+        scope: RUN_TIME
+        type: SECRET
     routes:
       - path: /
     run_command: /app/start.sh
+
+  - name: celery
+    github:
+      repo: YOUR_GITHUB_USERNAME/llmDietPlanner
+      branch: prod
+      deploy_on_push: true
+    dockerfile_path: Dockerfile.prod
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: ALLOWED_HOSTS
+        value: "your-app-name.ondigitalocean.app"
+      - key: CELERY_BROKER_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: CELERY_RESULT_BACKEND
+        scope: RUN_TIME
+        type: SECRET
+    run_command: celery -A llm_diet_planner_project worker --loglevel=info
+
+databases:
+  - name: redis
+    engine: REDIS
+    production: false
+    version: "7"
 
