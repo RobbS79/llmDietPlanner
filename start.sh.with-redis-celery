@@ -12,16 +12,20 @@ python manage.py migrate --noinput || echo "Migration failed, continuing..."
 echo "Collecting static files..."
 python manage.py collectstatic --noinput || echo "Collectstatic failed, continuing..."
 
-# Start Redis server in background (for in-container Celery)
-echo "Starting Redis server..."
-redis-server --daemonize yes --port 6379 --bind 127.0.0.1 || echo "Redis already running or failed to start"
-sleep 2  # Give Redis time to start
+# Start Redis in background (using redis-server if available, or skip if not)
+if command -v redis-server &> /dev/null; then
+    echo "Starting Redis server..."
+    redis-server --daemonize yes --port 6379 --bind 127.0.0.1
+    sleep 2  # Give Redis time to start
+else
+    echo "Warning: redis-server not found. Celery will need external Redis."
+fi
 
-# Start Celery worker in background (for async email sending)
+# Start Celery worker in background
 echo "Starting Celery worker..."
-celery -A llm_diet_planner_project worker --loglevel=info --detach --logfile=/tmp/celery.log || echo "Celery worker failed to start (will use sync fallback)"
+celery -A llm_diet_planner_project worker --loglevel=info --detach --logfile=/tmp/celery.log
 
-# Start Gunicorn in foreground (main process - container stays alive)
+# Start Gunicorn in foreground (main process)
 echo "Starting Gunicorn..."
 exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 llm_diet_planner_project.wsgi:application
 
