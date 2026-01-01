@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -20,7 +20,7 @@ import traceback
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from .schemas import RegistrationRequest, LoginRequest, EmailVerificationRequest
-from .utils import generate_email_verification_token, verify_email_token
+from .utils import generate_email_verification_token, verify_email_token, get_verification_email_content
 from .tasks import send_verification_email_task
 
 
@@ -113,23 +113,6 @@ class RegistrationView(APIView):
                 f'{verify_path}?uid={uid}&token={token}'
             )
             
-            email_message = f'''
-Hello {user.username},
-
-Thank you for registering with LLM Diet Planner!
-
-Please click the following link to verify your email address and activate your account:
-
-{verification_url}
-
-This link will expire in 24 hours.
-
-If you did not register for this account, please ignore this email.
-
-Best regards,
-LLM Diet Planner Team
-            '''
-            
             email_sent = False
             
             # #region agent log
@@ -184,13 +167,18 @@ LLM Diet Planner Team
                     print(f"[DEBUG EMAIL] RegistrationView: Attempting synchronous email send", file=sys.stderr, flush=True)
                     # #endregion
                     
-                    send_mail(
-                        subject='Verify your email address',
-                        message=email_message,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[user.email],
-                        fail_silently=False,
+                    # Get email content (text and HTML)
+                    email_content = get_verification_email_content(user.username, verification_url)
+                    
+                    # Send email with both text and HTML versions
+                    msg = EmailMultiAlternatives(
+                        subject=email_content['subject'],
+                        body=email_content['text_content'],
+                        from_email=email_content['from_email'],
+                        to=[user.email]
                     )
+                    msg.attach_alternative(email_content['html_content'], "text/html")
+                    msg.send(fail_silently=False)
                     email_sent = True
                     
                     # #region agent log
@@ -529,7 +517,7 @@ class TestEmailView(APIView):
             "to_email": "test@example.com"  # Defaults to DEFAULT_FROM_EMAIL if not provided
         }
         """
-        from django.core.mail import send_mail
+        from django.core.mail import EmailMultiAlternatives
         from django.conf import settings
         import logging
         
@@ -546,13 +534,31 @@ class TestEmailView(APIView):
         # #endregion
         
         try:
-            send_mail(
+            from_email = f"LLM Diet Planner <{settings.DEFAULT_FROM_EMAIL}>"
+            text_content = 'This is a test email. If you receive this, email configuration is working correctly!'
+            html_content = f'''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
+        <h1 style="color: #2c3e50; margin-top: 0;">Email Configuration Test</h1>
+        <p>This is a test email. If you receive this, email configuration is working correctly!</p>
+        <p style="margin-top: 30px;">Best regards,<br><strong>LLM Diet Planner Team</strong></p>
+    </div>
+</body>
+</html>'''
+            
+            msg = EmailMultiAlternatives(
                 subject='Test Email from LLM Diet Planner',
-                message='This is a test email. If you receive this, email configuration is working correctly!',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[to_email],
-                fail_silently=False,
+                body=text_content,
+                from_email=from_email,
+                to=[to_email]
             )
+            msg.attach_alternative(html_content, "text/html")
+            msg.send(fail_silently=False)
             
             # #region agent log
             print(f"[DEBUG EMAIL TEST] TestEmailView: Email sent successfully", file=sys.stderr, flush=True)

@@ -3,10 +3,11 @@ Celery tasks for login_app.
 Handles async email sending for user verification.
 """
 from celery import shared_task
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth.models import User
+from .utils import get_verification_email_content
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,29 +41,18 @@ def send_verification_email_task(self, user_id: int, uid: str, token: str, base_
             except Exception:
                 verification_url = f"/api/auth/verify-email/?uid={uid}&token={token}"
         
-        # Send verification email
-        send_mail(
-            subject='Verify your email address',
-            message=f'''
-Hello {user.username},
-
-Thank you for registering with LLM Diet Planner!
-
-Please click the following link to verify your email address and activate your account:
-
-{verification_url}
-
-This link will expire in 24 hours.
-
-If you did not register for this account, please ignore this email.
-
-Best regards,
-LLM Diet Planner Team
-            ''',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,  # Raise exception if email fails so Celery can retry
+        # Get email content (text and HTML)
+        email_content = get_verification_email_content(user.username, verification_url)
+        
+        # Send email with both text and HTML versions
+        msg = EmailMultiAlternatives(
+            subject=email_content['subject'],
+            body=email_content['text_content'],
+            from_email=email_content['from_email'],
+            to=[user.email]
         )
+        msg.attach_alternative(email_content['html_content'], "text/html")
+        msg.send(fail_silently=False)  # Raise exception if email fails so Celery can retry
         
         logger.info(f"Verification email sent successfully to {user.email}")
         return True
