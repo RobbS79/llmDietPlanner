@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { CreateGoalPage } from './pages/CreateGoalPage';
 import { GoalsListPage } from './pages/GoalsListPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
+import { UserProfilePage } from './pages/UserProfilePage';
 import './App.css';
 
 /**
@@ -124,6 +125,14 @@ const AppContent = () => {
         element={
           <ProtectedRoute>
             <GoalDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <UserProfilePage />
           </ProtectedRoute>
         }
       />

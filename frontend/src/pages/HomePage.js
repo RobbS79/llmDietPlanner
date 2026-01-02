@@ -1,26 +1,23 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Navigation } from '../components/Navigation';
 
 /**
  * Home page - main landing page after login
  */
 export function HomePage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   return (
     <div className="App">
+      <Navigation />
       <header className="App-header">
         <div className="container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h1 className="App-title">LLM Diet Planner</h1>
-              <p className="App-subtitle">Welcome back, {user?.username}!</p>
-            </div>
-            <button className="btn btn-secondary" onClick={logout}>
-              Logout
-            </button>
+          <div style={{ textAlign: 'center', paddingTop: '2rem' }}>
+            <h1 className="App-title">LLM Diet Planner</h1>
+            <p className="App-subtitle">Welcome back, {user?.username}!</p>
           </div>
           <p className="App-description">
             Create personalised diet plans with the power of artificial intelligence.

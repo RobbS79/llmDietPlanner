@@ -1,27 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { DietaryGoalForm } from '../features/diet-planner/components/DietaryGoalForm';
+import { Navigation } from '../components/Navigation';
 
 /**
  * Page for creating a new dietary goal
  */
 export function CreateGoalPage() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
 
   return (
     <div className="App">
+      <Navigation />
       <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '2rem' }}>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/goals')}
             className="btn btn-secondary"
           >
-            ← Back to Home
-          </button>
-          <button className="btn btn-secondary" onClick={logout}>
-            Logout
+            ← Back to Goals
           </button>
         </div>
         <DietaryGoalForm onSuccess={(goalData) => {

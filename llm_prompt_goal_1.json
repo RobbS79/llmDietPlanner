@@ -1,0 +1,53 @@
+{
+  "task": "generate_personalised_diet_plan",
+  "user_requirements": {
+    "dietary_prompt": "gAAAAABpV_Wx9gc5VkYu_9P77VUe8sShfaURko38hkQP3SUJe4M7E4ImoNSQfWQ5rjpBejKmZjorR2XFkSQbhzQ_zd18166CkhnYPk7WseFJYykhIB6LmwPAumECWvXPtWlC_6OnEgYVmebBLkdHh_JH5eVVpG_CcVkE6HenomItP5WuhyrjWJZLeJ5A0eTa4DHjWcQErLBXaV-kn7gwM_G7tDApimRnAw==",
+    "dietary_restrictions": "gAAAAABpV_Wx4m_Z18a1xI7iW_NpwhBFu7EU7JJDVHKWVxkuYyNdRpMLsMNkozEdTvsfh_fG9lYjFdFC0vA6TJKN-aGXgp_hGA3UO6m8WQMi1V3l46wiWyLaMmSjP4Vs2_sIZyJajeZv"
+  },
+  "location": {
+    "country_code": "CZ",
+    "country_name": "Czech Republic",
+    "city": "Prague"
+  },
+  "localisation": {
+    "currency": "CZK",
+    "language_code": "cs"
+  },
+  "instructions": {
+    "output_format": "json",
+    "required_outputs": [
+      "meal_ideas",
+      "shopping_list"
+    ],
+    "meal_ideas_requirements": {
+      "include": [
+        "name",
+        "description",
+        "ingredients",
+        "preparation_time",
+        "nutritional_info"
+      ],
+      "nutritional_info_should_include": [
+        "calories",
+        "protein",
+        "carbs",
+        "fat"
+      ]
+    },
+    "shopping_list_requirements": {
+      "include": [
+        "ingredient",
+        "quantity",
+        "unit",
+        "notes"
+      ],
+      "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l)."
+    },
+    "context_notes": [
+      "Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
+      "Consider local cuisine preferences for the specified country",
+      "Prices will be calculated separately by the system - do not include prices",
+      "Focus on creating practical, achievable meal plans"
+    ]
+  }
+}

@@ -1,13 +1,12 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { useDietaryGoalsList } from '../features/diet-planner/hooks/useDietaryGoals';
+import { Navigation } from '../components/Navigation';
 
 /**
  * Page for listing all dietary goals
  */
 export function GoalsListPage() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: goalsResponse, isLoading, error } = useDietaryGoalsList();
@@ -18,21 +17,16 @@ export function GoalsListPage() {
 
   return (
     <div className="App">
+      <Navigation />
       <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ margin: 0 }}>My Dietary Goals</h1>
-          <div>
-            <button
-              onClick={() => navigate('/create-goal')}
-              className="btn btn-primary"
-              style={{ marginRight: '10px' }}
-            >
-              + Create New Goal
-            </button>
-            <button className="btn btn-secondary" onClick={logout}>
-              Logout
-            </button>
-          </div>
+          <h1 style={{ margin: 0, fontSize: '2rem', color: '#1f2937' }}>My Dietary Goals</h1>
+          <button
+            onClick={() => navigate('/create-goal')}
+            className="btn btn-primary"
+          >
+            + Create New Goal
+          </button>
         </div>
 
         {successMessage && (
