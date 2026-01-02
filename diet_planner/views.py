@@ -176,8 +176,10 @@ class DietaryGoalPromptDebugView(APIView):
     """
     Debug endpoint to view the raw JSON prompt structure for a dietary goal.
     Useful for testing and verifying the LLM prompt format.
+    
+    Note: For MVP testing, authentication is disabled. Re-enable for production.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Temporarily disabled for testing - re-enable IsAuthenticated for production
     
     def get(self, request, goal_id: int) -> Response:
         """
@@ -188,7 +190,8 @@ class DietaryGoalPromptDebugView(APIView):
         - Both as a Python dict and as a formatted JSON string
         """
         try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+            # For testing: allow access without user check. Re-enable user check for production.
+            goal = DietaryGoal.objects.get(id=goal_id)
             
             # Build the JSON prompt structure
             llm_prompt_json = build_llm_prompt_json(goal)
