@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Prompt JSON Debug</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .json-output {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .error {
+            color: #d32f2f;
+            background-color: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 LLM Prompt JSON Debug Tool</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Info:</strong> Enter a dietary goal ID to view the JSON prompt structure that will be sent to the LLM.
+        </div>
+
+        <div class="form-group">
+            <label for="goalId">Dietary Goal ID:</label>
+            <input type="number" id="goalId" value="1" min="1" placeholder="Enter goal ID">
+            <button onclick="loadPrompt()">Load JSON Prompt</button>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="output" class="json-output" style="display: none;">
+            <h3>JSON Prompt Structure:</h3>
+            <pre id="jsonContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        async function loadPrompt() {
+            const goalId = document.getElementById('goalId').value;
+            const outputDiv = document.getElementById('output');
+            const errorDiv = document.getElementById('error');
+            const jsonContent = document.getElementById('jsonContent');
+
+            // Hide previous results
+            outputDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+
+            if (!goalId) {
+                showError('Please enter a goal ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/goals/${goalId}/prompt-debug/`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data) {
+                    // Display formatted JSON
+                    jsonContent.textContent = JSON.stringify(data.data.json_object, null, 2);
+                    outputDiv.style.display = 'block';
+                } else {
+                    showError(data.error || 'Unexpected response format');
+                }
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('goalId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadPrompt();
+            }
+        });
+
+        // Load on page load if goal ID is in URL
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const goalId = urlParams.get('id');
+            if (goalId) {
+                document.getElementById('goalId').value = goalId;
+                loadPrompt();
+            }
+        });
+    </script>
+</body>
+</html>
+

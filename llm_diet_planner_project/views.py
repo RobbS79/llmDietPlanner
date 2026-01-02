@@ -3,8 +3,17 @@ Views for serving React frontend
 """
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import render
 from django.conf import settings
 import os
+
+
+def debug_prompt_view(request):
+    """
+    Debug page to view LLM JSON prompt structure.
+    Accessible at /debug-prompt/
+    """
+    return render(request, 'debug_prompt.html')
 
 
 def react_app_view(request):
@@ -21,6 +30,7 @@ def react_app_view(request):
                 <body>
                     <h1>React app not built</h1>
                     <p>Please run 'npm install && npm run build' in the frontend directory.</p>
+                    <p><a href="/debug-prompt/">Or use the Debug Tool to view JSON prompts</a></p>
                 </body>
             </html>
             """,
