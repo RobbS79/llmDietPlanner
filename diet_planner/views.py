@@ -158,8 +158,6 @@ class DietaryGoalDetailView(APIView):
         try:
             goal = DietaryGoal.objects.select_related(
                 'user'
-            ).prefetch_related(
-                'dietary_plan'
             ).get(id=goal_id, user=request.user)
             
             serializer = DietaryGoalDetailSerializer(goal)
@@ -180,6 +178,22 @@ class DietaryGoalDetailView(APIView):
                     "error": "Dietary goal not found"
                 },
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            # Log the full error for debugging
+            import logging
+            import traceback
+            logger = logging.getLogger(__name__)
+            error_trace = traceback.format_exc()
+            logger.error(f"Error retrieving dietary goal {goal_id}: {str(e)}\n{error_trace}")
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred while retrieving the goal: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 

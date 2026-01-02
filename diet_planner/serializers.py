@@ -71,7 +71,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
 
 class DietaryGoalDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer with nested dietary plan."""
-    dietary_plan = DietaryPlanSerializer(read_only=True)
+    dietary_plan = DietaryPlanSerializer(read_only=True, allow_null=True, required=False)
     user = serializers.ReadOnlyField(source='user.username')
     
     class Meta:
@@ -90,3 +90,11 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'dietary_plan',
         ]
         read_only_fields = '__all__'
+    
+    def to_representation(self, instance):
+        """Custom representation to handle missing dietary_plan gracefully."""
+        representation = super().to_representation(instance)
+        # If dietary_plan doesn't exist, set it to null instead of causing an error
+        if not hasattr(instance, 'dietary_plan') or instance.dietary_plan is None:
+            representation['dietary_plan'] = None
+        return representation
