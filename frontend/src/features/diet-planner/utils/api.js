@@ -1,6 +1,7 @@
 /**
  * API client functions for dietary goals
  */
+import { getAccessToken } from '../../../utils/api';
 
 const API_BASE_URL = '/api/goals';
 
@@ -15,12 +16,19 @@ const API_BASE_URL = '/api/goals';
  * @returns {Promise<Object>}
  */
 export async function createDietaryGoal(goalData) {
+  const token = getAccessToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken(),
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(API_BASE_URL + '/', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': getCsrfToken(),
-    },
+    headers,
     credentials: 'include',
     body: JSON.stringify(goalData),
   });
@@ -38,11 +46,18 @@ export async function createDietaryGoal(goalData) {
  * @returns {Promise<Object>}
  */
 export async function getDietaryGoalsList() {
+  const token = getAccessToken();
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(API_BASE_URL + '/list/', {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     credentials: 'include',
   });
 
@@ -60,11 +75,18 @@ export async function getDietaryGoalsList() {
  * @returns {Promise<Object>}
  */
 export async function getDietaryGoalDetail(goalId) {
+  const token = getAccessToken();
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(API_BASE_URL + `/${goalId}/`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     credentials: 'include',
   });
 

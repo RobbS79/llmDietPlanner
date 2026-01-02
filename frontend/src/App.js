@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginForm from './components/LoginForm';
 import RegistrationForm from './components/RegistrationForm';
+import { HomePage } from './pages/HomePage';
+import { CreateGoalPage } from './pages/CreateGoalPage';
+import { GoalsListPage } from './pages/GoalsListPage';
+import { GoalDetailPage } from './pages/GoalDetailPage';
 import './App.css';
-import { DietaryGoalForm } from './features/diet-planner/components/DietaryGoalForm';
 
 /**
- * Main App Content - shows different views based on auth state
+ * Protected Route Component - redirects to login if not authenticated
  */
-const AppContent = () => {
-  const { isAuthenticated, user, logout, loading } = useAuth();
-  const [showRegister, setShowRegister] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [createdGoal, setCreatedGoal] = useState(null);
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -24,128 +26,123 @@ const AppContent = () => {
     );
   }
 
-  // Show authentication forms if not logged in
   if (!isAuthenticated) {
-    return (
-      <div className="App">
-        <div className="auth-page">
-          <div className="auth-header">
-            <h1 className="App-title">LLM Diet Planner</h1>
-            <p className="App-subtitle">AI-Powered Nutrition Planning</p>
-          </div>
-          {showRegister ? (
-            <RegistrationForm
-              onSwitchToLogin={() => setShowRegister(false)}
-              onSuccess={() => setShowRegister(false)}
-            />
-          ) : (
-            <LoginForm
-              onSwitchToRegister={() => setShowRegister(true)}
-              onSuccess={() => {
-                // Login successful, will be handled by auth context
-              }}
-            />
-          )}
-        </div>
-      </div>
-    );
+    // Redirect to login with return path
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Show dietary goal form if user clicked "Get Started"
-  if (showForm) {
-    return (
-      <div className="App">
-        <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <button
-              onClick={() => setShowForm(false)}
-              className="btn btn-secondary"
-            >
-              ← Back to Home
-            </button>
-            <button className="btn btn-secondary" onClick={logout}>
-              Logout
-            </button>
-          </div>
-          <DietaryGoalForm onSuccess={(goalData) => {
-            setCreatedGoal(goalData);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }} />
-        </div>
-      </div>
-    );
+  return children;
+};
+
+/**
+ * Auth Pages Component - handles login/register
+ */
+const AuthPages = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const isRegisterPage = location.pathname === '/register';
+
+  // If already authenticated, redirect to home
+  if (isAuthenticated) {
+    const from = location.state?.from?.pathname || '/';
+    return <Navigate to={from} replace />;
   }
 
-  // Show main app content when authenticated
   return (
     <div className="App">
-      <header className="App-header">
-        <div className="container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h1 className="App-title">LLM Diet Planner</h1>
-              <p className="App-subtitle">Welcome back, {user?.username}!</p>
-            </div>
-            <button className="btn btn-secondary" onClick={logout}>
-              Logout
-            </button>
-          </div>
-          <p className="App-description">
-            Create personalised diet plans with the power of artificial intelligence.
-            Get tailored meal recommendations based on your goals, preferences, and lifestyle.
-          </p>
-          <div className="App-actions">
-            <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-              Get Started
-            </button>
-            <button className="btn btn-secondary">Learn More</button>
-          </div>
+      <div className="auth-page">
+        <div className="auth-header">
+          <h1 className="App-title">LLM Diet Planner</h1>
+          <p className="App-subtitle">AI-Powered Nutrition Planning</p>
         </div>
-      </header>
-      <main className="App-main">
-        <div className="container">
-          {createdGoal && (
-            <div style={{
-              background: '#d4edda',
-              color: '#155724',
-              padding: '1rem',
-              borderRadius: '8px',
-              marginBottom: '2rem',
-              border: '1px solid #c3e6cb'
-            }}>
-              <strong>Success!</strong> Your dietary goal has been created. Processing will begin shortly.
-            </div>
-          )}
-          <section className="features">
-            <div className="feature-card">
-              <div className="feature-icon">🍎</div>
-              <h3>Personalised Plans</h3>
-              <p>Customised meal plans tailored to your dietary needs and preferences</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">🤖</div>
-              <h3>AI-Powered</h3>
-              <p>Leverage advanced AI to create optimal nutrition strategies</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">📊</div>
-              <h3>Track Progress</h3>
-              <p>Monitor your nutrition goals and track your journey</p>
-            </div>
-          </section>
-        </div>
-      </main>
+        {isRegisterPage ? (
+          <RegistrationForm
+            onSwitchToLogin={() => navigate('/login', { state: location.state })}
+            onSuccess={() => {
+              // After successful registration, navigate to login
+              navigate('/login', { 
+                state: { 
+                  ...location.state,
+                  message: 'Registration successful! Please login.' 
+                } 
+              });
+            }}
+          />
+        ) : (
+          <LoginForm
+            onSwitchToRegister={() => navigate('/register', { state: location.state })}
+            onSuccess={() => {
+              // Navigate to the page they were trying to access, or home
+              const from = location.state?.from?.pathname || '/';
+              navigate(from, { replace: true });
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };
 
 /**
- * Main App Component with Auth Provider
+ * Main App Content with Routing
+ */
+const AppContent = () => {
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/login" element={<AuthPages />} />
+      <Route path="/register" element={<AuthPages />} />
+      
+      {/* Protected routes */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/create-goal"
+        element={
+          <ProtectedRoute>
+            <CreateGoalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/goals"
+        element={
+          <ProtectedRoute>
+            <GoalsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/goals/:goalId"
+        element={
+          <ProtectedRoute>
+            <GoalDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      {/* Catch all - redirect to home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+/**
+ * Main App Component with Auth Provider and Router
  */
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
     </AuthProvider>
   );
 }
