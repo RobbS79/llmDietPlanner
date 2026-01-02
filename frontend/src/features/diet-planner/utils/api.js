@@ -1,7 +1,7 @@
 /**
  * API client functions for dietary goals
  */
-import { getAccessToken } from '../../../utils/api';
+import { getAccessToken, getRefreshToken, setTokens, clearTokens } from '../../../utils/api';
 
 const API_BASE_URL = '/api/goals';
 
@@ -17,14 +17,17 @@ const API_BASE_URL = '/api/goals';
  */
 export async function createDietaryGoal(goalData) {
   const token = getAccessToken();
+  
+  if (!token) {
+    window.location.href = '/login';
+    throw new Error('Not authenticated. Please login.');
+  }
+  
   const headers = {
     'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
     'X-CSRFToken': getCsrfToken(),
   };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const response = await fetch(API_BASE_URL + '/', {
     method: 'POST',
@@ -32,6 +35,13 @@ export async function createDietaryGoal(goalData) {
     credentials: 'include',
     body: JSON.stringify(goalData),
   });
+
+  if (response.status === 401) {
+    const { clearTokens } = await import('../../../utils/api');
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -47,19 +57,66 @@ export async function createDietaryGoal(goalData) {
  */
 export async function getDietaryGoalsList() {
   const token = getAccessToken();
+  
+  if (!token) {
+    // No token - redirect to login
+    console.warn('No access token found, redirecting to login');
+    window.location.href = '/login';
+    throw new Error('Not authenticated. Please login.');
+  }
+  
   const headers = {
     'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
   };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const response = await fetch(API_BASE_URL + '/list/', {
     method: 'GET',
     headers,
     credentials: 'include',
   });
+
+  if (response.status === 401) {
+    // Token might be expired, try to refresh
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        const refreshResponse = await fetch('/api/auth/refresh/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          // SimpleJWT returns {"access": "..."} directly, not wrapped in "data"
+          const newAccessToken = refreshData.access || refreshData.data?.access;
+          if (newAccessToken) {
+            setTokens(newAccessToken, refreshToken);
+            // Retry original request with new token
+            headers['Authorization'] = `Bearer ${newAccessToken}`;
+            const retryResponse = await fetch(API_BASE_URL + '/list/', {
+              method: 'GET',
+              headers,
+              credentials: 'include',
+            });
+            if (retryResponse.ok) {
+              return retryResponse.json();
+            }
+          }
+        }
+      } catch (error) {
+        // Refresh failed, clear tokens and redirect
+        clearTokens();
+        window.location.href = '/login';
+        throw new Error('Session expired. Please login again.');
+      }
+    }
+    // No refresh token or refresh failed - redirect to login
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -76,19 +133,62 @@ export async function getDietaryGoalsList() {
  */
 export async function getDietaryGoalDetail(goalId) {
   const token = getAccessToken();
+  
+  if (!token) {
+    window.location.href = '/login';
+    throw new Error('Not authenticated. Please login.');
+  }
+  
   const headers = {
     'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
   };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const response = await fetch(API_BASE_URL + `/${goalId}/`, {
     method: 'GET',
     headers,
     credentials: 'include',
   });
+
+  if (response.status === 401) {
+    // Token might be expired, try to refresh
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        const refreshResponse = await fetch('/api/auth/refresh/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          if (refreshData.access) {
+            setTokens(refreshData.access, refreshToken);
+            // Retry original request with new token
+            headers['Authorization'] = `Bearer ${refreshData.access}`;
+            const retryResponse = await fetch(API_BASE_URL + `/${goalId}/`, {
+              method: 'GET',
+              headers,
+              credentials: 'include',
+            });
+            if (retryResponse.ok) {
+              return retryResponse.json();
+            }
+          }
+        }
+      } catch (error) {
+        // Refresh failed, clear tokens and redirect
+        clearTokens();
+        window.location.href = '/login';
+        throw new Error('Session expired. Please login again.');
+      }
+    }
+    // No refresh token or refresh failed - redirect to login
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
