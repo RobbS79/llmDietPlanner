@@ -67,7 +67,15 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = [
+            'id',
+            'meal_ideas',
+            'shopping_list',
+            'total_price',
+            'currency',
+            'created_at',
+            'updated_at',
+        ]
     
     def get_meal_ideas(self, obj):
         """Return meal_ideas JSONField as-is (already a Python list)."""
