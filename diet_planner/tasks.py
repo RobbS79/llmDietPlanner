@@ -10,6 +10,7 @@ import logging
 
 from .models import DietaryGoal, DietaryPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
+from .llm_service import OpenAIService
 
 logger = logging.getLogger(__name__)
 
@@ -145,26 +146,54 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         # Log the JSON prompt for debugging (can be viewed in Celery logs)
         logger.info(f"LLM Prompt JSON for goal {goal_id}:\n{llm_prompt_text}")
         
-        # TODO: Integrate with LLM API (OpenAI, Anthropic, etc.)
-        # Example usage:
-        # llm_response = call_llm_api(
-        #     system_prompt="You are a nutrition expert creating personalised diet plans...",
-        #     user_prompt=llm_prompt_text,
-        #     response_format="json"
-        # )
-        # For now, using mock data
-        llm_response = generate_mock_llm_response()
+        # Call OpenAI API
+        try:
+            llm_service = OpenAIService()
+            llm_result = llm_service.generate_dietary_plan(
+                prompt_text=llm_prompt_text
+            )
+            
+            # Extract response data
+            llm_response = llm_result['response']
+            meal_ideas_data = llm_response.get('meal_ideas', [])
+            shopping_list_data = llm_response.get('shopping_list', [])
+            
+            # Log cost information
+            logger.info(
+                f"OpenAI API call for goal {goal_id}: "
+                f"Input tokens: {llm_result['input_tokens']}, "
+                f"Output tokens: {llm_result['output_tokens']}, "
+                f"Total tokens: {llm_result['total_tokens']}, "
+                f"Cost: ${llm_result['cost_usd']}, "
+                f"Model: {llm_result['model']}"
+            )
+            
+        except Exception as e:
+            logger.error(f"OpenAI API error for goal {goal_id}: {e}")
+            # Fall back to mock data if API fails
+            logger.warning(f"Falling back to mock data for goal {goal_id}")
+            llm_response = generate_mock_llm_response()
+            meal_ideas_data = llm_response.get('meal_ideas', [])
+            shopping_list_data = llm_response.get('shopping_list', [])
+            llm_result = {
+                'input_tokens': None,
+                'output_tokens': None,
+                'total_tokens': None,
+                'cost_usd': None,
+                'model': None,
+            }
         
-        # Parse LLM response and create dietary plan
-        meal_ideas_data = llm_response.get('meal_ideas', [])
-        shopping_list_data = llm_response.get('shopping_list', [])
-        
-        # Create dietary plan
+        # Create dietary plan with LLM usage tracking
         dietary_plan = DietaryPlan.objects.create(
             dietary_goal=goal,
             meal_ideas=meal_ideas_data,
             shopping_list=shopping_list_data,
-            currency=goal.currency
+            currency=goal.currency,
+            llm_input_tokens=llm_result.get('input_tokens'),
+            llm_output_tokens=llm_result.get('output_tokens'),
+            llm_total_tokens=llm_result.get('total_tokens'),
+            llm_cost_usd=llm_result.get('cost_usd'),
+            llm_model_used=llm_result.get('model'),
         )
         
         # TODO: Trigger price calculation task (separate Celery task)
@@ -178,7 +207,14 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         return {
             'status': 'success',
             'goal_id': goal_id,
-            'plan_id': dietary_plan.id
+            'plan_id': dietary_plan.id,
+            'llm_usage': {
+                'input_tokens': llm_result.get('input_tokens'),
+                'output_tokens': llm_result.get('output_tokens'),
+                'total_tokens': llm_result.get('total_tokens'),
+                'cost_usd': str(llm_result.get('cost_usd')) if llm_result.get('cost_usd') else None,
+                'model': llm_result.get('model'),
+            }
         }
         
     except DietaryGoal.DoesNotExist:

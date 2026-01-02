@@ -360,6 +360,37 @@ class DietaryPlan(models.Model):
         help_text="Currency of the total price"
     )
     
+    # LLM usage tracking
+    llm_input_tokens = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of input tokens used by LLM"
+    )
+    llm_output_tokens = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of output tokens used by LLM"
+    )
+    llm_total_tokens = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Total tokens used by LLM"
+    )
+    llm_cost_usd = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Cost of LLM API call in USD"
+    )
+    llm_model_used = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="OpenAI model used for generation (e.g., gpt-4o-mini)"
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,

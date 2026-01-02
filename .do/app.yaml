@@ -45,6 +45,11 @@ services:
       - key: DEFAULT_FROM_EMAIL
         scope: RUN_TIME
         type: SECRET
+      - key: OPENAI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: OPENAI_MODEL
+        value: "gpt-4o-mini"
     routes:
       - path: /
     run_command: /app/start.sh

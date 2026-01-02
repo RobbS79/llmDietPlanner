@@ -56,6 +56,9 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
     meal_ideas = serializers.SerializerMethodField()
     shopping_list = serializers.SerializerMethodField()
     
+    # LLM usage information
+    llm_usage = serializers.SerializerMethodField()
+    
     class Meta:
         model = DietaryPlan
         fields = [
@@ -64,6 +67,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'shopping_list',
             'total_price',
             'currency',
+            'llm_usage',
             'created_at',
             'updated_at',
         ]
@@ -73,6 +77,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'shopping_list',
             'total_price',
             'currency',
+            'llm_usage',
             'created_at',
             'updated_at',
         ]
@@ -84,6 +89,19 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
     def get_shopping_list(self, obj):
         """Return shopping_list JSONField as-is (already a Python list)."""
         return obj.shopping_list if obj.shopping_list else []
+    
+    def get_llm_usage(self, obj):
+        """Return LLM usage information including tokens and cost."""
+        if obj.llm_input_tokens is None:
+            return None
+        
+        return {
+            'input_tokens': obj.llm_input_tokens,
+            'output_tokens': obj.llm_output_tokens,
+            'total_tokens': obj.llm_total_tokens,
+            'cost_usd': str(obj.llm_cost_usd) if obj.llm_cost_usd else None,
+            'model': obj.llm_model_used,
+        }
 
 
 class DietaryGoalDetailSerializer(serializers.ModelSerializer):
