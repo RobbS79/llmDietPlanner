@@ -1,5 +1,5 @@
 import React from 'react';
-import { COUNTRIES, COUNTRY_DEFAULT_LANGUAGE } from '../types';
+import { COUNTRIES } from '../types';
 
 /**
  * Country and City selector component

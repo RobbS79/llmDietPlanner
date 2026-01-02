@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dietary Goal Test UI</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.secondary {
+            background-color: #2196F3;
+        }
+        button.secondary:hover {
+            background-color: #1976D2;
+        }
+        .json-output {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .error {
+            color: #d32f2f;
+            background-color: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .success {
+            color: #2e7d32;
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            color: #1976d2;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+        .goal-list {
+            margin-top: 20px;
+        }
+        .goal-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background-color: #fafafa;
+        }
+        .goal-item strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ Dietary Goal Test UI</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Info:</strong> This is a test interface to create dietary goals and view the JSON prompt structure that will be sent to the LLM. No React build required!
+        </div>
+
+        <div class="two-column">
+            <!-- Create Goal Form -->
+            <div>
+                <h2>Create New Dietary Goal</h2>
+                <form id="createGoalForm">
+                    <div class="form-group">
+                        <label for="prompt">Dietary Prompt *</label>
+                        <textarea id="prompt" required minlength="10" maxlength="5000" placeholder="Describe your dietary goals, preferences, and what you'd like to achieve (e.g., 'I want to lose 5kg in 2 months while maintaining muscle mass')"></textarea>
+                        <small id="promptCount">0/5000 characters (minimum 10 required)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="restrictions">Dietary Restrictions (Optional)</label>
+                        <textarea id="restrictions" maxlength="2000" placeholder="List any allergies, dietary restrictions, or preferences (e.g., 'No gluten, lactose intolerant, vegetarian')"></textarea>
+                        <small id="restrictionsCount">0/2000 characters</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="country">Country *</label>
+                        <select id="country" required>
+                            <option value="">Select a country</option>
+                            <option value="CZ">Czech Republic</option>
+                            <option value="SK">Slovakia</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="city">City *</label>
+                        <input type="text" id="city" required minlength="1" maxlength="100" placeholder="Enter city name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="language">Language</label>
+                        <select id="language">
+                            <option value="cs">Czech</option>
+                            <option value="sk">Slovak</option>
+                        </select>
+                    </div>
+
+                    <button type="submit">Create Dietary Goal</button>
+                    <button type="button" class="secondary" onclick="loadGoals()">Refresh Goals List</button>
+                </form>
+
+                <div id="createError" class="error" style="display: none;"></div>
+                <div id="createSuccess" class="success" style="display: none;"></div>
+            </div>
+
+            <!-- View JSON -->
+            <div>
+                <h2>View JSON Prompt</h2>
+                <div class="form-group">
+                    <label for="goalId">Goal ID:</label>
+                    <input type="number" id="goalId" min="1" placeholder="Enter goal ID">
+                    <button onclick="loadPrompt()">Load JSON Prompt</button>
+                </div>
+
+                <div id="jsonError" class="error" style="display: none;"></div>
+
+                <div id="jsonOutput" class="json-output" style="display: none;">
+                    <h3>JSON Prompt Structure:</h3>
+                    <pre id="jsonContent"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goals List -->
+    <div class="container">
+        <h2>Existing Goals</h2>
+        <div id="goalsList" class="goal-list">
+            <p>Loading goals...</p>
+        </div>
+    </div>
+
+    <script>
+        // Character counters
+        document.getElementById('prompt').addEventListener('input', function(e) {
+            const count = e.target.value.length;
+            document.getElementById('promptCount').textContent = `${count}/5000 characters (minimum 10 required)`;
+        });
+
+        document.getElementById('country').addEventListener('change', function(e) {
+            // Auto-set language based on country
+            if (e.target.value === 'CZ') {
+                document.getElementById('language').value = 'cs';
+            } else if (e.target.value === 'SK') {
+                document.getElementById('language').value = 'sk';
+            }
+        });
+
+        document.getElementById('restrictions').addEventListener('input', function(e) {
+            const count = e.target.value.length;
+            document.getElementById('restrictionsCount').textContent = `${count}/2000 characters`;
+        });
+
+        // Create goal
+        document.getElementById('createGoalForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const errorDiv = document.getElementById('createError');
+            const successDiv = document.getElementById('createSuccess');
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            const formData = {
+                prompt: document.getElementById('prompt').value.trim(),
+                dietary_restrictions: document.getElementById('restrictions').value.trim() || null,
+                country: document.getElementById('country').value,
+                city: document.getElementById('city').value.trim(),
+                language_code: document.getElementById('language').value
+            };
+
+            // Validation
+            if (formData.prompt.length < 10) {
+                showCreateError('Dietary prompt must be at least 10 characters');
+                return;
+            }
+
+            if (!formData.country) {
+                showCreateError('Please select a country');
+                return;
+            }
+
+            if (!formData.city) {
+                showCreateError('Please enter a city');
+                return;
+            }
+
+            try {
+                // Note: This requires authentication. For testing, we'll use the debug endpoint
+                // which doesn't require auth, or you can implement a test auth endpoint
+                const response = await fetch('/api/goals/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    showCreateSuccess(`Goal created successfully! ID: ${data.data.goal_id}`);
+                    document.getElementById('createGoalForm').reset();
+                    document.getElementById('promptCount').textContent = '0/5000 characters (minimum 10 required)';
+                    document.getElementById('restrictionsCount').textContent = '0/2000 characters';
+                    loadGoals();
+                    // Auto-load the JSON for the new goal
+                    document.getElementById('goalId').value = data.data.goal_id;
+                    setTimeout(() => loadPrompt(), 500);
+                } else {
+                    showCreateError(data.error || 'Failed to create goal');
+                }
+            } catch (error) {
+                showCreateError(`Error: ${error.message}. Note: Creating goals requires authentication. Use the debug endpoint to view JSON for existing goals.`);
+            }
+        });
+
+        // Load JSON prompt
+        async function loadPrompt() {
+            const goalId = document.getElementById('goalId').value;
+            const outputDiv = document.getElementById('jsonOutput');
+            const errorDiv = document.getElementById('jsonError');
+            const jsonContent = document.getElementById('jsonContent');
+
+            outputDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+
+            if (!goalId) {
+                showJsonError('Please enter a goal ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/goals/${goalId}/prompt-debug/`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data) {
+                    jsonContent.textContent = JSON.stringify(data.data.json_object, null, 2);
+                    outputDiv.style.display = 'block';
+                } else {
+                    showJsonError(data.error || 'Unexpected response format');
+                }
+            } catch (error) {
+                showJsonError(`Error: ${error.message}`);
+            }
+        }
+
+        // Load goals list
+        async function loadGoals() {
+            const goalsList = document.getElementById('goalsList');
+            goalsList.innerHTML = '<p>Loading goals...</p>';
+
+            try {
+                const response = await fetch('/api/goals/list/');
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    const goals = data.data;
+                    if (goals.length === 0) {
+                        goalsList.innerHTML = '<p>No goals found. Create one above!</p>';
+                    } else {
+                        goalsList.innerHTML = goals.map(goal => `
+                            <div class="goal-item">
+                                <strong>Goal ID: ${goal.id}</strong> | 
+                                Status: ${goal.status} | 
+                                Country: ${goal.country} | 
+                                City: ${goal.city}
+                                <br>
+                                <button onclick="document.getElementById('goalId').value=${goal.id}; loadPrompt();" class="secondary" style="margin-top: 5px;">View JSON</button>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    goalsList.innerHTML = '<p>Error loading goals. Note: This requires authentication.</p>';
+                }
+            } catch (error) {
+                goalsList.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        function showCreateError(message) {
+            const errorDiv = document.getElementById('createError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function showCreateSuccess(message) {
+            const successDiv = document.getElementById('createSuccess');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+
+        function showJsonError(message) {
+            const errorDiv = document.getElementById('jsonError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('goalId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadPrompt();
+            }
+        });
+
+        // Load goals on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            loadGoals();
+        });
+    </script>
+</body>
+</html>
+

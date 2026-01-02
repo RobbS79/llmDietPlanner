@@ -26,8 +26,9 @@ urlpatterns = [
     path("api/auth/", include("login_app.urls")),
     path("api/", include("diet_planner.urls")),
     path("debug-prompt/", views.debug_prompt_view, name="debug-prompt"),
+    path("test-ui/", views.test_ui_view, name="test-ui"),
     # Serve React app for all other routes (catch-all, must be last)
-    re_path(r'^(?!admin|api|static|debug-prompt).*', views.react_app_view),
+    re_path(r'^(?!admin|api|static|debug-prompt|test-ui).*', views.react_app_view),
 ]
 
 # Serve static files in development

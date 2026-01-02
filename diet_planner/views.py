@@ -66,16 +66,27 @@ class DietaryGoalCreateView(APIView):
                 status=DietaryGoal.StatusChoices.PENDING
             )
             
-            # Trigger async Celery task for LLM processing
-            task = process_dietary_goal_task.delay(dietary_goal.id)
-            dietary_goal.celery_task_id = task.id
-            dietary_goal.save(update_fields=['celery_task_id'])
+            # Trigger async Celery task for LLM processing (optional - graceful fallback if Celery unavailable)
+            try:
+                task = process_dietary_goal_task.delay(dietary_goal.id)
+                dietary_goal.celery_task_id = task.id
+                dietary_goal.save(update_fields=['celery_task_id'])
+                message = "Dietary goal created. Processing will begin shortly."
+            except Exception as celery_error:
+                # Celery/Redis not available - log but don't fail
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Celery task could not be triggered for goal {dietary_goal.id}: {str(celery_error)}. "
+                    "Goal created but processing will need to be triggered manually or when Celery is available."
+                )
+                message = "Dietary goal created. Note: Celery is not available - processing will need to be triggered manually."
             
             # Return standardized response
             response_data: Dict[str, Any] = {
                 "goal_id": dietary_goal.id,
                 "status": dietary_goal.status,
-                "message": "Dietary goal created. Processing will begin shortly."
+                "message": message
             }
             
             return Response(

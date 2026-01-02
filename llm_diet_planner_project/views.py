@@ -16,6 +16,14 @@ def debug_prompt_view(request):
     return render(request, 'debug_prompt.html')
 
 
+def test_ui_view(request):
+    """
+    Test UI page to create dietary goals and view JSON prompts.
+    Accessible at /test-ui/
+    """
+    return render(request, 'test_ui.html')
+
+
 def react_app_view(request):
     """
     Serve React app's index.html for all non-API routes.
