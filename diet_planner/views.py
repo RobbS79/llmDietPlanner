@@ -157,7 +157,8 @@ class DietaryGoalDetailView(APIView):
         """
         try:
             goal = DietaryGoal.objects.select_related(
-                'user'
+                'user',
+                'dietary_plan'
             ).get(id=goal_id, user=request.user)
             
             serializer = DietaryGoalDetailSerializer(goal)

@@ -93,31 +93,28 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
     
     def to_representation(self, instance):
         """Custom representation to handle missing dietary_plan gracefully."""
-        # First, try to get the dietary_plan safely
-        dietary_plan_data = None
-        try:
-            if hasattr(instance, 'dietary_plan'):
-                plan = instance.dietary_plan
-                if plan:
-                    dietary_plan_data = DietaryPlanSerializer(plan).data
-        except DietaryPlan.DoesNotExist:
-            pass
-        except Exception:
-            pass
+        # Get the base representation
+        representation = super().to_representation(instance)
         
-        # Build representation manually to avoid any serialization issues
-        representation = {
-            'id': instance.id,
-            'user': instance.user.username if instance.user else None,
-            'status': instance.status,
-            'country': instance.country,
-            'city': instance.city,
-            'currency': instance.currency,
-            'language_code': instance.language_code,
-            'created_at': instance.created_at.isoformat() if instance.created_at else None,
-            'updated_at': instance.updated_at.isoformat() if instance.updated_at else None,
-            'completed_at': instance.completed_at.isoformat() if instance.completed_at else None,
-            'dietary_plan': dietary_plan_data,
-        }
+        # Try to get dietary_plan - handle DoesNotExist exception
+        try:
+            # Access the related plan - this might raise DoesNotExist
+            plan = instance.dietary_plan
+            if plan:
+                # Serialize the plan
+                representation['dietary_plan'] = DietaryPlanSerializer(plan).data
+            else:
+                representation['dietary_plan'] = None
+        except DietaryPlan.DoesNotExist:
+            representation['dietary_plan'] = None
+        except AttributeError:
+            # dietary_plan attribute doesn't exist
+            representation['dietary_plan'] = None
+        except Exception as e:
+            # Log any other errors but set to None
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error serializing dietary_plan for goal {instance.id}: {str(e)}", exc_info=True)
+            representation['dietary_plan'] = None
         
         return representation
