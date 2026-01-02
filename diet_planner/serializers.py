@@ -52,8 +52,9 @@ class ShoppingListItemSerializer(serializers.Serializer):
 
 class DietaryPlanSerializer(serializers.ModelSerializer):
     """Serializer for DietaryPlan model."""
-    meal_ideas = MealIdeaSerializer(many=True, read_only=True)
-    shopping_list = ShoppingListItemSerializer(many=True, read_only=True)
+    # JSONField fields are already Python objects (lists/dicts), return them directly
+    meal_ideas = serializers.SerializerMethodField()
+    shopping_list = serializers.SerializerMethodField()
     
     class Meta:
         model = DietaryPlan
@@ -67,6 +68,14 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = '__all__'
+    
+    def get_meal_ideas(self, obj):
+        """Return meal_ideas JSONField as-is (already a Python list)."""
+        return obj.meal_ideas if obj.meal_ideas else []
+    
+    def get_shopping_list(self, obj):
+        """Return shopping_list JSONField as-is (already a Python list)."""
+        return obj.shopping_list if obj.shopping_list else []
 
 
 class DietaryGoalDetailSerializer(serializers.ModelSerializer):
