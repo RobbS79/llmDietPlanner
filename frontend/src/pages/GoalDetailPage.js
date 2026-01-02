@@ -158,7 +158,13 @@ export function GoalDetailPage() {
             </div>
 
             {/* Dietary Plan */}
-            {goal.dietary_plan ? (
+            {(() => {
+              const plan = goal.dietary_plan;
+              const hasMealIdeas = plan?.meal_ideas && Array.isArray(plan.meal_ideas) && plan.meal_ideas.length > 0;
+              const hasShoppingList = plan?.shopping_list && Array.isArray(plan.shopping_list) && plan.shopping_list.length > 0;
+              
+              if (hasMealIdeas || hasShoppingList) {
+                return (
               <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e5e7eb' }}>
                 <h2 style={{ marginBottom: '1.5rem', color: '#1f2937' }}>📋 Dietary Plan</h2>
                 
@@ -333,9 +339,12 @@ export function GoalDetailPage() {
                   </div>
                 )}
 
-                {(!goal.dietary_plan.meal_ideas || goal.dietary_plan.meal_ideas.length === 0) &&
-                 (!goal.dietary_plan.shopping_list || goal.dietary_plan.shopping_list.length === 0) && (
+                  </div>
+                );
+              } else if (plan) {
+                return (
                   <div style={{
+                    marginTop: '2rem',
                     padding: '2rem',
                     textAlign: 'center',
                     color: '#6b7280',
@@ -344,25 +353,27 @@ export function GoalDetailPage() {
                     border: '1px dashed #d1d5db',
                   }}>
                     <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📝</div>
-                    <p>No meal ideas or shopping list available yet.</p>
+                    <p>Dietary plan exists but no meal ideas or shopping list available yet.</p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div style={{
-                marginTop: '2rem',
-                padding: '2rem',
-                textAlign: 'center',
-                background: '#fef3c7',
-                borderRadius: '8px',
-                border: '1px solid #fbbf24',
-              }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
-                <p style={{ margin: 0, color: '#92400e' }}>
-                  Dietary plan is still being generated. Please check back soon!
-                </p>
-              </div>
-            )}
+                );
+              } else {
+                return (
+                  <div style={{
+                    marginTop: '2rem',
+                    padding: '2rem',
+                    textAlign: 'center',
+                    background: '#fef3c7',
+                    borderRadius: '8px',
+                    border: '1px solid #fbbf24',
+                  }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
+                    <p style={{ margin: 0, color: '#92400e' }}>
+                      Dietary plan is still being generated. Please check back soon!
+                    </p>
+                  </div>
+                );
+              }
+            })()}
           </div>
         )}
       </div>

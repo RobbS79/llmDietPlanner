@@ -49,34 +49,110 @@ export function Navigation() {
           {/* Navigation Links */}
           <div style={{
             display: 'flex',
-            gap: '1rem',
+            gap: '0.75rem',
             alignItems: 'center',
           }}>
             <button
               onClick={() => navigate('/')}
-              className={`btn ${isActive('/') ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ minWidth: '100px' }}
+              style={{
+                minWidth: '100px',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                transition: 'all 0.2s',
+                background: isActive('/') ? '#6366f1' : 'transparent',
+                color: isActive('/') ? 'white' : '#4b5563',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive('/')) {
+                  e.target.style.background = '#f3f4f6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive('/')) {
+                  e.target.style.background = 'transparent';
+                }
+              }}
             >
               Dashboard
             </button>
             <button
               onClick={() => navigate('/goals')}
-              className={`btn ${isActive('/goals') ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ minWidth: '100px' }}
+              style={{
+                minWidth: '100px',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                transition: 'all 0.2s',
+                background: isActive('/goals') ? '#6366f1' : 'transparent',
+                color: isActive('/goals') ? 'white' : '#4b5563',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive('/goals')) {
+                  e.target.style.background = '#f3f4f6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive('/goals')) {
+                  e.target.style.background = 'transparent';
+                }
+              }}
             >
               My Goals
             </button>
             <button
               onClick={() => navigate('/profile')}
-              className={`btn ${isActive('/profile') ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ minWidth: '100px' }}
+              style={{
+                minWidth: '100px',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                transition: 'all 0.2s',
+                background: isActive('/profile') ? '#6366f1' : 'transparent',
+                color: isActive('/profile') ? 'white' : '#4b5563',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive('/profile')) {
+                  e.target.style.background = '#f3f4f6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive('/profile')) {
+                  e.target.style.background = 'transparent';
+                }
+              }}
             >
               Profile
             </button>
             <button
               onClick={logout}
-              className="btn btn-secondary"
-              style={{ minWidth: '80px' }}
+              style={{
+                minWidth: '80px',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                transition: 'all 0.2s',
+                background: 'transparent',
+                color: '#4b5563',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#f3f4f6';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'transparent';
+              }}
             >
               Logout
             </button>
