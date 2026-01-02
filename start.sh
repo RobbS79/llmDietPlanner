@@ -29,13 +29,23 @@ echo "Starting Celery worker..."
 nohup celery -A llm_diet_planner_project worker --loglevel=info > /tmp/celery.log 2>&1 &
 CELERY_PID=$!
 echo "Celery worker started with PID: $CELERY_PID"
-sleep 2  # Give Celery time to start
+sleep 3  # Give Celery more time to start
 
-# Verify Celery is running
-if ps -p $CELERY_PID > /dev/null 2>&1; then
-    echo "Celery worker is running (PID: $CELERY_PID)"
+# Check Celery log for immediate errors
+if [ -f /tmp/celery.log ]; then
+    if grep -q "Error\|Traceback\|Exception" /tmp/celery.log; then
+        echo "ERROR: Celery worker failed to start. Check /tmp/celery.log:"
+        tail -20 /tmp/celery.log
+    fi
+fi
+
+# Verify Celery is running (check by process name, not PID, as Celery forks)
+if pgrep -f "celery.*worker" > /dev/null 2>&1; then
+    echo "Celery worker is running successfully"
 else
-    echo "Warning: Celery worker may have failed to start (will use sync fallback)"
+    echo "WARNING: Celery worker may have failed to start (will use sync fallback)"
+    echo "Check /tmp/celery.log for details:"
+    tail -30 /tmp/celery.log 2>/dev/null || echo "No Celery log found"
 fi
 
 # Start Gunicorn in foreground (main process - container stays alive)
