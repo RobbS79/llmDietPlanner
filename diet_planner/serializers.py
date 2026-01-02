@@ -106,7 +106,19 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'completed_at',
             'dietary_plan',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = [
+            'id',
+            'user',
+            'status',
+            'country',
+            'city',
+            'currency',
+            'language_code',
+            'created_at',
+            'updated_at',
+            'completed_at',
+            'dietary_plan',
+        ]
     
     def to_representation(self, instance):
         """Custom representation to handle missing dietary_plan gracefully."""
