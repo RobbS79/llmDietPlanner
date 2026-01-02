@@ -6,9 +6,12 @@ from celery import shared_task
 from django.utils import timezone
 from typing import Dict, Any, List
 import json
+import logging
 
 from .models import DietaryGoal, DietaryPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
+
+logger = logging.getLogger(__name__)
 
 
 def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
@@ -138,6 +141,9 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         
         # Convert JSON to string for LLM prompt (with pretty formatting for readability)
         llm_prompt_text = json.dumps(llm_prompt_json, indent=2, ensure_ascii=False)
+        
+        # Log the JSON prompt for debugging (can be viewed in Celery logs)
+        logger.info(f"LLM Prompt JSON for goal {goal_id}:\n{llm_prompt_text}")
         
         # TODO: Integrate with LLM API (OpenAI, Anthropic, etc.)
         # Example usage:

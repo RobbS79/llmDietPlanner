@@ -13,7 +13,7 @@ from typing import Dict, Any
 from .models import DietaryGoal, DietaryPlan, get_currency_for_country
 from .serializers import DietaryGoalSerializer, DietaryGoalDetailSerializer
 from .schemas import DietaryGoalCreateRequest, DietaryGoalCreateResponse
-from .tasks import process_dietary_goal_task
+from .tasks import process_dietary_goal_task, build_llm_prompt_json
 
 
 class DietaryGoalCreateView(APIView):
@@ -157,6 +157,54 @@ class DietaryGoalDetailView(APIView):
                 {
                     "status": "success",
                     "data": serializer.data,
+                    "error": None
+                },
+                status=status.HTTP_200_OK
+            )
+        except DietaryGoal.DoesNotExist:
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": "Dietary goal not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class DietaryGoalPromptDebugView(APIView):
+    """
+    Debug endpoint to view the raw JSON prompt structure for a dietary goal.
+    Useful for testing and verifying the LLM prompt format.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, goal_id: int) -> Response:
+        """
+        Get the raw JSON prompt structure for a dietary goal.
+        
+        Response includes:
+        - The structured JSON that would be sent to the LLM
+        - Both as a Python dict and as a formatted JSON string
+        """
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+            
+            # Build the JSON prompt structure
+            llm_prompt_json = build_llm_prompt_json(goal)
+            
+            # Format as pretty JSON string
+            import json
+            llm_prompt_text = json.dumps(llm_prompt_json, indent=2, ensure_ascii=False)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": {
+                        "goal_id": goal_id,
+                        "json_object": llm_prompt_json,
+                        "json_string": llm_prompt_text,
+                    },
                     "error": None
                 },
                 status=status.HTTP_200_OK
