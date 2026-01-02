@@ -9,11 +9,16 @@ from enum import Enum
 
 
 class CountryEnum(str, Enum):
-    """Supported countries."""
+    """
+    Supported countries.
+    
+    Note: For MVP, only CZ (Czech Republic) and SK (Slovakia) are available
+    in the frontend. The backend enum remains flexible for future expansion.
+    """
     DE = "DE"  # Germany
     PL = "PL"  # Poland
-    CZ = "CZ"  # Czech Republic
-    SK = "SK"  # Slovakia
+    CZ = "CZ"  # Czech Republic (MVP)
+    SK = "SK"  # Slovakia (MVP)
     HU = "HU"  # Hungary
     RO = "RO"  # Romania
     BG = "BG"  # Bulgaria

@@ -13,7 +13,7 @@ export function DietaryGoalForm({ onSuccess }) {
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
-  const [languageCode, setLanguageCode] = useState('pl');
+  const [languageCode, setLanguageCode] = useState('cs'); // Default to Czech for MVP
   const [errors, setErrors] = useState({});
 
   const createGoalMutation = useCreateDietaryGoal();
@@ -85,7 +85,7 @@ export function DietaryGoalForm({ onSuccess }) {
         setDietaryRestrictions('');
         setCountry('');
         setCity('');
-        setLanguageCode('pl');
+        setLanguageCode('cs'); // Reset to Czech default for MVP
         setErrors({});
 
         // Call success callback if provided

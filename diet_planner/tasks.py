@@ -11,6 +11,100 @@ from .models import DietaryGoal, DietaryPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 
 
+def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
+    """
+    Build a structured JSON prompt for the LLM based on user input.
+    
+    This JSON structure serves as the prompt context for the LLM to generate
+    meal ideas and shopping lists. The structure is designed to be clear and
+    comprehensive for LLM processing.
+    
+    Example output structure:
+    {
+        "task": "generate_personalised_diet_plan",
+        "user_requirements": {
+            "dietary_prompt": "I want to lose 5kg in 2 months...",
+            "dietary_restrictions": "No gluten, lactose intolerant"
+        },
+        "location": {
+            "country_code": "CZ",
+            "country_name": "Czech Republic",
+            "city": "Prague"
+        },
+        "localisation": {
+            "currency": "CZK",
+            "language_code": "cs"
+        },
+        "instructions": {
+            "output_format": "json",
+            "required_outputs": ["meal_ideas", "shopping_list"],
+            ...
+        }
+    }
+    
+    Args:
+        goal: DietaryGoal instance with user input
+        
+    Returns:
+        Dict containing structured prompt data for LLM
+    """
+    prompt_data = {
+        "task": "generate_personalised_diet_plan",
+        "user_requirements": {
+            "dietary_prompt": goal.prompt,
+            "dietary_restrictions": goal.dietary_restrictions if goal.dietary_restrictions else None,
+        },
+        "location": {
+            "country_code": goal.country,
+            "country_name": dict(DietaryGoal._meta.get_field('country').choices).get(goal.country, goal.country),
+            "city": goal.city,
+        },
+        "localisation": {
+            "currency": goal.currency,
+            "language_code": goal.language_code,
+        },
+        "instructions": {
+            "output_format": "json",
+            "required_outputs": [
+                "meal_ideas",
+                "shopping_list"
+            ],
+            "meal_ideas_requirements": {
+                "include": [
+                    "name",
+                    "description",
+                    "ingredients",
+                    "preparation_time",
+                    "nutritional_info"
+                ],
+                "nutritional_info_should_include": [
+                    "calories",
+                    "protein",
+                    "carbs",
+                    "fat"
+                ]
+            },
+            "shopping_list_requirements": {
+                "include": [
+                    "ingredient",
+                    "quantity",
+                    "unit",
+                    "notes"
+                ],
+                "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l)."
+            },
+            "context_notes": [
+                "Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
+                "Consider local cuisine preferences for the specified country",
+                "Prices will be calculated separately by the system - do not include prices",
+                "Focus on creating practical, achievable meal plans"
+            ]
+        }
+    }
+    
+    return prompt_data
+
+
 @shared_task(bind=True, max_retries=3)
 def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
     """
@@ -39,68 +133,19 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         goal.status = DietaryGoal.StatusChoices.PROCESSING
         goal.save(update_fields=['status'])
         
+        # Build structured JSON prompt for LLM
+        llm_prompt_json = build_llm_prompt_json(goal)
+        
+        # Convert JSON to string for LLM prompt (with pretty formatting for readability)
+        llm_prompt_text = json.dumps(llm_prompt_json, indent=2, ensure_ascii=False)
+        
         # TODO: Integrate with LLM API (OpenAI, Anthropic, etc.)
-        # For now, using placeholder logic
-        # This is where you would call your LLM service
-        
-        # Example LLM prompt structure (following XML tag pattern from .cursorrules)
-        llm_prompt = f"""
-        Generate a personalised diet plan based on the following user requirements:
-        
-        <user_prompt>
-        {goal.prompt}
-        </user_prompt>
-        
-        <dietary_restrictions>
-        {goal.dietary_restrictions or 'None specified'}
-        </dietary_restrictions>
-        
-        <location>
-            <country>{goal.country}</country>
-            <city>{goal.city}</city>
-        </location>
-        
-        <currency>
-        {goal.currency}
-        </currency>
-        
-        <language>
-        {goal.language_code}
-        </language>
-        
-        Please provide:
-        1. Meal ideas with ingredients
-        2. A shopping list with ingredients (quantities are optional)
-        
-        Return the response in this XML structure:
-        <meal_ideas>
-            <meal>
-                <name>Meal name</name>
-                <description>Description</description>
-                <ingredients>
-                    <ingredient>Ingredient 1</ingredient>
-                    <ingredient>Ingredient 2</ingredient>
-                </ingredients>
-                <preparation_time>30</preparation_time>
-                <nutritional_info>
-                    <calories>500</calories>
-                    <protein>30g</protein>
-                </nutritional_info>
-            </meal>
-        </meal_ideas>
-        
-        <shopping_list>
-            <item>
-                <ingredient>Ingredient name</ingredient>
-                <quantity>500</quantity>
-                <unit>g</unit>
-                <notes>Optional notes</notes>
-            </item>
-        </shopping_list>
-        """
-        
-        # Placeholder: Replace this with actual LLM API call
-        # llm_response = call_llm_api(llm_prompt)
+        # Example usage:
+        # llm_response = call_llm_api(
+        #     system_prompt="You are a nutrition expert creating personalised diet plans...",
+        #     user_prompt=llm_prompt_text,
+        #     response_format="json"
+        # )
         # For now, using mock data
         llm_response = generate_mock_llm_response()
         

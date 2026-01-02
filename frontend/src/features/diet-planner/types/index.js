@@ -32,15 +32,10 @@
  * @property {string} [error]
  */
 
+// MVP: Only Slovakia and Czechia supported
 export const COUNTRIES = [
-  { code: 'DE', name: 'Germany' },
-  { code: 'PL', name: 'Poland' },
   { code: 'CZ', name: 'Czech Republic' },
   { code: 'SK', name: 'Slovakia' },
-  { code: 'HU', name: 'Hungary' },
-  { code: 'RO', name: 'Romania' },
-  { code: 'BG', name: 'Bulgaria' },
-  { code: 'AT', name: 'Austria' },
 ];
 
 export const LANGUAGES = [
@@ -54,15 +49,9 @@ export const LANGUAGES = [
   { code: 'bg', name: 'Bulgarian' },
 ];
 
-// Default language mapping by country
+// Default language mapping by country (MVP: only CZ and SK)
 export const COUNTRY_DEFAULT_LANGUAGE = {
-  DE: 'de',
-  PL: 'pl',
   CZ: 'cs',
   SK: 'sk',
-  HU: 'hu',
-  RO: 'ro',
-  BG: 'bg',
-  AT: 'de',
 };
 
