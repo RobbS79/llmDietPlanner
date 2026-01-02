@@ -14,11 +14,12 @@ export function GoalDetailPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch goal details
+    // Fetch goal details with token refresh handling
     const fetchGoal = async () => {
       try {
-        const token = getAccessToken();
-        const headers = {
+        const { getAccessToken, getRefreshToken, setTokens, clearTokens } = await import('../utils/api');
+        let token = getAccessToken();
+        let headers = {
           'Content-Type': 'application/json',
         };
         
@@ -26,13 +27,57 @@ export function GoalDetailPage() {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`/api/goals/${goalId}/`, {
+        let response = await fetch(`/api/goals/${goalId}/`, {
           headers,
           credentials: 'include',
         });
         
+        // Handle 401 - token expired, try to refresh
+        if (response.status === 401) {
+          const refreshToken = getRefreshToken();
+          if (refreshToken) {
+            try {
+              const refreshResponse = await fetch('/api/auth/refresh/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh: refreshToken }),
+              });
+
+              if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                const newAccessToken = refreshData.access || refreshData.data?.access;
+                if (newAccessToken) {
+                  setTokens(newAccessToken, refreshToken);
+                  // Retry with new token
+                  headers['Authorization'] = `Bearer ${newAccessToken}`;
+                  response = await fetch(`/api/goals/${goalId}/`, {
+                    headers,
+                    credentials: 'include',
+                  });
+                }
+              }
+            } catch (refreshError) {
+              // Refresh failed, clear tokens and redirect to login
+              clearTokens();
+              window.location.href = '/login';
+              return;
+            }
+          } else {
+            // No refresh token, redirect to login
+            clearTokens();
+            window.location.href = '/login';
+            return;
+          }
+        }
+        
         if (!response.ok) {
-          throw new Error('Failed to load goal');
+          const errorData = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            clearTokens();
+            window.location.href = '/login';
+            return;
+          }
+          throw new Error(errorData.detail || errorData.error || 'Failed to load goal');
         }
         
         const data = await response.json();
