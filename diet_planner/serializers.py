@@ -93,8 +93,31 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
     
     def to_representation(self, instance):
         """Custom representation to handle missing dietary_plan gracefully."""
-        representation = super().to_representation(instance)
-        # If dietary_plan doesn't exist, set it to null instead of causing an error
-        if not hasattr(instance, 'dietary_plan') or instance.dietary_plan is None:
-            representation['dietary_plan'] = None
+        # First, try to get the dietary_plan safely
+        dietary_plan_data = None
+        try:
+            if hasattr(instance, 'dietary_plan'):
+                plan = instance.dietary_plan
+                if plan:
+                    dietary_plan_data = DietaryPlanSerializer(plan).data
+        except DietaryPlan.DoesNotExist:
+            pass
+        except Exception:
+            pass
+        
+        # Build representation manually to avoid any serialization issues
+        representation = {
+            'id': instance.id,
+            'user': instance.user.username if instance.user else None,
+            'status': instance.status,
+            'country': instance.country,
+            'city': instance.city,
+            'currency': instance.currency,
+            'language_code': instance.language_code,
+            'created_at': instance.created_at.isoformat() if instance.created_at else None,
+            'updated_at': instance.updated_at.isoformat() if instance.updated_at else None,
+            'completed_at': instance.completed_at.isoformat() if instance.completed_at else None,
+            'dietary_plan': dietary_plan_data,
+        }
+        
         return representation
