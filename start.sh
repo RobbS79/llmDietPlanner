@@ -25,8 +25,9 @@ else
 fi
 
 # Start Celery worker in background using nohup (better for Docker than --detach)
+# Reduced concurrency to 2 to save memory (basic-xxs has limited RAM)
 echo "Starting Celery worker..."
-nohup celery -A llm_diet_planner_project worker --loglevel=info > /tmp/celery.log 2>&1 &
+nohup celery -A llm_diet_planner_project worker --loglevel=info --concurrency=2 > /tmp/celery.log 2>&1 &
 CELERY_PID=$!
 echo "Celery worker started with PID: $CELERY_PID"
 sleep 3  # Give Celery more time to start
@@ -49,6 +50,7 @@ else
 fi
 
 # Start Gunicorn in foreground (main process - container stays alive)
+# Reduced workers from 3 to 2 to save memory (basic-xxs has limited RAM)
 echo "Starting Gunicorn..."
-exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 llm_diet_planner_project.wsgi:application
+exec gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 llm_diet_planner_project.wsgi:application
 

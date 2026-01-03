@@ -169,7 +169,9 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             )
             
         except Exception as e:
-            logger.error(f"OpenAI API error for goal {goal_id}: {e}")
+            logger.error(f"OpenAI API error for goal {goal_id}: {e}", exc_info=True)
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             # Fall back to mock data if API fails
             logger.warning(f"Falling back to mock data for goal {goal_id}")
             llm_response = generate_mock_llm_response()
