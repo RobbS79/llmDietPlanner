@@ -211,9 +211,9 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                 "Example structure for a day (when all meals are requested):",
                 "{",
                 "  'day_number': 1,",
-                "  'breakfast': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 15, 'nutritional_info': {'calories': 300, 'protein': 20, 'carbs': 30, 'fat': 10}},",
-                "  'lunch': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 30, 'nutritional_info': {...}},",
-                "  'dinner': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 45, 'nutritional_info': {...}},",
+                "  'breakfast': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 15, 'instructions': ['Step 1...', 'Step 2...'], 'nutritional_info': {'calories': 300, 'protein': 20, 'carbs': 30, 'fat': 10}},",
+                "  'lunch': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 30, 'instructions': ['Step 1...', 'Step 2...'], 'nutritional_info': {...}},",
+                "  'dinner': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 45, 'instructions': ['Step 1...', 'Step 2...'], 'nutritional_info': {...}},",
                 "  'small_meals': [...],",
                 "  'snacks': [...]",
                 "}",
@@ -222,12 +222,14 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                 "- Each main meal (breakfast, lunch, dinner) is a SINGLE object, NOT an array",
                 "- Only include breakfast/lunch/dinner fields if they are requested (true)",
                 "- Do NOT use 'main_courses' field - use 'breakfast', 'lunch', 'dinner' instead",
+                "- Each meal object MUST include an 'instructions' array with step-by-step cooking instructions",
+                "- Instructions should be clear, numbered steps (e.g., ['Heat oil in pan', 'Add ingredients', 'Cook for 10 minutes'])",
                 "- Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
                 "- Consider local cuisine preferences for the specified country",
                 "- Prices will be calculated separately by the system - do not include prices",
                 "- Focus on creating practical, achievable meal plans",
                 "- Ensure variety across days to prevent meal fatigue",
-                f"- Generate ALL text (meal names, descriptions, ingredients) in {goal.language_code} language"
+                f"- Generate ALL text (meal names, descriptions, ingredients, instructions) in {goal.language_code} language"
             ]
         }
     }

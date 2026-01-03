@@ -379,36 +379,158 @@ class RecipeDetailView(APIView):
     def get(self, request, meal_identifier: str) -> Response:
         """
         Get recipe by meal identifier.
+        If recipe doesn't exist, auto-create it from meal data in dietary plan.
         """
         try:
-            recipe = Recipe.objects.select_related('dietary_goal').get(
-                meal_identifier=meal_identifier,
-                dietary_goal__user=request.user
-            )
-            
-            serializer = RecipeSerializer(recipe)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": serializer.data,
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
-        except Recipe.DoesNotExist:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": "Recipe not found"
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
+            # Try to get existing recipe
+            try:
+                recipe = Recipe.objects.select_related('dietary_goal').get(
+                    meal_identifier=meal_identifier,
+                    dietary_goal__user=request.user
+                )
+                
+                serializer = RecipeSerializer(recipe)
+                
+                return Response(
+                    {
+                        "status": "success",
+                        "data": serializer.data,
+                        "error": None
+                    },
+                    status=status.HTTP_200_OK
+                )
+            except Recipe.DoesNotExist:
+                # Recipe doesn't exist - try to create it from meal data
+                # Parse meal identifier: format is "goal_id:day_number:meal_type:meal_index"
+                parts = meal_identifier.split(':')
+                if len(parts) != 4:
+                    return Response(
+                        {
+                            "status": "error",
+                            "data": None,
+                            "error": "Invalid meal identifier format"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                goal_id, day_number_str, meal_type, meal_index_str = parts
+                try:
+                    goal_id = int(goal_id)
+                    day_number = int(day_number_str)
+                    meal_index = int(meal_index_str)
+                except ValueError:
+                    return Response(
+                        {
+                            "status": "error",
+                            "data": None,
+                            "error": "Invalid meal identifier format"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Get dietary goal and plan
+                try:
+                    dietary_goal = DietaryGoal.objects.select_related('dietary_plan').get(
+                        id=goal_id,
+                        user=request.user
+                    )
+                except DietaryGoal.DoesNotExist:
+                    return Response(
+                        {
+                            "status": "error",
+                            "data": None,
+                            "error": "Dietary goal not found"
+                        },
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
+                # Check if dietary plan exists
+                if not hasattr(dietary_goal, 'dietary_plan') or not dietary_goal.dietary_plan:
+                    return Response(
+                        {
+                            "status": "error",
+                            "data": None,
+                            "error": "Dietary plan not found"
+                        },
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
+                plan = dietary_goal.dietary_plan
+                days = plan.days if plan.days else []
+                
+                # Find the meal in the days data
+                meal_data = None
+                for day in days:
+                    if day.get('day_number') == day_number:
+                        # Check main meals (breakfast, lunch, dinner)
+                        if meal_type in ['breakfast', 'lunch', 'dinner'] and meal_index == 0:
+                            meal_data = day.get(meal_type)
+                        # Check small_meals array
+                        elif meal_type == 'small_meal' and meal_index < len(day.get('small_meals', [])):
+                            meal_data = day.get('small_meals', [])[meal_index]
+                        # Check snacks array
+                        elif meal_type == 'snack' and meal_index < len(day.get('snacks', [])):
+                            meal_data = day.get('snacks', [])[meal_index]
+                        break
+                
+                if not meal_data:
+                    return Response(
+                        {
+                            "status": "error",
+                            "data": None,
+                            "error": "Meal not found in dietary plan"
+                        },
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
+                # Get instructions from meal data, or generate basic ones if missing
+                instructions = meal_data.get('instructions', [])
+                if not instructions or (isinstance(instructions, list) and len(instructions) == 0):
+                    # Create simple instructions from ingredients if LLM didn't provide them
+                    ingredients = meal_data.get('ingredients', [])
+                    if ingredients:
+                        instructions = [
+                            f"Prepare all ingredients: {', '.join(ingredients[:3])}" + ("..." if len(ingredients) > 3 else ""),
+                            f"Follow the recipe for {meal_data.get('name', 'this meal')}",
+                            "Cook according to your preferred method",
+                            "Serve and enjoy!"
+                        ]
+                    else:
+                        instructions = [
+                            "Follow standard cooking practices for this type of meal",
+                            "Adjust cooking time and temperature as needed",
+                            "Serve when ready"
+                        ]
+                
+                # Create recipe from meal data
+                recipe = Recipe.objects.create(
+                    meal_identifier=meal_identifier,
+                    dietary_goal=dietary_goal,
+                    name=meal_data.get('name', 'Unnamed Meal'),
+                    description=meal_data.get('description', ''),
+                    instructions=instructions,
+                    ingredients=meal_data.get('ingredients', []),
+                    preparation_time=meal_data.get('preparation_time'),
+                    cooking_time=meal_data.get('cooking_time'),  # May not exist in meal data
+                    servings=meal_data.get('servings', 1),
+                    nutritional_info=meal_data.get('nutritional_info', {}),
+                )
+                
+                serializer = RecipeSerializer(recipe)
+                
+                return Response(
+                    {
+                        "status": "success",
+                        "data": serializer.data,
+                        "error": None
+                    },
+                    status=status.HTTP_201_CREATED
+                )
+                
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error retrieving recipe {meal_identifier}: {str(e)}", exc_info=True)
+            logger.error(f"Error retrieving/creating recipe {meal_identifier}: {str(e)}", exc_info=True)
             
             return Response(
                 {

@@ -100,6 +100,7 @@ class MealIdea(BaseModel):
     description: Optional[str] = Field(None, description="Meal description")
     ingredients: List[str] = Field(..., description="List of ingredients")
     preparation_time: Optional[int] = Field(None, description="Preparation time in minutes")
+    instructions: Optional[List[str]] = Field(None, description="Step-by-step cooking instructions")
     nutritional_info: Optional[Dict[str, Any]] = Field(None, description="Nutritional information")
 
 
