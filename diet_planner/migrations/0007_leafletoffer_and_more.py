@@ -116,36 +116,9 @@ class Migration(migrations.Migration):
                 "ordering": ["-scraped_at"],
             },
         ),
-        migrations.RenameIndex(
-            model_name="mealinstance",
-            new_name="diet_planne_user_id_f103bc_idx",
-            old_name="diet_plann_mealinst_user_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="mealinstance",
-            new_name="diet_planne_dietary_cb954e_idx",
-            old_name="diet_plann_mealinst_goal_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="mealinstance",
-            new_name="diet_planne_meal_id_cab95e_idx",
-            old_name="diet_plann_mealinst_meal_id_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="mealinstance",
-            new_name="diet_planne_is_cook_9053fb_idx",
-            old_name="diet_plann_mealinst_cook_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="recipe",
-            new_name="diet_planne_dietary_265df0_idx",
-            old_name="diet_plann_recipe_goal_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="recipe",
-            new_name="diet_planne_meal_id_261cb2_idx",
-            old_name="diet_plann_recipe_meal_id_idx",
-        ),
+        # Note: RenameIndex operations removed - these indexes don't exist in the database
+        # Django was trying to rename indexes that were never created with those names
+        # If index renaming is needed, it should be done manually or via a data migration
         migrations.AddField(
             model_name="dietarygoal",
             name="shop",
