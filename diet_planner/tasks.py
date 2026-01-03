@@ -72,7 +72,9 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
             "meal_plan_type": "day_by_day_meal_plan",
             "meal_plan_configuration": {
                 "num_days": goal.num_days,
-                "main_courses_per_day": goal.main_courses_per_day,
+                "breakfast": goal.breakfast,
+                "lunch": goal.lunch,
+                "dinner": goal.dinner,
                 "small_meals_per_day": goal.small_meals_per_day,
                 "snacks_per_day": goal.snacks_per_day
             },
@@ -81,10 +83,12 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                 "shopping_list"
             ],
             "day_plan_requirements": {
-                "structure": "Each day must have exactly:",
-                "main_courses": {
-                    "count_per_day": goal.main_courses_per_day,
-                    "description": "Main courses/recipes for each day"
+                "structure": "Each day must have:",
+                "main_meals": {
+                    "breakfast": goal.breakfast,
+                    "lunch": goal.lunch,
+                    "dinner": goal.dinner,
+                    "description": "Main meals (breakfast, lunch, dinner) - include only the meals that are set to true"
                 },
                 "small_meals": {
                     "count_per_day": goal.small_meals_per_day,
@@ -118,8 +122,13 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                 "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
             },
             "context_notes": [
-                f"This is a {goal.num_days}-day meal plan. Generate exactly {goal.main_courses_per_day} main course(s), {goal.small_meals_per_day} small meal(s), and {goal.snacks_per_day} snack(s) for EACH day.",
-                "Structure the output as a 'days' array, where each day has 'day_number', 'main_courses', 'small_meals', and 'snacks' arrays.",
+                f"This is a {goal.num_days}-day meal plan. For each day, include:",
+                f"- Breakfast: {'Yes' if goal.breakfast else 'No'}",
+                f"- Lunch: {'Yes' if goal.lunch else 'No'}",
+                f"- Dinner: {'Yes' if goal.dinner else 'No'}",
+                f"- {goal.small_meals_per_day} small meal(s) per day",
+                f"- {goal.snacks_per_day} snack(s) per day",
+                "Structure the output as a 'days' array, where each day has 'day_number', 'main_courses' (containing breakfast/lunch/dinner based on user selection), 'small_meals', and 'snacks' arrays.",
                 "Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
                 "Consider local cuisine preferences for the specified country",
                 "Prices will be calculated separately by the system - do not include prices",

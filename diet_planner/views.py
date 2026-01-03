@@ -65,7 +65,9 @@ class DietaryGoalCreateView(APIView):
                 currency=currency,
                 language_code=schema.language_code,
                 num_days=schema.num_days,
-                main_courses_per_day=schema.main_courses_per_day,
+                breakfast=schema.breakfast,
+                lunch=schema.lunch,
+                dinner=schema.dinner,
                 small_meals_per_day=schema.small_meals_per_day,
                 snacks_per_day=schema.snacks_per_day,
                 status=DietaryGoal.StatusChoices.PENDING

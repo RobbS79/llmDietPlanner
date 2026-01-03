@@ -60,11 +60,17 @@ class DietaryGoalCreateRequest(BaseModel):
         le=30,
         description="Number of days for the meal plan"
     )
-    main_courses_per_day: int = Field(
-        default=1,
-        ge=1,
-        le=5,
-        description="Number of main courses per day"
+    breakfast: bool = Field(
+        default=True,
+        description="Include breakfast in the meal plan"
+    )
+    lunch: bool = Field(
+        default=True,
+        description="Include lunch in the meal plan"
+    )
+    dinner: bool = Field(
+        default=True,
+        description="Include dinner in the meal plan"
     )
     small_meals_per_day: int = Field(
         default=2,

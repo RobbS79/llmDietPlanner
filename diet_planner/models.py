@@ -144,10 +144,18 @@ class DietaryGoal(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(30)],
         help_text="Number of days for the meal plan"
     )
-    main_courses_per_day = models.IntegerField(
-        default=1,
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
-        help_text="Number of main courses per day"
+    # Main meals (breakfast, lunch, dinner)
+    breakfast = models.BooleanField(
+        default=True,
+        help_text="Include breakfast in the meal plan"
+    )
+    lunch = models.BooleanField(
+        default=True,
+        help_text="Include lunch in the meal plan"
+    )
+    dinner = models.BooleanField(
+        default=True,
+        help_text="Include dinner in the meal plan"
     )
     small_meals_per_day = models.IntegerField(
         default=2,

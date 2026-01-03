@@ -15,7 +15,9 @@ export function DietaryGoalForm({ onSuccess }) {
   const [city, setCity] = useState('');
   const [languageCode, setLanguageCode] = useState('cs'); // Default to Czech for MVP
   const [numDays, setNumDays] = useState(7);
-  const [mainCoursesPerDay, setMainCoursesPerDay] = useState(1);
+  const [breakfast, setBreakfast] = useState(true);
+  const [lunch, setLunch] = useState(true);
+  const [dinner, setDinner] = useState(true);
   const [smallMealsPerDay, setSmallMealsPerDay] = useState(2);
   const [snacksPerDay, setSnacksPerDay] = useState(1);
   const [errors, setErrors] = useState({});
@@ -82,7 +84,9 @@ export function DietaryGoalForm({ onSuccess }) {
         city: city.trim(),
         language_code: languageCode,
         num_days: numDays,
-        main_courses_per_day: mainCoursesPerDay,
+        breakfast: breakfast,
+        lunch: lunch,
+        dinner: dinner,
         small_meals_per_day: smallMealsPerDay,
         snacks_per_day: snacksPerDay,
       });
@@ -188,7 +192,9 @@ export function DietaryGoalForm({ onSuccess }) {
         {/* Meal Plan Configuration */}
         <div className="border-t pt-6 mt-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Day-by-Day Meal Plan Configuration</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          
+          {/* First Row: Number of Days and Main Meals */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {/* Number of Days */}
             <div>
               <label htmlFor="num_days" className="block text-sm font-medium text-gray-700 mb-1">
@@ -207,24 +213,46 @@ export function DietaryGoalForm({ onSuccess }) {
               <p className="mt-1 text-xs text-gray-500">Days for the meal plan</p>
             </div>
 
-            {/* Main Courses Per Day */}
+            {/* Main Meals (Breakfast, Lunch, Dinner) */}
             <div>
-              <label htmlFor="main_courses_per_day" className="block text-sm font-medium text-gray-700 mb-1">
-                Main Courses Per Day <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Main Meals <span className="text-red-500">*</span>
               </label>
-              <input
-                id="main_courses_per_day"
-                type="number"
-                min="1"
-                max="5"
-                value={mainCoursesPerDay}
-                onChange={(e) => setMainCoursesPerDay(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <p className="mt-1 text-xs text-gray-500">Main courses per day</p>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={breakfast}
+                    onChange={(e) => setBreakfast(e.target.checked)}
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Breakfast</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={lunch}
+                    onChange={(e) => setLunch(e.target.checked)}
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Lunch</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={dinner}
+                    onChange={(e) => setDinner(e.target.checked)}
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Dinner</span>
+                </label>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Select which main meals to include</p>
             </div>
+          </div>
 
+          {/* Second Row: Small Meals and Snacks */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Small Meals Per Day */}
             <div>
               <label htmlFor="small_meals_per_day" className="block text-sm font-medium text-gray-700 mb-1">
