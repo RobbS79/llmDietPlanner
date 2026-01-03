@@ -128,7 +128,8 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                 f"- Dinner: {'Yes' if goal.dinner else 'No'}",
                 f"- {goal.small_meals_per_day} small meal(s) per day",
                 f"- {goal.snacks_per_day} snack(s) per day",
-                "Structure the output as a 'days' array, where each day has 'day_number', 'main_courses' (containing breakfast/lunch/dinner based on user selection), 'small_meals', and 'snacks' arrays.",
+                "Structure the output as a 'days' array, where each day has 'day_number', 'breakfast' (if requested), 'lunch' (if requested), 'dinner' (if requested), 'small_meals', and 'snacks' arrays.",
+                "Each main meal (breakfast, lunch, dinner) should be a single meal object, not an array. Only include the meals that the user selected.",
                 "Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
                 "Consider local cuisine preferences for the specified country",
                 "Prices will be calculated separately by the system - do not include prices",
@@ -280,31 +281,53 @@ def generate_mock_llm_response() -> Dict[str, Any]:
         'days': [
             {
                 'day_number': 1,
-                'main_courses': [
-                    {
-                        'name': 'Grilled Chicken Salad',
-                        'description': 'Healthy salad with grilled chicken breast',
-                        'ingredients': ['chicken breast', 'lettuce', 'tomatoes', 'cucumber', 'olive oil'],
-                        'preparation_time': 30,
-                        'nutritional_info': {
-                            'calories': 450,
-                            'protein': '35g',
-                            'carbs': '15g',
-                            'fat': '25g'
-                        }
+                'breakfast': {
+                    'name': 'Greek Yogurt with Berries',
+                    'description': 'Protein-rich breakfast option',
+                    'ingredients': ['greek yogurt', 'mixed berries', 'honey'],
+                    'preparation_time': 5,
+                    'nutritional_info': {
+                        'calories': 200,
+                        'protein': '15g',
+                        'carbs': '25g',
+                        'fat': '5g'
                     }
-                ],
+                },
+                'lunch': {
+                    'name': 'Grilled Chicken Salad',
+                    'description': 'Healthy salad with grilled chicken breast',
+                    'ingredients': ['chicken breast', 'lettuce', 'tomatoes', 'cucumber', 'olive oil'],
+                    'preparation_time': 30,
+                    'nutritional_info': {
+                        'calories': 450,
+                        'protein': '35g',
+                        'carbs': '15g',
+                        'fat': '25g'
+                    }
+                },
+                'dinner': {
+                    'name': 'Baked Salmon with Vegetables',
+                    'description': 'Nutritious dinner with omega-3 rich salmon',
+                    'ingredients': ['salmon fillet', 'broccoli', 'sweet potato', 'lemon', 'olive oil'],
+                    'preparation_time': 35,
+                    'nutritional_info': {
+                        'calories': 500,
+                        'protein': '40g',
+                        'carbs': '30g',
+                        'fat': '22g'
+                    }
+                },
                 'small_meals': [
                     {
-                        'name': 'Greek Yogurt with Berries',
-                        'description': 'Protein-rich breakfast option',
-                        'ingredients': ['greek yogurt', 'mixed berries', 'honey'],
-                        'preparation_time': 5,
+                        'name': 'Protein Smoothie',
+                        'description': 'Quick protein boost',
+                        'ingredients': ['protein powder', 'banana', 'almond milk'],
+                        'preparation_time': 3,
                         'nutritional_info': {
-                            'calories': 200,
-                            'protein': '15g',
-                            'carbs': '25g',
-                            'fat': '5g'
+                            'calories': 180,
+                            'protein': '20g',
+                            'carbs': '15g',
+                            'fat': '3g'
                         }
                     }
                 ],

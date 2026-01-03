@@ -325,8 +325,38 @@ export function GoalDetailPage() {
                           📅 Day {day.day_number}
                         </h3>
                         
-                        {/* Main Courses */}
-                        {day.main_courses && day.main_courses.length > 0 && (
+                        {/* Breakfast */}
+                        {day.breakfast && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🌅 Breakfast
+                            </h4>
+                            {renderMeal(day.breakfast, 0)}
+                          </div>
+                        )}
+                        
+                        {/* Lunch */}
+                        {day.lunch && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🍽️ Lunch
+                            </h4>
+                            {renderMeal(day.lunch, 1)}
+                          </div>
+                        )}
+                        
+                        {/* Dinner */}
+                        {day.dinner && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🌙 Dinner
+                            </h4>
+                            {renderMeal(day.dinner, 2)}
+                          </div>
+                        )}
+                        
+                        {/* Legacy support: main_courses (backward compatibility) */}
+                        {!day.breakfast && !day.lunch && !day.dinner && day.main_courses && day.main_courses.length > 0 && (
                           <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
                               🍽️ Main Courses

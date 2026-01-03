@@ -114,7 +114,9 @@ class ShoppingListItem(BaseModel):
 class DayPlan(BaseModel):
     """Schema for a single day's meal plan."""
     day_number: int = Field(..., ge=1, description="Day number (1-based)")
-    main_courses: List[MealIdea] = Field(..., description="Main courses for this day")
+    breakfast: Optional[MealIdea] = Field(None, description="Breakfast for this day (if requested)")
+    lunch: Optional[MealIdea] = Field(None, description="Lunch for this day (if requested)")
+    dinner: Optional[MealIdea] = Field(None, description="Dinner for this day (if requested)")
     small_meals: List[MealIdea] = Field(default_factory=list, description="Small meals for this day")
     snacks: List[MealIdea] = Field(default_factory=list, description="Snacks for this day")
 
