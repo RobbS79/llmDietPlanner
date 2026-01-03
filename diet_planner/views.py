@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from typing import Dict, Any
 
-from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, get_currency_for_country
+from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, get_currency_for_country, get_shops_for_country, SHOP_CHOICES
 from .llm_service import OpenAIService
 from .serializers import (
     DietaryGoalSerializer, 
@@ -77,6 +77,7 @@ class DietaryGoalCreateView(APIView):
                 dinner=schema.dinner,
                 small_meals_per_day=schema.small_meals_per_day,
                 snacks_per_day=schema.snacks_per_day,
+                shop=schema.shop.value if schema.shop else None,
                 status=DietaryGoal.StatusChoices.PENDING
             )
             
@@ -369,6 +370,66 @@ class DietaryGoalPromptDebugView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class ShopsListView(APIView):
+    """
+    Get list of available shops for a country.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request) -> Response:
+        """
+        Get available shops for a country.
+        
+        Query parameters:
+        - country: Country code (required, e.g., 'CZ', 'SK')
+        
+        Response:
+        {
+            "status": "success",
+            "data": {
+                "country": "CZ",
+                "shops": [
+                    {"code": "LIDL_CZ", "name": "Lidl (Czech Republic)"},
+                    {"code": "ROHLIK", "name": "Rohlik.cz"}
+                ]
+            },
+            "error": null
+        }
+        """
+        country = request.query_params.get('country')
+        if not country:
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": "Country parameter is required"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get available shops for country
+        shop_codes = get_shops_for_country(country)
+        
+        # Convert to list of dicts with code and name
+        shop_choices_dict = dict(SHOP_CHOICES)
+        shops = [
+            {"code": code, "name": shop_choices_dict.get(code, code)}
+            for code in shop_codes
+        ]
+        
+        return Response(
+            {
+                "status": "success",
+                "data": {
+                    "country": country,
+                    "shops": shops
+                },
+                "error": None
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 class RecipeDetailView(APIView):

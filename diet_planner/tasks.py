@@ -4,13 +4,14 @@ Handles dietary goal processing, meal idea generation, and shopping list creatio
 """
 from celery import shared_task
 from django.utils import timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import json
 import logging
 
 from .models import DietaryGoal, DietaryPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 from .llm_service import OpenAIService
+from .scrapers.scraper_service import ScraperService
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ def transform_days_to_new_format(days_data: List[Dict[str, Any]], goal: DietaryG
     return transformed_days
 
 
-def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
+def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
     Build a structured JSON prompt for the LLM based on user input.
     
@@ -109,6 +110,11 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
             "currency": "CZK",
             "language_code": "cs"
         },
+        "available_ingredients": {
+            "shop": "LIDL_CZ",
+            "ingredients": [...],
+            ...
+        },
         "instructions": {
             "output_format": "json",
             "required_outputs": ["meal_ideas", "shopping_list"],
@@ -118,6 +124,7 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
     
     Args:
         goal: DietaryGoal instance with user input
+        available_ingredients: Optional list of available ingredients from scraped leaflet data
         
     Returns:
         Dict containing structured prompt data for LLM
@@ -136,6 +143,12 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
         "localisation": {
             "currency": goal.currency,
             "language_code": goal.language_code,
+        },
+        "available_ingredients": {
+            "shop": goal.shop if goal.shop else None,
+            "ingredients": available_ingredients or [],
+            "source": f"Current leaflet offers from {goal.shop}" if goal.shop else None,
+            "note": f"You SHOULD prioritise ingredients from this list when creating meal plans. These are currently available at {goal.shop}." if (goal.shop and available_ingredients) else "No specific shop selected - use common ingredients available in local supermarkets.",
         },
         "instructions": {
             "output_format": "json",
@@ -228,6 +241,7 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                 "- Provide 4-8 detailed steps that guide the user through the entire cooking process",
                 "- Instructions should be in the same language as the meal name and description",
                 "- Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
+                f"- {'You SHOULD prioritise ingredients from the available_ingredients list provided above, as these are currently available at the selected shop.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
                 "- Consider local cuisine preferences for the specified country",
                 "- Prices will be calculated separately by the system - do not include prices",
                 "- Focus on creating practical, achievable meal plans",
@@ -238,6 +252,37 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
     }
     
     return prompt_data
+
+
+@shared_task(bind=True, max_retries=3)
+def scrape_leaflet_task(self, shop: str, country: str) -> Dict[str, Any]:
+    """
+    Async Celery task to scrape leaflet data for a shop/country.
+    
+    Checks cache first, scrapes if needed.
+    
+    Args:
+        shop: Shop code (e.g., 'LIDL_CZ')
+        country: Country code (e.g., 'CZ')
+        
+    Returns:
+        Dict with scraping result information
+    """
+    try:
+        logger.info(f"Scraping leaflet task started for {shop} ({country})")
+        
+        # Use ScraperService to get available ingredients (handles caching)
+        ingredients = ScraperService.get_available_ingredients(shop, country)
+        
+        return {
+            'status': 'success',
+            'shop': shop,
+            'country': country,
+            'ingredient_count': len(ingredients),
+        }
+    except Exception as exc:
+        logger.error(f"Error in scrape_leaflet_task for {shop} ({country}): {exc}", exc_info=True)
+        raise self.retry(exc=exc, countdown=60)
 
 
 @shared_task(bind=True, max_retries=3)
@@ -268,8 +313,23 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         goal.status = DietaryGoal.StatusChoices.PROCESSING
         goal.save(update_fields=['status'])
         
+        # Get available ingredients from scraped leaflet data (if shop is selected)
+        available_ingredients = []
+        if goal.shop:
+            try:
+                logger.info(f"Fetching available ingredients for {goal.shop} ({goal.country})")
+                available_ingredients = ScraperService.get_available_ingredients(
+                    shop=goal.shop,
+                    country=goal.country
+                )
+                logger.info(f"Found {len(available_ingredients)} available ingredients")
+            except Exception as e:
+                logger.warning(f"Error fetching available ingredients for goal {goal_id}: {e}", exc_info=True)
+                # Continue without available ingredients if scraping fails
+                available_ingredients = []
+        
         # Build structured JSON prompt for LLM
-        llm_prompt_json = build_llm_prompt_json(goal)
+        llm_prompt_json = build_llm_prompt_json(goal, available_ingredients)
         
         # Convert JSON to string for LLM prompt (with pretty formatting for readability)
         llm_prompt_text = json.dumps(llm_prompt_json, indent=2, ensure_ascii=False)

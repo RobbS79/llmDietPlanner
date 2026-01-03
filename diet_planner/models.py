@@ -63,6 +63,32 @@ def get_currency_for_country(country_code: str) -> str:
     return COUNTRY_CURRENCY_MAP.get(country_code, 'EUR')
 
 
+# Shop configuration
+SHOP_CHOICES = [
+    ('LIDL_CZ', 'Lidl (Czech Republic)'),
+    ('ROHLIK', 'Rohlik.cz'),
+    ('LIDL_SK', 'Lidl (Slovakia)'),
+    ('LUNYS', 'Lunys.sk'),
+]
+
+SHOP_TO_SOURCE_URL = {
+    'LIDL_CZ': 'kupi.cz',
+    'ROHLIK': 'rohlik.cz',
+    'LIDL_SK': 'kupino.sk',
+    'LUNYS': 'lunys.sk',
+}
+
+COUNTRY_TO_SHOPS = {
+    'CZ': ['LIDL_CZ', 'ROHLIK'],
+    'SK': ['LIDL_SK', 'LUNYS'],
+}
+
+
+def get_shops_for_country(country_code: str) -> list:
+    """Get available shops for a given country code."""
+    return COUNTRY_TO_SHOPS.get(country_code, [])
+
+
 class DietaryGoal(models.Model):
     """
     Stores user dietary goals with encrypted PII data.
@@ -138,6 +164,15 @@ class DietaryGoal(models.Model):
         help_text="Language code (ISO 639-1) for i18n support"
     )
     
+    # Shop selection
+    shop = models.CharField(
+        max_length=20,
+        choices=SHOP_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Shop where user wants to source ingredients"
+    )
+    
     # Meal plan configuration (day-by-day plan)
     num_days = models.IntegerField(
         default=7,
@@ -197,6 +232,7 @@ class DietaryGoal(models.Model):
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['status']),
             models.Index(fields=['country']),
+            models.Index(fields=['country', 'shop']),
         ]
     
     def save(self, *args, **kwargs):
@@ -443,6 +479,82 @@ class DietaryPlan(models.Model):
     
     def __str__(self) -> str:
         return f"Dietary Plan for Goal {self.dietary_goal.id}"
+
+
+class LeafletOffer(models.Model):
+    """
+    Stores scraped leaflet offers from shops.
+    Cached with expiry time to reduce scraping frequency.
+    """
+    shop = models.CharField(
+        max_length=20,
+        choices=SHOP_CHOICES,
+        help_text="Shop identifier"
+    )
+    country = models.CharField(
+        max_length=2,
+        choices=[
+            ('DE', 'Germany'),
+            ('PL', 'Poland'),
+            ('CZ', 'Czech Republic'),
+            ('SK', 'Slovakia'),
+            ('HU', 'Hungary'),
+            ('RO', 'Romania'),
+            ('BG', 'Bulgaria'),
+            ('AT', 'Austria'),
+        ],
+        help_text="Country code"
+    )
+    ingredient_name = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="Normalized ingredient name (lowercase, for matching)"
+    )
+    display_name = models.CharField(
+        max_length=255,
+        help_text="Original display name from source"
+    )
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Price (optional, for price matching later)"
+    )
+    currency = models.CharField(
+        max_length=3,
+        help_text="Currency code"
+    )
+    unit = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Unit of measurement (kg, piece, etc.)"
+    )
+    scraped_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the offer was scraped (ISO-8601)"
+    )
+    expires_at = models.DateTimeField(
+        db_index=True,
+        help_text="When the cached data expires (ISO-8601, typically scraped_at + 24h)"
+    )
+    source_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Source URL (optional, for debugging)"
+    )
+    
+    class Meta:
+        ordering = ['-scraped_at']
+        indexes = [
+            models.Index(fields=['shop', 'country', 'expires_at']),
+            models.Index(fields=['ingredient_name', 'shop', 'country']),
+        ]
+    
+    def __str__(self) -> str:
+        return f"{self.display_name} ({self.shop}, {self.country})"
 
 
 class Recipe(models.Model):

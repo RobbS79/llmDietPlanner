@@ -2,7 +2,7 @@
 Pydantic schemas for request/response validation.
 Used between LLM and Django for data validation.
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -23,6 +23,16 @@ class CountryEnum(str, Enum):
     RO = "RO"  # Romania
     BG = "BG"  # Bulgaria
     AT = "AT"  # Austria
+
+
+class ShopEnum(str, Enum):
+    """
+    Supported shops for ingredient sourcing.
+    """
+    LIDL_CZ = "LIDL_CZ"  # Lidl (Czech Republic)
+    ROHLIK = "ROHLIK"    # Rohlik.cz
+    LIDL_SK = "LIDL_SK"  # Lidl (Slovakia)
+    LUNYS = "LUNYS"      # Lunys.sk
 
 
 class DietaryGoalCreateRequest(BaseModel):
@@ -84,6 +94,10 @@ class DietaryGoalCreateRequest(BaseModel):
         le=3,
         description="Number of snacks per day"
     )
+    shop: Optional[ShopEnum] = Field(
+        None,
+        description="Shop where user wants to source ingredients"
+    )
 
     @field_validator('prompt')
     @classmethod
@@ -92,6 +106,35 @@ class DietaryGoalCreateRequest(BaseModel):
         if not v.strip():
             raise ValueError("Prompt cannot be empty or whitespace only")
         return v.strip()
+    
+    @model_validator(mode='after')
+    def validate_shop_for_country(self):
+        """
+        Validate that the selected shop is available for the selected country.
+        
+        Raises:
+            ValueError: If shop is not available for the selected country
+        """
+        if self.shop is None:
+            return self
+        
+        country_value = self.country.value if hasattr(self.country, 'value') else self.country
+        
+        # Import here to avoid circular imports
+        from .models import COUNTRY_TO_SHOPS
+        
+        # Check if shop is available for country
+        available_shops = COUNTRY_TO_SHOPS.get(country_value, [])
+        shop_value = self.shop.value if hasattr(self.shop, 'value') else self.shop
+        
+        if shop_value not in available_shops:
+            country_name = country_value
+            raise ValueError(
+                f"Shop {shop_value} is not available for country {country_name}. "
+                f"Available shops for {country_name}: {', '.join(available_shops)}"
+            )
+        
+        return self
 
 
 class MealIdea(BaseModel):
