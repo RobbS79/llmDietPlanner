@@ -2,7 +2,6 @@
 Utility functions for scrapers.
 """
 import re
-from typing import str as Str
 
 
 def normalize_ingredient_name(name: str) -> str:
