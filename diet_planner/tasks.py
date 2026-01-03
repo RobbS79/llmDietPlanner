@@ -26,9 +26,31 @@ def transform_days_to_new_format(days_data: List[Dict[str, Any]], goal: DietaryG
     Returns:
         Transformed days data with breakfast/lunch/dinner as separate objects
     """
+    if not days_data or not isinstance(days_data, list):
+        logger.warning(f"Invalid days_data passed to transform_days_to_new_format: {type(days_data)}")
+        return []
+    
+    if goal is None:
+        logger.warning("Goal is None in transform_days_to_new_format")
+        return days_data
+    
     transformed_days = []
     
+    # Safely get breakfast/lunch/dinner flags (handle cases where migration hasn't run)
+    try:
+        wants_breakfast = getattr(goal, 'breakfast', True)
+        wants_lunch = getattr(goal, 'lunch', True)
+        wants_dinner = getattr(goal, 'dinner', True)
+    except (AttributeError, TypeError) as e:
+        # Fallback if fields don't exist yet or goal is invalid
+        logger.warning(f"Could not get meal flags from goal: {e}, using defaults")
+        wants_breakfast = wants_lunch = wants_dinner = True
+    
     for day in days_data:
+        if not isinstance(day, dict):
+            logger.warning(f"Skipping invalid day entry: {day}")
+            continue
+            
         transformed_day = {
             'day_number': day.get('day_number', len(transformed_days) + 1),
             'small_meals': day.get('small_meals', []),
@@ -37,24 +59,24 @@ def transform_days_to_new_format(days_data: List[Dict[str, Any]], goal: DietaryG
         
         # If new format already exists, use it
         if 'breakfast' in day or 'lunch' in day or 'dinner' in day:
-            if goal.breakfast and 'breakfast' in day:
+            if wants_breakfast and 'breakfast' in day and day['breakfast']:
                 transformed_day['breakfast'] = day['breakfast']
-            if goal.lunch and 'lunch' in day:
+            if wants_lunch and 'lunch' in day and day['lunch']:
                 transformed_day['lunch'] = day['lunch']
-            if goal.dinner and 'dinner' in day:
+            if wants_dinner and 'dinner' in day and day['dinner']:
                 transformed_day['dinner'] = day['dinner']
         # Otherwise, convert from old main_courses format
         elif 'main_courses' in day and isinstance(day['main_courses'], list):
             main_courses = day['main_courses']
             # Distribute main courses to breakfast/lunch/dinner based on user selection
             meal_index = 0
-            if goal.breakfast and meal_index < len(main_courses):
+            if wants_breakfast and meal_index < len(main_courses):
                 transformed_day['breakfast'] = main_courses[meal_index]
                 meal_index += 1
-            if goal.lunch and meal_index < len(main_courses):
+            if wants_lunch and meal_index < len(main_courses):
                 transformed_day['lunch'] = main_courses[meal_index]
                 meal_index += 1
-            if goal.dinner and meal_index < len(main_courses):
+            if wants_dinner and meal_index < len(main_courses):
                 transformed_day['dinner'] = main_courses[meal_index]
                 meal_index += 1
         
@@ -177,22 +199,26 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                 f"- {goal.small_meals_per_day} small meal(s) per day (as an array)",
                 f"- {goal.snacks_per_day} snack(s) per day (as an array)",
                 "",
-                "CRITICAL: The output structure MUST be:",
+                "CRITICAL: The output structure MUST be a JSON object with a 'days' array.",
+                "Each day object must have:",
+                "- 'day_number': integer (1, 2, 3, ...)",
+                "- 'breakfast': single meal object (ONLY if breakfast is requested)",
+                "- 'lunch': single meal object (ONLY if lunch is requested)",
+                "- 'dinner': single meal object (ONLY if dinner is requested)",
+                "- 'small_meals': array of meal objects",
+                "- 'snacks': array of meal objects",
+                "",
+                "Example structure for a day (when all meals are requested):",
                 "{",
-                "  'days': [",
-                "    {",
-                "      'day_number': 1,",
-                f"      {'breakfast': {{'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': ..., 'nutritional_info': {{...}}}}, '  # Include this ONLY if breakfast is requested" if goal.breakfast else "      # NO breakfast field",
-                f"      {'lunch': {{'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': ..., 'nutritional_info': {{...}}}}, '  # Include this ONLY if lunch is requested" if goal.lunch else "      # NO lunch field",
-                f"      {'dinner': {{'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': ..., 'nutritional_info': {{...}}}}, '  # Include this ONLY if dinner is requested" if goal.dinner else "      # NO dinner field",
-                "      'small_meals': [...],  # Array of small meal objects",
-                "      'snacks': [...]  # Array of snack objects",
-                "    },",
-                "    ...",
-                "  ]",
+                "  'day_number': 1,",
+                "  'breakfast': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 15, 'nutritional_info': {'calories': 300, 'protein': 20, 'carbs': 30, 'fat': 10}},",
+                "  'lunch': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 30, 'nutritional_info': {...}},",
+                "  'dinner': {'name': '...', 'description': '...', 'ingredients': [...], 'preparation_time': 45, 'nutritional_info': {...}},",
+                "  'small_meals': [...],",
+                "  'snacks': [...]",
                 "}",
                 "",
-                "IMPORTANT:",
+                "IMPORTANT RULES:",
                 "- Each main meal (breakfast, lunch, dinner) is a SINGLE object, NOT an array",
                 "- Only include breakfast/lunch/dinner fields if they are requested (true)",
                 "- Do NOT use 'main_courses' field - use 'breakfast', 'lunch', 'dinner' instead",
@@ -264,7 +290,12 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 raise ValueError(f"Invalid days structure: expected list, got {type(days_data)}")
             
             # Transform old format (main_courses array) to new format (breakfast/lunch/dinner objects)
-            days_data = transform_days_to_new_format(days_data, goal)
+            try:
+                days_data = transform_days_to_new_format(days_data, goal)
+            except Exception as transform_error:
+                logger.error(f"Error transforming days data for goal {goal_id}: {transform_error}", exc_info=True)
+                # Continue with original data if transformation fails
+                logger.warning(f"Using original days data structure for goal {goal_id}")
             
             # Log cost information
             logger.info(
@@ -287,7 +318,12 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             shopping_list_data = llm_response.get('shopping_list', [])
             
             # Transform mock data to new format
-            days_data = transform_days_to_new_format(days_data, goal)
+            try:
+                days_data = transform_days_to_new_format(days_data, goal)
+            except Exception as transform_error:
+                logger.error(f"Error transforming mock days data for goal {goal_id}: {transform_error}", exc_info=True)
+                # Continue with original mock data if transformation fails
+                logger.warning(f"Using original mock days data structure for goal {goal_id}")
             llm_result = {
                 'input_tokens': None,
                 'output_tokens': None,

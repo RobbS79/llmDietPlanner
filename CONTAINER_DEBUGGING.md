@@ -141,3 +141,4 @@ echo "Gunicorn Running: $(ps aux | grep -q '[g]unicorn' && echo 'YES' || echo 'N
 echo "Redis Reachable: $(python -c "import redis; r = redis.Redis(host='127.0.0.1', port=6379); print('YES' if r.ping() else 'NO')" 2>/dev/null || echo 'NO')"
 ```
 
+

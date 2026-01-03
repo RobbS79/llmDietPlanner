@@ -228,3 +228,4 @@ python manage.py shell -c "from diet_planner.llm_service import OpenAIService; s
 
 Happy testing! 🚀
 
+

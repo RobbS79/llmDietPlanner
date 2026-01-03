@@ -86,3 +86,4 @@ echo ""
 echo "8. Attempting to start Celery manually (will show errors):"
 timeout 5 celery -A llm_diet_planner_project worker --loglevel=info 2>&1 | head -20 || echo "   (Timeout or error occurred)"
 
+

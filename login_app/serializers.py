@@ -13,3 +13,4 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'is_active', 'date_joined']
         read_only_fields = ['id', 'is_active', 'date_joined']
 
+

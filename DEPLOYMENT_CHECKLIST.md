@@ -74,3 +74,4 @@ git push origin prod
 - OpenAI API key must be set as SECRET in Digital Ocean
 - Default model: `gpt-4o-mini` (cost-effective)
 
+
