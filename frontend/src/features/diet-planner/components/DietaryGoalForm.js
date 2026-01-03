@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCreateDietaryGoal } from '../hooks/useDietaryGoals';
 import { CountryCitySelector } from './CountryCitySelector';
 import { LanguageSelector } from './LanguageSelector';
+import { ShopSelector } from './ShopSelector';
 import { COUNTRY_DEFAULT_LANGUAGE } from '../types';
 import './form.css';
 
@@ -13,6 +14,7 @@ export function DietaryGoalForm({ onSuccess }) {
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
+  const [shop, setShop] = useState('');
   const [languageCode, setLanguageCode] = useState('cs'); // Default to Czech for MVP
   const [numDays, setNumDays] = useState(7);
   const [breakfast, setBreakfast] = useState(true);
@@ -26,6 +28,8 @@ export function DietaryGoalForm({ onSuccess }) {
 
   const handleCountryChange = (newCountry) => {
     setCountry(newCountry);
+    // Reset shop when country changes
+    setShop('');
     // Auto-set language based on country
     if (newCountry && COUNTRY_DEFAULT_LANGUAGE[newCountry]) {
       setLanguageCode(COUNTRY_DEFAULT_LANGUAGE[newCountry]);
@@ -82,6 +86,7 @@ export function DietaryGoalForm({ onSuccess }) {
         dietary_restrictions: dietaryRestrictions.trim() || null,
         country,
         city: city.trim(),
+        shop: shop || null,
         language_code: languageCode,
         num_days: numDays,
         breakfast: breakfast,
@@ -97,6 +102,7 @@ export function DietaryGoalForm({ onSuccess }) {
         setDietaryRestrictions('');
         setCountry('');
         setCity('');
+        setShop('');
         setLanguageCode('cs'); // Reset to Czech default for MVP
         setErrors({});
 
@@ -187,6 +193,14 @@ export function DietaryGoalForm({ onSuccess }) {
         <LanguageSelector
           languageCode={languageCode}
           onLanguageChange={setLanguageCode}
+        />
+
+        {/* Shop Selection */}
+        <ShopSelector
+          country={country}
+          shop={shop}
+          onShopChange={setShop}
+          error={errors.shop}
         />
 
         {/* Meal Plan Configuration */}
