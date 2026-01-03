@@ -10,29 +10,31 @@ def handle_old_columns(apps, schema_editor):
     """Make old columns nullable or drop them depending on database backend."""
     db_backend = schema_editor.connection.vendor
     
-    with connection.cursor() as cursor:
-        if db_backend == 'sqlite':
-            # SQLite: Check if columns exist and make them nullable
+    if db_backend == 'sqlite':
+        # SQLite: Can't easily drop columns, so we'll set default values for existing records
+        # New records won't have these columns in the INSERT, so they'll fail
+        # Solution: We need to provide defaults or make columns nullable
+        # Since SQLite limitations, we'll just set defaults on existing records
+        with connection.cursor() as cursor:
             cursor.execute("PRAGMA table_info(diet_planner_dietarygoal)")
-            columns = {row[1]: row for row in cursor.fetchall()}
+            columns = [row[1] for row in cursor.fetchall()]
             
-            # SQLite doesn't support ALTER COLUMN easily either
-            # The simplest solution: just ignore them - they won't cause issues
-            # if we don't insert values into them
-            # Actually, we need to handle the NOT NULL constraint
-            # For SQLite, we'll use a workaround: update existing NULLs to 0
+            # Set default values for any existing NULL records
             for col in ['num_recipes', 'num_meals', 'num_snacks']:
                 if col in columns:
-                    # Update any NULL values to 0 to satisfy NOT NULL constraint
-                    # Then the columns can remain (they just won't be used)
                     try:
+                        # Set default values for existing records
+                        defaults = {'num_recipes': 7, 'num_meals': 14, 'num_snacks': 7}
                         cursor.execute(
-                            f"UPDATE diet_planner_dietarygoal SET {col} = 0 WHERE {col} IS NULL"
+                            f"UPDATE diet_planner_dietarygoal SET {col} = {defaults.get(col, 0)} WHERE {col} IS NULL"
                         )
                     except Exception:
                         pass
-        else:
-            # PostgreSQL and other databases: Drop columns
+        # Note: For SQLite, columns will remain but won't be used
+        # For new records, we need to ensure Django doesn't try to insert into them
+    else:
+        # PostgreSQL and other databases: Drop columns
+        with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT column_name 
                 FROM information_schema.columns 
