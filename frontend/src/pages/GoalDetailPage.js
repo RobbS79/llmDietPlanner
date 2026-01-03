@@ -336,6 +336,7 @@ export function GoalDetailPage() {
                   )}
                 </div>
               );
+              };
               
               if (hasDays || hasMealIdeas || hasShoppingList) {
                 return (
