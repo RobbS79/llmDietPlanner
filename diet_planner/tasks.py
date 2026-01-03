@@ -69,6 +69,13 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
         },
         "instructions": {
             "output_format": "json",
+            "meal_plan_type": "7_day_meal_plan",
+            "meal_plan_configuration": {
+                "num_recipes": goal.num_recipes,
+                "num_meals": goal.num_meals,
+                "num_snacks": goal.num_snacks,
+                "plan_duration_days": 7
+            },
             "required_outputs": [
                 "meal_ideas",
                 "shopping_list"
@@ -79,14 +86,25 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                     "description",
                     "ingredients",
                     "preparation_time",
-                    "nutritional_info"
+                    "nutritional_info",
+                    "meal_type"
+                ],
+                "meal_type_options": [
+                    "recipe",
+                    "small_meal",
+                    "snack"
                 ],
                 "nutritional_info_should_include": [
                     "calories",
                     "protein",
                     "carbs",
                     "fat"
-                ]
+                ],
+                "distribution": {
+                    "recipes": goal.num_recipes,
+                    "small_meals": goal.num_meals,
+                    "snacks": goal.num_snacks
+                }
             },
             "shopping_list_requirements": {
                 "include": [
@@ -95,13 +113,15 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                     "unit",
                     "notes"
                 ],
-                "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l)."
+                "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire 7-day plan."
             },
             "context_notes": [
+                "This is a 7-day meal plan. Generate exactly the specified number of recipes, small meals, and snacks.",
                 "Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
                 "Consider local cuisine preferences for the specified country",
                 "Prices will be calculated separately by the system - do not include prices",
-                "Focus on creating practical, achievable meal plans"
+                "Focus on creating practical, achievable meal plans that can be prepared by someone with basic cooking skills",
+                "Ensure variety across the 7 days to prevent meal fatigue"
             ]
         }
     }
@@ -150,7 +170,8 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         try:
             llm_service = OpenAIService()
             llm_result = llm_service.generate_dietary_plan(
-                prompt_text=llm_prompt_text
+                prompt_text=llm_prompt_text,
+                language_code=goal.language_code
             )
             
             # Extract response data

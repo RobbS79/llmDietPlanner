@@ -155,7 +155,8 @@ class OpenAIService:
         self,
         prompt_text: str,
         system_prompt: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        language_code: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate a dietary plan using OpenAI API.
@@ -164,6 +165,7 @@ class OpenAIService:
             prompt_text: User prompt (JSON formatted)
             system_prompt: System prompt (optional, uses default if not provided)
             model: Model to use (optional, uses default if not provided)
+            language_code: Language code for response (e.g., 'cs', 'pl', 'en')
             
         Returns:
             Dict containing:
@@ -176,14 +178,30 @@ class OpenAIService:
         """
         model = model or self.default_model
         
-        # Default system prompt
+        # Default system prompt (with language support)
         if system_prompt is None:
+            # Language mapping for better prompts
+            language_names = {
+                'cs': 'Czech',
+                'sk': 'Slovak',
+                'pl': 'Polish',
+                'hu': 'Hungarian',
+                'ro': 'Romanian',
+                'bg': 'Bulgarian',
+                'de': 'German',
+                'en': 'English',
+            }
+            target_language = language_names.get(language_code or 'en', 'English')
+            
             system_prompt = (
-                "You are a nutrition expert creating personalised diet plans for users in Central and Eastern Europe. "
-                "Your responses must be valid JSON only, with no markdown formatting or code blocks. "
-                "Focus on ingredients available in local supermarkets (Lidl, Biedronka, Kaufland, etc.). "
-                "Consider local cuisine preferences and dietary restrictions. "
-                "Do not include prices - the system will calculate them separately."
+                f"You are a nutrition expert creating personalised 7-day meal plans for users in Central and Eastern Europe. "
+                f"Your responses must be valid JSON only, with no markdown formatting or code blocks. "
+                f"All meal names, descriptions, and content should be in {target_language} language (language code: {language_code or 'en'}). "
+                f"Focus on ingredients available in local supermarkets (Lidl, Biedronka, Kaufland, etc.). "
+                f"Consider local cuisine preferences and dietary restrictions. "
+                f"Generate exactly the number of recipes, small meals, and snacks as specified in the meal plan configuration. "
+                f"Each meal idea must include a 'meal_type' field indicating whether it's a 'recipe', 'small_meal', or 'snack'. "
+                f"Do not include prices - the system will calculate them separately."
             )
         
         # Count input tokens

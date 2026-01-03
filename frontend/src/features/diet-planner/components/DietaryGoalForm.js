@@ -14,6 +14,9 @@ export function DietaryGoalForm({ onSuccess }) {
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
   const [languageCode, setLanguageCode] = useState('cs'); // Default to Czech for MVP
+  const [numRecipes, setNumRecipes] = useState(7);
+  const [numMeals, setNumMeals] = useState(14);
+  const [numSnacks, setNumSnacks] = useState(7);
   const [errors, setErrors] = useState({});
 
   const createGoalMutation = useCreateDietaryGoal();
@@ -77,6 +80,9 @@ export function DietaryGoalForm({ onSuccess }) {
         country,
         city: city.trim(),
         language_code: languageCode,
+        num_recipes: numRecipes,
+        num_meals: numMeals,
+        num_snacks: numSnacks,
       });
 
       if (result.status === 'success') {
@@ -176,6 +182,63 @@ export function DietaryGoalForm({ onSuccess }) {
           languageCode={languageCode}
           onLanguageChange={setLanguageCode}
         />
+
+        {/* Meal Plan Configuration */}
+        <div className="border-t pt-6 mt-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">7-Day Meal Plan Configuration</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Number of Recipes */}
+            <div>
+              <label htmlFor="num_recipes" className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Recipes
+              </label>
+              <input
+                id="num_recipes"
+                type="number"
+                min="1"
+                max="30"
+                value={numRecipes}
+                onChange={(e) => setNumRecipes(parseInt(e.target.value) || 7)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Recipes for the 7-day plan</p>
+            </div>
+
+            {/* Number of Meals */}
+            <div>
+              <label htmlFor="num_meals" className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Small Meals
+              </label>
+              <input
+                id="num_meals"
+                type="number"
+                min="1"
+                max="50"
+                value={numMeals}
+                onChange={(e) => setNumMeals(parseInt(e.target.value) || 14)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Small meals for the 7-day plan</p>
+            </div>
+
+            {/* Number of Snacks */}
+            <div>
+              <label htmlFor="num_snacks" className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Snacks
+              </label>
+              <input
+                id="num_snacks"
+                type="number"
+                min="0"
+                max="30"
+                value={numSnacks}
+                onChange={(e) => setNumSnacks(parseInt(e.target.value) || 7)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Snacks for the 7-day plan</p>
+            </div>
+          </div>
+        </div>
 
         {/* Submit Error */}
         {errors.submit && (

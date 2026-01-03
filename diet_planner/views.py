@@ -64,6 +64,9 @@ class DietaryGoalCreateView(APIView):
                 city=schema.city,
                 currency=currency,
                 language_code=schema.language_code,
+                num_recipes=schema.num_recipes,
+                num_meals=schema.num_meals,
+                num_snacks=schema.num_snacks,
                 status=DietaryGoal.StatusChoices.PENDING
             )
             

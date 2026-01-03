@@ -138,6 +138,23 @@ class DietaryGoal(models.Model):
         help_text="Language code (ISO 639-1) for i18n support"
     )
     
+    # Meal plan configuration (7-day plan)
+    num_recipes = models.IntegerField(
+        default=7,
+        validators=[MinValueValidator(1), MaxValueValidator(30)],
+        help_text="Number of recipes to generate for the 7-day meal plan"
+    )
+    num_meals = models.IntegerField(
+        default=14,
+        validators=[MinValueValidator(1), MaxValueValidator(50)],
+        help_text="Number of small meals to generate for the 7-day meal plan"
+    )
+    num_snacks = models.IntegerField(
+        default=7,
+        validators=[MinValueValidator(0), MaxValueValidator(30)],
+        help_text="Number of snacks to generate for the 7-day meal plan"
+    )
+    
     # Timestamps (ISO-8601 compliant)
     created_at = models.DateTimeField(
         auto_now_add=True,

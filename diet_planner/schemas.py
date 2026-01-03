@@ -54,6 +54,24 @@ class DietaryGoalCreateRequest(BaseModel):
         max_length=5,
         description="Language code (ISO 639-1) for i18n support"
     )
+    num_recipes: int = Field(
+        default=7,
+        ge=1,
+        le=30,
+        description="Number of recipes to generate for the 7-day meal plan"
+    )
+    num_meals: int = Field(
+        default=14,
+        ge=1,
+        le=50,
+        description="Number of small meals to generate for the 7-day meal plan"
+    )
+    num_snacks: int = Field(
+        default=7,
+        ge=0,
+        le=30,
+        description="Number of snacks to generate for the 7-day meal plan"
+    )
 
     @field_validator('prompt')
     @classmethod
