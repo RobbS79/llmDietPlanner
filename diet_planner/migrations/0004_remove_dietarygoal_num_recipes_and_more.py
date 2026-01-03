@@ -11,27 +11,12 @@ def handle_old_columns(apps, schema_editor):
     db_backend = schema_editor.connection.vendor
     
     if db_backend == 'sqlite':
-        # SQLite: Can't easily drop columns, so we'll set default values for existing records
-        # New records won't have these columns in the INSERT, so they'll fail
-        # Solution: We need to provide defaults or make columns nullable
-        # Since SQLite limitations, we'll just set defaults on existing records
-        with connection.cursor() as cursor:
-            cursor.execute("PRAGMA table_info(diet_planner_dietarygoal)")
-            columns = [row[1] for row in cursor.fetchall()]
-            
-            # Set default values for any existing NULL records
-            for col in ['num_recipes', 'num_meals', 'num_snacks']:
-                if col in columns:
-                    try:
-                        # Set default values for existing records
-                        defaults = {'num_recipes': 7, 'num_meals': 14, 'num_snacks': 7}
-                        cursor.execute(
-                            f"UPDATE diet_planner_dietarygoal SET {col} = {defaults.get(col, 0)} WHERE {col} IS NULL"
-                        )
-                    except Exception:
-                        pass
-        # Note: For SQLite, columns will remain but won't be used
-        # For new records, we need to ensure Django doesn't try to insert into them
+        # SQLite: Can't easily drop columns with ALTER TABLE
+        # For SQLite, this migration is a no-op
+        # Users need to manually run fix_sqlite_columns.sql or recreate the database
+        # The columns will remain but Django won't use them
+        # New inserts will fail if columns have NOT NULL - manual fix required
+        pass
     else:
         # PostgreSQL and other databases: Drop columns
         with connection.cursor() as cursor:
