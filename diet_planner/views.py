@@ -11,6 +11,7 @@ from django.utils import timezone
 from typing import Dict, Any
 
 from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, get_currency_for_country
+from .llm_service import OpenAIService
 from .serializers import (
     DietaryGoalSerializer, 
     DietaryGoalDetailSerializer,
@@ -483,24 +484,62 @@ class RecipeDetailView(APIView):
                         status=status.HTTP_404_NOT_FOUND
                     )
                 
-                # Get instructions from meal data, or generate basic ones if missing
+                # Get instructions from meal data, or generate them using LLM if missing
                 instructions = meal_data.get('instructions', [])
                 if not instructions or (isinstance(instructions, list) and len(instructions) == 0):
-                    # Create simple instructions from ingredients if LLM didn't provide them
+                    # Try to generate proper instructions using LLM
+                    meal_name = meal_data.get('name', 'this meal')
                     ingredients = meal_data.get('ingredients', [])
-                    if ingredients:
-                        instructions = [
-                            f"Prepare all ingredients: {', '.join(ingredients[:3])}" + ("..." if len(ingredients) > 3 else ""),
-                            f"Follow the recipe for {meal_data.get('name', 'this meal')}",
-                            "Cook according to your preferred method",
-                            "Serve and enjoy!"
-                        ]
-                    else:
-                        instructions = [
-                            "Follow standard cooking practices for this type of meal",
-                            "Adjust cooking time and temperature as needed",
-                            "Serve when ready"
-                        ]
+                    description = meal_data.get('description', '')
+                    
+                    try:
+                        llm_service = OpenAIService()
+                        instructions = llm_service.generate_recipe_instructions(
+                            meal_name=meal_name,
+                            ingredients=ingredients,
+                            description=description,
+                            language_code=dietary_goal.language_code
+                        )
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Failed to generate LLM instructions for {meal_name}: {e}")
+                        instructions = []
+                    
+                    # Fallback to basic instructions if LLM generation failed or returned empty
+                    if not instructions:
+                        prep_time = meal_data.get('preparation_time', 10)
+                        if meal_type == 'breakfast':
+                            instructions = [
+                                "Prepare all ingredients and cooking equipment",
+                                f"Follow standard breakfast preparation methods for {meal_name}",
+                                f"Cook for approximately {prep_time} minutes or until done",
+                                "Plate and serve immediately while warm"
+                            ]
+                        elif meal_type == 'lunch':
+                            instructions = [
+                                "Wash and prepare all fresh ingredients",
+                                f"Cook {meal_name} following standard lunch preparation techniques",
+                                f"Allow {prep_time} minutes for preparation and cooking",
+                                "Check doneness and adjust seasoning if needed",
+                                "Serve hot and enjoy"
+                            ]
+                        elif meal_type == 'dinner':
+                            instructions = [
+                                "Preheat any necessary cooking equipment",
+                                "Prepare and measure all ingredients",
+                                f"Cook {meal_name} following the recipe method",
+                                f"Cook for approximately {prep_time} minutes, checking periodically",
+                                "Ensure all components are properly cooked",
+                                "Plate attractively and serve"
+                            ]
+                        else:
+                            instructions = [
+                                "Gather all ingredients",
+                                f"Prepare {meal_name} according to standard methods",
+                                f"Allow {prep_time} minutes for preparation",
+                                "Serve and enjoy"
+                            ]
                 
                 # Create recipe from meal data
                 recipe = Recipe.objects.create(

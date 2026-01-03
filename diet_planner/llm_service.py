@@ -257,4 +257,79 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise
+    
+    def generate_recipe_instructions(
+        self,
+        meal_name: str,
+        ingredients: list,
+        description: str = "",
+        language_code: str = "en",
+        model: Optional[str] = None
+    ) -> list:
+        """
+        Generate detailed cooking instructions for a recipe using LLM.
+        
+        Args:
+            meal_name: Name of the meal
+            ingredients: List of ingredients
+            description: Optional meal description
+            language_code: Language code for instructions (e.g., 'cs', 'pl', 'en')
+            model: Model to use (optional, uses default if not provided)
+            
+        Returns:
+            List of step-by-step cooking instructions
+        """
+        model = model or self.default_model
+        
+        # Build prompt for generating instructions
+        ingredients_text = ", ".join(ingredients) if ingredients else "standard ingredients"
+        description_text = f"\nDescription: {description}" if description else ""
+        
+        prompt = f"""Generate detailed, step-by-step cooking instructions for the following meal:
+
+Meal Name: {meal_name}
+Ingredients: {ingredients_text}{description_text}
+
+Requirements:
+- Provide 4-8 clear, specific cooking steps
+- Each step should be a complete action (e.g., "Heat 1 tablespoon of olive oil in a pan over medium heat")
+- Include specific temperatures, times, and techniques where appropriate
+- Instructions should be practical and easy to follow
+- Write in {language_code} language
+
+Return ONLY a JSON array of instruction strings, like this:
+["Step 1 instruction", "Step 2 instruction", "Step 3 instruction", ...]"""
+
+        system_prompt = "You are a professional chef providing clear, detailed cooking instructions. Always respond with valid JSON."
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7,
+            )
+            
+            content = response.choices[0].message.content
+            parsed = json.loads(content)
+            
+            # Extract instructions array (could be under 'instructions' key or be the root)
+            if isinstance(parsed, list):
+                return parsed
+            elif 'instructions' in parsed:
+                return parsed['instructions']
+            else:
+                # Try to find any array in the response
+                for value in parsed.values():
+                    if isinstance(value, list):
+                        return value
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error generating recipe instructions: {e}")
+            # Return empty list on error - fallback will be used
+            return []
 
