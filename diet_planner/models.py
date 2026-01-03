@@ -443,3 +443,187 @@ class DietaryPlan(models.Model):
     
     def __str__(self) -> str:
         return f"Dietary Plan for Goal {self.dietary_goal.id}"
+
+
+class Recipe(models.Model):
+    """
+    Detailed recipe information for a meal.
+    Recipes are linked to meals via a unique meal identifier.
+    """
+    # Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)
+    # Example: "19:1:breakfast:0" or "19:1:lunch:0"
+    meal_identifier = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+        help_text="Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)"
+    )
+    
+    # Link to the dietary goal for easy querying
+    dietary_goal = models.ForeignKey(
+        DietaryGoal,
+        on_delete=models.CASCADE,
+        related_name='recipes',
+        help_text="The dietary goal this recipe belongs to"
+    )
+    
+    # Recipe details
+    name = models.CharField(
+        max_length=255,
+        help_text="Recipe name"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Recipe description"
+    )
+    
+    # Instructions (stored as JSON for structured steps)
+    instructions = models.JSONField(
+        default=list,
+        help_text="Step-by-step cooking instructions (list of strings)"
+    )
+    
+    # Ingredients (stored as JSON to match meal structure)
+    ingredients = models.JSONField(
+        default=list,
+        help_text="List of ingredients with quantities"
+    )
+    
+    # Additional recipe information
+    preparation_time = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Preparation time in minutes"
+    )
+    cooking_time = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Cooking time in minutes"
+    )
+    servings = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text="Number of servings"
+    )
+    
+    # Nutritional information (stored as JSON for flexibility)
+    nutritional_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Nutritional information (calories, protein, carbs, fat, etc.)"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the recipe was created (ISO-8601)"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="When the recipe was last updated (ISO-8601)"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['dietary_goal', '-created_at']),
+            models.Index(fields=['meal_identifier']),
+        ]
+    
+    def __str__(self) -> str:
+        return f"Recipe: {self.name} ({self.meal_identifier})"
+
+
+class MealInstance(models.Model):
+    """
+    Tracks individual meal instances from a dietary plan.
+    Allows users to mark meals as cooked and track cooking history.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='meal_instances',
+        help_text="User who cooked this meal"
+    )
+    
+    dietary_goal = models.ForeignKey(
+        DietaryGoal,
+        on_delete=models.CASCADE,
+        related_name='meal_instances',
+        help_text="The dietary goal this meal belongs to"
+    )
+    
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='instances',
+        help_text="The recipe for this meal (optional, can be null if recipe not yet created)"
+    )
+    
+    # Meal identifier (same format as Recipe.meal_identifier)
+    meal_identifier = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)"
+    )
+    
+    # Meal metadata (stored for reference even if meal structure changes)
+    meal_name = models.CharField(
+        max_length=255,
+        help_text="Name of the meal"
+    )
+    day_number = models.IntegerField(
+        help_text="Day number in the meal plan"
+    )
+    meal_type = models.CharField(
+        max_length=50,
+        help_text="Type of meal (breakfast, lunch, dinner, small_meal, snack)"
+    )
+    
+    # Cooking status
+    is_cooked = models.BooleanField(
+        default=False,
+        help_text="Whether this meal has been cooked"
+    )
+    cooked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the meal was marked as cooked (ISO-8601)"
+    )
+    
+    # Optional notes from user
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="User notes about cooking this meal"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the meal instance was created (ISO-8601)"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="When the meal instance was last updated (ISO-8601)"
+    )
+    
+    class Meta:
+        ordering = ['-cooked_at', '-created_at']
+        indexes = [
+            models.Index(fields=['user', '-cooked_at']),
+            models.Index(fields=['dietary_goal', 'day_number']),
+            models.Index(fields=['meal_identifier']),
+            models.Index(fields=['is_cooked']),
+        ]
+        # Ensure a user can only have one instance per meal identifier
+        unique_together = [['user', 'meal_identifier']]
+    
+    def __str__(self) -> str:
+        cooked_status = "✓ Cooked" if self.is_cooked else "Not cooked"
+        return f"{self.meal_name} - {cooked_status} (User: {self.user.username})"

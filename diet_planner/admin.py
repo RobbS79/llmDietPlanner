@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.core.exceptions import PermissionDenied
-from .models import DietaryGoal, DietaryPlan
+from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance
 
 # Log that admin module is being loaded
 print("[DEBUG STARTUP] diet_planner/admin.py: Module is being imported", file=sys.stderr, flush=True)
@@ -231,3 +231,105 @@ except Exception as e:
     print(f"[DEBUG STARTUP ERROR] diet_planner/admin.py: Failed to register DietaryPlanAdmin: {error_msg}", file=sys.stderr, flush=True)
     print(f"[DEBUG STARTUP ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
     raise  # Re-raise to prevent silent failures
+
+
+try:
+    @admin.register(Recipe)
+    class RecipeAdmin(admin.ModelAdmin):
+        """Admin interface for Recipe model."""
+        list_display = [
+            'id',
+            'name',
+            'meal_identifier',
+            'dietary_goal',
+            'preparation_time',
+            'cooking_time',
+            'servings',
+            'created_at',
+        ]
+        list_filter = [
+            'dietary_goal',
+            'created_at',
+        ]
+        search_fields = [
+            'name',
+            'meal_identifier',
+            'description',
+        ]
+        readonly_fields = [
+            'created_at',
+            'updated_at',
+        ]
+        date_hierarchy = 'created_at'
+        
+        fieldsets = (
+            ('Meal Information', {
+                'fields': ('meal_identifier', 'dietary_goal', 'name', 'description')
+            }),
+            ('Recipe Details', {
+                'fields': ('ingredients', 'instructions', 'preparation_time', 'cooking_time', 'servings')
+            }),
+            ('Nutritional Information', {
+                'fields': ('nutritional_info',)
+            }),
+            ('Timestamps', {
+                'fields': ('created_at', 'updated_at')
+            }),
+        )
+except Exception as e:
+    error_msg = str(e)
+    error_trace = traceback.format_exc()
+    print(f"[DEBUG STARTUP ERROR] diet_planner/admin.py: Failed to register RecipeAdmin: {error_msg}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+
+
+try:
+    @admin.register(MealInstance)
+    class MealInstanceAdmin(admin.ModelAdmin):
+        """Admin interface for MealInstance model."""
+        list_display = [
+            'id',
+            'meal_name',
+            'user',
+            'dietary_goal',
+            'day_number',
+            'meal_type',
+            'is_cooked',
+            'cooked_at',
+            'created_at',
+        ]
+        list_filter = [
+            'is_cooked',
+            'meal_type',
+            'dietary_goal',
+            'cooked_at',
+            'created_at',
+        ]
+        search_fields = [
+            'meal_name',
+            'meal_identifier',
+            'user__username',
+            'notes',
+        ]
+        readonly_fields = [
+            'created_at',
+            'updated_at',
+        ]
+        date_hierarchy = 'cooked_at'
+        
+        fieldsets = (
+            ('Meal Information', {
+                'fields': ('user', 'dietary_goal', 'recipe', 'meal_identifier', 'meal_name', 'day_number', 'meal_type')
+            }),
+            ('Cooking Status', {
+                'fields': ('is_cooked', 'cooked_at', 'notes')
+            }),
+            ('Timestamps', {
+                'fields': ('created_at', 'updated_at')
+            }),
+        )
+except Exception as e:
+    error_msg = str(e)
+    error_trace = traceback.format_exc()
+    print(f"[DEBUG STARTUP ERROR] diet_planner/admin.py: Failed to register MealInstanceAdmin: {error_msg}", file=sys.stderr, flush=True)
+    print(f"[DEBUG STARTUP ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)

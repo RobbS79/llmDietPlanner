@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { CreateGoalPage } from './pages/CreateGoalPage';
 import { GoalsListPage } from './pages/GoalsListPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
+import { RecipePage } from './pages/RecipePage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import './App.css';
 
@@ -125,6 +126,14 @@ const AppContent = () => {
         element={
           <ProtectedRoute>
             <GoalDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recipe/:mealIdentifier"
+        element={
+          <ProtectedRoute>
+            <RecipePage />
           </ProtectedRoute>
         }
       />

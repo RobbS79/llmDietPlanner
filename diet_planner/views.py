@@ -10,8 +10,14 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from typing import Dict, Any
 
-from .models import DietaryGoal, DietaryPlan, get_currency_for_country
-from .serializers import DietaryGoalSerializer, DietaryGoalDetailSerializer
+from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, get_currency_for_country
+from .serializers import (
+    DietaryGoalSerializer, 
+    DietaryGoalDetailSerializer,
+    RecipeSerializer,
+    MealInstanceSerializer,
+    MealInstanceCreateUpdateSerializer,
+)
 from .schemas import DietaryGoalCreateRequest, DietaryGoalCreateResponse
 from .tasks import process_dietary_goal_task, build_llm_prompt_json
 from celery.result import AsyncResult
@@ -361,4 +367,318 @@ class DietaryGoalPromptDebugView(APIView):
                     "error": "Dietary goal not found"
                 },
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class RecipeDetailView(APIView):
+    """
+    Get or create/update a recipe for a specific meal.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, meal_identifier: str) -> Response:
+        """
+        Get recipe by meal identifier.
+        """
+        try:
+            recipe = Recipe.objects.select_related('dietary_goal').get(
+                meal_identifier=meal_identifier,
+                dietary_goal__user=request.user
+            )
+            
+            serializer = RecipeSerializer(recipe)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": serializer.data,
+                    "error": None
+                },
+                status=status.HTTP_200_OK
+            )
+        except Recipe.DoesNotExist:
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": "Recipe not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error retrieving recipe {meal_identifier}: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def post(self, request, meal_identifier: str) -> Response:
+        """
+        Create or update a recipe for a meal.
+        Requires goal_id, day_number, meal_type, and meal_index in request data.
+        """
+        try:
+            # Extract meal info from identifier or request data
+            goal_id = request.data.get('goal_id')
+            day_number = request.data.get('day_number')
+            meal_type = request.data.get('meal_type')
+            meal_index = request.data.get('meal_index', 0)
+            
+            if not all([goal_id, day_number, meal_type]):
+                return Response(
+                    {
+                        "status": "error",
+                        "data": None,
+                        "error": "Missing required fields: goal_id, day_number, meal_type"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Verify the dietary goal belongs to the user
+            try:
+                dietary_goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+            except DietaryGoal.DoesNotExist:
+                return Response(
+                    {
+                        "status": "error",
+                        "data": None,
+                        "error": "Dietary goal not found"
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Create or update recipe
+            recipe, created = Recipe.objects.update_or_create(
+                meal_identifier=meal_identifier,
+                defaults={
+                    'dietary_goal': dietary_goal,
+                    'name': request.data.get('name', ''),
+                    'description': request.data.get('description', ''),
+                    'instructions': request.data.get('instructions', []),
+                    'ingredients': request.data.get('ingredients', []),
+                    'preparation_time': request.data.get('preparation_time'),
+                    'cooking_time': request.data.get('cooking_time'),
+                    'servings': request.data.get('servings', 1),
+                    'nutritional_info': request.data.get('nutritional_info', {}),
+                }
+            )
+            
+            serializer = RecipeSerializer(recipe)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": serializer.data,
+                    "error": None
+                },
+                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating/updating recipe {meal_identifier}: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class MealInstanceView(APIView):
+    """
+    Get or create/update a meal instance (for marking as cooked).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, meal_identifier: str) -> Response:
+        """
+        Get meal instance by meal identifier for the current user.
+        """
+        try:
+            meal_instance = MealInstance.objects.select_related(
+                'recipe', 'dietary_goal', 'user'
+            ).get(
+                meal_identifier=meal_identifier,
+                user=request.user
+            )
+            
+            serializer = MealInstanceSerializer(meal_instance)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": serializer.data,
+                    "error": None
+                },
+                status=status.HTTP_200_OK
+            )
+        except MealInstance.DoesNotExist:
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": "Meal instance not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error retrieving meal instance {meal_identifier}: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def post(self, request, meal_identifier: str) -> Response:
+        """
+        Create or update a meal instance (mark as cooked/un cooked).
+        """
+        try:
+            # Extract required fields
+            goal_id = request.data.get('goal_id')
+            meal_name = request.data.get('meal_name', '')
+            day_number = request.data.get('day_number')
+            meal_type = request.data.get('meal_type')
+            
+            if not all([goal_id, day_number, meal_type]):
+                return Response(
+                    {
+                        "status": "error",
+                        "data": None,
+                        "error": "Missing required fields: goal_id, day_number, meal_type"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Verify the dietary goal belongs to the user
+            try:
+                dietary_goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+            except DietaryGoal.DoesNotExist:
+                return Response(
+                    {
+                        "status": "error",
+                        "data": None,
+                        "error": "Dietary goal not found"
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get recipe if it exists
+            recipe = None
+            try:
+                recipe = Recipe.objects.get(meal_identifier=meal_identifier)
+            except Recipe.DoesNotExist:
+                pass
+            
+            # Determine if cooked
+            is_cooked = request.data.get('is_cooked', False)
+            cooked_at = timezone.now() if is_cooked else None
+            
+            # Create or update meal instance
+            meal_instance, created = MealInstance.objects.update_or_create(
+                meal_identifier=meal_identifier,
+                user=request.user,
+                defaults={
+                    'dietary_goal': dietary_goal,
+                    'recipe': recipe,
+                    'meal_name': meal_name,
+                    'day_number': day_number,
+                    'meal_type': meal_type,
+                    'is_cooked': is_cooked,
+                    'cooked_at': cooked_at,
+                    'notes': request.data.get('notes', ''),
+                }
+            )
+            
+            serializer = MealInstanceSerializer(meal_instance)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": serializer.data,
+                    "error": None
+                },
+                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating/updating meal instance {meal_identifier}: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class MealInstanceCookedListView(APIView):
+    """
+    List all cooked meals for the authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request) -> Response:
+        """
+        Get list of cooked meals for the user.
+        Optional query params: goal_id, limit, offset
+        """
+        try:
+            queryset = MealInstance.objects.filter(
+                user=request.user,
+                is_cooked=True
+            ).select_related('recipe', 'dietary_goal').order_by('-cooked_at')
+            
+            # Filter by goal if provided
+            goal_id = request.query_params.get('goal_id')
+            if goal_id:
+                queryset = queryset.filter(dietary_goal_id=goal_id)
+            
+            # Pagination
+            limit = int(request.query_params.get('limit', 50))
+            offset = int(request.query_params.get('offset', 0))
+            queryset = queryset[offset:offset + limit]
+            
+            serializer = MealInstanceSerializer(queryset, many=True)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": serializer.data,
+                    "error": None
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error retrieving cooked meals: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

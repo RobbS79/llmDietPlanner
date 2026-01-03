@@ -214,3 +214,142 @@ function getCsrfToken() {
   return '';
 }
 
+/**
+ * Generate meal identifier
+ * @param {number} goalId
+ * @param {number} dayNumber
+ * @param {string} mealType (breakfast, lunch, dinner, small_meal, snack)
+ * @param {number} mealIndex
+ * @returns {string}
+ */
+export function generateMealIdentifier(goalId, dayNumber, mealType, mealIndex = 0) {
+  return `${goalId}:${dayNumber}:${mealType}:${mealIndex}`;
+}
+
+/**
+ * Get recipe by meal identifier
+ * @param {string} mealIdentifier
+ * @returns {Promise<Object>}
+ */
+export async function getRecipe(mealIdentifier) {
+  const token = getAccessToken();
+  
+  if (!token) {
+    window.location.href = '/login';
+    throw new Error('Not authenticated. Please login.');
+  }
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+
+  const response = await fetch(`/api/recipes/${encodeURIComponent(mealIdentifier)}/`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+
+  if (response.status === 401) {
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get meal instance by meal identifier
+ * @param {string} mealIdentifier
+ * @returns {Promise<Object>}
+ */
+export async function getMealInstance(mealIdentifier) {
+  const token = getAccessToken();
+  
+  if (!token) {
+    window.location.href = '/login';
+    throw new Error('Not authenticated. Please login.');
+  }
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+
+  const response = await fetch(`/api/meals/${encodeURIComponent(mealIdentifier)}/`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+
+  if (response.status === 401) {
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
+
+  if (response.status === 404) {
+    // Meal instance doesn't exist yet, return null
+    return null;
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Mark meal as cooked or uncooked
+ * @param {string} mealIdentifier
+ * @param {Object} mealData
+ * @param {number} mealData.goal_id
+ * @param {string} mealData.meal_name
+ * @param {number} mealData.day_number
+ * @param {string} mealData.meal_type
+ * @param {boolean} mealData.is_cooked
+ * @param {string} [mealData.notes]
+ * @returns {Promise<Object>}
+ */
+export async function markMealAsCooked(mealIdentifier, mealData) {
+  const token = getAccessToken();
+  
+  if (!token) {
+    window.location.href = '/login';
+    throw new Error('Not authenticated. Please login.');
+  }
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+
+  const response = await fetch(`/api/meals/${encodeURIComponent(mealIdentifier)}/`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(mealData),
+  });
+
+  if (response.status === 401) {
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+

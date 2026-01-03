@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAccessToken } from '../utils/api';
 import { Navigation } from '../components/Navigation';
+import { generateMealIdentifier, getMealInstance } from '../features/diet-planner/utils/api';
 
 /**
  * Page for viewing details of a specific dietary goal
@@ -12,6 +13,7 @@ export function GoalDetailPage() {
   const [goal, setGoal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cookedMeals, setCookedMeals] = useState({});
 
   useEffect(() => {
     // Fetch goal details with token refresh handling
@@ -210,32 +212,65 @@ export function GoalDetailPage() {
               const hasShoppingList = plan?.shopping_list && Array.isArray(plan.shopping_list) && plan.shopping_list.length > 0;
               
               // Helper function to render a meal
-              const renderMeal = (meal, index) => (
-                <div
-                  key={index}
-                  style={{
-                    padding: '1.5rem',
-                    background: '#f9fafb',
-                    borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                    <h4 style={{ margin: 0, fontSize: '1.125rem', color: '#1f2937' }}>{meal.name}</h4>
-                    {meal.preparation_time && (
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        background: '#dbeafe',
-                        color: '#1e40af',
-                        borderRadius: '9999px',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                      }}>
-                        ⏱️ {meal.preparation_time} min
-                      </span>
-                    )}
-                  </div>
+              const renderMeal = (meal, index, dayNumber, mealType) => {
+                if (!meal) return null;
+                
+                const mealIdentifier = generateMealIdentifier(goal.id, dayNumber, mealType, index);
+                const isCooked = cookedMeals[mealIdentifier] || false;
+                
+                return (
+                  <div
+                    key={index}
+                    onClick={() => navigate(`/recipe/${encodeURIComponent(mealIdentifier)}`)}
+                    style={{
+                      padding: '1.5rem',
+                      background: isCooked ? '#f0fdf4' : '#f9fafb',
+                      borderRadius: '8px',
+                      border: isCooked ? '2px solid #10b981' : '1px solid #e5e7eb',
+                      marginBottom: '1rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: 0, fontSize: '1.125rem', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {meal.name}
+                          {isCooked && (
+                            <span style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#10b981',
+                              color: 'white',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                            }}>
+                              ✓
+                            </span>
+                          )}
+                        </h4>
+                      </div>
+                      {meal.preparation_time && (
+                        <span style={{
+                          padding: '0.25rem 0.75rem',
+                          background: '#dbeafe',
+                          color: '#1e40af',
+                          borderRadius: '9999px',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                        }}>
+                          ⏱️ {meal.preparation_time} min
+                        </span>
+                      )}
+                    </div>
                   {meal.description && (
                     <p style={{ margin: '0 0 0.75rem 0', color: '#6b7280', fontSize: '0.9rem' }}>
                       {meal.description}
@@ -331,7 +366,7 @@ export function GoalDetailPage() {
                             <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
                               🌅 Breakfast
                             </h4>
-                            {renderMeal(day.breakfast, 0)}
+                            {renderMeal(day.breakfast, 0, day.day_number, 'breakfast')}
                           </div>
                         )}
                         
@@ -341,7 +376,7 @@ export function GoalDetailPage() {
                             <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
                               🍽️ Lunch
                             </h4>
-                            {renderMeal(day.lunch, 1)}
+                            {renderMeal(day.lunch, 0, day.day_number, 'lunch')}
                           </div>
                         )}
                         
@@ -351,7 +386,7 @@ export function GoalDetailPage() {
                             <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
                               🌙 Dinner
                             </h4>
-                            {renderMeal(day.dinner, 2)}
+                            {renderMeal(day.dinner, 0, day.day_number, 'dinner')}
                           </div>
                         )}
                         
@@ -361,7 +396,7 @@ export function GoalDetailPage() {
                             <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
                               🍽️ Main Courses
                             </h4>
-                            {day.main_courses.map((meal, index) => renderMeal(meal, index))}
+                            {day.main_courses.map((meal, index) => renderMeal(meal, index, day.day_number, 'main_course'))}
                           </div>
                         )}
                         
@@ -371,7 +406,7 @@ export function GoalDetailPage() {
                             <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
                               🥗 Small Meals
                             </h4>
-                            {day.small_meals.map((meal, index) => renderMeal(meal, index))}
+                            {day.small_meals.map((meal, index) => renderMeal(meal, index, day.day_number, 'small_meal'))}
                           </div>
                         )}
                         
@@ -381,7 +416,7 @@ export function GoalDetailPage() {
                             <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
                               🍎 Snacks
                             </h4>
-                            {day.snacks.map((meal, index) => renderMeal(meal, index))}
+                            {day.snacks.map((meal, index) => renderMeal(meal, index, day.day_number, 'snack'))}
                           </div>
                         )}
                       </div>

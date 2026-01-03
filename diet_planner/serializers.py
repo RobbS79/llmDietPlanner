@@ -3,7 +3,7 @@ Django REST Framework serializers for dietary goals and plans.
 """
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import DietaryGoal, DietaryPlan
+from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance
 
 
 class DietaryGoalSerializer(serializers.ModelSerializer):
@@ -187,3 +187,72 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             representation['dietary_plan'] = None
         
         return representation
+
+
+class RecipeSerializer(serializers.ModelSerializer):
+    """Serializer for Recipe model."""
+    dietary_goal_id = serializers.IntegerField(source='dietary_goal.id', read_only=True)
+    
+    class Meta:
+        model = Recipe
+        fields = [
+            'id',
+            'meal_identifier',
+            'dietary_goal_id',
+            'name',
+            'description',
+            'instructions',
+            'ingredients',
+            'preparation_time',
+            'cooking_time',
+            'servings',
+            'nutritional_info',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id',
+            'created_at',
+            'updated_at',
+        ]
+
+
+class MealInstanceSerializer(serializers.ModelSerializer):
+    """Serializer for MealInstance model."""
+    recipe = RecipeSerializer(read_only=True)
+    recipe_id = serializers.IntegerField(source='recipe.id', read_only=True, allow_null=True)
+    dietary_goal_id = serializers.IntegerField(source='dietary_goal.id', read_only=True)
+    
+    class Meta:
+        model = MealInstance
+        fields = [
+            'id',
+            'meal_identifier',
+            'dietary_goal_id',
+            'recipe',
+            'recipe_id',
+            'meal_name',
+            'day_number',
+            'meal_type',
+            'is_cooked',
+            'cooked_at',
+            'notes',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id',
+            'created_at',
+            'updated_at',
+        ]
+
+
+class MealInstanceCreateUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/updating MealInstance (marking as cooked)."""
+    
+    class Meta:
+        model = MealInstance
+        fields = [
+            'is_cooked',
+            'notes',
+        ]
