@@ -14,9 +14,10 @@ export function DietaryGoalForm({ onSuccess }) {
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
   const [languageCode, setLanguageCode] = useState('cs'); // Default to Czech for MVP
-  const [numRecipes, setNumRecipes] = useState(7);
-  const [numMeals, setNumMeals] = useState(14);
-  const [numSnacks, setNumSnacks] = useState(7);
+  const [numDays, setNumDays] = useState(7);
+  const [mainCoursesPerDay, setMainCoursesPerDay] = useState(1);
+  const [smallMealsPerDay, setSmallMealsPerDay] = useState(2);
+  const [snacksPerDay, setSnacksPerDay] = useState(1);
   const [errors, setErrors] = useState({});
 
   const createGoalMutation = useCreateDietaryGoal();
@@ -80,9 +81,10 @@ export function DietaryGoalForm({ onSuccess }) {
         country,
         city: city.trim(),
         language_code: languageCode,
-        num_recipes: numRecipes,
-        num_meals: numMeals,
-        num_snacks: numSnacks,
+        num_days: numDays,
+        main_courses_per_day: mainCoursesPerDay,
+        small_meals_per_day: smallMealsPerDay,
+        snacks_per_day: snacksPerDay,
       });
 
       if (result.status === 'success') {
@@ -185,57 +187,78 @@ export function DietaryGoalForm({ onSuccess }) {
 
         {/* Meal Plan Configuration */}
         <div className="border-t pt-6 mt-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">7-Day Meal Plan Configuration</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Number of Recipes */}
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Day-by-Day Meal Plan Configuration</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Number of Days */}
             <div>
-              <label htmlFor="num_recipes" className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Recipes
+              <label htmlFor="num_days" className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Days <span className="text-red-500">*</span>
               </label>
               <input
-                id="num_recipes"
+                id="num_days"
                 type="number"
                 min="1"
                 max="30"
-                value={numRecipes}
-                onChange={(e) => setNumRecipes(parseInt(e.target.value) || 7)}
+                value={numDays}
+                onChange={(e) => setNumDays(parseInt(e.target.value) || 7)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
-              <p className="mt-1 text-xs text-gray-500">Recipes for the 7-day plan</p>
+              <p className="mt-1 text-xs text-gray-500">Days for the meal plan</p>
             </div>
 
-            {/* Number of Meals */}
+            {/* Main Courses Per Day */}
             <div>
-              <label htmlFor="num_meals" className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Small Meals
+              <label htmlFor="main_courses_per_day" className="block text-sm font-medium text-gray-700 mb-1">
+                Main Courses Per Day <span className="text-red-500">*</span>
               </label>
               <input
-                id="num_meals"
+                id="main_courses_per_day"
                 type="number"
                 min="1"
-                max="50"
-                value={numMeals}
-                onChange={(e) => setNumMeals(parseInt(e.target.value) || 14)}
+                max="5"
+                value={mainCoursesPerDay}
+                onChange={(e) => setMainCoursesPerDay(parseInt(e.target.value) || 1)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
-              <p className="mt-1 text-xs text-gray-500">Small meals for the 7-day plan</p>
+              <p className="mt-1 text-xs text-gray-500">Main courses per day</p>
             </div>
 
-            {/* Number of Snacks */}
+            {/* Small Meals Per Day */}
             <div>
-              <label htmlFor="num_snacks" className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Snacks
+              <label htmlFor="small_meals_per_day" className="block text-sm font-medium text-gray-700 mb-1">
+                Small Meals Per Day <span className="text-red-500">*</span>
               </label>
               <input
-                id="num_snacks"
+                id="small_meals_per_day"
                 type="number"
                 min="0"
-                max="30"
-                value={numSnacks}
-                onChange={(e) => setNumSnacks(parseInt(e.target.value) || 7)}
+                max="5"
+                value={smallMealsPerDay}
+                onChange={(e) => setSmallMealsPerDay(parseInt(e.target.value) || 0)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
-              <p className="mt-1 text-xs text-gray-500">Snacks for the 7-day plan</p>
+              <p className="mt-1 text-xs text-gray-500">Small meals per day</p>
+            </div>
+
+            {/* Snacks Per Day */}
+            <div>
+              <label htmlFor="snacks_per_day" className="block text-sm font-medium text-gray-700 mb-1">
+                Snacks Per Day <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="snacks_per_day"
+                type="number"
+                min="0"
+                max="3"
+                value={snacksPerDay}
+                onChange={(e) => setSnacksPerDay(parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <p className="mt-1 text-xs text-gray-500">Snacks per day</p>
             </div>
           </div>
         </div>

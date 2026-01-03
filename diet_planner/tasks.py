@@ -69,42 +69,44 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
         },
         "instructions": {
             "output_format": "json",
-            "meal_plan_type": "7_day_meal_plan",
+            "meal_plan_type": "day_by_day_meal_plan",
             "meal_plan_configuration": {
-                "num_recipes": goal.num_recipes,
-                "num_meals": goal.num_meals,
-                "num_snacks": goal.num_snacks,
-                "plan_duration_days": 7
+                "num_days": goal.num_days,
+                "main_courses_per_day": goal.main_courses_per_day,
+                "small_meals_per_day": goal.small_meals_per_day,
+                "snacks_per_day": goal.snacks_per_day
             },
             "required_outputs": [
-                "meal_ideas",
+                "days",
                 "shopping_list"
             ],
-            "meal_ideas_requirements": {
-                "include": [
+            "day_plan_requirements": {
+                "structure": "Each day must have exactly:",
+                "main_courses": {
+                    "count_per_day": goal.main_courses_per_day,
+                    "description": "Main courses/recipes for each day"
+                },
+                "small_meals": {
+                    "count_per_day": goal.small_meals_per_day,
+                    "description": "Small meals (breakfast, lunch, etc.) for each day"
+                },
+                "snacks": {
+                    "count_per_day": goal.snacks_per_day,
+                    "description": "Snacks for each day"
+                },
+                "each_meal_must_include": [
                     "name",
                     "description",
                     "ingredients",
                     "preparation_time",
-                    "nutritional_info",
-                    "meal_type"
-                ],
-                "meal_type_options": [
-                    "recipe",
-                    "small_meal",
-                    "snack"
+                    "nutritional_info"
                 ],
                 "nutritional_info_should_include": [
                     "calories",
                     "protein",
                     "carbs",
                     "fat"
-                ],
-                "distribution": {
-                    "recipes": goal.num_recipes,
-                    "small_meals": goal.num_meals,
-                    "snacks": goal.num_snacks
-                }
+                ]
             },
             "shopping_list_requirements": {
                 "include": [
@@ -113,15 +115,17 @@ def build_llm_prompt_json(goal: DietaryGoal) -> Dict[str, Any]:
                     "unit",
                     "notes"
                 ],
-                "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire 7-day plan."
+                "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
             },
             "context_notes": [
-                "This is a 7-day meal plan. Generate exactly the specified number of recipes, small meals, and snacks.",
+                f"This is a {goal.num_days}-day meal plan. Generate exactly {goal.main_courses_per_day} main course(s), {goal.small_meals_per_day} small meal(s), and {goal.snacks_per_day} snack(s) for EACH day.",
+                "Structure the output as a 'days' array, where each day has 'day_number', 'main_courses', 'small_meals', and 'snacks' arrays.",
                 "Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
                 "Consider local cuisine preferences for the specified country",
                 "Prices will be calculated separately by the system - do not include prices",
                 "Focus on creating practical, achievable meal plans that can be prepared by someone with basic cooking skills",
-                "Ensure variety across the 7 days to prevent meal fatigue"
+                "Ensure variety across days to prevent meal fatigue",
+                f"Generate recipes in {goal.language_code} language"
             ]
         }
     }
@@ -176,8 +180,12 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             
             # Extract response data
             llm_response = llm_result['response']
-            meal_ideas_data = llm_response.get('meal_ideas', [])
+            days_data = llm_response.get('days', [])
             shopping_list_data = llm_response.get('shopping_list', [])
+            
+            # Validate days structure
+            if not days_data or not isinstance(days_data, list):
+                raise ValueError(f"Invalid days structure: expected list, got {type(days_data)}")
             
             # Log cost information
             logger.info(
@@ -196,7 +204,7 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             # Fall back to mock data if API fails
             logger.warning(f"Falling back to mock data for goal {goal_id}")
             llm_response = generate_mock_llm_response()
-            meal_ideas_data = llm_response.get('meal_ideas', [])
+            days_data = llm_response.get('days', [])
             shopping_list_data = llm_response.get('shopping_list', [])
             llm_result = {
                 'input_tokens': None,
@@ -209,7 +217,7 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         # Create dietary plan with LLM usage tracking
         dietary_plan = DietaryPlan.objects.create(
             dietary_goal=goal,
-            meal_ideas=meal_ideas_data,
+            days=days_data,
             shopping_list=shopping_list_data,
             currency=goal.currency,
             llm_input_tokens=llm_result.get('input_tokens'),
@@ -260,30 +268,51 @@ def generate_mock_llm_response() -> Dict[str, Any]:
     Replace this with actual LLM API integration.
     """
     return {
-        'meal_ideas': [
+        'days': [
             {
-                'name': 'Grilled Chicken Salad',
-                'description': 'Healthy salad with grilled chicken breast',
-                'ingredients': ['chicken breast', 'lettuce', 'tomatoes', 'cucumber', 'olive oil'],
-                'preparation_time': 30,
-                'nutritional_info': {
-                    'calories': 450,
-                    'protein': '35g',
-                    'carbs': '15g',
-                    'fat': '25g'
-                }
-            },
-            {
-                'name': 'Vegetable Stir Fry',
-                'description': 'Mixed vegetables with tofu',
-                'ingredients': ['tofu', 'broccoli', 'bell peppers', 'carrots', 'soy sauce'],
-                'preparation_time': 20,
-                'nutritional_info': {
-                    'calories': 320,
-                    'protein': '20g',
-                    'carbs': '35g',
-                    'fat': '12g'
-                }
+                'day_number': 1,
+                'main_courses': [
+                    {
+                        'name': 'Grilled Chicken Salad',
+                        'description': 'Healthy salad with grilled chicken breast',
+                        'ingredients': ['chicken breast', 'lettuce', 'tomatoes', 'cucumber', 'olive oil'],
+                        'preparation_time': 30,
+                        'nutritional_info': {
+                            'calories': 450,
+                            'protein': '35g',
+                            'carbs': '15g',
+                            'fat': '25g'
+                        }
+                    }
+                ],
+                'small_meals': [
+                    {
+                        'name': 'Greek Yogurt with Berries',
+                        'description': 'Protein-rich breakfast option',
+                        'ingredients': ['greek yogurt', 'mixed berries', 'honey'],
+                        'preparation_time': 5,
+                        'nutritional_info': {
+                            'calories': 200,
+                            'protein': '15g',
+                            'carbs': '25g',
+                            'fat': '5g'
+                        }
+                    }
+                ],
+                'snacks': [
+                    {
+                        'name': 'Apple with Almonds',
+                        'description': 'Healthy afternoon snack',
+                        'ingredients': ['apple', 'almonds'],
+                        'preparation_time': 2,
+                        'nutritional_info': {
+                            'calories': 150,
+                            'protein': '5g',
+                            'carbs': '20g',
+                            'fat': '8g'
+                        }
+                    }
+                ]
             }
         ],
         'shopping_list': [

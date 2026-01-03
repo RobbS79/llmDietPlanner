@@ -54,23 +54,29 @@ class DietaryGoalCreateRequest(BaseModel):
         max_length=5,
         description="Language code (ISO 639-1) for i18n support"
     )
-    num_recipes: int = Field(
+    num_days: int = Field(
         default=7,
         ge=1,
         le=30,
-        description="Number of recipes to generate for the 7-day meal plan"
+        description="Number of days for the meal plan"
     )
-    num_meals: int = Field(
-        default=14,
+    main_courses_per_day: int = Field(
+        default=1,
         ge=1,
-        le=50,
-        description="Number of small meals to generate for the 7-day meal plan"
+        le=5,
+        description="Number of main courses per day"
     )
-    num_snacks: int = Field(
-        default=7,
+    small_meals_per_day: int = Field(
+        default=2,
         ge=0,
-        le=30,
-        description="Number of snacks to generate for the 7-day meal plan"
+        le=5,
+        description="Number of small meals per day"
+    )
+    snacks_per_day: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        description="Number of snacks per day"
     )
 
     @field_validator('prompt')
@@ -99,9 +105,17 @@ class ShoppingListItem(BaseModel):
     notes: Optional[str] = Field(None, description="Additional notes")
 
 
+class DayPlan(BaseModel):
+    """Schema for a single day's meal plan."""
+    day_number: int = Field(..., ge=1, description="Day number (1-based)")
+    main_courses: List[MealIdea] = Field(..., description="Main courses for this day")
+    small_meals: List[MealIdea] = Field(default_factory=list, description="Small meals for this day")
+    snacks: List[MealIdea] = Field(default_factory=list, description="Snacks for this day")
+
+
 class DietaryPlanResponse(BaseModel):
     """Response schema for a dietary plan."""
-    meal_ideas: List[MealIdea] = Field(..., description="Generated meal ideas")
+    days: List[DayPlan] = Field(..., description="Day-by-day meal plan")
     shopping_list: List[ShoppingListItem] = Field(..., description="Shopping list")
 
 

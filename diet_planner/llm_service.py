@@ -194,13 +194,14 @@ class OpenAIService:
             target_language = language_names.get(language_code or 'en', 'English')
             
             system_prompt = (
-                f"You are a nutrition expert creating personalised 7-day meal plans for users in Central and Eastern Europe. "
+                f"You are a nutrition expert creating personalised day-by-day meal plans for users in Central and Eastern Europe. "
                 f"Your responses must be valid JSON only, with no markdown formatting or code blocks. "
                 f"All meal names, descriptions, and content should be in {target_language} language (language code: {language_code or 'en'}). "
                 f"Focus on ingredients available in local supermarkets (Lidl, Biedronka, Kaufland, etc.). "
                 f"Consider local cuisine preferences and dietary restrictions. "
-                f"Generate exactly the number of recipes, small meals, and snacks as specified in the meal plan configuration. "
-                f"Each meal idea must include a 'meal_type' field indicating whether it's a 'recipe', 'small_meal', or 'snack'. "
+                f"Generate a 'days' array where each day has 'day_number', 'main_courses', 'small_meals', and 'snacks' arrays. "
+                f"Generate exactly the number of main courses, small meals, and snacks per day as specified in the meal plan configuration. "
+                f"Each meal must include: name, description, ingredients, preparation_time, and nutritional_info (calories, protein, carbs, fat). "
                 f"Do not include prices - the system will calculate them separately."
             )
         

@@ -138,21 +138,26 @@ class DietaryGoal(models.Model):
         help_text="Language code (ISO 639-1) for i18n support"
     )
     
-    # Meal plan configuration (7-day plan)
-    num_recipes = models.IntegerField(
+    # Meal plan configuration (day-by-day plan)
+    num_days = models.IntegerField(
         default=7,
         validators=[MinValueValidator(1), MaxValueValidator(30)],
-        help_text="Number of recipes to generate for the 7-day meal plan"
+        help_text="Number of days for the meal plan"
     )
-    num_meals = models.IntegerField(
-        default=14,
-        validators=[MinValueValidator(1), MaxValueValidator(50)],
-        help_text="Number of small meals to generate for the 7-day meal plan"
+    main_courses_per_day = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Number of main courses per day"
     )
-    num_snacks = models.IntegerField(
-        default=7,
-        validators=[MinValueValidator(0), MaxValueValidator(30)],
-        help_text="Number of snacks to generate for the 7-day meal plan"
+    small_meals_per_day = models.IntegerField(
+        default=2,
+        validators=[MinValueValidator(0), MaxValueValidator(5)],
+        help_text="Number of small meals per day"
+    )
+    snacks_per_day = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(0), MaxValueValidator(3)],
+        help_text="Number of snacks per day"
     )
     
     # Timestamps (ISO-8601 compliant)
@@ -353,9 +358,13 @@ class DietaryPlan(models.Model):
     )
     
     # LLM-generated content (structured data)
+    days = models.JSONField(
+        default=list,
+        help_text="Day-by-day meal plan with main courses, small meals, and snacks (JSON structure)"
+    )
     meal_ideas = models.JSONField(
         default=list,
-        help_text="LLM-generated meal ideas and recipes (JSON structure)"
+        help_text="Legacy field: meal ideas (deprecated, use days instead)"
     )
     shopping_list = models.JSONField(
         default=list,

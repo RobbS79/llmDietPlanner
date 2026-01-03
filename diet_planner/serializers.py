@@ -20,9 +20,10 @@ class DietaryGoalSerializer(serializers.ModelSerializer):
             'city',
             'currency',
             'language_code',
-            'num_recipes',
-            'num_meals',
-            'num_snacks',
+            'num_days',
+            'main_courses_per_day',
+            'small_meals_per_day',
+            'snacks_per_day',
             'created_at',
             'updated_at',
             'completed_at',
@@ -56,7 +57,7 @@ class ShoppingListItemSerializer(serializers.Serializer):
 class DietaryPlanSerializer(serializers.ModelSerializer):
     """Serializer for DietaryPlan model."""
     # JSONField fields are already Python objects (lists/dicts), return them directly
-    meal_ideas = serializers.SerializerMethodField()
+    days = serializers.SerializerMethodField()
     shopping_list = serializers.SerializerMethodField()
     
     # LLM usage information
@@ -66,7 +67,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
         model = DietaryPlan
         fields = [
             'id',
-            'meal_ideas',
+            'days',
             'shopping_list',
             'total_price',
             'currency',
@@ -76,7 +77,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id',
-            'meal_ideas',
+            'days',
             'shopping_list',
             'total_price',
             'currency',
@@ -85,9 +86,13 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
     
-    def get_meal_ideas(self, obj):
-        """Return meal_ideas JSONField as-is (already a Python list)."""
-        return obj.meal_ideas if obj.meal_ideas else []
+    def get_days(self, obj):
+        """Return days JSONField as-is (already a Python list)."""
+        # Support backward compatibility: if meal_ideas exists, convert to days format
+        if hasattr(obj, 'meal_ideas') and obj.meal_ideas and not hasattr(obj, 'days'):
+            # Legacy format - convert meal_ideas to days structure
+            return []
+        return obj.days if hasattr(obj, 'days') and obj.days else []
     
     def get_shopping_list(self, obj):
         """Return shopping_list JSONField as-is (already a Python list)."""
@@ -122,9 +127,10 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'city',
             'currency',
             'language_code',
-            'num_recipes',
-            'num_meals',
-            'num_snacks',
+            'num_days',
+            'main_courses_per_day',
+            'small_meals_per_day',
+            'snacks_per_day',
             'created_at',
             'updated_at',
             'completed_at',
@@ -138,9 +144,10 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'city',
             'currency',
             'language_code',
-            'num_recipes',
-            'num_meals',
-            'num_snacks',
+            'num_days',
+            'main_courses_per_day',
+            'small_meals_per_day',
+            'snacks_per_day',
             'created_at',
             'updated_at',
             'completed_at',

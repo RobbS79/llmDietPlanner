@@ -205,16 +205,162 @@ export function GoalDetailPage() {
             {/* Dietary Plan */}
             {(() => {
               const plan = goal.dietary_plan;
-              const hasMealIdeas = plan?.meal_ideas && Array.isArray(plan.meal_ideas) && plan.meal_ideas.length > 0;
+              const hasDays = plan?.days && Array.isArray(plan.days) && plan.days.length > 0;
+              const hasMealIdeas = plan?.meal_ideas && Array.isArray(plan.meal_ideas) && plan.meal_ideas.length > 0; // Legacy support
               const hasShoppingList = plan?.shopping_list && Array.isArray(plan.shopping_list) && plan.shopping_list.length > 0;
               
-              if (hasMealIdeas || hasShoppingList) {
+              // Helper function to render a meal
+              const renderMeal = (meal, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: '1.5rem',
+                    background: '#f9fafb',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '1.125rem', color: '#1f2937' }}>{meal.name}</h4>
+                    {meal.preparation_time && (
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        background: '#dbeafe',
+                        color: '#1e40af',
+                        borderRadius: '9999px',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                      }}>
+                        ⏱️ {meal.preparation_time} min
+                      </span>
+                    )}
+                  </div>
+                  {meal.description && (
+                    <p style={{ margin: '0 0 0.75rem 0', color: '#6b7280', fontSize: '0.9rem' }}>
+                      {meal.description}
+                    </p>
+                  )}
+                  {meal.ingredients && meal.ingredients.length > 0 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4b5563', marginBottom: '0.5rem' }}>
+                        Ingredients:
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {meal.ingredients.map((ingredient, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              padding: '0.25rem 0.75rem',
+                              background: 'white',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '6px',
+                              fontSize: '0.875rem',
+                              color: '#374151',
+                            }}
+                          >
+                            {ingredient}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {meal.nutritional_info && (
+                    <div style={{
+                      padding: '0.75rem',
+                      background: 'white',
+                      borderRadius: '6px',
+                      border: '1px solid #e5e7eb',
+                    }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4b5563', marginBottom: '0.5rem' }}>
+                        Nutritional Info:
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        {meal.nutritional_info.calories && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            🔥 {meal.nutritional_info.calories} cal
+                          </span>
+                        )}
+                        {meal.nutritional_info.protein && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            💪 {meal.nutritional_info.protein}
+                          </span>
+                        )}
+                        {meal.nutritional_info.carbs && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            🍞 {meal.nutritional_info.carbs}
+                          </span>
+                        )}
+                        {meal.nutritional_info.fat && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            🥑 {meal.nutritional_info.fat}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+              
+              if (hasDays || hasMealIdeas || hasShoppingList) {
                 return (
               <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e5e7eb' }}>
                 <h2 style={{ marginBottom: '1.5rem', color: '#1f2937' }}>📋 Dietary Plan</h2>
                 
-                {/* Meal Ideas */}
-                {goal.dietary_plan.meal_ideas && goal.dietary_plan.meal_ideas.length > 0 && (
+                {/* Day-by-Day Meal Plan */}
+                {hasDays && (
+                  <div style={{ marginBottom: '2rem' }}>
+                    {plan.days.map((day, dayIndex) => (
+                      <div
+                        key={dayIndex}
+                        style={{
+                          marginBottom: '2rem',
+                          padding: '1.5rem',
+                          background: '#f9fafb',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                        }}
+                      >
+                        <h3 style={{ marginBottom: '1.5rem', color: '#1f2937', fontSize: '1.5rem', borderBottom: '2px solid #d1d5db', paddingBottom: '0.5rem' }}>
+                          📅 Day {day.day_number}
+                        </h3>
+                        
+                        {/* Main Courses */}
+                        {day.main_courses && day.main_courses.length > 0 && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🍽️ Main Courses
+                            </h4>
+                            {day.main_courses.map((meal, index) => renderMeal(meal, index))}
+                          </div>
+                        )}
+                        
+                        {/* Small Meals */}
+                        {day.small_meals && day.small_meals.length > 0 && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🥗 Small Meals
+                            </h4>
+                            {day.small_meals.map((meal, index) => renderMeal(meal, index))}
+                          </div>
+                        )}
+                        
+                        {/* Snacks */}
+                        {day.snacks && day.snacks.length > 0 && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🍎 Snacks
+                            </h4>
+                            {day.snacks.map((meal, index) => renderMeal(meal, index))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Legacy Meal Ideas (backward compatibility) */}
+                {!hasDays && hasMealIdeas && (
                   <div style={{ marginBottom: '2rem' }}>
                     <h3 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.25rem' }}>🍽️ Meal Ideas</h3>
                     <div style={{ display: 'grid', gap: '1rem' }}>
