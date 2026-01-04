@@ -3,6 +3,7 @@ import { getShopsForCountry } from '../utils/api';
 
 /**
  * Shop selector component that fetches available shops based on country
+ * Displays available shops for the selected country (CZ: Lidl, Rohlik; SK: Lidl, Lunys)
  */
 export function ShopSelector({ country, shop, onShopChange, error, showLabel = true }) {
   const [shops, setShops] = useState([]);
