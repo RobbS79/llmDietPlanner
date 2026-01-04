@@ -415,6 +415,35 @@ class ScraperDebugView(APIView):
             from .models import LeafletOffer
             from django.utils import timezone
             
+            # Determine scraper URL for HTML fetching
+            scraper_url = None
+            if shop == 'LIDL_CZ':
+                scraper_url = "https://kupi.cz/lidl"
+            elif shop == 'LIDL_SK':
+                scraper_url = "https://kupino.sk/lidl"
+            elif shop == 'ROHLIK':
+                scraper_url = "https://www.rohlik.cz/cs/akcni-nabidka"
+            elif shop == 'LUNYS':
+                scraper_url = "https://lunys.sk/akcie"
+            
+            # Fetch HTML directly for debugging
+            html_sample = None
+            response_status = None
+            response_url = None
+            try:
+                import requests
+                
+                if scraper_url:
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                    html_response = requests.get(scraper_url, headers=headers, timeout=10)
+                    response_status = html_response.status_code
+                    response_url = html_response.url
+                    html_sample = html_response.text[:5000]  # First 5000 chars
+            except Exception as html_error:
+                html_sample = f"Error fetching HTML: {str(html_error)}"
+            
             # Get scraper instance
             scraper = ScraperService.get_scraper(shop)
             
@@ -428,6 +457,10 @@ class ScraperDebugView(APIView):
                         "data": {
                             "shop": shop,
                             "country": country,
+                            "scraper_url": scraper_url,
+                            "html_response_status": response_status,
+                            "html_response_url": response_url,
+                            "html_sample": html_sample,
                             "error": f"Scraping failed: {str(scrape_error)}",
                             "error_type": type(scrape_error).__name__,
                         },
@@ -435,15 +468,6 @@ class ScraperDebugView(APIView):
                     },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-            
-            # Try to get HTML sample (if scraper exposes it)
-            html_sample = None
-            try:
-                # Some scrapers might store HTML, but for now we'll try to get it from response
-                # This is a placeholder - actual implementation depends on scraper design
-                pass
-            except:
-                pass
             
             # Store offers using ScraperService
             stored_offers = []
@@ -509,13 +533,17 @@ class ScraperDebugView(APIView):
                         "shop": shop,
                         "country": country,
                         "force_refresh": force_refresh,
+                        "scraper_url": scraper_url,
+                        "html_response_status": response_status,
+                        "html_response_url": response_url,
+                        "html_sample": html_sample,
+                        "html_sample_length": len(html_sample) if html_sample else 0,
                         "raw_offers_count": len(raw_offers_data),
                         "raw_offers_sample": raw_offers_data[:10],  # First 10 offers
                         "stored_offers_count": len(stored_offers),
                         "stored_offers": stored_offers[:10],  # First 10 stored
                         "database_offers_count": db_offers.count(),
                         "database_offers": db_offers_data,
-                        "html_sample": html_sample,
                     },
                     "error": None
                 },
