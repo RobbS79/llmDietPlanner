@@ -147,14 +147,25 @@ class ScraperService:
         skipped_count = 0
         for idx, offer_data in enumerate(offers_data):
             # Normalize ingredient name
-            ingredient_name = normalize_ingredient_name(
-                offer_data.get('ingredient_name') or offer_data.get('display_name', '')
-            )
+            raw_name = offer_data.get('ingredient_name') or offer_data.get('display_name', '')
+            ingredient_name = normalize_ingredient_name(raw_name)
             
             if not ingredient_name:
                 logger.warning(f"Skipping offer #{idx} with empty ingredient name: {offer_data}")
                 skipped_count += 1
                 continue
+            
+            # Truncate names to fit database field (database has max_length=200, not 255)
+            # Truncate display name
+            display_name = offer_data.get('display_name', ingredient_name)
+            if len(display_name) > 200:
+                display_name = display_name[:200]
+                logger.debug(f"Truncated display_name from {len(offer_data.get('display_name', ''))} to 200 chars")
+            
+            # Truncate ingredient_name if needed
+            if len(ingredient_name) > 200:
+                ingredient_name = ingredient_name[:200]
+                logger.debug(f"Truncated ingredient_name from {len(raw_name)} to 200 chars")
             
             # Validate price if present
             price = offer_data.get('price')
@@ -175,7 +186,7 @@ class ScraperService:
                     shop=shop,
                     country=country,
                     ingredient_name=ingredient_name,
-                    display_name=offer_data.get('display_name', ingredient_name),
+                    display_name=display_name,
                     price=price,
                     currency=offer_data.get('currency', currency),
                     unit=offer_data.get('unit'),
