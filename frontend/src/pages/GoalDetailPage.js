@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAccessToken } from '../utils/api';
 import { Navigation } from '../components/Navigation';
-import { generateMealIdentifier, getMealInstance } from '../features/diet-planner/utils/api';
+import { generateMealIdentifier, getMealInstance, markMealAsCooked, getRecipe } from '../features/diet-planner/utils/api';
 
 /**
  * Page for viewing details of a specific dietary goal
@@ -173,6 +173,41 @@ export function GoalDetailPage() {
     });
   };
 
+  const handleMarkAsCooked = async (mealIdentifier, meal, dayNumber, mealType, index) => {
+    try {
+      // Get recipe to get dietary_goal_id
+      const recipeResponse = await getRecipe(mealIdentifier);
+      if (recipeResponse.status !== 'success') {
+        throw new Error('Failed to fetch recipe');
+      }
+      const recipe = recipeResponse.data;
+
+      const isCurrentlyCooked = cookedMeals[mealIdentifier] || false;
+      const mealData = {
+        goal_id: recipe.dietary_goal_id,
+        meal_name: meal.name,
+        day_number: dayNumber,
+        meal_type: mealType,
+        is_cooked: !isCurrentlyCooked,
+        notes: '',
+      };
+
+      const response = await markMealAsCooked(mealIdentifier, mealData);
+      if (response.status === 'success') {
+        // Update local state
+        setCookedMeals(prev => ({
+          ...prev,
+          [mealIdentifier]: !isCurrentlyCooked,
+        }));
+      } else {
+        throw new Error(response.error || 'Failed to update meal status');
+      }
+    } catch (err) {
+      console.error('Error marking meal as cooked:', err);
+      alert(err.message || 'Failed to update meal status');
+    }
+  };
+
   // Helper function to render meal summary (collapsed view)
   const renderMealSummary = (meal, dayNumber, mealType, index) => {
     if (!meal) return null;
@@ -183,23 +218,24 @@ export function GoalDetailPage() {
     return (
       <div
         key={`${mealType}-${index}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          navigate(`/recipe/${encodeURIComponent(mealIdentifier)}`);
-        }}
         style={{
           padding: '0.75rem',
           background: isCooked ? '#f0fdf4' : 'white',
           borderRadius: '6px',
           border: isCooked ? '1px solid #10b981' : '1px solid #e5e7eb',
           marginBottom: '0.5rem',
-          cursor: 'pointer',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <div style={{ flex: 1 }}>
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/recipe/${encodeURIComponent(mealIdentifier)}`);
+          }}
+          style={{ flex: 1, cursor: 'pointer' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <span style={{ fontWeight: '600', color: '#1f2937', fontSize: '0.9rem' }}>
               {meal.name}
@@ -234,149 +270,168 @@ export function GoalDetailPage() {
             </div>
           )}
         </div>
-        {meal.preparation_time && (
-          <span style={{
-            padding: '0.25rem 0.5rem',
-            background: '#dbeafe',
-            color: '#1e40af',
-            borderRadius: '9999px',
-            fontSize: '0.75rem',
-            fontWeight: '500',
-            marginLeft: '0.5rem',
-          }}>
-            ⏱️ {meal.preparation_time} min
-          </span>
-        )}
-      </div>
-    );
-  };
-
-  // Helper function to render a meal (expanded view)
-  const renderMeal = (meal, index, dayNumber, mealType) => {
-    if (!meal) return null;
-    
-    const mealIdentifier = generateMealIdentifier(goal.id, dayNumber, mealType, index);
-    const isCooked = cookedMeals[mealIdentifier] || false;
-    
-    return (
-      <div
-        key={index}
-        onClick={() => navigate(`/recipe/${encodeURIComponent(mealIdentifier)}`)}
-        style={{
-          padding: '1.5rem',
-          background: isCooked ? '#f0fdf4' : '#f9fafb',
-          borderRadius: '8px',
-          border: isCooked ? '2px solid #10b981' : '1px solid #e5e7eb',
-          marginBottom: '1rem',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = 'none';
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-          <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontSize: '1.125rem', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {meal.name}
-              {isCooked && (
-                <span style={{
-                  padding: '0.25rem 0.5rem',
-                  background: '#10b981',
-                  color: 'white',
-                  borderRadius: '9999px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                }}>
-                  ✓
-                </span>
-              )}
-            </h4>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {meal.preparation_time && (
             <span style={{
-              padding: '0.25rem 0.75rem',
+              padding: '0.25rem 0.5rem',
               background: '#dbeafe',
               color: '#1e40af',
               borderRadius: '9999px',
-              fontSize: '0.875rem',
+              fontSize: '0.75rem',
               fontWeight: '500',
             }}>
               ⏱️ {meal.preparation_time} min
             </span>
           )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMarkAsCooked(mealIdentifier, meal, dayNumber, mealType, index);
+            }}
+            style={{
+              padding: '0.375rem 0.75rem',
+              background: isCooked ? '#f3f4f6' : '#10b981',
+              color: isCooked ? '#374151' : 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+          >
+            {isCooked ? '✗' : '✓'}
+          </button>
         </div>
-        {meal.description && (
-          <p style={{ margin: '0 0 0.75rem 0', color: '#6b7280', fontSize: '0.9rem' }}>
-            {meal.description}
-          </p>
-        )}
-        {meal.ingredients && meal.ingredients.length > 0 && (
-          <div style={{ marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4b5563', marginBottom: '0.5rem' }}>
-              Ingredients:
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {meal.ingredients.map((ingredient, i) => (
-                <span
-                  key={i}
-                  style={{
-                    padding: '0.25rem 0.75rem',
-                    background: 'white',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    color: '#374151',
-                  }}
-                >
-                  {ingredient}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        {meal.nutritional_info && (
-          <div style={{
-            padding: '0.75rem',
-            background: 'white',
-            borderRadius: '6px',
-            border: '1px solid #e5e7eb',
-          }}>
-            <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4b5563', marginBottom: '0.5rem' }}>
-              Nutritional Info:
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {meal.nutritional_info.calories && (
-                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                  🔥 {meal.nutritional_info.calories} cal
-                </span>
-              )}
-              {meal.nutritional_info.protein && (
-                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                  💪 {meal.nutritional_info.protein}
-                </span>
-              )}
-              {meal.nutritional_info.carbs && (
-                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                  🍞 {meal.nutritional_info.carbs}
-                </span>
-              )}
-              {meal.nutritional_info.fat && (
-                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                  🥑 {meal.nutritional_info.fat}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
+
+  // Helper function to render a meal (expanded view)
+              const renderMeal = (meal, index, dayNumber, mealType) => {
+                if (!meal) return null;
+                
+                const mealIdentifier = generateMealIdentifier(goal.id, dayNumber, mealType, index);
+                const isCooked = cookedMeals[mealIdentifier] || false;
+                
+                return (
+                  <div
+                    key={index}
+                    onClick={() => navigate(`/recipe/${encodeURIComponent(mealIdentifier)}`)}
+                    style={{
+                      padding: '1.5rem',
+                      background: isCooked ? '#f0fdf4' : '#f9fafb',
+                      borderRadius: '8px',
+                      border: isCooked ? '2px solid #10b981' : '1px solid #e5e7eb',
+                      marginBottom: '1rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: 0, fontSize: '1.125rem', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {meal.name}
+                          {isCooked && (
+                            <span style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#10b981',
+                              color: 'white',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                            }}>
+                              ✓
+                            </span>
+                          )}
+                        </h4>
+                      </div>
+                      {meal.preparation_time && (
+                        <span style={{
+                          padding: '0.25rem 0.75rem',
+                          background: '#dbeafe',
+                          color: '#1e40af',
+                          borderRadius: '9999px',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                        }}>
+                          ⏱️ {meal.preparation_time} min
+                        </span>
+                      )}
+                    </div>
+                  {meal.description && (
+                    <p style={{ margin: '0 0 0.75rem 0', color: '#6b7280', fontSize: '0.9rem' }}>
+                      {meal.description}
+                    </p>
+                  )}
+                  {meal.ingredients && meal.ingredients.length > 0 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4b5563', marginBottom: '0.5rem' }}>
+                        Ingredients:
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {meal.ingredients.map((ingredient, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              padding: '0.25rem 0.75rem',
+                              background: 'white',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '6px',
+                              fontSize: '0.875rem',
+                              color: '#374151',
+                            }}
+                          >
+                            {ingredient}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {meal.nutritional_info && (
+                    <div style={{
+                      padding: '0.75rem',
+                      background: 'white',
+                      borderRadius: '6px',
+                      border: '1px solid #e5e7eb',
+                    }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4b5563', marginBottom: '0.5rem' }}>
+                        Nutritional Info:
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        {meal.nutritional_info.calories && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            🔥 {meal.nutritional_info.calories} cal
+                          </span>
+                        )}
+                        {meal.nutritional_info.protein && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            💪 {meal.nutritional_info.protein}
+                          </span>
+                        )}
+                        {meal.nutritional_info.carbs && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            🍞 {meal.nutritional_info.carbs}
+                          </span>
+                        )}
+                        {meal.nutritional_info.fat && (
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            🥑 {meal.nutritional_info.fat}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+              };
 
   if (loading) {
     return (
@@ -607,13 +662,13 @@ export function GoalDetailPage() {
                       ].filter(Boolean);
 
                       return (
-                        <div
-                          key={dayIndex}
-                          style={{
+                      <div
+                        key={dayIndex}
+                        style={{
                             marginBottom: '1rem',
-                            background: '#f9fafb',
-                            borderRadius: '12px',
-                            border: '2px solid #e5e7eb',
+                          background: '#f9fafb',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
                             overflow: 'hidden',
                           }}
                         >
@@ -637,66 +692,66 @@ export function GoalDetailPage() {
                             }}
                           >
                             <h3 style={{ margin: 0, color: '#1f2937', fontSize: '1.25rem', fontWeight: '600' }}>
-                              📅 Day {day.day_number}
-                            </h3>
+                          📅 Day {day.day_number}
+                        </h3>
                             <span style={{ fontSize: '1.25rem', color: '#6b7280' }}>
                               {isExpanded ? '▼' : '▶'}
                             </span>
                           </div>
-
+                        
                           {/* Accordion Content */}
                           {isExpanded ? (
                             <div style={{ padding: '1.5rem' }}>
-                              {/* Breakfast */}
-                              {day.breakfast && (
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                  <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
-                                    🌅 Breakfast
-                                  </h4>
-                                  {renderMeal(day.breakfast, 0, day.day_number, 'breakfast')}
-                                </div>
-                              )}
-                              
-                              {/* Lunch */}
-                              {day.lunch && (
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                  <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
-                                    🍽️ Lunch
-                                  </h4>
-                                  {renderMeal(day.lunch, 0, day.day_number, 'lunch')}
-                                </div>
-                              )}
-                              
-                              {/* Dinner */}
-                              {day.dinner && (
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                  <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
-                                    🌙 Dinner
-                                  </h4>
-                                  {renderMeal(day.dinner, 0, day.day_number, 'dinner')}
-                                </div>
-                              )}
-                              
-                              {/* Small Meals */}
-                              {day.small_meals && day.small_meals.length > 0 && (
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                  <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
-                                    🥗 Small Meals
-                                  </h4>
-                                  {day.small_meals.map((meal, index) => renderMeal(meal, index, day.day_number, 'small_meal'))}
-                                </div>
-                              )}
-                              
-                              {/* Snacks */}
-                              {day.snacks && day.snacks.length > 0 && (
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                  <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
-                                    🍎 Snacks
-                                  </h4>
-                                  {day.snacks.map((meal, index) => renderMeal(meal, index, day.day_number, 'snack'))}
-                                </div>
-                              )}
-                            </div>
+                        {/* Breakfast */}
+                        {day.breakfast && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🌅 Breakfast
+                            </h4>
+                            {renderMeal(day.breakfast, 0, day.day_number, 'breakfast')}
+                          </div>
+                        )}
+                        
+                        {/* Lunch */}
+                        {day.lunch && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🍽️ Lunch
+                            </h4>
+                            {renderMeal(day.lunch, 0, day.day_number, 'lunch')}
+                          </div>
+                        )}
+                        
+                        {/* Dinner */}
+                        {day.dinner && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🌙 Dinner
+                            </h4>
+                            {renderMeal(day.dinner, 0, day.day_number, 'dinner')}
+                          </div>
+                        )}
+                        
+                        {/* Small Meals */}
+                        {day.small_meals && day.small_meals.length > 0 && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🥗 Small Meals
+                            </h4>
+                            {day.small_meals.map((meal, index) => renderMeal(meal, index, day.day_number, 'small_meal'))}
+                          </div>
+                        )}
+                        
+                        {/* Snacks */}
+                        {day.snacks && day.snacks.length > 0 && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', fontWeight: '600' }}>
+                              🍎 Snacks
+                            </h4>
+                            {day.snacks.map((meal, index) => renderMeal(meal, index, day.day_number, 'snack'))}
+                          </div>
+                        )}
+                      </div>
                           ) : (
                             <div style={{ padding: '1rem 1.5rem', background: 'white' }}>
                               {meals.map(({ meal, type, index }) => 
@@ -739,15 +794,15 @@ export function GoalDetailPage() {
                     </div>
                   </div>
                 )}
-              </div>
-            );
+                  </div>
+                );
             }
               
-              return (
+                return (
                 <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e5e7eb' }}>
-                  <p>Dietary plan exists but no meal ideas or shopping list available yet.</p>
-                </div>
-              );
+                    <p>Dietary plan exists but no meal ideas or shopping list available yet.</p>
+                  </div>
+                );
             })()}
       </div>
     </div>
