@@ -82,7 +82,22 @@ class KupiCzScraper(BaseScraper):
                 except Exception as e:
                     logger.error(f"Error scraping leaflet {leaflet_url}: {e}", exc_info=True)
             
-            logger.info(f"Successfully scraped {len(all_offers)} total offers from kupi.cz")
+            # Filter out offers without prices and leaflet titles before returning
+            filtered_offers = []
+            for offer in all_offers:
+                display_name = offer.get('display_name', '')
+                if not display_name:
+                    continue
+                display_name_lower = display_name.lower()
+                # Skip leaflet titles
+                if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
+                    continue
+                # Only include offers with positive prices
+                if offer.get('price') and offer.get('price', 0) > 0:
+                    filtered_offers.append(offer)
+            
+            logger.info(f"Successfully scraped {len(all_offers)} total offers, {len(filtered_offers)} with valid prices from kupi.cz")
+            all_offers = filtered_offers
             
         except requests.RequestException as e:
             logger.error(f"Error fetching kupi.cz: {e}")
@@ -137,6 +152,7 @@ class KupiCzScraper(BaseScraper):
                 try:
                     offer_data = self._parse_product_item(item, leaflet_url)
                     if offer_data and offer_data.get('display_name'):
+                        # Additional validation: prefer items with prices, but don't reject all without prices
                         offers.append(offer_data)
                 except Exception as e:
                     logger.debug(f"Error parsing product item: {e}")
@@ -166,7 +182,13 @@ class KupiCzScraper(BaseScraper):
         
         if name_elem:
             display_name = name_elem.get_text(strip=True)
+            # Filter out leaflet titles and non-product items
             if display_name and len(display_name) > 2:
+                # Skip leaflet titles and navigation items
+                display_name_lower = display_name.lower()
+                if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního']):
+                    logger.debug(f"Skipping non-product item: {display_name}")
+                    return None
                 offer['display_name'] = display_name
                 offer['ingredient_name'] = display_name  # Will be normalized later
         
@@ -226,7 +248,19 @@ class KupiCzScraper(BaseScraper):
         else:
             offer['source_url'] = base_url
         
-        return offer if offer.get('display_name') else None
+        # Only return offers that have both a name and a price
+        if not offer.get('display_name'):
+            return None
+        
+        # Filter out leaflet titles even if they somehow got through
+        display_name_lower = offer.get('display_name', '').lower()
+        if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního']):
+            logger.debug(f"Filtering out leaflet title: {offer.get('display_name')}")
+            return None
+        
+        # Prefer offers with prices, but don't reject all offers without prices
+        # (some products might legitimately not have prices in the leaflet)
+        return offer
     
     def _parse_akcni_zbozi_section(self, soup: BeautifulSoup, base_url: str) -> List[Dict[str, Any]]:
         """
@@ -251,6 +285,12 @@ class KupiCzScraper(BaseScraper):
                             name_elem = link.find('strong')
                         
                         display_name = name_elem.get_text(strip=True) if name_elem else link.get_text(strip=True)
+                        
+                        # Filter out leaflet titles
+                        if display_name:
+                            display_name_lower = display_name.lower()
+                            if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
+                                continue
                         
                         # Get price from nearby elements
                         price_elem = link.find_next(['span', 'div', 'generic'], class_=re.compile(r'price|cost|cena', re.I))
@@ -323,6 +363,11 @@ class KupiCzScraper(BaseScraper):
                     if not product_name:
                         product_name = link_text.replace(price_match.group(0), '').strip()
                     
+                    # Filter out leaflet titles
+                    product_name_lower = product_name.lower()
+                    if any(skip_word in product_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
+                        continue
+                    
                     if len(product_name) > 3 and len(product_name) < 200:
                         try:
                             price_text = price_match.group(1).replace(',', '.').replace(' ', '')
@@ -354,6 +399,11 @@ class KupiCzScraper(BaseScraper):
                 
                 # Clean product name - remove common prefixes/suffixes
                 product_name = re.sub(r'^[\-\s]+|[\-\s]+$', '', product_name)
+                
+                # Filter out leaflet titles and non-product items
+                product_name_lower = product_name.lower()
+                if any(skip_word in product_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
+                    continue
                 
                 if len(product_name) > 3 and len(product_name) < 200:  # Reasonable product name length
                     try:
