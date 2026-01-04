@@ -206,7 +206,7 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                     "currency",
                     "product_unit"
                 ],
-                "matching_instructions": "For each ingredient in the shopping list, you MUST find a matching product from the available_ingredients list and include the matched product's price, currency, and display_name. If no exact match is found, use the closest match. If no match exists, set price to null.",
+                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients by similarity - for example, 'chicken' matches 'chicken breast', 'eggs' matches 'chicken eggs', 'spinach' matches 'fresh spinach', etc. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value), currency (3-letter code), and product_unit (unit from available_ingredients). If you cannot find any reasonable match, only then set price to null. IMPORTANT: Try to match ALL ingredients - do not set price to null unless absolutely necessary.",
                 "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
             },
             "context_notes": [
@@ -246,9 +246,9 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                 "- Provide 4-8 detailed steps that guide the user through the entire cooking process",
                 "- Instructions should be in the same language as the meal name and description",
                 "- Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
-                f"- {'You MUST match shopping list ingredients with products from the available_ingredients list provided above. Include the matched product details (price, currency, display_name) in each shopping list item.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
+                f"- {'CRITICAL: You MUST match EVERY shopping list ingredient with a product from the available_ingredients list. Use fuzzy matching - match by similarity (e.g., \"chicken\" matches \"chicken breast\", \"eggs\" matches \"chicken eggs\"). Include matched_product_name, price, currency, and product_unit for EACH item. Only set price to null if NO reasonable match exists in available_ingredients.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
                 "- Consider local cuisine preferences for the specified country",
-                "- You MUST match each shopping list ingredient with a product from available_ingredients and include the matched product's price, currency, and display_name",
+                "- MATCHING REQUIREMENT: For each shopping list item, search the available_ingredients list and find the best matching product. Use the product's exact price, currency, display_name, and unit. Match by ingredient type even if names differ slightly (e.g., 'chicken' = 'chicken breast', 'eggs' = 'chicken eggs', 'spinach' = 'fresh spinach')",
                 "- Focus on creating practical, achievable meal plans",
                 "- Ensure variety across days to prevent meal fatigue",
                 f"- Generate ALL text (meal names, descriptions, ingredients, instructions) in {goal.language_code} language"
@@ -322,10 +322,11 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         available_ingredients = []
         if goal.shop:
             try:
-                logger.info(f"Fetching available ingredients for {goal.shop} ({goal.country})")
+                logger.info(f"Fetching available ingredients for {goal.shop} ({goal.country}) - forcing refresh (cache disabled for debugging)")
                 available_ingredients = ScraperService.get_available_ingredients(
                     shop=goal.shop,
-                    country=goal.country
+                    country=goal.country,
+                    force_refresh=True  # Force refresh every time until debugging is complete
                 )
                 logger.info(f"Found {len(available_ingredients)} available ingredients")
             except Exception as e:
@@ -405,17 +406,45 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         # Use shopping list directly from LLM (with matched prices)
         enhanced_shopping_list = shopping_list_data
         
-        # Calculate total price from LLM-provided prices
-        total_price = None
+        # Log diagnostic information about LLM matching
         if shopping_list_data:
+            items_with_price = [item for item in shopping_list_data if item.get('price') is not None and item.get('price') != '']
+            items_without_price = [item for item in shopping_list_data if item.get('price') is None or item.get('price') == '']
+            logger.info(f"LLM shopping list matching: {len(items_with_price)}/{len(shopping_list_data)} items have prices")
+            if items_without_price:
+                unmatched_ingredients = [item.get('ingredient', 'unknown') for item in items_without_price]
+                logger.warning(f"LLM failed to match prices for {len(items_without_price)} items: {', '.join(unmatched_ingredients[:10])}{'...' if len(unmatched_ingredients) > 10 else ''}")
+        
+        # Fallback: Use backend matching for items LLM failed to match (if shop is selected)
+        if goal.shop and enhanced_shopping_list:
+            try:
+                items_needing_fallback = [item for item in enhanced_shopping_list if item.get('price') is None or item.get('price') == '']
+                if items_needing_fallback:
+                    logger.info(f"Attempting backend fallback matching for {len(items_needing_fallback)} unmatched items")
+                    for item in items_needing_fallback:
+                        ingredient_name = item.get('ingredient', '')
+                        if ingredient_name:
+                            price_info = ScraperService.match_ingredient_price(ingredient_name, goal.shop, goal.country)
+                            if price_info:
+                                item['price'] = float(price_info['price'])
+                                item['currency'] = price_info['currency']
+                                item['product_unit'] = price_info['unit']
+                                item['matched_product_name'] = price_info['display_name']
+                                logger.debug(f"Backend fallback matched '{ingredient_name}' -> '{price_info['display_name']}' ({price_info['price']} {price_info['currency']})")
+            except Exception as e:
+                logger.warning(f"Error in backend fallback matching: {e}", exc_info=True)
+        
+        # Calculate total price from all matched prices (LLM + fallback)
+        total_price = None
+        if enhanced_shopping_list:
             try:
                 from decimal import Decimal
-                prices = [Decimal(str(item.get('price'))) for item in shopping_list_data if item.get('price') is not None]
+                prices = [Decimal(str(item.get('price'))) for item in enhanced_shopping_list if item.get('price') is not None and item.get('price') != '']
                 if prices:
                     total_price = sum(prices)
-                    logger.info(f"Calculated total price from LLM-provided prices: {total_price} {goal.currency}")
+                    logger.info(f"Calculated total price: {total_price} {goal.currency} ({len(prices)} items with prices)")
                 else:
-                    logger.warning("No prices found in LLM-generated shopping list")
+                    logger.warning("No prices found in shopping list after LLM matching and fallback")
             except Exception as e:
                 logger.warning(f"Error calculating total price: {e}", exc_info=True)
                 total_price = None
