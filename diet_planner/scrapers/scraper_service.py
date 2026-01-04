@@ -362,6 +362,20 @@ class ScraperService:
         
         if total_offers == 0:
             logger.warning(f"No offers found in database for {shop} ({country}) - scraping may have failed or returned no data")
+        else:
+            # Log sample of available ingredient names from database
+            sample_offers = LeafletOffer.objects.filter(
+                shop=shop,
+                country=country,
+                expires_at__gt=current_time,
+                price__isnull=False
+            ).values_list('ingredient_name', 'display_name')[:10]
+            sample_names = [name for name, _ in sample_offers]
+            logger.info(f"Sample ingredient names from database (first 10): {sample_names}")
+        
+        # Log sample of shopping list ingredient names
+        shopping_list_ingredients = [item.get('ingredient', '') for item in shopping_list[:10] if item.get('ingredient')]
+        logger.info(f"Sample shopping list ingredient names (first 10): {shopping_list_ingredients}")
         
         enhanced_list = []
         matched_count = 0
@@ -396,6 +410,7 @@ class ScraperService:
         
         logger.info(f"Matched {matched_count}/{len(shopping_list)} items with prices from {shop} ({country})")
         if unmatched_items:
-            logger.info(f"Unmatched items: {', '.join(unmatched_items[:10])}{'...' if len(unmatched_items) > 10 else ''}")
+            logger.info(f"Unmatched items (first 10): {', '.join(unmatched_items[:10])}{'...' if len(unmatched_items) > 10 else ''}")
+            logger.debug(f"All unmatched items ({len(unmatched_items)} total): {unmatched_items}")
         return enhanced_list
 

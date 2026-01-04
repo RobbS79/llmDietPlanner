@@ -13,6 +13,7 @@ urlpatterns = [
     path('goals/<int:goal_id>/', views.DietaryGoalDetailView.as_view(), name='goal-detail'),
     path('goals/<int:goal_id>/task-status/', views.DietaryGoalTaskStatusView.as_view(), name='goal-task-status'),
     path('goals/<int:goal_id>/prompt-debug/', views.DietaryGoalPromptDebugView.as_view(), name='goal-prompt-debug'),
+    path('goals/<int:goal_id>/meal-instances/', views.MealInstanceBatchView.as_view(), name='meal-instance-batch'),
     path('debug/scraper/', views.ScraperDebugView.as_view(), name='scraper-debug'),
     # Recipe endpoints
     path('recipes/<str:meal_identifier>/', views.RecipeDetailView.as_view(), name='recipe-detail'),

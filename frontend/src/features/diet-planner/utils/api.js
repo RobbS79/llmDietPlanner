@@ -305,6 +305,49 @@ export async function getRecipe(mealIdentifier) {
 }
 
 /**
+ * Get all meal instances for a dietary goal
+ * @param {number} goalId
+ * @returns {Promise<Object>} Response with data array of meal instances
+ */
+export async function getMealInstancesForGoal(goalId) {
+  const token = getAccessToken();
+  
+  if (!token) {
+    window.location.href = '/login';
+    throw new Error('Not authenticated. Please login.');
+  }
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+
+  const response = await fetch(`/api/goals/${goalId}/meal-instances/`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+
+  if (response.status === 401) {
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch meal instances`);
+  }
+
+  const data = await response.json();
+  if (data.status === 'success') {
+    return data;
+  } else {
+    throw new Error(data.error || 'Failed to fetch meal instances');
+  }
+}
+
+/**
  * Get meal instance by meal identifier
  * @param {string} mealIdentifier
  * @returns {Promise<Object>}

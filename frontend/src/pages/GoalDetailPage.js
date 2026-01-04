@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAccessToken } from '../utils/api';
 import { Navigation } from '../components/Navigation';
-import { generateMealIdentifier, getMealInstance, markMealAsCooked, getRecipe } from '../features/diet-planner/utils/api';
+import { generateMealIdentifier, getMealInstancesForGoal, markMealAsCooked, getRecipe } from '../features/diet-planner/utils/api';
 
 /**
  * Page for viewing details of a specific dietary goal
@@ -101,58 +101,27 @@ export function GoalDetailPage() {
     }
   }, [goalId]);
 
-  // Fetch cooked meals
+  // Fetch cooked meals using batch endpoint
   useEffect(() => {
     const fetchCookedMeals = async () => {
-      if (!goal || !goal.dietary_plan) return;
+      if (!goal) return;
       
       try {
-        const plan = goal.dietary_plan;
-        const mealIdentifiers = [];
-        
-        // Collect all meal identifiers
-        if (plan.days && Array.isArray(plan.days)) {
-          plan.days.forEach((day) => {
-            if (day.breakfast) {
-              mealIdentifiers.push(generateMealIdentifier(goal.id, day.day_number, 'breakfast', 0));
-            }
-            if (day.lunch) {
-              mealIdentifiers.push(generateMealIdentifier(goal.id, day.day_number, 'lunch', 0));
-            }
-            if (day.dinner) {
-              mealIdentifiers.push(generateMealIdentifier(goal.id, day.day_number, 'dinner', 0));
-            }
-            if (day.small_meals && Array.isArray(day.small_meals)) {
-              day.small_meals.forEach((_, index) => {
-                mealIdentifiers.push(generateMealIdentifier(goal.id, day.day_number, 'small_meal', index));
-              });
-            }
-            if (day.snacks && Array.isArray(day.snacks)) {
-              day.snacks.forEach((_, index) => {
-                mealIdentifiers.push(generateMealIdentifier(goal.id, day.day_number, 'snack', index));
-              });
+        const response = await getMealInstancesForGoal(goal.id);
+        if (response.status === 'success' && response.data) {
+          // Map meal instances to cookedStatus object by meal_identifier
+          const cookedStatus = {};
+          response.data.forEach((mealInstance) => {
+            if (mealInstance.is_cooked) {
+              cookedStatus[mealInstance.meal_identifier] = true;
             }
           });
+          setCookedMeals(cookedStatus);
         }
-        
-        // Fetch cooked status for each meal
-        const cookedStatus = {};
-        await Promise.all(
-          mealIdentifiers.map(async (identifier) => {
-            try {
-              const mealInstance = await getMealInstance(identifier);
-              if (mealInstance && mealInstance.data && mealInstance.data.is_cooked) {
-                cookedStatus[identifier] = true;
-              }
-            } catch (err) {
-              // Meal instance doesn't exist yet, that's fine
-            }
-          })
-        );
-        
-        setCookedMeals(cookedStatus);
       } catch (err) {
         console.error('Error fetching cooked meals:', err);
+        // Set empty object on error - meals will show as not cooked
+        setCookedMeals({});
       }
     };
 

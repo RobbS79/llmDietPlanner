@@ -402,7 +402,26 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         total_price = None
         if goal.shop and shopping_list_data:
             try:
-                logger.info(f"Matching prices for shopping list items from {goal.shop} ({goal.country})")
+                # Check if any offers exist before attempting price matching
+                from django.utils import timezone
+                current_time = timezone.now()
+                from ..models import LeafletOffer
+                offer_count = LeafletOffer.objects.filter(
+                    shop=goal.shop,
+                    country=goal.country,
+                    expires_at__gt=current_time,
+                    price__isnull=False
+                ).count()
+                
+                if offer_count == 0:
+                    logger.warning(
+                        f"No offers found in database for {goal.shop} ({goal.country}) before price matching. "
+                        f"Scraping may have failed or returned no data. Prices will be set to null."
+                    )
+                else:
+                    logger.info(f"Found {offer_count} offers in database for {goal.shop} ({goal.country}), proceeding with price matching")
+                
+                logger.info(f"Matching prices for {len(shopping_list_data)} shopping list items from {goal.shop} ({goal.country})")
                 enhanced_shopping_list = ScraperService.match_shopping_list_prices(
                     shopping_list_data,
                     shop=goal.shop,
@@ -415,8 +434,12 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     from decimal import Decimal
                     total_price = sum(Decimal(str(p)) for p in prices if p is not None)
                     logger.info(f"Calculated total price: {total_price} {goal.currency}")
+                else:
+                    logger.warning(f"No prices found for any shopping list items - total price will be null")
             except Exception as e:
                 logger.warning(f"Error matching prices for shopping list: {e}", exc_info=True)
+                import traceback
+                logger.debug(f"Price matching error traceback: {traceback.format_exc()}")
                 # Continue with original shopping list if price matching fails
                 enhanced_shopping_list = shopping_list_data
         

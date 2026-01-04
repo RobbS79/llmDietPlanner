@@ -1047,6 +1047,65 @@ class MealInstanceView(APIView):
             )
 
 
+class MealInstanceBatchView(APIView):
+    """
+    Get all meal instances for a specific dietary goal.
+    Returns empty list if no meal instances exist (always 200, never 404).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, goal_id: int) -> Response:
+        """
+        Get all meal instances for a dietary goal.
+        
+        Returns empty list if no meal instances exist.
+        Always returns 200 status (never 404).
+        """
+        try:
+            # Verify the goal exists and belongs to the user
+            try:
+                dietary_goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+            except DietaryGoal.DoesNotExist:
+                return Response(
+                    {
+                        "status": "error",
+                        "data": None,
+                        "error": "Dietary goal not found"
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get all meal instances for this goal and user
+            meal_instances = MealInstance.objects.filter(
+                dietary_goal=dietary_goal,
+                user=request.user
+            ).select_related('recipe', 'dietary_goal').order_by('day_number', 'meal_type')
+            
+            serializer = MealInstanceSerializer(meal_instances, many=True)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": serializer.data,
+                    "error": None
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error retrieving meal instances for goal {goal_id}: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class MealInstanceCookedListView(APIView):
     """
     List all cooked meals for the authenticated user.
