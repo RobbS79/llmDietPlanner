@@ -284,37 +284,91 @@ class KupiCzScraper(BaseScraper):
         """Fallback parsing method if primary parsing fails."""
         offers = []
         
-        # Try to find any text that looks like products with prices
-        text_content = soup.get_text()
+        # Strategy 1: Look for menu items with "Product za X.XX Kč" pattern (kupi.cz leaflet format)
+        menu_items = soup.find_all(['menu', 'div', 'span'], class_=re.compile(r'menu', re.I))
+        for menu_item in menu_items:
+            menu_text = menu_item.get_text(strip=True)
+            # Pattern: "Product Name za X.XX Kč"
+            za_pattern = re.compile(r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+za\s+(\d+[\s,.]?\d*)\s*Kč', re.UNICODE | re.I)
+            za_match = za_pattern.search(menu_text)
+            if za_match:
+                product_name = za_match.group(1).strip()
+                price_text = za_match.group(2).replace(',', '.').replace(' ', '')
+                
+                if len(product_name) > 3 and len(product_name) < 200:
+                    try:
+                        price_value = float(price_text)
+                        if price_value > 0:
+                            offers.append({
+                                'display_name': product_name,
+                                'ingredient_name': product_name,
+                                'price': Decimal(str(price_value)),
+                                'currency': 'CZK',
+                                'source_url': base_url,
+                            })
+                            logger.debug(f"Fallback parsed (za pattern): {product_name} - {price_value} CZK")
+                    except ValueError:
+                        pass
         
-        # Look for patterns like "Product Name - 99 Kč" or "Product Name 99,90 Kč"
-        # Improved regex to handle Czech characters and various price formats
-        price_pattern = re.compile(r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+(\d+[\s,.]?\d*)\s*Kč', re.UNICODE | re.I)
-        matches = price_pattern.findall(text_content)
+        # Strategy 2: Look for links with product names and prices in href/url patterns
+        if not offers:
+            product_links = soup.find_all('a', href=re.compile(r'/sleva/', re.I))
+            for link in product_links:
+                link_text = link.get_text(strip=True)
+                # Look for price in link text or nearby elements
+                price_match = re.search(r'(\d+[\s,.]?\d*)\s*Kč', link_text, re.I)
+                if price_match and len(link_text) > 5:
+                    # Extract product name (remove price part)
+                    product_name = re.sub(r'\s+za\s+\d+[\s,.]?\d*\s*Kč.*$', '', link_text, flags=re.I).strip()
+                    if not product_name:
+                        product_name = link_text.replace(price_match.group(0), '').strip()
+                    
+                    if len(product_name) > 3 and len(product_name) < 200:
+                        try:
+                            price_text = price_match.group(1).replace(',', '.').replace(' ', '')
+                            price_value = float(price_text)
+                            if price_value > 0:
+                                offers.append({
+                                    'display_name': product_name,
+                                    'ingredient_name': product_name,
+                                    'price': Decimal(str(price_value)),
+                                    'currency': 'CZK',
+                                    'source_url': urljoin(base_url, link.get('href', '')),
+                                })
+                                logger.debug(f"Fallback parsed (link pattern): {product_name} - {price_value} CZK")
+                        except ValueError:
+                            pass
         
-        logger.debug(f"Fallback parsing found {len(matches)} potential price matches")
-        
-        for match in matches[:100]:  # Limit to 100 matches
-            product_name = match[0].strip()
-            price_text = match[1].replace(',', '.').replace(' ', '')
+        # Strategy 3: General text-based parsing (original fallback)
+        if not offers:
+            text_content = soup.get_text()
+            # Look for patterns like "Product Name - 99 Kč" or "Product Name 99,90 Kč"
+            price_pattern = re.compile(r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+(\d+[\s,.]?\d*)\s*Kč', re.UNICODE | re.I)
+            matches = price_pattern.findall(text_content)
             
-            # Clean product name - remove common prefixes/suffixes
-            product_name = re.sub(r'^[\-\s]+|[\-\s]+$', '', product_name)
+            logger.debug(f"Fallback parsing found {len(matches)} potential price matches")
             
-            if len(product_name) > 3 and len(product_name) < 100:  # Reasonable product name length
-                try:
-                    price_value = float(price_text)
-                    if price_value > 0:  # Validate positive price
-                        offers.append({
-                            'display_name': product_name,
-                            'ingredient_name': product_name,
-                            'price': Decimal(str(price_value)),
-                            'currency': 'CZK',
-                            'source_url': base_url,
-                        })
-                        logger.debug(f"Fallback parsed: {product_name} - {price_value} CZK")
-                except ValueError as e:
-                    logger.debug(f"Failed to parse price '{price_text}' for '{product_name}': {e}")
-                    continue
+            for match in matches[:100]:  # Limit to 100 matches
+                product_name = match[0].strip()
+                price_text = match[1].replace(',', '.').replace(' ', '')
+                
+                # Clean product name - remove common prefixes/suffixes
+                product_name = re.sub(r'^[\-\s]+|[\-\s]+$', '', product_name)
+                
+                if len(product_name) > 3 and len(product_name) < 200:  # Reasonable product name length
+                    try:
+                        price_value = float(price_text)
+                        if price_value > 0:  # Validate positive price
+                            offers.append({
+                                'display_name': product_name,
+                                'ingredient_name': product_name,
+                                'price': Decimal(str(price_value)),
+                                'currency': 'CZK',
+                                'source_url': base_url,
+                            })
+                            logger.debug(f"Fallback parsed (text pattern): {product_name} - {price_value} CZK")
+                    except ValueError as e:
+                        logger.debug(f"Failed to parse price '{price_text}' for '{product_name}': {e}")
+                        continue
         
         return offers
