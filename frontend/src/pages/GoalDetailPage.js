@@ -534,6 +534,24 @@ export function GoalDetailPage() {
                       borderRadius: '8px',
                       border: '1px solid #e5e7eb',
                     }}>
+                      {goal.dietary_plan.total_price && (
+                        <div style={{
+                          marginBottom: '1.5rem',
+                          padding: '1rem',
+                          background: '#f0f9ff',
+                          borderRadius: '6px',
+                          border: '1px solid #bfdbfe',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: '600', color: '#1e40af', fontSize: '1.125rem' }}>
+                              Total Price:
+                            </span>
+                            <span style={{ fontWeight: '700', color: '#1e40af', fontSize: '1.25rem' }}>
+                              {parseFloat(goal.dietary_plan.total_price).toFixed(2)} {goal.dietary_plan.currency}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                       <div style={{ display: 'grid', gap: '0.75rem' }}>
                         {goal.dietary_plan.shopping_list.map((item, index) => (
                           <div
@@ -550,26 +568,63 @@ export function GoalDetailPage() {
                           >
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '0.25rem' }}>
-                                {item.ingredient}
+                                {item.offer_display_name || item.ingredient}
                               </div>
                               {item.notes && (
-                                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
                                   {item.notes}
                                 </div>
                               )}
+                              {(item.quantity || item.unit) && (
+                                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                                  {item.quantity} {item.unit}
+                                </div>
+                              )}
                             </div>
-                            {(item.quantity || item.unit) && (
-                              <div style={{
-                                padding: '0.5rem 1rem',
-                                background: '#eff6ff',
-                                borderRadius: '6px',
-                                fontWeight: '600',
-                                color: '#1e40af',
-                                fontSize: '0.875rem',
-                              }}>
-                                {item.quantity} {item.unit}
-                              </div>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              {(item.quantity || item.unit) && (
+                                <div style={{
+                                  padding: '0.5rem 1rem',
+                                  background: '#eff6ff',
+                                  borderRadius: '6px',
+                                  fontWeight: '600',
+                                  color: '#1e40af',
+                                  fontSize: '0.875rem',
+                                }}>
+                                  {item.quantity} {item.unit}
+                                </div>
+                              )}
+                              {item.price !== null && item.price !== undefined ? (
+                                <div style={{
+                                  padding: '0.5rem 1rem',
+                                  background: '#f0fdf4',
+                                  borderRadius: '6px',
+                                  fontWeight: '600',
+                                  color: '#166534',
+                                  fontSize: '0.875rem',
+                                  minWidth: '80px',
+                                  textAlign: 'right',
+                                }}>
+                                  {parseFloat(item.price).toFixed(2)} {item.currency || goal.dietary_plan.currency}
+                                  {item.offer_unit && item.offer_unit !== item.unit && (
+                                    <div style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.125rem' }}>
+                                      / {item.offer_unit}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{
+                                  padding: '0.5rem 1rem',
+                                  background: '#fef3c7',
+                                  borderRadius: '6px',
+                                  fontWeight: '600',
+                                  color: '#92400e',
+                                  fontSize: '0.875rem',
+                                }}>
+                                  Price N/A
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

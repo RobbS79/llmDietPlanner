@@ -54,6 +54,11 @@ class ShoppingListItemSerializer(serializers.Serializer):
     quantity = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     unit = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    # Price information (added by price matching)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    currency = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    offer_unit = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    offer_display_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class DietaryPlanSerializer(serializers.ModelSerializer):

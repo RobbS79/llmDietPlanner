@@ -397,21 +397,42 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 'model': None,
             }
         
+        # Match shopping list items with prices from scraped leaflet data (if shop is selected)
+        enhanced_shopping_list = shopping_list_data
+        total_price = None
+        if goal.shop and shopping_list_data:
+            try:
+                logger.info(f"Matching prices for shopping list items from {goal.shop} ({goal.country})")
+                enhanced_shopping_list = ScraperService.match_shopping_list_prices(
+                    shopping_list_data,
+                    shop=goal.shop,
+                    country=goal.country
+                )
+                
+                # Calculate total price
+                prices = [item.get('price') for item in enhanced_shopping_list if item.get('price')]
+                if prices:
+                    from decimal import Decimal
+                    total_price = sum(Decimal(str(p)) for p in prices if p is not None)
+                    logger.info(f"Calculated total price: {total_price} {goal.currency}")
+            except Exception as e:
+                logger.warning(f"Error matching prices for shopping list: {e}", exc_info=True)
+                # Continue with original shopping list if price matching fails
+                enhanced_shopping_list = shopping_list_data
+        
         # Create dietary plan with LLM usage tracking
         dietary_plan = DietaryPlan.objects.create(
             dietary_goal=goal,
             days=days_data,
-            shopping_list=shopping_list_data,
+            shopping_list=enhanced_shopping_list,
             currency=goal.currency,
+            total_price=total_price,
             llm_input_tokens=llm_result.get('input_tokens'),
             llm_output_tokens=llm_result.get('output_tokens'),
             llm_total_tokens=llm_result.get('total_tokens'),
             llm_cost_usd=llm_result.get('cost_usd'),
             llm_model_used=llm_result.get('model'),
         )
-        
-        # TODO: Trigger price calculation task (separate Celery task)
-        # calculate_prices_task.delay(dietary_plan.id)
         
         # Update goal status to completed
         goal.status = DietaryGoal.StatusChoices.COMPLETED

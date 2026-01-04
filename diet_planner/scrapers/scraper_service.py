@@ -192,4 +192,80 @@ class ScraperService:
             })
         
         return ingredients
+    
+    @classmethod
+    def match_ingredient_price(cls, ingredient_name: str, shop: str, country: str) -> Optional[Dict[str, Any]]:
+        """
+        Match an ingredient name with a price from LeafletOffer.
+        
+        Args:
+            ingredient_name: Normalized ingredient name to match
+            shop: Shop code
+            country: Country code
+            
+        Returns:
+            Dict with price info or None if not found:
+            {
+                'price': Decimal,
+                'currency': str,
+                'unit': str,
+                'display_name': str,
+            }
+        """
+        from django.utils import timezone
+        
+        normalized_name = normalize_ingredient_name(ingredient_name)
+        
+        # Try to find matching offer
+        current_time = timezone.now()
+        offer = LeafletOffer.objects.filter(
+            shop=shop,
+            country=country,
+            ingredient_name=normalized_name,
+            expires_at__gt=current_time,
+            price__isnull=False
+        ).order_by('-scraped_at').first()
+        
+        if offer:
+            return {
+                'price': Decimal(str(offer.price)),
+                'currency': offer.currency,
+                'unit': offer.unit or '',
+                'display_name': offer.display_name,
+            }
+        
+        return None
+    
+    @classmethod
+    def match_shopping_list_prices(cls, shopping_list: List[Dict[str, Any]], shop: str, country: str) -> List[Dict[str, Any]]:
+        """
+        Match shopping list items with prices from LeafletOffer.
+        
+        Args:
+            shopping_list: List of shopping list items (from LLM)
+            shop: Shop code
+            country: Country code
+            
+        Returns:
+            List of shopping list items with price information added
+        """
+        enhanced_list = []
+        for item in shopping_list:
+            ingredient_name = item.get('ingredient', '')
+            if ingredient_name:
+                price_info = cls.match_ingredient_price(ingredient_name, shop, country)
+                if price_info:
+                    item['price'] = price_info['price']
+                    item['currency'] = price_info['currency']
+                    item['offer_unit'] = price_info['unit']
+                    item['offer_display_name'] = price_info['display_name']
+                else:
+                    # No price found, mark as unavailable
+                    item['price'] = None
+                    item['currency'] = get_currency_for_country(country)
+                    item['offer_unit'] = None
+                    item['offer_display_name'] = None
+            enhanced_list.append(item)
+        
+        return enhanced_list
 
