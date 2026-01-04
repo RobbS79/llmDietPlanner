@@ -240,6 +240,11 @@ class ScraperService:
         """
         Match an ingredient name with a price from LeafletOffer.
         
+        Uses multiple matching strategies:
+        1. Exact match on normalized name
+        2. Partial match (scraped name contains search term)
+        3. Reverse partial match (search term contains scraped name)
+        
         Args:
             ingredient_name: Normalized ingredient name to match
             shop: Shop code
@@ -256,12 +261,18 @@ class ScraperService:
         """
         from django.utils import timezone
         from decimal import Decimal
+        from django.db.models import Q
         
         normalized_name = normalize_ingredient_name(ingredient_name)
         logger.debug(f"Matching ingredient: '{ingredient_name}' (normalized: '{normalized_name}') for {shop} ({country})")
         
-        # Try to find matching offer
+        if not normalized_name:
+            logger.warning(f"Empty normalized name for ingredient: '{ingredient_name}'")
+            return None
+        
         current_time = timezone.now()
+        
+        # Strategy 1: Exact match on normalized name
         offer = LeafletOffer.objects.filter(
             shop=shop,
             country=country,
@@ -271,13 +282,55 @@ class ScraperService:
         ).order_by('-scraped_at').first()
         
         if offer:
-            logger.debug(f"Found price match: {offer.display_name} - {offer.price} {offer.currency}")
+            logger.debug(f"Found exact price match: {offer.display_name} - {offer.price} {offer.currency}")
             return {
                 'price': Decimal(str(offer.price)),
                 'currency': offer.currency,
                 'unit': offer.unit or '',
                 'display_name': offer.display_name,
             }
+        
+        # Strategy 2: Partial match - scraped ingredient_name contains the search term
+        # E.g., search "rajčata" matches "rajčata cherry" or "rajčata červená"
+        offer = LeafletOffer.objects.filter(
+            shop=shop,
+            country=country,
+            ingredient_name__icontains=normalized_name,
+            expires_at__gt=current_time,
+            price__isnull=False
+        ).order_by('-scraped_at').first()
+        
+        if offer:
+            logger.debug(f"Found partial price match (scraped contains search): {offer.display_name} - {offer.price} {offer.currency}")
+            return {
+                'price': Decimal(str(offer.price)),
+                'currency': offer.currency,
+                'unit': offer.unit or '',
+                'display_name': offer.display_name,
+            }
+        
+        # Strategy 3: Reverse partial match - search term contains scraped ingredient_name
+        # E.g., search "rajčata cherry" matches "rajčata"
+        # We need to filter in Python since Django doesn't support this in the ORM efficiently
+        # But for performance, we'll limit the query first
+        candidates = LeafletOffer.objects.filter(
+            shop=shop,
+            country=country,
+            expires_at__gt=current_time,
+            price__isnull=False
+        ).order_by('-scraped_at')[:100]  # Limit to recent offers for performance
+        
+        for candidate in candidates:
+            if normalized_name.startswith(candidate.ingredient_name) or candidate.ingredient_name.startswith(normalized_name):
+                # Additional check: ensure significant overlap (at least 3 characters)
+                if len(normalized_name) >= 3 and len(candidate.ingredient_name) >= 3:
+                    logger.debug(f"Found reverse partial price match: {candidate.display_name} - {candidate.price} {candidate.currency}")
+                    return {
+                        'price': Decimal(str(candidate.price)),
+                        'currency': candidate.currency,
+                        'unit': candidate.unit or '',
+                        'display_name': candidate.display_name,
+                    }
         
         logger.debug(f"No price match found for '{ingredient_name}' in {shop} ({country})")
         return None
@@ -296,8 +349,23 @@ class ScraperService:
             List of shopping list items with price information added
         """
         logger.info(f"Matching prices for {len(shopping_list)} shopping list items from {shop} ({country})")
+        
+        # Check if we have any offers in the database first
+        current_time = timezone.now()
+        total_offers = LeafletOffer.objects.filter(
+            shop=shop,
+            country=country,
+            expires_at__gt=current_time,
+            price__isnull=False
+        ).count()
+        logger.info(f"Found {total_offers} valid offers with prices in database for {shop} ({country})")
+        
+        if total_offers == 0:
+            logger.warning(f"No offers found in database for {shop} ({country}) - scraping may have failed or returned no data")
+        
         enhanced_list = []
         matched_count = 0
+        unmatched_items = []
         
         for item in shopping_list:
             ingredient_name = item.get('ingredient', '')
@@ -309,12 +377,15 @@ class ScraperService:
                     item['offer_unit'] = price_info['unit']
                     item['offer_display_name'] = price_info['display_name']
                     matched_count += 1
+                    logger.debug(f"✓ Matched '{ingredient_name}' -> '{price_info['display_name']}' ({price_info['price']} {price_info['currency']})")
                 else:
                     # No price found, mark as unavailable
                     item['price'] = None
                     item['currency'] = get_currency_for_country(country)
                     item['offer_unit'] = None
                     item['offer_display_name'] = None
+                    unmatched_items.append(ingredient_name)
+                    logger.debug(f"✗ No match found for '{ingredient_name}'")
             else:
                 logger.warning(f"Shopping list item missing ingredient name: {item}")
                 item['price'] = None
@@ -324,5 +395,7 @@ class ScraperService:
             enhanced_list.append(item)
         
         logger.info(f"Matched {matched_count}/{len(shopping_list)} items with prices from {shop} ({country})")
+        if unmatched_items:
+            logger.info(f"Unmatched items: {', '.join(unmatched_items[:10])}{'...' if len(unmatched_items) > 10 else ''}")
         return enhanced_list
 
