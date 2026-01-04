@@ -93,7 +93,8 @@ class ScraperService:
             shop=shop,
             country=country,
             expires_at__gt=now,
-            price__isnull=False  # Only return offers with prices
+            price__isnull=False,  # Only return offers with prices
+            price__gt=0  # Only return offers with positive prices (exclude zero)
         ).order_by('ingredient_name'))
     
     @classmethod
@@ -168,7 +169,7 @@ class ScraperService:
                 ingredient_name = ingredient_name[:200]
                 logger.debug(f"Truncated ingredient_name from {len(raw_name)} to 200 chars")
             
-            # Validate price if present
+            # Validate price if present - must be positive (> 0)
             price = offer_data.get('price')
             if price is not None:
                 try:
@@ -177,6 +178,10 @@ class ScraperService:
                         price = Decimal(str(price))
                     elif not isinstance(price, Decimal):
                         logger.warning(f"Invalid price type for offer #{idx} ({ingredient_name}): {type(price)}")
+                        price = None
+                    # Filter out zero or negative prices
+                    if price is not None and price <= 0:
+                        logger.debug(f"Skipping offer #{idx} ({ingredient_name}) with invalid price: {price}")
                         price = None
                 except (ValueError, InvalidOperation) as e:
                     logger.warning(f"Invalid price value for offer #{idx} ({ingredient_name}): {offer_data.get('price')} - {e}")
@@ -226,14 +231,15 @@ class ScraperService:
             # Scrape and store
             offers = cls.scrape_and_store(shop, country)
         
-        # Convert to list of dictionaries for LLM prompt (only include offers with prices)
+        # Convert to list of dictionaries for LLM prompt (only include offers with positive prices)
         ingredients = []
         for offer in offers:
-            if offer.price is not None:  # Only include offers that have prices
+            # Only include offers that have positive prices (filter out None and 0)
+            if offer.price is not None and offer.price > 0:
                 ingredients.append({
                     'name': offer.ingredient_name,
                     'display_name': offer.display_name,
-                    'price': float(offer.price) if offer.price else None,
+                    'price': float(offer.price),
                     'currency': offer.currency,
                     'unit': offer.unit or '',
                 })
@@ -283,7 +289,8 @@ class ScraperService:
             country=country,
             ingredient_name=normalized_name,
             expires_at__gt=current_time,
-            price__isnull=False
+            price__isnull=False,
+            price__gt=0  # Only match offers with positive prices
         ).order_by('-scraped_at').first()
         
         if offer:
@@ -302,7 +309,8 @@ class ScraperService:
             country=country,
             ingredient_name__icontains=normalized_name,
             expires_at__gt=current_time,
-            price__isnull=False
+            price__isnull=False,
+            price__gt=0  # Only match offers with positive prices
         ).order_by('-scraped_at').first()
         
         if offer:
@@ -322,7 +330,8 @@ class ScraperService:
             shop=shop,
             country=country,
             expires_at__gt=current_time,
-            price__isnull=False
+            price__isnull=False,
+            price__gt=0  # Only match offers with positive prices
         ).order_by('-scraped_at')[:100]  # Limit to recent offers for performance
         
         for candidate in candidates:
@@ -361,7 +370,8 @@ class ScraperService:
             shop=shop,
             country=country,
             expires_at__gt=current_time,
-            price__isnull=False
+            price__isnull=False,
+            price__gt=0  # Only count offers with positive prices
         ).count()
         logger.info(f"Found {total_offers} valid offers with prices in database for {shop} ({country})")
         
@@ -373,7 +383,8 @@ class ScraperService:
                 shop=shop,
                 country=country,
                 expires_at__gt=current_time,
-                price__isnull=False
+                price__isnull=False,
+                price__gt=0  # Only include offers with positive prices
             ).values_list('ingredient_name', 'display_name')[:10]
             sample_names = [name for name, _ in sample_offers]
             logger.info(f"Sample ingredient names from database (first 10): {sample_names}")
