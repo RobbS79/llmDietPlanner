@@ -2,7 +2,7 @@
 OpenAI LLM Service for generating dietary plans.
 Handles API calls, token counting, and cost calculation.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import json
 import logging
 from decimal import Decimal
@@ -364,7 +364,6 @@ Return ONLY a JSON array of instruction strings, like this:
                 'source_url': str
             }
         """
-        from typing import List
         from bs4 import BeautifulSoup
         from decimal import Decimal, InvalidOperation
         

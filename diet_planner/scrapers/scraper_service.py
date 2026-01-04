@@ -20,6 +20,16 @@ import re
 
 logger = logging.getLogger(__name__)
 
+# Lazy import for LLM service to avoid circular dependencies
+def get_llm_service():
+    """Get LLM service instance with lazy loading."""
+    try:
+        from ..llm_service import OpenAIService
+        return OpenAIService()
+    except Exception as e:
+        logger.error(f"Failed to import/initialize LLM service: {e}", exc_info=True)
+        raise
+
 # Cache expiry time: 24 hours
 CACHE_EXPIRY_HOURS = 24
 
@@ -194,8 +204,12 @@ class ScraperService:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        from ..llm_service import OpenAIService
-        llm_service = OpenAIService()
+        # Get LLM service with error handling
+        try:
+            llm_service = get_llm_service()
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM service: {e}", exc_info=True)
+            raise ValueError(f"LLM service initialization failed: {e}") from e
         
         # Determine which shops need leaflet navigation
         shops_with_leaflets = ['LIDL_CZ', 'LIDL_SK']
@@ -370,8 +384,14 @@ class ScraperService:
             logger.info(f"Using cached offers for {shop} ({country})")
             offers = cls.get_cached_offers(shop, country)
         else:
-            # Scrape and store
-            offers = cls.scrape_and_store(shop, country)
+            # Scrape and store - wrap in try/except to prevent failures from breaking the request
+            try:
+                offers = cls.scrape_and_store(shop, country)
+            except Exception as e:
+                logger.error(f"Error scraping {shop} ({country}): {e}", exc_info=True)
+                # Return cached offers if available, even if expired, rather than failing completely
+                logger.warning(f"Falling back to expired cache for {shop} ({country})")
+                offers = cls.get_cached_offers(shop, country)  # This might return empty list if no cache
         
         # Convert to list of dictionaries for LLM prompt (only include offers with positive prices)
         ingredients = []
