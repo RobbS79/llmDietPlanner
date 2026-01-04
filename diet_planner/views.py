@@ -418,7 +418,7 @@ class ScraperDebugView(APIView):
             # Determine scraper URL for HTML fetching
             scraper_url = None
             if shop == 'LIDL_CZ':
-                scraper_url = "https://kupi.cz/lidl"
+                scraper_url = "https://www.kupi.cz/letaky/lidl"
             elif shop == 'LIDL_SK':
                 scraper_url = "https://kupino.sk/lidl"
             elif shop == 'ROHLIK':
@@ -440,7 +440,7 @@ class ScraperDebugView(APIView):
                     html_response = requests.get(scraper_url, headers=headers, timeout=10)
                     response_status = html_response.status_code
                     response_url = html_response.url
-                    html_sample = html_response.text[:5000]  # First 5000 chars
+                    html_sample = html_response.text[:10000]  # First 10000 chars for debugging
             except Exception as html_error:
                 html_sample = f"Error fetching HTML: {str(html_error)}"
             
