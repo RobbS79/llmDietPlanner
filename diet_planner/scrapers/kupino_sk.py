@@ -54,17 +54,28 @@ class KupinoSkScraper(BaseScraper):
             
             logger.info(f"Found {len(product_items)} potential product items on kupino.sk")
             
+            if not product_items:
+                logger.warning(f"No product items found on kupino.sk - HTML structure may have changed")
+                logger.debug(f"HTML sample (first 2000 chars): {response.text[:2000]}")
+            
+            parsed_count = 0
             for item in product_items[:100]:
                 try:
                     offer_data = self._parse_product_item(item, response.url)
                     if offer_data:
                         offers.append(offer_data)
+                        parsed_count += 1
+                        logger.debug(f"Parsed item {parsed_count}: {offer_data.get('display_name')} - {offer_data.get('price')}")
                 except Exception as e:
-                    logger.debug(f"Error parsing product item: {e}")
+                    logger.debug(f"Error parsing product item: {e}", exc_info=True)
                     continue
             
+            logger.info(f"Parsed {parsed_count}/{len(product_items[:100])} items successfully")
+            
             if not offers:
+                logger.warning(f"No offers parsed with primary method, trying fallback parsing")
                 offers = self._parse_fallback(soup, response.url)
+                logger.info(f"Fallback parsing found {len(offers)} offers")
             
             logger.info(f"Successfully scraped {len(offers)} offers from kupino.sk")
             

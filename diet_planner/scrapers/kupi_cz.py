@@ -62,18 +62,30 @@ class KupiCzScraper(BaseScraper):
             
             logger.info(f"Found {len(product_items)} potential product items on kupi.cz")
             
+            if not product_items:
+                logger.warning(f"No product items found on kupi.cz - HTML structure may have changed")
+                # Log a sample of the HTML structure for debugging
+                logger.debug(f"HTML sample (first 2000 chars): {response.text[:2000]}")
+            
+            parsed_count = 0
             for item in product_items[:100]:  # Limit to first 100 items
                 try:
                     offer_data = self._parse_product_item(item, response.url)
                     if offer_data:
                         offers.append(offer_data)
+                        parsed_count += 1
+                        logger.debug(f"Parsed item {parsed_count}: {offer_data.get('display_name')} - {offer_data.get('price')}")
                 except Exception as e:
-                    logger.debug(f"Error parsing product item: {e}")
+                    logger.debug(f"Error parsing product item: {e}", exc_info=True)
                     continue
+            
+            logger.info(f"Parsed {parsed_count}/{len(product_items[:100])} items successfully")
             
             # If still no offers, try parsing product cards or listings
             if not offers:
+                logger.warning(f"No offers parsed with primary method, trying fallback parsing")
                 offers = self._parse_fallback(soup, response.url)
+                logger.info(f"Fallback parsing found {len(offers)} offers")
             
             logger.info(f"Successfully scraped {len(offers)} offers from kupi.cz")
             
@@ -141,24 +153,33 @@ class KupiCzScraper(BaseScraper):
         text_content = soup.get_text()
         
         # Look for patterns like "Product Name - 99 Kč" or "Product Name 99,90 Kč"
-        price_pattern = re.compile(r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s]+?)\s+(\d+[\s,.]?\d*)\s*Kč', re.UNICODE)
+        # Improved regex to handle Czech characters and various price formats
+        price_pattern = re.compile(r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+(\d+[\s,.]?\d*)\s*Kč', re.UNICODE | re.I)
         matches = price_pattern.findall(text_content)
+        
+        logger.debug(f"Fallback parsing found {len(matches)} potential price matches")
         
         for match in matches[:50]:  # Limit to 50 matches
             product_name = match[0].strip()
             price_text = match[1].replace(',', '.').replace(' ', '')
             
+            # Clean product name - remove common prefixes/suffixes
+            product_name = re.sub(r'^[\-\s]+|[\-\s]+$', '', product_name)
+            
             if len(product_name) > 3 and len(product_name) < 100:  # Reasonable product name length
                 try:
                     price_value = float(price_text)
-                    offers.append({
-                        'display_name': product_name,
-                        'ingredient_name': product_name,
-                        'price': Decimal(str(price_value)),
-                        'currency': 'CZK',
-                        'source_url': base_url,
-                    })
-                except ValueError:
+                    if price_value > 0:  # Validate positive price
+                        offers.append({
+                            'display_name': product_name,
+                            'ingredient_name': product_name,
+                            'price': Decimal(str(price_value)),
+                            'currency': 'CZK',
+                            'source_url': base_url,
+                        })
+                        logger.debug(f"Fallback parsed: {product_name} - {price_value} CZK")
+                except ValueError as e:
+                    logger.debug(f"Failed to parse price '{price_text}' for '{product_name}': {e}")
                     continue
         
         return offers

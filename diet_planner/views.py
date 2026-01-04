@@ -372,6 +372,171 @@ class DietaryGoalPromptDebugView(APIView):
             )
 
 
+class ScraperDebugView(APIView):
+    """
+    Debug endpoint to manually test scrapers and inspect results.
+    Useful for debugging scraping issues and verifying HTML parsing.
+    
+    Note: For MVP testing, authentication is disabled. Re-enable for production.
+    """
+    permission_classes = []  # Temporarily disabled for testing - re-enable IsAuthenticated for production
+    
+    def get(self, request) -> Response:
+        """
+        Manually trigger scraping for a shop/country and return detailed results.
+        
+        Query parameters:
+        - shop: Shop code (e.g., 'LIDL_CZ', 'ROHLIK', 'LIDL_SK', 'LUNYS')
+        - country: Country code (e.g., 'CZ', 'SK')
+        - force_refresh: If 'true', force re-scraping even if cache is valid
+        
+        Response includes:
+        - Raw HTML sample (first 5000 chars)
+        - Parsed offer data
+        - Database storage results
+        - Error messages if any
+        """
+        shop = request.query_params.get('shop')
+        country = request.query_params.get('country')
+        force_refresh = request.query_params.get('force_refresh', 'false').lower() == 'true'
+        
+        if not shop or not country:
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": "Both 'shop' and 'country' query parameters are required"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from .scrapers.scraper_service import ScraperService
+            from .models import LeafletOffer
+            from django.utils import timezone
+            
+            # Get scraper instance
+            scraper = ScraperService.get_scraper(shop)
+            
+            # Scrape data directly
+            try:
+                raw_offers_data = scraper.scrape()
+            except Exception as scrape_error:
+                return Response(
+                    {
+                        "status": "error",
+                        "data": {
+                            "shop": shop,
+                            "country": country,
+                            "error": f"Scraping failed: {str(scrape_error)}",
+                            "error_type": type(scrape_error).__name__,
+                        },
+                        "error": f"Scraping failed: {str(scrape_error)}"
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Try to get HTML sample (if scraper exposes it)
+            html_sample = None
+            try:
+                # Some scrapers might store HTML, but for now we'll try to get it from response
+                # This is a placeholder - actual implementation depends on scraper design
+                pass
+            except:
+                pass
+            
+            # Store offers using ScraperService
+            stored_offers = []
+            try:
+                if force_refresh or not ScraperService.is_cache_valid(shop, country):
+                    stored_offers_list = ScraperService.scrape_and_store(shop, country)
+                    stored_offers = [
+                        {
+                            'id': offer.id,
+                            'ingredient_name': offer.ingredient_name,
+                            'display_name': offer.display_name,
+                            'price': str(offer.price) if offer.price else None,
+                            'currency': offer.currency,
+                            'unit': offer.unit,
+                            'scraped_at': offer.scraped_at.isoformat(),
+                            'expires_at': offer.expires_at.isoformat(),
+                        }
+                        for offer in stored_offers_list
+                    ]
+            except Exception as store_error:
+                return Response(
+                    {
+                        "status": "error",
+                        "data": {
+                            "shop": shop,
+                            "country": country,
+                            "raw_offers_count": len(raw_offers_data),
+                            "raw_offers_sample": raw_offers_data[:5] if raw_offers_data else [],
+                            "store_error": str(store_error),
+                            "error_type": type(store_error).__name__,
+                        },
+                        "error": f"Storage failed: {str(store_error)}"
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Get current offers from database
+            current_time = timezone.now()
+            db_offers = LeafletOffer.objects.filter(
+                shop=shop,
+                country=country,
+                expires_at__gt=current_time
+            ).order_by('-scraped_at')[:50]
+            
+            db_offers_data = [
+                {
+                    'id': offer.id,
+                    'ingredient_name': offer.ingredient_name,
+                    'display_name': offer.display_name,
+                    'price': str(offer.price) if offer.price else None,
+                    'currency': offer.currency,
+                    'unit': offer.unit,
+                    'scraped_at': offer.scraped_at.isoformat(),
+                    'expires_at': offer.expires_at.isoformat(),
+                }
+                for offer in db_offers
+            ]
+            
+            return Response(
+                {
+                    "status": "success",
+                    "data": {
+                        "shop": shop,
+                        "country": country,
+                        "force_refresh": force_refresh,
+                        "raw_offers_count": len(raw_offers_data),
+                        "raw_offers_sample": raw_offers_data[:10],  # First 10 offers
+                        "stored_offers_count": len(stored_offers),
+                        "stored_offers": stored_offers[:10],  # First 10 stored
+                        "database_offers_count": db_offers.count(),
+                        "database_offers": db_offers_data,
+                        "html_sample": html_sample,
+                    },
+                    "error": None
+                },
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in ScraperDebugView: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"An error occurred: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class ShopsListView(APIView):
     """
     Get list of available shops for a country.

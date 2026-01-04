@@ -111,53 +111,84 @@ class ScraperService:
         
         # Get scraper instance
         scraper = cls.get_scraper(shop)
+        logger.debug(f"Using scraper class: {type(scraper).__name__}")
         
         # Scrape data
         try:
             offers_data = scraper.scrape()
+            logger.info(f"Scraper returned {len(offers_data)} raw offers for {shop} ({country})")
+            
+            # Log sample of scraped data for debugging
+            if offers_data:
+                logger.debug(f"Sample scraped offer: {offers_data[0]}")
+            else:
+                logger.warning(f"No offers scraped from {shop} ({country}) - scraper returned empty list")
         except Exception as e:
             logger.error(f"Error scraping {shop} ({country}): {e}", exc_info=True)
             raise
         
         # Delete old expired offers for this shop/country
         now = timezone.now()
-        LeafletOffer.objects.filter(
+        deleted_count = LeafletOffer.objects.filter(
             shop=shop,
             country=country
         ).filter(
             Q(expires_at__lte=now) | Q(expires_at__isnull=True)
-        ).delete()
+        ).delete()[0]
+        logger.debug(f"Deleted {deleted_count} expired offers for {shop} ({country})")
         
         # Calculate expiry time
         expires_at = now + timedelta(hours=CACHE_EXPIRY_HOURS)
         currency = get_currency_for_country(country)
+        logger.debug(f"Using currency {currency} for {country}, expiry time: {expires_at}")
         
         # Store offers
         created_offers = []
-        for offer_data in offers_data:
+        skipped_count = 0
+        for idx, offer_data in enumerate(offers_data):
             # Normalize ingredient name
             ingredient_name = normalize_ingredient_name(
                 offer_data.get('ingredient_name') or offer_data.get('display_name', '')
             )
             
             if not ingredient_name:
-                logger.warning(f"Skipping offer with empty ingredient name: {offer_data}")
+                logger.warning(f"Skipping offer #{idx} with empty ingredient name: {offer_data}")
+                skipped_count += 1
                 continue
             
-            offer = LeafletOffer.objects.create(
-                shop=shop,
-                country=country,
-                ingredient_name=ingredient_name,
-                display_name=offer_data.get('display_name', ingredient_name),
-                price=offer_data.get('price'),
-                currency=offer_data.get('currency', currency),
-                unit=offer_data.get('unit'),
-                expires_at=expires_at,
-                source_url=offer_data.get('source_url'),
-            )
-            created_offers.append(offer)
+            # Validate price if present
+            price = offer_data.get('price')
+            if price is not None:
+                try:
+                    from decimal import Decimal, InvalidOperation
+                    if isinstance(price, (int, float, str)):
+                        price = Decimal(str(price))
+                    elif not isinstance(price, Decimal):
+                        logger.warning(f"Invalid price type for offer #{idx} ({ingredient_name}): {type(price)}")
+                        price = None
+                except (ValueError, InvalidOperation) as e:
+                    logger.warning(f"Invalid price value for offer #{idx} ({ingredient_name}): {offer_data.get('price')} - {e}")
+                    price = None
+            
+            try:
+                offer = LeafletOffer.objects.create(
+                    shop=shop,
+                    country=country,
+                    ingredient_name=ingredient_name,
+                    display_name=offer_data.get('display_name', ingredient_name),
+                    price=price,
+                    currency=offer_data.get('currency', currency),
+                    unit=offer_data.get('unit'),
+                    expires_at=expires_at,
+                    source_url=offer_data.get('source_url'),
+                )
+                created_offers.append(offer)
+                logger.debug(f"Stored offer #{idx}: {ingredient_name} - {price} {offer_data.get('currency', currency)}")
+            except Exception as e:
+                logger.error(f"Error storing offer #{idx} ({ingredient_name}): {e}", exc_info=True)
+                skipped_count += 1
         
-        logger.info(f"Stored {len(created_offers)} offers for {shop} ({country})")
+        logger.info(f"Stored {len(created_offers)} offers for {shop} ({country}), skipped {skipped_count}")
         return created_offers
     
     @classmethod
@@ -213,8 +244,10 @@ class ScraperService:
             }
         """
         from django.utils import timezone
+        from decimal import Decimal
         
         normalized_name = normalize_ingredient_name(ingredient_name)
+        logger.debug(f"Matching ingredient: '{ingredient_name}' (normalized: '{normalized_name}') for {shop} ({country})")
         
         # Try to find matching offer
         current_time = timezone.now()
@@ -227,6 +260,7 @@ class ScraperService:
         ).order_by('-scraped_at').first()
         
         if offer:
+            logger.debug(f"Found price match: {offer.display_name} - {offer.price} {offer.currency}")
             return {
                 'price': Decimal(str(offer.price)),
                 'currency': offer.currency,
@@ -234,6 +268,7 @@ class ScraperService:
                 'display_name': offer.display_name,
             }
         
+        logger.debug(f"No price match found for '{ingredient_name}' in {shop} ({country})")
         return None
     
     @classmethod
@@ -249,7 +284,10 @@ class ScraperService:
         Returns:
             List of shopping list items with price information added
         """
+        logger.info(f"Matching prices for {len(shopping_list)} shopping list items from {shop} ({country})")
         enhanced_list = []
+        matched_count = 0
+        
         for item in shopping_list:
             ingredient_name = item.get('ingredient', '')
             if ingredient_name:
@@ -259,13 +297,21 @@ class ScraperService:
                     item['currency'] = price_info['currency']
                     item['offer_unit'] = price_info['unit']
                     item['offer_display_name'] = price_info['display_name']
+                    matched_count += 1
                 else:
                     # No price found, mark as unavailable
                     item['price'] = None
                     item['currency'] = get_currency_for_country(country)
                     item['offer_unit'] = None
                     item['offer_display_name'] = None
+            else:
+                logger.warning(f"Shopping list item missing ingredient name: {item}")
+                item['price'] = None
+                item['currency'] = get_currency_for_country(country)
+                item['offer_unit'] = None
+                item['offer_display_name'] = None
             enhanced_list.append(item)
         
+        logger.info(f"Matched {matched_count}/{len(shopping_list)} items with prices from {shop} ({country})")
         return enhanced_list
 

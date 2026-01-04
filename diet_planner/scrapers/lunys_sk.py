@@ -56,17 +56,28 @@ class LunysSkScraper(BaseScraper):
             
             logger.info(f"Found {len(product_items)} potential product items on lunys.sk")
             
+            if not product_items:
+                logger.warning(f"No product items found on lunys.sk - HTML structure may have changed")
+                logger.debug(f"HTML sample (first 2000 chars): {response.text[:2000]}")
+            
+            parsed_count = 0
             for item in product_items[:100]:
                 try:
                     offer_data = self._parse_product_item(item, response.url)
                     if offer_data:
                         offers.append(offer_data)
+                        parsed_count += 1
+                        logger.debug(f"Parsed item {parsed_count}: {offer_data.get('display_name')} - {offer_data.get('price')}")
                 except Exception as e:
-                    logger.debug(f"Error parsing product item: {e}")
+                    logger.debug(f"Error parsing product item: {e}", exc_info=True)
                     continue
             
+            logger.info(f"Parsed {parsed_count}/{len(product_items[:100])} items successfully")
+            
             if not offers:
+                logger.warning(f"No offers parsed with primary method, trying fallback parsing")
                 offers = self._parse_fallback(soup, response.url)
+                logger.info(f"Fallback parsing found {len(offers)} offers")
             
             logger.info(f"Successfully scraped {len(offers)} offers from lunys.sk")
             
@@ -131,24 +142,32 @@ class LunysSkScraper(BaseScraper):
         offers = []
         text_content = soup.get_text()
         
-        price_pattern = re.compile(r'([A-ZÁÄČĎÉÍĽĹŇÓÔŔŠŤÚÝŽa-záäčďéíľĺňóôŕšťúýž\s]+?)\s+(\d+[\s,.]?\d*)\s*(€|EUR)', re.UNICODE)
+        price_pattern = re.compile(r'([A-ZÁÄČĎÉÍĽĹŇÓÔŔŠŤÚÝŽa-záäčďéíľĺňóôŕšťúýž\s\-]+?)\s+(\d+[\s,.]?\d*)\s*(€|EUR)', re.UNICODE | re.I)
         matches = price_pattern.findall(text_content)
+        
+        logger.debug(f"Fallback parsing found {len(matches)} potential price matches")
         
         for match in matches[:50]:
             product_name = match[0].strip()
             price_text = match[1].replace(',', '.').replace(' ', '')
             
+            # Clean product name
+            product_name = re.sub(r'^[\-\s]+|[\-\s]+$', '', product_name)
+            
             if len(product_name) > 3 and len(product_name) < 100:
                 try:
                     price_value = float(price_text)
-                    offers.append({
-                        'display_name': product_name,
-                        'ingredient_name': product_name,
-                        'price': Decimal(str(price_value)),
-                        'currency': 'EUR',
-                        'source_url': base_url,
-                    })
-                except ValueError:
+                    if price_value > 0:  # Validate positive price
+                        offers.append({
+                            'display_name': product_name,
+                            'ingredient_name': product_name,
+                            'price': Decimal(str(price_value)),
+                            'currency': 'EUR',
+                            'source_url': base_url,
+                        })
+                        logger.debug(f"Fallback parsed: {product_name} - {price_value} EUR")
+                except ValueError as e:
+                    logger.debug(f"Failed to parse price '{price_text}' for '{product_name}': {e}")
                     continue
         
         return offers
