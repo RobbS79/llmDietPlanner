@@ -535,6 +535,16 @@ export function GoalDetailPage() {
               const hasMealIdeas = plan?.meal_ideas && Array.isArray(plan.meal_ideas) && plan.meal_ideas.length > 0; // Legacy support
               const hasShoppingList = plan?.shopping_list && Array.isArray(plan.shopping_list) && plan.shopping_list.length > 0;
               
+              // Debug logging
+              console.log('Dietary Plan Debug:', {
+                plan,
+                hasShoppingList,
+                shoppingList: plan?.shopping_list,
+                shoppingListLength: plan?.shopping_list?.length,
+                hasDays,
+                hasMealIdeas,
+              });
+              
               if (hasDays || hasMealIdeas || hasShoppingList) {
                 return (
               <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e5e7eb' }}>
