@@ -13,6 +13,10 @@ from .rohlik_cz import RohlikCzScraper
 from .kupino_sk import KupinoSkScraper
 from .lunys_sk import LunysSkScraper
 from .utils import normalize_ingredient_name
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +58,72 @@ class ScraperService:
         if not scraper_class:
             raise ValueError(f"Unsupported shop: {shop}")
         return scraper_class()
+    
+    @classmethod
+    def _get_shop_urls(cls, shop: str, country: str) -> List[str]:
+        """
+        Get the base URLs to scrape for a shop.
+        
+        Args:
+            shop: Shop code
+            country: Country code
+            
+        Returns:
+            List of URLs to scrape (for shops with multiple leaflet pages, returns listing page)
+        """
+        url_map = {
+            'LIDL_CZ': 'https://www.kupi.cz/letaky/lidl',
+            'ROHLIK': 'https://www.rohlik.cz/cs/akcni-nabidka',
+            'LIDL_SK': 'https://kupino.sk/lidl',
+            'LUNYS': 'https://lunys.sk/akcie',
+        }
+        
+        base_url = url_map.get(shop)
+        if not base_url:
+            raise ValueError(f"Unknown shop: {shop}")
+        
+        return [base_url]
+    
+    @classmethod
+    def _extract_leaflet_urls(cls, html_content: str, base_url: str, shop: str) -> List[str]:
+        """
+        Extract leaflet page URLs from a listing page.
+        
+        Args:
+            html_content: HTML content of the listing page
+            base_url: Base URL of the listing page
+            shop: Shop code
+            
+        Returns:
+            List of leaflet page URLs
+        """
+        leaflet_urls = []
+        
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            if shop == 'LIDL_CZ':
+                # Look for links matching /letak/lidl-*
+                for link in soup.find_all('a', href=True):
+                    href = link.get('href', '')
+                    if href.startswith('/letak/lidl-') or href.startswith('https://www.kupi.cz/letak/lidl-'):
+                        full_url = urljoin(base_url, href)
+                        if full_url not in leaflet_urls:
+                            leaflet_urls.append(full_url)
+            elif shop == 'LIDL_SK':
+                # Similar pattern for kupino.sk
+                for link in soup.find_all('a', href=True):
+                    href = link.get('href', '')
+                    if '/letak/' in href or '/lidl-' in href:
+                        full_url = urljoin(base_url, href)
+                        if full_url not in leaflet_urls:
+                            leaflet_urls.append(full_url)
+            
+            logger.debug(f"Extracted {len(leaflet_urls)} leaflet URLs for {shop}")
+        except Exception as e:
+            logger.error(f"Error extracting leaflet URLs: {e}", exc_info=True)
+        
+        return leaflet_urls
     
     @classmethod
     def is_cache_valid(cls, shop: str, country: str) -> bool:
@@ -100,7 +170,7 @@ class ScraperService:
     @classmethod
     def scrape_and_store(cls, shop: str, country: str) -> List[LeafletOffer]:
         """
-        Scrape leaflet data and store in database.
+        Scrape leaflet data using LLM extraction and store in database.
         
         Args:
             shop: Shop code
@@ -109,25 +179,90 @@ class ScraperService:
         Returns:
             List of created LeafletOffer instances
         """
-        logger.info(f"Scraping leaflet data for {shop} ({country})")
+        logger.info(f"Scraping leaflet data for {shop} ({country}) using LLM extraction")
         
-        # Get scraper instance
-        scraper = cls.get_scraper(shop)
-        logger.debug(f"Using scraper class: {type(scraper).__name__}")
-        
-        # Scrape data
+        # Get URLs to scrape
         try:
-            offers_data = scraper.scrape()
-            logger.info(f"Scraper returned {len(offers_data)} raw offers for {shop} ({country})")
-            
-            # Log sample of scraped data for debugging
-            if offers_data:
-                logger.debug(f"Sample scraped offer: {offers_data[0]}")
-            else:
-                logger.warning(f"No offers scraped from {shop} ({country}) - scraper returned empty list")
+            base_urls = cls._get_shop_urls(shop, country)
         except Exception as e:
-            logger.error(f"Error scraping {shop} ({country}): {e}", exc_info=True)
+            logger.error(f"Error getting shop URLs for {shop}: {e}", exc_info=True)
             raise
+        
+        # Fetch HTML and extract products using LLM
+        offers_data = []
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        from ..llm_service import OpenAIService
+        llm_service = OpenAIService()
+        
+        # Determine which shops need leaflet navigation
+        shops_with_leaflets = ['LIDL_CZ', 'LIDL_SK']
+        
+        for base_url in base_urls:
+            try:
+                # Fetch HTML from base URL
+                logger.info(f"Fetching HTML from {base_url}")
+                response = requests.get(base_url, headers=headers, timeout=10)
+                response.raise_for_status()
+                response.encoding = 'utf-8'
+                html_content = response.text
+                
+                # For shops with multiple leaflet pages, extract leaflet URLs
+                if shop in shops_with_leaflets:
+                    leaflet_urls = cls._extract_leaflet_urls(html_content, base_url, shop)
+                    
+                    if leaflet_urls:
+                        # Scrape only the first (current) leaflet for now
+                        leaflet_url = leaflet_urls[0]
+                        logger.info(f"Scraping leaflet page: {leaflet_url}")
+                        
+                        # Fetch leaflet page HTML
+                        leaflet_response = requests.get(leaflet_url, headers=headers, timeout=10)
+                        leaflet_response.raise_for_status()
+                        leaflet_response.encoding = 'utf-8'
+                        leaflet_html = leaflet_response.text
+                        
+                        # Extract products from leaflet page using LLM
+                        products = llm_service.extract_products_from_html(
+                            html_content=leaflet_html,
+                            url=leaflet_url,
+                            shop=shop,
+                            country=country
+                        )
+                        offers_data.extend(products)
+                    else:
+                        # Fallback: try extracting from listing page
+                        logger.warning(f"No leaflet URLs found, trying to extract from listing page")
+                        products = llm_service.extract_products_from_html(
+                            html_content=html_content,
+                            url=base_url,
+                            shop=shop,
+                            country=country
+                        )
+                        offers_data.extend(products)
+                else:
+                    # For shops with single page (rohlik.cz, lunys.sk), extract directly
+                    products = llm_service.extract_products_from_html(
+                        html_content=html_content,
+                        url=base_url,
+                        shop=shop,
+                        country=country
+                    )
+                    offers_data.extend(products)
+                    
+            except requests.RequestException as e:
+                logger.error(f"Error fetching {base_url}: {e}", exc_info=True)
+                continue
+            except Exception as e:
+                logger.error(f"Error extracting products from {base_url}: {e}", exc_info=True)
+                continue
+        
+        logger.info(f"LLM extraction returned {len(offers_data)} raw offers for {shop} ({country})")
+        
+        if not offers_data:
+            logger.warning(f"No offers extracted from {shop} ({country}) - LLM returned empty list")
         
         # Delete old expired offers for this shop/country
         now = timezone.now()
@@ -188,19 +323,26 @@ class ScraperService:
                     price = None
             
             try:
-                offer = LeafletOffer.objects.create(
+                # Use update_or_create to handle duplicates
+                offer, created = LeafletOffer.objects.update_or_create(
                     shop=shop,
                     country=country,
                     ingredient_name=ingredient_name,
-                    display_name=display_name,
-                    price=price,
-                    currency=offer_data.get('currency', currency),
-                    unit=offer_data.get('unit'),
-                    expires_at=expires_at,
-                    source_url=offer_data.get('source_url'),
+                    defaults={
+                        'display_name': display_name,
+                        'price': price,
+                        'currency': offer_data.get('currency', currency),
+                        'unit': offer_data.get('unit'),
+                        'expires_at': expires_at,
+                        'source_url': offer_data.get('source_url'),
+                        'scraped_at': timezone.now(),
+                    }
                 )
                 created_offers.append(offer)
-                logger.debug(f"Stored offer #{idx}: {ingredient_name} - {price} {offer_data.get('currency', currency)}")
+                if created:
+                    logger.debug(f"Created offer #{idx}: {ingredient_name} - {price} {offer_data.get('currency', currency)}")
+                else:
+                    logger.debug(f"Updated offer #{idx}: {ingredient_name} - {price} {offer_data.get('currency', currency)}")
             except Exception as e:
                 logger.error(f"Error storing offer #{idx} ({ingredient_name}): {e}", exc_info=True)
                 skipped_count += 1

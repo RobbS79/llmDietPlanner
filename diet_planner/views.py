@@ -444,30 +444,49 @@ class ScraperDebugView(APIView):
             except Exception as html_error:
                 html_sample = f"Error fetching HTML: {str(html_error)}"
             
-            # Get scraper instance
-            scraper = ScraperService.get_scraper(shop)
-            
-            # Scrape data directly
+            # Test LLM extraction directly
+            llm_extraction_result = None
             try:
+                from .llm_service import OpenAIService
+                llm_service = OpenAIService()
+                
+                if scraper_url and html_sample and not html_sample.startswith("Error"):
+                    # Get full HTML content
+                    if response_status == 200:
+                        html_response = requests.get(scraper_url, headers={
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }, timeout=10)
+                        full_html = html_response.text
+                        
+                        # Extract products using LLM
+                        products = llm_service.extract_products_from_html(
+                            html_content=full_html,
+                            url=scraper_url,
+                            shop=shop,
+                            country=country
+                        )
+                        
+                        llm_extraction_result = {
+                            "products_count": len(products),
+                            "products_sample": products[:10],  # First 10 products
+                            "extraction_method": "LLM",
+                        }
+            except Exception as llm_error:
+                llm_extraction_result = {
+                    "error": str(llm_error),
+                    "error_type": type(llm_error).__name__,
+                }
+            
+            # For backwards compatibility, try regex scraper if available
+            raw_offers_data = []
+            try:
+                scraper = ScraperService.get_scraper(shop)
                 raw_offers_data = scraper.scrape()
             except Exception as scrape_error:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": {
-                            "shop": shop,
-                            "country": country,
-                            "scraper_url": scraper_url,
-                            "html_response_status": response_status,
-                            "html_response_url": response_url,
-                            "html_sample": html_sample,
-                            "error": f"Scraping failed: {str(scrape_error)}",
-                            "error_type": type(scrape_error).__name__,
-                        },
-                        "error": f"Scraping failed: {str(scrape_error)}"
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Regex scraper failed (expected, using LLM now): {str(scrape_error)}")
+                # Don't fail, just continue without regex data
             
             # Store offers using ScraperService
             stored_offers = []
@@ -538,11 +557,12 @@ class ScraperDebugView(APIView):
                         "html_response_url": response_url,
                         "html_sample": html_sample,
                         "html_sample_length": len(html_sample) if html_sample else 0,
+                        "llm_extraction": llm_extraction_result,
                         "raw_offers_count": len(raw_offers_data),
-                        "raw_offers_sample": raw_offers_data[:10],  # First 10 offers
+                        "raw_offers_sample": raw_offers_data[:10],  # First 10 offers (regex, if available)
                         "stored_offers_count": len(stored_offers),
-                        "stored_offers": stored_offers[:10],  # First 10 stored
-                        "database_offers_count": db_offers.count(),
+                        "stored_offers": stored_offers[:10],  # First 10 stored (LLM extracted)
+                        "database_offers_count": len(db_offers_data),
                         "database_offers": db_offers_data,
                     },
                     "error": None

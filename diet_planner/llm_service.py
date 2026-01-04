@@ -332,4 +332,200 @@ Return ONLY a JSON array of instruction strings, like this:
             logger.error(f"Error generating recipe instructions: {e}")
             # Return empty list on error - fallback will be used
             return []
+    
+    def extract_products_from_html(
+        self,
+        html_content: str,
+        url: str,
+        shop: str,
+        country: str,
+        model: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Use LLM to extract products and prices from HTML content of a leaflet/offer page.
+        
+        This is much more robust than regex-based scraping and handles HTML structure changes.
+        
+        Args:
+            html_content: HTML content of the page
+            url: URL of the page being scraped
+            shop: Shop code (e.g., 'LIDL_CZ')
+            country: Country code (e.g., 'CZ')
+            model: Model to use (optional, defaults to gpt-4o-mini for cost efficiency)
+            
+        Returns:
+            List of product dictionaries with structure:
+            {
+                'display_name': str,
+                'ingredient_name': str,
+                'price': Decimal (optional),
+                'currency': str,
+                'unit': str (optional),
+                'source_url': str
+            }
+        """
+        from typing import List
+        from bs4 import BeautifulSoup
+        from decimal import Decimal, InvalidOperation
+        
+        model = model or self.default_model
+        
+        # Clean HTML - remove scripts, styles, and excessive tags
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style", "noscript", "meta", "link"]):
+                script.decompose()
+            
+            # Get text content (this gives us the readable content without all the HTML noise)
+            text_content = soup.get_text()
+            
+            # Clean up whitespace
+            lines = (line.strip() for line in text_content.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text_content = ' '.join(chunk for chunk in chunks if chunk)
+            
+            # Limit to first 50k characters to avoid token limits (adjust based on model)
+            text_content = text_content[:50000]
+            
+            logger.debug(f"Cleaned HTML: {len(html_content)} chars -> {len(text_content)} chars of text")
+        except Exception as e:
+            logger.error(f"Error cleaning HTML: {e}", exc_info=True)
+            return []
+        
+        # Currency mapping
+        currency_map = {
+            'CZ': 'CZK',
+            'SK': 'EUR',
+            'PL': 'PLN',
+            'HU': 'HUF',
+        }
+        currency = currency_map.get(country, 'CZK')
+        
+        system_prompt = (
+            "You are a data extraction expert. Extract product information from web page content. "
+            "Always respond with valid JSON only (no markdown, no code blocks)."
+        )
+        
+        user_prompt = f"""Extract all products with prices from this web page content:
+
+URL: {url}
+Shop: {shop}
+Country: {country}
+Currency: {currency}
+
+Page content:
+{text_content}
+
+Extract all products that have prices. For each product, provide:
+- display_name: The full product name as shown on the page
+- ingredient_name: Normalized ingredient name (lowercase, e.g., "Kuřecí prsa" -> "kuřecí prsa")
+- price: Numeric price value (decimal number, not string, must be > 0)
+- currency: Currency code ({currency})
+- unit: Unit of measurement if mentioned (kg, g, ml, l, ks, etc.) or null
+- source_url: "{url}"
+
+Return a JSON object with a single key "products" containing an array of product objects.
+Only include products that have a clear price displayed (> 0). Ignore leaflet titles, navigation items, and items without prices.
+If no products are found, return an empty array.
+
+Example format:
+{{
+  "products": [
+    {{
+      "display_name": "Rajčata cherry Roma",
+      "ingredient_name": "rajčata cherry roma",
+      "price": 34.90,
+      "currency": "CZK",
+      "unit": null,
+      "source_url": "{url}"
+    }},
+    {{
+      "display_name": "Kuřecí maso 1 kg",
+      "ingredient_name": "kuřecí maso",
+      "price": 89.90,
+      "currency": "CZK",
+      "unit": "kg",
+      "source_url": "{url}"
+    }}
+  ]
+}}"""
+        
+        try:
+            # Count input tokens for logging
+            input_tokens = count_tokens(system_prompt + user_prompt, model)
+            logger.debug(f"LLM extraction request: {input_tokens} input tokens for {url}")
+            
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1,  # Low temperature for consistent extraction
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Get token usage
+            usage = response.usage
+            input_tokens_api = usage.prompt_tokens
+            output_tokens_api = usage.completion_tokens
+            total_tokens_api = usage.total_tokens
+            
+            # Calculate cost
+            cost_usd = calculate_cost(input_tokens_api, output_tokens_api, model)
+            
+            logger.info(
+                f"LLM extraction for {url}: "
+                f"{input_tokens_api} input tokens, {output_tokens_api} output tokens, "
+                f"cost ${cost_usd}, model {model}"
+            )
+            
+            parsed = json.loads(content)
+            
+            products = parsed.get('products', [])
+            
+            # Convert price to Decimal and validate
+            validated_products = []
+            for product in products:
+                try:
+                    price = product.get('price')
+                    if price is not None:
+                        if isinstance(price, (int, float)):
+                            price = Decimal(str(price))
+                        elif isinstance(price, str):
+                            # Remove currency symbols and whitespace
+                            price_str = price.replace('Kč', '').replace('€', '').replace('EUR', '').strip()
+                            price_str = price_str.replace(',', '.')
+                            price = Decimal(price_str)
+                        else:
+                            price = Decimal(str(price))
+                        
+                        # Only include products with positive prices
+                        if price > 0:
+                            product['price'] = price
+                            validated_products.append(product)
+                        else:
+                            logger.debug(f"Skipping product with non-positive price: {product.get('display_name')} - {price}")
+                    else:
+                        # Skip products without prices
+                        logger.debug(f"Skipping product without price: {product.get('display_name')}")
+                        continue
+                except (ValueError, InvalidOperation) as e:
+                    logger.warning(f"Invalid price for product {product.get('display_name')}: {e}")
+                    continue
+            
+            logger.info(f"LLM extracted {len(validated_products)} products with prices from {url}")
+            return validated_products
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM JSON response from {url}: {e}")
+            logger.error(f"Response content: {content[:500] if 'content' in locals() else 'N/A'}")
+            return []
+        except Exception as e:
+            logger.error(f"Error extracting products from HTML using LLM for {url}: {e}", exc_info=True)
+            return []
 
