@@ -86,13 +86,14 @@ class ScraperService:
             country: Country code
             
         Returns:
-            List of LeafletOffer instances
+            List of LeafletOffer instances (with prices)
         """
         now = timezone.now()
         return list(LeafletOffer.objects.filter(
             shop=shop,
             country=country,
-            expires_at__gt=now
+            expires_at__gt=now,
+            price__isnull=False  # Only return offers with prices
         ).order_by('ingredient_name'))
     
     @classmethod
@@ -215,7 +216,7 @@ class ScraperService:
             force_refresh: If True, force re-scraping even if cache is valid
             
         Returns:
-            List of ingredient dictionaries with 'name' and 'display_name'
+            List of ingredient dictionaries with 'name', 'display_name', 'price', 'currency', 'unit'
         """
         # Check cache
         if not force_refresh and cls.is_cache_valid(shop, country):
@@ -225,13 +226,17 @@ class ScraperService:
             # Scrape and store
             offers = cls.scrape_and_store(shop, country)
         
-        # Convert to list of dictionaries for LLM prompt
+        # Convert to list of dictionaries for LLM prompt (only include offers with prices)
         ingredients = []
         for offer in offers:
-            ingredients.append({
-                'name': offer.ingredient_name,
-                'display_name': offer.display_name,
-            })
+            if offer.price is not None:  # Only include offers that have prices
+                ingredients.append({
+                    'name': offer.ingredient_name,
+                    'display_name': offer.display_name,
+                    'price': float(offer.price) if offer.price else None,
+                    'currency': offer.currency,
+                    'unit': offer.unit or '',
+                })
         
         return ingredients
     

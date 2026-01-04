@@ -148,7 +148,7 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
             "shop": goal.shop if goal.shop else None,
             "ingredients": available_ingredients or [],
             "source": f"Current leaflet offers from {goal.shop}" if goal.shop else None,
-            "note": f"You SHOULD prioritise ingredients from this list when creating meal plans. These are currently available at {goal.shop}." if (goal.shop and available_ingredients) else "No specific shop selected - use common ingredients available in local supermarkets.",
+            "note": f"You MUST match shopping list ingredients with products from this list. Each product includes price, currency, and unit. Use the exact product details when creating the shopping list." if (goal.shop and available_ingredients) else "No specific shop selected - use common ingredients available in local supermarkets.",
         },
         "instructions": {
             "output_format": "json",
@@ -200,8 +200,13 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                     "ingredient",
                     "quantity",
                     "unit",
-                    "notes"
+                    "notes",
+                    "matched_product_name",
+                    "price",
+                    "currency",
+                    "product_unit"
                 ],
+                "matching_instructions": "For each ingredient in the shopping list, you MUST find a matching product from the available_ingredients list and include the matched product's price, currency, and display_name. If no exact match is found, use the closest match. If no match exists, set price to null.",
                 "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
             },
             "context_notes": [
@@ -241,9 +246,9 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                 "- Provide 4-8 detailed steps that guide the user through the entire cooking process",
                 "- Instructions should be in the same language as the meal name and description",
                 "- Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
-                f"- {'You SHOULD prioritise ingredients from the available_ingredients list provided above, as these are currently available at the selected shop.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
+                f"- {'You MUST match shopping list ingredients with products from the available_ingredients list provided above. Include the matched product details (price, currency, display_name) in each shopping list item.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
                 "- Consider local cuisine preferences for the specified country",
-                "- Prices will be calculated separately by the system - do not include prices",
+                "- You MUST match each shopping list ingredient with a product from available_ingredients and include the matched product's price, currency, and display_name",
                 "- Focus on creating practical, achievable meal plans",
                 "- Ensure variety across days to prevent meal fatigue",
                 f"- Generate ALL text (meal names, descriptions, ingredients, instructions) in {goal.language_code} language"
@@ -397,51 +402,23 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 'model': None,
             }
         
-        # Match shopping list items with prices from scraped leaflet data (if shop is selected)
+        # Use shopping list directly from LLM (with matched prices)
         enhanced_shopping_list = shopping_list_data
+        
+        # Calculate total price from LLM-provided prices
         total_price = None
-        if goal.shop and shopping_list_data:
+        if shopping_list_data:
             try:
-                # Check if any offers exist before attempting price matching
-                from django.utils import timezone
-                current_time = timezone.now()
-                from ..models import LeafletOffer
-                offer_count = LeafletOffer.objects.filter(
-                    shop=goal.shop,
-                    country=goal.country,
-                    expires_at__gt=current_time,
-                    price__isnull=False
-                ).count()
-                
-                if offer_count == 0:
-                    logger.warning(
-                        f"No offers found in database for {goal.shop} ({goal.country}) before price matching. "
-                        f"Scraping may have failed or returned no data. Prices will be set to null."
-                    )
-                else:
-                    logger.info(f"Found {offer_count} offers in database for {goal.shop} ({goal.country}), proceeding with price matching")
-                
-                logger.info(f"Matching prices for {len(shopping_list_data)} shopping list items from {goal.shop} ({goal.country})")
-                enhanced_shopping_list = ScraperService.match_shopping_list_prices(
-                    shopping_list_data,
-                    shop=goal.shop,
-                    country=goal.country
-                )
-                
-                # Calculate total price
-                prices = [item.get('price') for item in enhanced_shopping_list if item.get('price')]
+                from decimal import Decimal
+                prices = [Decimal(str(item.get('price'))) for item in shopping_list_data if item.get('price') is not None]
                 if prices:
-                    from decimal import Decimal
-                    total_price = sum(Decimal(str(p)) for p in prices if p is not None)
-                    logger.info(f"Calculated total price: {total_price} {goal.currency}")
+                    total_price = sum(prices)
+                    logger.info(f"Calculated total price from LLM-provided prices: {total_price} {goal.currency}")
                 else:
-                    logger.warning(f"No prices found for any shopping list items - total price will be null")
+                    logger.warning("No prices found in LLM-generated shopping list")
             except Exception as e:
-                logger.warning(f"Error matching prices for shopping list: {e}", exc_info=True)
-                import traceback
-                logger.debug(f"Price matching error traceback: {traceback.format_exc()}")
-                # Continue with original shopping list if price matching fails
-                enhanced_shopping_list = shopping_list_data
+                logger.warning(f"Error calculating total price: {e}", exc_info=True)
+                total_price = None
         
         # Create dietary plan with LLM usage tracking
         dietary_plan = DietaryPlan.objects.create(

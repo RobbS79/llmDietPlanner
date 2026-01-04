@@ -4,6 +4,7 @@ Used between LLM and Django for data validation.
 """
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
+from decimal import Decimal
 from datetime import datetime
 from enum import Enum
 
@@ -153,6 +154,11 @@ class ShoppingListItem(BaseModel):
     quantity: Optional[str] = Field(None, description="Required quantity")
     unit: Optional[str] = Field(None, description="Unit of measurement")
     notes: Optional[str] = Field(None, description="Additional notes")
+    # Matched product information (from LLM)
+    matched_product_name: Optional[str] = Field(None, description="Display name of matched product from available_ingredients")
+    price: Optional[Decimal] = Field(None, description="Price from matched product")
+    currency: Optional[str] = Field(None, description="Currency from matched product")
+    product_unit: Optional[str] = Field(None, description="Unit from matched product")
 
 
 class DayPlan(BaseModel):
