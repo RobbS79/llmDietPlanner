@@ -533,7 +533,9 @@ export function GoalDetailPage() {
               const plan = goal.dietary_plan;
               const hasDays = plan?.days && Array.isArray(plan.days) && plan.days.length > 0;
               const hasMealIdeas = plan?.meal_ideas && Array.isArray(plan.meal_ideas) && plan.meal_ideas.length > 0; // Legacy support
-              const hasShoppingList = plan?.shopping_list && Array.isArray(plan.shopping_list) && plan.shopping_list.length > 0;
+              // Try both snake_case and camelCase (Django might serialize differently)
+              const shoppingListData = plan?.shopping_list || plan?.shoppingList;
+              const hasShoppingList = shoppingListData && Array.isArray(shoppingListData) && shoppingListData.length > 0;
               
               // Debug logging
               console.log('Dietary Plan Debug:', {
@@ -579,7 +581,7 @@ export function GoalDetailPage() {
                         </div>
                       )}
                       <div style={{ display: 'grid', gap: '0.75rem' }}>
-                        {plan.shopping_list.map((item, index) => (
+                        {(plan?.shopping_list || plan?.shoppingList || []).map((item, index) => (
                           <div
                             key={index}
                             style={{
