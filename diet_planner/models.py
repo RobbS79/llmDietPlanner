@@ -641,8 +641,8 @@ class Recipe(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['dietary_goal', '-created_at']),
-            models.Index(fields=['meal_identifier']),
+            models.Index(fields=['dietary_goal', '-created_at'], name='diet_plann_recipe_goal_idx'),
+            models.Index(fields=['meal_identifier'], name='diet_plann_recipe_meal_id_idx'),
         ]
     
     def __str__(self) -> str:
@@ -728,10 +728,10 @@ class MealInstance(models.Model):
     class Meta:
         ordering = ['-cooked_at', '-created_at']
         indexes = [
-            models.Index(fields=['user', '-cooked_at']),
-            models.Index(fields=['dietary_goal', 'day_number']),
-            models.Index(fields=['meal_identifier']),
-            models.Index(fields=['is_cooked']),
+            models.Index(fields=['user', '-cooked_at'], name='diet_plann_mealinst_user_idx'),
+            models.Index(fields=['dietary_goal', 'day_number'], name='diet_plann_mealinst_goal_idx'),
+            models.Index(fields=['meal_identifier'], name='diet_plann_mealinst_meal_id_idx'),
+            models.Index(fields=['is_cooked'], name='diet_plann_mealinst_cook_idx'),
         ]
         # Ensure a user can only have one instance per meal identifier
         unique_together = [['user', 'meal_identifier']]
