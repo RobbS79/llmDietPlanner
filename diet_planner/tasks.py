@@ -207,7 +207,7 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                     "product_unit",
                     "package_size"
                 ],
-                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients ONLY if they are the SAME or VERY SIMILAR ingredient type. Examples of GOOD matches: 'chicken' matches 'chicken breast' or 'chicken meat', 'eggs' matches 'chicken eggs' or 'eggs', 'spinach' matches 'fresh spinach' or 'spinach', 'tomatoes' matches 'cherry tomatoes' or 'tomatoes'. Examples of BAD matches (DO NOT match these): 'pepper' should NOT match 'peppermint' or 'bell pepper' unless it's actually black/white pepper spice, 'salt' should NOT match 'sea salt flakes' unless it's actually salt, 'olive oil' should match 'olive oil' but NOT 'sunflower oil'. If the ingredient is NOT in the available_ingredients list, set price to null - do NOT match to unrelated products. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value - use the EXACT price from available_ingredients, this is the TOTAL price for the product/package as listed), currency (3-letter code), product_unit (unit from available_ingredients - CRITICAL: this indicates what the price represents: 'ks'=per piece or package in pieces, 'kg'=per kg, 'g'=per gram or package in grams), and package_size (package_size from available_ingredients if present - CRITICAL: if package_size is provided, the price is FOR THAT PACKAGE, not per unit. Example: if package_size=10 and unit='ks', price is for 10 pieces, not per piece). CRITICAL: You MUST preserve package_size from available_ingredients - this is essential for correct price calculation. If package_size is in available_ingredients, you MUST include it in your response. Only match if the ingredient types are the same - if unsure, set price to null.",
+                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients ONLY if they are the SAME or VERY SIMILAR ingredient type. Examples of GOOD matches: 'chicken' matches 'chicken breast' or 'chicken meat', 'eggs' matches 'chicken eggs' or 'eggs', 'spinach' matches 'fresh spinach' or 'spinach', 'tomatoes' matches 'cherry tomatoes' or 'tomatoes'. Examples of BAD matches (DO NOT match these): 'pepper' should NOT match 'peppermint' or 'bell pepper' unless it's actually black/white pepper spice, 'salt' should NOT match 'sea salt flakes' unless it's actually salt, 'olive oil' should match 'olive oil' but NOT 'sunflower oil'. If the ingredient is NOT in the available_ingredients list, set price to null - do NOT match to unrelated products. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value - use the EXACT price from available_ingredients, this is the TOTAL price for the product/package as listed in the leaflet), currency (3-letter code), product_unit (unit from available_ingredients - CRITICAL: this indicates what unit the price/package is measured in: 'ks'=pieces, 'kg'=kilograms, 'g'=grams, 'l'=liters, 'ml'=milliliters), and package_size (package_size from available_ingredients if present - CRITICAL: this indicates the size of the package that the price applies to. Example: if package_size=10 and unit='ks', the price is for a package of 10 pieces. If package_size=500 and unit='g', the price is for a package of 500g. If package_size is null or 1, the price is per unit (per piece, per kg, etc.)). CRITICAL: You MUST preserve package_size from available_ingredients exactly as provided - this is essential for correct price calculation. The backend will calculate the total price by determining how many packages are needed and multiplying by the package price. Only match if the ingredient types are the same - if unsure, set price to null.",
                 "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
             },
             "context_notes": [
@@ -247,9 +247,9 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                 "- Provide 4-8 detailed steps that guide the user through the entire cooking process",
                 "- Instructions should be in the same language as the meal name and description",
                 "- Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
-                f"- {'CRITICAL: Match shopping list ingredients ONLY to products from available_ingredients that are the SAME ingredient type. Do NOT match unrelated products. If an ingredient is not in the list (e.g., pepper, salt for seasoning), set price to null. It is BETTER to have no price than to match incorrectly. Include matched_product_name, price, currency, product_unit, and package_size for matched items.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
+                f"- {'CRITICAL: Match shopping list ingredients ONLY to products from available_ingredients that are the SAME ingredient type. Do NOT match unrelated products. If an ingredient is not in the list (e.g., pepper, salt for seasoning), set price to null. It is BETTER to have no price than to match incorrectly. Include matched_product_name, price, currency, product_unit, and package_size for matched items. THINK LIKE A CHEF: The price and package_size you provide will be used to calculate how many packages are needed (rounding up to whole packages). For example, if you need 24 eggs and eggs come in packages of 10, the system will calculate: 24/10 = 2.4, rounded up to 3 packages, so total = 3 × package_price.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
                 "- Consider local cuisine preferences for the specified country",
-                "- MATCHING REQUIREMENT: For each shopping list item, search the available_ingredients list and find a matching product ONLY if it's the SAME ingredient type. Do NOT match to unrelated products just to fill in a price. If no match exists, set price to null. It's better to show 'Price N/A' than to show an incorrect price from a wrong product.",
+                "- MATCHING REQUIREMENT: For each shopping list item, search the available_ingredients list and find a matching product ONLY if it's the SAME ingredient type. Do NOT match to unrelated products just to fill in a price. If no match exists, set price to null. It's better to show 'Price N/A' than to show an incorrect price from a wrong product. PRICE CALCULATION: The backend will calculate totals based on packages (think like a chef - you buy whole packages, not fractional packages). If package_size is provided, the system calculates: packages_needed = ceil(required_quantity / package_size), then total_price = packages_needed × package_price.",
                 "- Focus on creating practical, achievable meal plans",
                 "- Ensure variety across days to prevent meal fatigue",
                 f"- Generate ALL text (meal names, descriptions, ingredients, instructions) in {goal.language_code} language"
@@ -608,25 +608,65 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     logger.info(f"  matched_product_name: {product_name}")
                     logger.info(f"  item data: price={item.get('price')}, product_unit={item.get('product_unit')}, package_size_field={item.get('package_size')}")
                     
-                    # Calculate per-unit price based on package size
-                    # CRITICAL: If package_size is provided, the price is FOR THAT PACKAGE
-                    # We need to figure out what the package_size unit is (g, kg, ks, etc.)
+                    # CHEF APPROACH: Calculate based on packages, not per-unit prices
+                    # If package_size is provided, think in packages (round up to full packages)
                     if package_size and package_size > 0 and package_size != 1:
-                        # Price is for a package, calculate per-unit price
-                        # BUT: We need to know what unit the package_size represents
-                        # If offer_unit is "kg" and package_size is 500, it's likely 500g package
-                        # If offer_unit is "g" and package_size is 500, it's 500g package
-                        # If offer_unit is "ks" and package_size is 10, it's 10 pieces
+                        # Price is for a package - calculate how many packages are needed
+                        logger.info(f"  Package detected: {offer_price} CZK for package of {package_size} {norm_offer_unit}")
                         
-                        # For now, assume package_size is in the same unit as offer_unit
-                        # Calculate per-unit price: price / package_size
+                        # Determine if package_size unit matches required quantity unit
+                        # If units match, divide directly
+                        if norm_quantity_unit == norm_offer_unit:
+                            from decimal import ROUND_UP
+                            packages_needed = (required_qty / package_size).quantize(Decimal('1'), rounding=ROUND_UP)
+                            total = packages_needed * offer_price
+                            logger.info(f"  → Packages needed: {packages_needed} ({required_qty} {norm_quantity_unit} / {package_size} {norm_offer_unit}, rounded UP)")
+                            logger.info(f"  → Total: {total} = {packages_needed} packages × {offer_price} CZK")
+                            return total
+                        
+                        # Handle unit conversions for packages
+                        # If package is in kg but quantity is in g, convert
+                        if norm_offer_unit == 'kg' and norm_quantity_unit == 'g':
+                            from decimal import ROUND_UP
+                            package_size_g = package_size * Decimal('1000')  # Convert package size to grams
+                            packages_needed = (required_qty / package_size_g).quantize(Decimal('1'), rounding=ROUND_UP)
+                            total = packages_needed * offer_price
+                            logger.info(f"  → Package: {package_size}kg = {package_size_g}g, needed: {required_qty}g")
+                            logger.info(f"  → Packages needed: {packages_needed} ({required_qty}g / {package_size_g}g, rounded UP)")
+                            logger.info(f"  → Total: {total} = {packages_needed} packages × {offer_price} CZK")
+                            return total
+                        elif norm_offer_unit == 'g' and norm_quantity_unit == 'kg':
+                            from decimal import ROUND_UP
+                            quantity_g = required_qty * Decimal('1000')  # Convert quantity to grams
+                            packages_needed = (quantity_g / package_size).quantize(Decimal('1'), rounding=ROUND_UP)
+                            total = packages_needed * offer_price
+                            logger.info(f"  → Quantity: {required_qty}kg = {quantity_g}g, package: {package_size}g")
+                            logger.info(f"  → Packages needed: {packages_needed} ({quantity_g}g / {package_size}g, rounded UP)")
+                            logger.info(f"  → Total: {total} = {packages_needed} packages × {offer_price} CZK")
+                            return total
+                        elif norm_offer_unit == 'l' and norm_quantity_unit == 'ml':
+                            from decimal import ROUND_UP
+                            package_size_ml = package_size * Decimal('1000')
+                            packages_needed = (required_qty / package_size_ml).quantize(Decimal('1'), rounding=ROUND_UP)
+                            total = packages_needed * offer_price
+                            logger.info(f"  → Packages needed: {packages_needed} (rounded UP), Total: {total}")
+                            return total
+                        elif norm_offer_unit == 'ml' and norm_quantity_unit == 'l':
+                            from decimal import ROUND_UP
+                            quantity_ml = required_qty * Decimal('1000')
+                            packages_needed = (quantity_ml / package_size).quantize(Decimal('1'), rounding=ROUND_UP)
+                            total = packages_needed * offer_price
+                            logger.info(f"  → Packages needed: {packages_needed} (rounded UP), Total: {total}")
+                            return total
+                        
+                        # Units don't match and can't convert - fall back to per-unit calculation
+                        logger.warning(f"  ⚠ Package units don't match and can't convert: package={package_size} {norm_offer_unit}, quantity={required_qty} {norm_quantity_unit}")
                         per_unit_price = offer_price / package_size
-                        logger.info(f"  Package detected: {offer_price} for {package_size} {norm_offer_unit}")
-                        logger.info(f"  Calculated per-unit price: {per_unit_price} per {norm_offer_unit}")
+                        logger.info(f"  → Falling back to per-unit: {per_unit_price} per {norm_offer_unit}")
                     else:
-                        # Price is already per unit (per kg, per piece, etc.)
+                        # No package size - price is per unit (per kg, per piece, etc.)
                         per_unit_price = offer_price
-                        logger.info(f"  No package size or package_size=1, using price as per-unit: {per_unit_price} per {norm_offer_unit or 'unit'}")
+                        logger.info(f"  No package size - price is per-unit: {per_unit_price} per {norm_offer_unit or 'unit'}")
                     
                     # Now calculate total based on required quantity and units
                     # CRITICAL: Handle unit conversions FIRST before multiplying
