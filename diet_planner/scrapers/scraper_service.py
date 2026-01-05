@@ -398,12 +398,35 @@ class ScraperService:
         for offer in offers:
             # Only include offers that have positive prices (filter out None and 0)
             if offer.price is not None and offer.price > 0:
+                # Try to extract package_size from display_name if not stored in DB
+                package_size = None
+                display_name = offer.display_name or ''
+                if display_name:
+                    # Pattern: number + unit (e.g., "10 ks", "500 g", "1kg")
+                    patterns = [
+                        r'(\d+[\.,]?\d*)\s*(ks|piece|pieces|pcs|pc|bal|balíček)',  # Pieces
+                        r'(\d+[\.,]?\d*)\s*(kg|kilogram)',  # Kilograms  
+                        r'(\d+[\.,]?\d*)\s*(g|gram)',  # Grams
+                        r'(\d+[\.,]?\d*)\s*(l|litre|liter)',  # Liters
+                        r'(\d+[\.,]?\d*)\s*(ml|millilitre|milliliter)',  # Milliliters
+                    ]
+                    for pattern in patterns:
+                        match = re.search(pattern, display_name, re.I)
+                        if match:
+                            try:
+                                size_str = match.group(1).replace(',', '.')
+                                package_size = float(size_str)
+                                break
+                            except (ValueError, Exception):
+                                continue
+                
                 ingredients.append({
                     'name': offer.ingredient_name,
                     'display_name': offer.display_name,
                     'price': float(offer.price),
                     'currency': offer.currency,
                     'unit': offer.unit or '',
+                    'package_size': package_size,  # Include package_size if detected
                 })
         
         return ingredients

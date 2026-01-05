@@ -204,9 +204,10 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                     "matched_product_name",
                     "price",
                     "currency",
-                    "product_unit"
+                    "product_unit",
+                    "package_size"
                 ],
-                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients by similarity - for example, 'chicken' matches 'chicken breast', 'eggs' matches 'chicken eggs', 'spinach' matches 'fresh spinach', etc. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value), currency (3-letter code), and product_unit (unit from available_ingredients). If you cannot find any reasonable match, only then set price to null. IMPORTANT: Try to match ALL ingredients - do not set price to null unless absolutely necessary.",
+                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients by similarity - for example, 'chicken' matches 'chicken breast', 'eggs' matches 'chicken eggs', 'spinach' matches 'fresh spinach', etc. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value - use the EXACT price from available_ingredients, this is the TOTAL price for the product/package as listed), currency (3-letter code), product_unit (unit from available_ingredients), and package_size (package_size from available_ingredients if present - this indicates the size of the package that the price applies to, e.g., 10 for '10 ks', 500 for '500 g'). If you cannot find any reasonable match, only then set price to null. IMPORTANT: Try to match ALL ingredients - do not set price to null unless absolutely necessary.",
                 "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
             },
             "context_notes": [
@@ -471,13 +472,31 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     }
                     return unit_map.get(unit_lower, unit_lower)
                 
-                def extract_package_size(product_name: str, offer_unit: str) -> Optional[Decimal]:
+                def extract_package_size(item: Dict[str, Any]) -> Optional[Decimal]:
                     """
-                    Try to extract package size from product name (e.g., "10 ks", "500g", "1 kg").
+                    Try to extract package size from item data.
+                    First checks if LLM provided package_size, then falls back to parsing product name.
                     Returns the numeric package size if found, None otherwise.
                     """
+                    # First, check if LLM provided package_size directly
+                    package_size = item.get('package_size')
+                    if package_size is not None:
+                        try:
+                            if isinstance(package_size, (int, float)):
+                                return Decimal(str(package_size))
+                            elif isinstance(package_size, str):
+                                return Decimal(str(package_size).replace(',', '.'))
+                            else:
+                                return Decimal(str(package_size))
+                        except (ValueError, Exception):
+                            pass
+                    
+                    # Fallback: try to extract from product name
+                    product_name = item.get('matched_product_name', '')
                     if not product_name:
                         return None
+                    
+                    offer_unit = item.get('product_unit', '')
                     
                     # Pattern: number + unit (e.g., "10 ks", "500 g", "1kg", "0.5 l")
                     patterns = [
@@ -538,22 +557,28 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                         # If no quantity specified, assume we need 1 unit
                         required_qty = Decimal('1')
                     
-                    # Try to extract package size from product name
-                    package_size = extract_package_size(product_name, offer_unit)
+                    # Try to extract package size from item data (LLM-provided or from name)
+                    package_size = extract_package_size(item)
                     
                     # Normalize units for comparison
                     norm_quantity_unit = normalize_unit(quantity_unit)
                     norm_offer_unit = normalize_unit(offer_unit)
                     
                     # Calculate per-unit price
-                    if package_size and package_size > 0:
+                    if package_size and package_size > 0 and package_size != 1:
                         # Price is for a package, calculate per-unit price
                         per_unit_price = offer_price / package_size
                         logger.debug(f"Package price detected for {item.get('ingredient')}: {offer_price} for {package_size} {norm_offer_unit}, per-unit: {per_unit_price}")
-                    else:
-                        # Assume price is already per unit
+                    elif package_size == 1 or (package_size is None and norm_offer_unit):
+                        # Price is already per unit (per kg, per piece, etc.)
                         per_unit_price = offer_price
-                        logger.debug(f"Assuming per-unit price for {item.get('ingredient')}: {per_unit_price}")
+                        logger.debug(f"Per-unit price for {item.get('ingredient')}: {per_unit_price} per {norm_offer_unit}")
+                    else:
+                        # No package size info - use heuristics
+                        # If price seems very high (> 100 CZK) and no unit, might be a package
+                        # But for now, assume it's per unit to avoid inflating prices further
+                        per_unit_price = offer_price
+                        logger.debug(f"No package info for {item.get('ingredient')}, assuming per-unit price: {per_unit_price}")
                     
                     # Now calculate total based on required quantity and units
                     # If units match, multiply directly

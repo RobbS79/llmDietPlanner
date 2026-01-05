@@ -418,12 +418,18 @@ Page content:
 {text_content}
 
 Extract all products that have prices. For each product, provide:
-- display_name: The full product name as shown on the page
+- display_name: The full product name as shown on the page (include any package sizes mentioned, e.g., "Vejce 10 ks", "Kuřecí maso 1 kg")
 - ingredient_name: Normalized ingredient name (lowercase, e.g., "Kuřecí prsa" -> "kuřecí prsa")
-- price: Numeric price value (decimal number, not string, must be > 0)
+- price: Numeric price value (decimal number, not string, must be > 0). This is the TOTAL price shown for the product/package.
 - currency: Currency code ({currency})
-- unit: Unit of measurement if mentioned (kg, g, ml, l, ks, etc.) or null
-- source_url: "{url}"
+- unit: Unit of measurement for the price (e.g., "ks" if price is per piece, "kg" if per kilogram, "g" if per gram). If price is for a package, indicate the unit of the package (e.g., if "10 ks" package costs 48 CZK, unit should be "ks" and package_size should be 10). If not clear, use null.
+- package_size: Numeric value if the price is for a package with multiple units (e.g., 10 for "10 ks", 500 for "500 g", 1 for "1 kg"). If price is per unit, set to 1 or null.
+
+IMPORTANT: 
+- If the product shows "Vejce 10 ks - 48 CZK", the price is 48 CZK for 10 pieces, so: price=48, unit="ks", package_size=10
+- If the product shows "Kuřecí maso - 89.90 CZK/kg", the price is per kg, so: price=89.90, unit="kg", package_size=1 or null
+- If the product shows "Špenát 500 g - 39 CZK", the price is for 500g package, so: price=39, unit="g", package_size=500
+- Always extract package sizes from the product name or description if visible.
 
 Return a JSON object with a single key "products" containing an array of product objects.
 Only include products that have a clear price displayed (> 0). Ignore leaflet titles, navigation items, and items without prices.
@@ -438,6 +444,7 @@ Example format:
       "price": 34.90,
       "currency": "CZK",
       "unit": null,
+      "package_size": null,
       "source_url": "{url}"
     }},
     {{
@@ -446,6 +453,25 @@ Example format:
       "price": 89.90,
       "currency": "CZK",
       "unit": "kg",
+      "package_size": 1,
+      "source_url": "{url}"
+    }},
+    {{
+      "display_name": "Vejce 10 ks",
+      "ingredient_name": "vejce",
+      "price": 48.00,
+      "currency": "CZK",
+      "unit": "ks",
+      "package_size": 10,
+      "source_url": "{url}"
+    }},
+    {{
+      "display_name": "Špenát čerstvý 500 g",
+      "ingredient_name": "špenát čerstvý",
+      "price": 39.00,
+      "currency": "CZK",
+      "unit": "g",
+      "package_size": 500,
       "source_url": "{url}"
     }}
   ]
@@ -506,6 +532,22 @@ Example format:
                         # Only include products with positive prices
                         if price > 0:
                             product['price'] = price
+                            
+                            # Convert package_size to Decimal if present
+                            package_size = product.get('package_size')
+                            if package_size is not None:
+                                try:
+                                    if isinstance(package_size, (int, float)):
+                                        product['package_size'] = Decimal(str(package_size))
+                                    elif isinstance(package_size, str):
+                                        product['package_size'] = Decimal(str(package_size).replace(',', '.'))
+                                    else:
+                                        product['package_size'] = Decimal(str(package_size))
+                                except (ValueError, InvalidOperation):
+                                    product['package_size'] = None
+                            else:
+                                product['package_size'] = None
+                            
                             validated_products.append(product)
                         else:
                             logger.debug(f"Skipping product with non-positive price: {product.get('display_name')} - {price}")
