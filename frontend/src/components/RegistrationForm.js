@@ -185,3 +185,4 @@ const RegistrationForm = ({ onSwitchToLogin, onSuccess }) => {
 export default RegistrationForm;
 
 
+

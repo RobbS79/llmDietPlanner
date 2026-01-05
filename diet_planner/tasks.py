@@ -434,20 +434,179 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f"Error in backend fallback matching: {e}", exc_info=True)
         
-        # Calculate total price from all matched prices (LLM + fallback)
-        total_price = None
+        # Calculate total price per item based on quantity and unit price
+        # The price from LLM/leaflet is typically a unit price, so we need to multiply by quantity
         if enhanced_shopping_list:
             try:
                 from decimal import Decimal
-                prices = [Decimal(str(item.get('price'))) for item in enhanced_shopping_list if item.get('price') is not None and item.get('price') != '']
-                if prices:
-                    total_price = sum(prices)
-                    logger.info(f"Calculated total price: {total_price} {goal.currency} ({len(prices)} items with prices)")
-                else:
-                    logger.warning("No prices found in shopping list after LLM matching and fallback")
+                import re
+                
+                def parse_quantity(quantity_str: str, unit_str: str = None) -> Optional[Decimal]:
+                    """Parse quantity string (e.g., '33 ks', '1650 g') into Decimal value."""
+                    if not quantity_str:
+                        return None
+                    # Extract numeric value from quantity string
+                    match = re.search(r'([\d,\.]+)', str(quantity_str))
+                    if match:
+                        try:
+                            # Replace comma with dot for decimal parsing
+                            num_str = match.group(1).replace(',', '.')
+                            return Decimal(num_str)
+                        except (ValueError, Exception):
+                            return None
+                    return None
+                
+                def normalize_unit(unit: str) -> str:
+                    """Normalize unit strings for comparison (kg, g, l, ml, ks, etc.)."""
+                    if not unit:
+                        return ''
+                    unit_lower = str(unit).lower().strip()
+                    # Normalize common unit variations
+                    unit_map = {
+                        'kg': 'kg', 'kilogram': 'kg', 'kilogramme': 'kg',
+                        'g': 'g', 'gram': 'g', 'gramme': 'g',
+                        'l': 'l', 'litre': 'l', 'liter': 'l',
+                        'ml': 'ml', 'millilitre': 'ml', 'milliliter': 'ml',
+                        'ks': 'ks', 'piece': 'ks', 'pieces': 'ks', 'pcs': 'ks', 'pc': 'ks',
+                    }
+                    return unit_map.get(unit_lower, unit_lower)
+                
+                def extract_package_size(product_name: str, offer_unit: str) -> Optional[Decimal]:
+                    """
+                    Try to extract package size from product name (e.g., "10 ks", "500g", "1 kg").
+                    Returns the numeric package size if found, None otherwise.
+                    """
+                    if not product_name:
+                        return None
+                    
+                    # Pattern: number + unit (e.g., "10 ks", "500 g", "1kg", "0.5 l")
+                    patterns = [
+                        r'(\d+[\.,]?\d*)\s*(ks|piece|pieces|pcs|pc|bal|balíček)',  # Pieces
+                        r'(\d+[\.,]?\d*)\s*(kg|kilogram)',  # Kilograms
+                        r'(\d+[\.,]?\d*)\s*(g|gram)',  # Grams
+                        r'(\d+[\.,]?\d*)\s*(l|litre|liter)',  # Liters
+                        r'(\d+[\.,]?\d*)\s*(ml|millilitre|milliliter)',  # Milliliters
+                    ]
+                    
+                    for pattern in patterns:
+                        match = re.search(pattern, product_name, re.I)
+                        if match:
+                            try:
+                                size_str = match.group(1).replace(',', '.')
+                                return Decimal(size_str)
+                            except (ValueError, Exception):
+                                continue
+                    
+                    return None
+                
+                def calculate_item_total_price(item: Dict[str, Any]) -> Optional[Decimal]:
+                    """
+                    Calculate total price for a shopping list item.
+                    
+                    The item contains:
+                    - price: price from leaflet (could be per unit or per package)
+                    - matched_product_name: product name that might contain package size
+                    - product_unit: unit from the offer
+                    - quantity: required quantity (e.g., '33 ks')
+                    - unit: unit of required quantity (e.g., 'ks')
+                    
+                    Logic:
+                    1. Try to extract package size from product name (e.g., "Eggs 10 pieces" -> 10)
+                    2. If package size found, calculate per-unit price: price / package_size
+                    3. Multiply per-unit price by required quantity
+                    4. Handle unit conversions for weight/volume
+                    """
+                    price = item.get('price')
+                    if price is None:
+                        return None
+                    
+                    try:
+                        offer_price = Decimal(str(price))
+                        if offer_price <= 0:
+                            return None
+                    except (ValueError, TypeError):
+                        return None
+                    
+                    quantity_str = item.get('quantity', '')
+                    quantity_unit = item.get('unit', '')
+                    offer_unit = item.get('product_unit', '')
+                    product_name = item.get('matched_product_name', '')
+                    
+                    # Parse required quantity
+                    required_qty = parse_quantity(quantity_str, quantity_unit)
+                    if required_qty is None or required_qty <= 0:
+                        # If no quantity specified, assume we need 1 unit
+                        required_qty = Decimal('1')
+                    
+                    # Try to extract package size from product name
+                    package_size = extract_package_size(product_name, offer_unit)
+                    
+                    # Normalize units for comparison
+                    norm_quantity_unit = normalize_unit(quantity_unit)
+                    norm_offer_unit = normalize_unit(offer_unit)
+                    
+                    # Calculate per-unit price
+                    if package_size and package_size > 0:
+                        # Price is for a package, calculate per-unit price
+                        per_unit_price = offer_price / package_size
+                        logger.debug(f"Package price detected for {item.get('ingredient')}: {offer_price} for {package_size} {norm_offer_unit}, per-unit: {per_unit_price}")
+                    else:
+                        # Assume price is already per unit
+                        per_unit_price = offer_price
+                        logger.debug(f"Assuming per-unit price for {item.get('ingredient')}: {per_unit_price}")
+                    
+                    # Now calculate total based on required quantity and units
+                    # If units match, multiply directly
+                    if norm_quantity_unit == norm_offer_unit:
+                        total = per_unit_price * required_qty
+                        return total
+                    
+                    # Handle unit conversions (kg <-> g, l <-> ml)
+                    if norm_offer_unit == 'kg' and norm_quantity_unit == 'g':
+                        # Offer is per kg, quantity is in grams: convert g to kg
+                        total = per_unit_price * (required_qty / Decimal('1000'))
+                        return total
+                    elif norm_offer_unit == 'g' and norm_quantity_unit == 'kg':
+                        # Offer is per g, quantity is in kg: convert kg to g
+                        total = per_unit_price * (required_qty * Decimal('1000'))
+                        return total
+                    elif norm_offer_unit == 'l' and norm_quantity_unit == 'ml':
+                        # Offer is per l, quantity is in ml: convert ml to l
+                        total = per_unit_price * (required_qty / Decimal('1000'))
+                        return total
+                    elif norm_offer_unit == 'ml' and norm_quantity_unit == 'l':
+                        # Offer is per ml, quantity is in l: convert l to ml
+                        total = per_unit_price * (required_qty * Decimal('1000'))
+                        return total
+                    
+                    # If units don't match and we can't convert, assume they're compatible and multiply
+                    # This is a fallback - ideally units should match
+                    logger.debug(f"Units don't match for {item.get('ingredient')}: quantity_unit={norm_quantity_unit}, offer_unit={norm_offer_unit}. Attempting direct multiplication.")
+                    total = per_unit_price * required_qty
+                    return total
+                
+                # Calculate total price for each item and update the item
+                total_price_sum = Decimal('0')
+                items_with_price_count = 0
+                
+                for item in enhanced_shopping_list:
+                    item_total = calculate_item_total_price(item)
+                    if item_total is not None:
+                        # Store both unit price and total price
+                        item['unit_price'] = str(item.get('price'))  # Keep original unit price
+                        item['price'] = float(item_total)  # Update to total price for display
+                        item['price_total'] = float(item_total)  # Explicitly store total
+                        total_price_sum += item_total
+                        items_with_price_count += 1
+                
+                total_price = total_price_sum if items_with_price_count > 0 else None
+                logger.info(f"Calculated total price: {total_price} {goal.currency} ({items_with_price_count} items with calculated prices)")
+                
             except Exception as e:
                 logger.warning(f"Error calculating total price: {e}", exc_info=True)
                 total_price = None
+        else:
+            total_price = None
         
         # Create dietary plan with LLM usage tracking
         dietary_plan = DietaryPlan.objects.create(

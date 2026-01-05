@@ -35,3 +35,4 @@ class BaseScraper(ABC):
         """
         pass
 
+

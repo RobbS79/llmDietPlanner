@@ -50,3 +50,4 @@ CREATE INDEX diet_planne_country_f59cc6_idx ON diet_planner_dietarygoal(country)
 COMMIT;
 
 
+

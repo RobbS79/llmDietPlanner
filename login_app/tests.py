@@ -366,3 +366,4 @@ class AuthenticationFlowTestCase(TestCase):
         self.assertIn('refresh', login_response.data['data'])
 
 
+
