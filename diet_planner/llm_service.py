@@ -422,8 +422,17 @@ Extract all products that have prices. For each product, provide:
 - ingredient_name: Normalized ingredient name (lowercase, e.g., "Kuřecí prsa" -> "kuřecí prsa")
 - price: Numeric price value (decimal number, not string, must be > 0). This is the TOTAL price shown for the product/package.
 - currency: Currency code ({currency})
-- unit: Unit of measurement for the price (e.g., "ks" if price is per piece, "kg" if per kilogram, "g" if per gram). If price is for a package, indicate the unit of the package (e.g., if "10 ks" package costs 48 CZK, unit should be "ks" and package_size should be 10). If not clear, use null.
-- package_size: Numeric value if the price is for a package with multiple units (e.g., 10 for "10 ks", 500 for "500 g", 1 for "1 kg"). If price is per unit, set to 1 or null.
+- unit: Unit of measurement - CRITICAL: This indicates what the price represents:
+  * "ks" = price is per piece (if package_size is null/1) OR price is for a package measured in pieces (if package_size is set, e.g., package_size=10 means price for 10 pieces)
+  * "kg" = price is per kilogram (if package_size is null/1) OR price is for a package measured in kg (if package_size is set, e.g., package_size=1 means price for 1kg package)
+  * "g" = price is per gram (rare, usually prices are per kg) OR price is for a package measured in grams (if package_size is set, e.g., package_size=500 means price for 500g package)
+  * "l" = price is per liter OR price is for a package measured in liters
+  * "ml" = price is per milliliter (rare) OR price is for a package measured in milliliters
+- package_size: Numeric value indicating the size of the package if the price is for a package:
+  * If product shows "Vejce 10 ks - 64.90 CZK": package_size=10, unit="ks", price=64.90 (price is for 10 pieces)
+  * If product shows "Kuřecí maso 1 kg - 89.90 CZK": package_size=1, unit="kg", price=89.90 (price is for 1kg) OR package_size=null, unit="kg", price=89.90 (price per kg)
+  * If product shows "Špenát 500 g - 39 CZK": package_size=500, unit="g", price=39 (price is for 500g package)
+  * If no package size is mentioned and price appears to be per unit: set package_size to null or 1
 
 IMPORTANT: 
 - If the product shows "Vejce 10 ks - 48 CZK", the price is 48 CZK for 10 pieces, so: price=48, unit="ks", package_size=10
