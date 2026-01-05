@@ -599,19 +599,34 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     norm_quantity_unit = normalize_unit(quantity_unit)
                     norm_offer_unit = normalize_unit(offer_unit)
                     
-                    # Log for debugging
-                    logger.info(f"Price calc for {item.get('ingredient')}: offer_price={offer_price}, package_size={package_size}, "
-                              f"offer_unit={offer_unit}->{norm_offer_unit}, quantity={required_qty} {norm_quantity_unit}")
+                    # Log for debugging - ALWAYS log all input data
+                    logger.info(f"=== PRICE CALCULATION DEBUG for {item.get('ingredient')} ===")
+                    logger.info(f"  offer_price: {offer_price}")
+                    logger.info(f"  package_size: {package_size}")
+                    logger.info(f"  offer_unit (raw): '{offer_unit}' -> normalized: '{norm_offer_unit}'")
+                    logger.info(f"  quantity: {required_qty} {norm_quantity_unit}")
+                    logger.info(f"  matched_product_name: {product_name}")
+                    logger.info(f"  item data: price={item.get('price')}, product_unit={item.get('product_unit')}, package_size_field={item.get('package_size')}")
                     
                     # Calculate per-unit price based on package size
+                    # CRITICAL: If package_size is provided, the price is FOR THAT PACKAGE
+                    # We need to figure out what the package_size unit is (g, kg, ks, etc.)
                     if package_size and package_size > 0 and package_size != 1:
                         # Price is for a package, calculate per-unit price
+                        # BUT: We need to know what unit the package_size represents
+                        # If offer_unit is "kg" and package_size is 500, it's likely 500g package
+                        # If offer_unit is "g" and package_size is 500, it's 500g package
+                        # If offer_unit is "ks" and package_size is 10, it's 10 pieces
+                        
+                        # For now, assume package_size is in the same unit as offer_unit
+                        # Calculate per-unit price: price / package_size
                         per_unit_price = offer_price / package_size
-                        logger.info(f"Package price: {offer_price} for {package_size} {norm_offer_unit}, per-unit: {per_unit_price} {norm_offer_unit}")
+                        logger.info(f"  Package detected: {offer_price} for {package_size} {norm_offer_unit}")
+                        logger.info(f"  Calculated per-unit price: {per_unit_price} per {norm_offer_unit}")
                     else:
                         # Price is already per unit (per kg, per piece, etc.)
                         per_unit_price = offer_price
-                        logger.info(f"Per-unit price: {per_unit_price} per {norm_offer_unit or 'unit'}")
+                        logger.info(f"  No package size or package_size=1, using price as per-unit: {per_unit_price} per {norm_offer_unit or 'unit'}")
                     
                     # Now calculate total based on required quantity and units
                     # CRITICAL: Handle unit conversions FIRST before multiplying
@@ -619,56 +634,85 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     # If units match exactly, multiply directly
                     if norm_quantity_unit == norm_offer_unit:
                         total = per_unit_price * required_qty
-                        logger.info(f"Units match: {total} = {per_unit_price} * {required_qty}")
+                        logger.info(f"  ✓ Units match ({norm_quantity_unit}): {total} = {per_unit_price} * {required_qty}")
                         return total
                     
                     # Handle unit conversions (kg <-> g, l <-> ml)
+                    # CRITICAL: Most prices in leaflets are per kg, but quantities are often in grams!
                     if norm_offer_unit == 'kg' and norm_quantity_unit == 'g':
                         # Offer is per kg, quantity is in grams: convert g to kg
                         quantity_kg = required_qty / Decimal('1000')
                         total = per_unit_price * quantity_kg
-                        logger.info(f"Unit conversion kg->g: {total} = {per_unit_price} * ({required_qty}g / 1000) = {per_unit_price} * {quantity_kg}kg")
+                        logger.info(f"  ✓ Unit conversion (kg->g): {total} = {per_unit_price} * ({required_qty}g / 1000) = {per_unit_price} * {quantity_kg}kg")
                         return total
                     elif norm_offer_unit == 'g' and norm_quantity_unit == 'kg':
                         # Offer is per g, quantity is in kg: convert kg to g
                         quantity_g = required_qty * Decimal('1000')
                         total = per_unit_price * quantity_g
-                        logger.info(f"Unit conversion g->kg: {total} = {per_unit_price} * ({required_qty}kg * 1000) = {per_unit_price} * {quantity_g}g")
+                        logger.info(f"  ✓ Unit conversion (g->kg): {total} = {per_unit_price} * ({required_qty}kg * 1000) = {per_unit_price} * {quantity_g}g")
                         return total
                     elif norm_offer_unit == 'l' and norm_quantity_unit == 'ml':
                         # Offer is per l, quantity is in ml: convert ml to l
                         quantity_l = required_qty / Decimal('1000')
                         total = per_unit_price * quantity_l
-                        logger.info(f"Unit conversion l->ml: {total} = {per_unit_price} * ({required_qty}ml / 1000) = {per_unit_price} * {quantity_l}l")
+                        logger.info(f"  ✓ Unit conversion (l->ml): {total} = {per_unit_price} * ({required_qty}ml / 1000) = {per_unit_price} * {quantity_l}l")
                         return total
                     elif norm_offer_unit == 'ml' and norm_quantity_unit == 'l':
                         # Offer is per ml, quantity is in l: convert l to ml
                         quantity_ml = required_qty * Decimal('1000')
                         total = per_unit_price * quantity_ml
-                        logger.info(f"Unit conversion ml->l: {total} = {per_unit_price} * ({required_qty}l * 1000) = {per_unit_price} * {quantity_ml}ml")
+                        logger.info(f"  ✓ Unit conversion (ml->l): {total} = {per_unit_price} * ({required_qty}l * 1000) = {per_unit_price} * {quantity_ml}ml")
                         return total
                     elif norm_offer_unit == 'ks' and norm_quantity_unit == 'ks':
                         # Both are pieces, should have matched above, but just in case
                         total = per_unit_price * required_qty
-                        logger.info(f"Pieces match: {total} = {per_unit_price} * {required_qty}")
+                        logger.info(f"  ✓ Pieces match: {total} = {per_unit_price} * {required_qty}")
                         return total
                     
-                    # If units don't match and we can't convert, this is a problem
-                    # For safety, assume offer_unit is per kg if it's null/empty and quantity is in grams
-                    if not norm_offer_unit and norm_quantity_unit == 'g':
-                        # Common case: offer has no unit but price is likely per kg, quantity is in grams
+                    # CRITICAL FIX: If offer_unit is null/empty and quantity is in grams, assume price is per kg
+                    # This is the MOST COMMON case - leaflets show prices per kg, but LLM might not extract the unit
+                    if not norm_offer_unit or norm_offer_unit == '':
+                        if norm_quantity_unit == 'g':
+                            # Most common: price is per kg, quantity in grams
+                            quantity_kg = required_qty / Decimal('1000')
+                            total = per_unit_price * quantity_kg
+                            logger.warning(f"  ⚠ WARNING: No offer unit but quantity in grams. Assuming price is per kg.")
+                            logger.info(f"  → Calculated: {total} = {per_unit_price} * ({required_qty}g / 1000) = {per_unit_price} * {quantity_kg}kg")
+                            return total
+                        elif norm_quantity_unit == 'kg':
+                            # Quantity is in kg, assume price is per kg
+                            total = per_unit_price * required_qty
+                            logger.warning(f"  ⚠ WARNING: No offer unit but quantity in kg. Assuming price is per kg.")
+                            logger.info(f"  → Calculated: {total} = {per_unit_price} * {required_qty}kg")
+                            return total
+                        elif norm_quantity_unit == 'ks':
+                            # Quantity is in pieces, assume price is per piece
+                            total = per_unit_price * required_qty
+                            logger.warning(f"  ⚠ WARNING: No offer unit but quantity in pieces. Assuming price is per piece.")
+                            logger.info(f"  → Calculated: {total} = {per_unit_price} * {required_qty} pieces")
+                            return total
+                    
+                    # Last resort: if we still can't match, try to be smart about it
+                    # If quantity is in grams and the result seems too high, assume price is per kg
+                    if norm_quantity_unit == 'g':
+                        # Try assuming price is per kg - if result is more reasonable, use that
                         quantity_kg = required_qty / Decimal('1000')
-                        total = per_unit_price * quantity_kg
-                        logger.warning(f"WARNING: No offer unit but quantity in grams for {item.get('ingredient')}. "
-                                     f"Assuming offer price is per kg. {total} = {per_unit_price} * {quantity_kg}kg")
-                        return total
+                        alternative_total = per_unit_price * quantity_kg
+                        direct_total = per_unit_price * required_qty
+                        
+                        # If direct multiplication gives > 1000 CZK and alternative is < 1000, use alternative
+                        # This catches cases where price is per kg but unit wasn't set correctly
+                        if direct_total > Decimal('1000') and alternative_total < Decimal('1000'):
+                            logger.warning(f"  ⚠ SMART FIX: Direct multiplication gives {direct_total}, but assuming per-kg gives {alternative_total}. Using per-kg assumption.")
+                            logger.info(f"  → Calculated: {alternative_total} = {per_unit_price} * ({required_qty}g / 1000) = {per_unit_price} * {quantity_kg}kg")
+                            return alternative_total
                     
                     # Last resort: if we still can't match, log error and use direct multiplication
                     # This will likely be wrong, but better than crashing
-                    logger.error(f"ERROR: Cannot convert units for {item.get('ingredient')}: "
-                               f"quantity_unit={norm_quantity_unit}, offer_unit={norm_offer_unit}. "
-                               f"Using direct multiplication (may be incorrect): {per_unit_price} * {required_qty}")
                     total = per_unit_price * required_qty
+                    logger.error(f"  ✗ ERROR: Cannot convert units for {item.get('ingredient')}: "
+                               f"quantity_unit={norm_quantity_unit}, offer_unit={norm_offer_unit}.")
+                    logger.error(f"  → Using direct multiplication (likely WRONG): {total} = {per_unit_price} * {required_qty}")
                     return total
                 
                 # Calculate total price for each item and update the item
