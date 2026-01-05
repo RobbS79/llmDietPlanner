@@ -632,8 +632,39 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     # CRITICAL: Handle unit conversions FIRST before multiplying
                     
                     # If units match exactly, multiply directly
+                    # BUT: Check if this makes sense for pieces (ks)
+                    # If we need multiple pieces and price seems high, it might be a package price
                     if norm_quantity_unit == norm_offer_unit:
                         total = per_unit_price * required_qty
+                        
+                        # Special check for pieces: if price per piece seems too high (> 15 CZK per piece) 
+                        # and we need multiple pieces, it's likely a package price we didn't detect
+                        if norm_quantity_unit == 'ks' and required_qty > 1 and per_unit_price > Decimal('15'):
+                            # This looks like a package price - try to infer package size
+                            # Common package sizes: 6, 10, 12, 15, 20 pieces
+                            # Try dividing by common sizes and see if we get reasonable per-piece prices
+                            common_package_sizes = [6, 10, 12, 15, 20, 30]
+                            best_match = None
+                            best_price = None
+                            
+                            for pkg_size in common_package_sizes:
+                                inferred_per_piece = offer_price / Decimal(str(pkg_size))
+                                # Reasonable price per piece: between 1-15 CZK (for eggs, fruit, etc.)
+                                if Decimal('1') <= inferred_per_piece <= Decimal('15'):
+                                    if best_match is None or abs(inferred_per_piece - Decimal('6')) < abs(best_price - Decimal('6')):
+                                        # Prefer prices around 5-7 CZK per piece (typical for eggs)
+                                        best_match = pkg_size
+                                        best_price = inferred_per_piece
+                            
+                            if best_match:
+                                recalculated_total = best_price * required_qty
+                                logger.warning(f"  ⚠ SMART FIX for pieces: Price {offer_price} CZK seems high per piece ({per_unit_price} CZK/piece).")
+                                logger.warning(f"  → Inferring package of {best_match} pieces → {best_price} CZK per piece")
+                                logger.info(f"  → Recalculated total: {recalculated_total} = {best_price} * {required_qty} pieces")
+                                return recalculated_total
+                            else:
+                                logger.warning(f"  ⚠ Price {offer_price} CZK seems high ({per_unit_price} CZK/piece) but couldn't infer package size. Using direct multiplication.")
+                        
                         logger.info(f"  ✓ Units match ({norm_quantity_unit}): {total} = {per_unit_price} * {required_qty}")
                         return total
                     
