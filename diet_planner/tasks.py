@@ -207,7 +207,7 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                     "product_unit",
                     "package_size"
                 ],
-                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients by similarity - for example, 'chicken' matches 'chicken breast', 'eggs' matches 'chicken eggs', 'spinach' matches 'fresh spinach', etc. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value - use the EXACT price from available_ingredients, this is the TOTAL price for the product/package as listed), currency (3-letter code), product_unit (unit from available_ingredients), and package_size (package_size from available_ingredients if present - this indicates the size of the package that the price applies to, e.g., 10 for '10 ks', 500 for '500 g'). If you cannot find any reasonable match, only then set price to null. IMPORTANT: Try to match ALL ingredients - do not set price to null unless absolutely necessary.",
+                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients ONLY if they are the SAME or VERY SIMILAR ingredient type. Examples of GOOD matches: 'chicken' matches 'chicken breast' or 'chicken meat', 'eggs' matches 'chicken eggs' or 'eggs', 'spinach' matches 'fresh spinach' or 'spinach', 'tomatoes' matches 'cherry tomatoes' or 'tomatoes'. Examples of BAD matches (DO NOT match these): 'pepper' should NOT match 'peppermint' or 'bell pepper' unless it's actually black/white pepper spice, 'salt' should NOT match 'sea salt flakes' unless it's actually salt, 'olive oil' should match 'olive oil' but NOT 'sunflower oil'. If the ingredient is NOT in the available_ingredients list, set price to null - do NOT match to unrelated products. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value - use the EXACT price from available_ingredients, this is the TOTAL price for the product/package as listed), currency (3-letter code), product_unit (unit from available_ingredients), and package_size (package_size from available_ingredients if present). CRITICAL: Only match if the ingredient types are the same - if unsure, set price to null.",
                 "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
             },
             "context_notes": [
@@ -247,9 +247,9 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                 "- Provide 4-8 detailed steps that guide the user through the entire cooking process",
                 "- Instructions should be in the same language as the meal name and description",
                 "- Ingredients should be available in local supermarkets (Lidl, Biedronka, Kaufland, etc.)",
-                f"- {'CRITICAL: You MUST match EVERY shopping list ingredient with a product from the available_ingredients list. Use fuzzy matching - match by similarity (e.g., chicken matches chicken breast, eggs matches chicken eggs). Include matched_product_name, price, currency, and product_unit for EACH item. Only set price to null if NO reasonable match exists in available_ingredients.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
+                f"- {'CRITICAL: Match shopping list ingredients ONLY to products from available_ingredients that are the SAME ingredient type. Do NOT match unrelated products. If an ingredient is not in the list (e.g., pepper, salt for seasoning), set price to null. It is BETTER to have no price than to match incorrectly. Include matched_product_name, price, currency, product_unit, and package_size for matched items.' if goal.shop and available_ingredients else '- Use common ingredients that are typically available in local supermarkets.'}",
                 "- Consider local cuisine preferences for the specified country",
-                "- MATCHING REQUIREMENT: For each shopping list item, search the available_ingredients list and find the best matching product. Use the product's exact price, currency, display_name, and unit. Match by ingredient type even if names differ slightly (e.g., 'chicken' = 'chicken breast', 'eggs' = 'chicken eggs', 'spinach' = 'fresh spinach')",
+                "- MATCHING REQUIREMENT: For each shopping list item, search the available_ingredients list and find a matching product ONLY if it's the SAME ingredient type. Do NOT match to unrelated products just to fill in a price. If no match exists, set price to null. It's better to show 'Price N/A' than to show an incorrect price from a wrong product.",
                 "- Focus on creating practical, achievable meal plans",
                 "- Ensure variety across days to prevent meal fatigue",
                 f"- Generate ALL text (meal names, descriptions, ingredients, instructions) in {goal.language_code} language"
@@ -416,7 +416,7 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 unmatched_ingredients = [item.get('ingredient', 'unknown') for item in items_without_price]
                 logger.warning(f"LLM failed to match prices for {len(items_without_price)} items: {', '.join(unmatched_ingredients[:10])}{'...' if len(unmatched_ingredients) > 10 else ''}")
         
-        # Fallback: Use backend matching for items LLM failed to match (if shop is selected)
+        # Fallback 1: Use backend matching for items LLM failed to match (if shop is selected)
         if goal.shop and enhanced_shopping_list:
             try:
                 items_needing_fallback = [item for item in enhanced_shopping_list if item.get('price') is None or item.get('price') == '']
@@ -427,13 +427,48 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                         if ingredient_name:
                             price_info = ScraperService.match_ingredient_price(ingredient_name, goal.shop, goal.country)
                             if price_info:
+                                # Log the match for debugging - this helps identify false matches
+                                logger.info(f"Backend fallback matched '{ingredient_name}' -> '{price_info['display_name']}' ({price_info['price']} {price_info['currency']})")
                                 item['price'] = float(price_info['price'])
                                 item['currency'] = price_info['currency']
                                 item['product_unit'] = price_info['unit']
                                 item['matched_product_name'] = price_info['display_name']
-                                logger.debug(f"Backend fallback matched '{ingredient_name}' -> '{price_info['display_name']}' ({price_info['price']} {price_info['currency']})")
             except Exception as e:
                 logger.warning(f"Error in backend fallback matching: {e}", exc_info=True)
+        
+        # Fallback 2: Use LLM to estimate prices for items still without prices
+        items_still_needing_price = [item for item in enhanced_shopping_list if item.get('price') is None or item.get('price') == '']
+        if items_still_needing_price and goal.shop:
+            try:
+                logger.info(f"Attempting LLM price estimation for {len(items_still_needing_price)} items not found in leaflet")
+                llm_service = OpenAIService()
+                
+                for item in items_still_needing_price:
+                    ingredient_name = item.get('ingredient', '')
+                    if ingredient_name:
+                        quantity = item.get('quantity')
+                        unit = item.get('unit')
+                        
+                        price_estimate = llm_service.estimate_product_price(
+                            ingredient_name=ingredient_name,
+                            quantity=quantity,
+                            unit=unit,
+                            shop=goal.shop,
+                            country=goal.country
+                        )
+                        
+                        if price_estimate:
+                            item['price'] = float(price_estimate['price'])
+                            item['currency'] = price_estimate['currency']
+                            item['product_unit'] = price_estimate.get('unit')
+                            item['matched_product_name'] = price_estimate['display_name']
+                            item['price_estimated'] = True  # Flag to indicate this is an estimate
+                            item['price_source'] = 'llm_estimate'
+                            logger.info(f"LLM estimated price for '{ingredient_name}': {price_estimate['price']} {price_estimate['currency']} (estimated)")
+                        else:
+                            logger.info(f"LLM could not estimate price for '{ingredient_name}' - leaving as null")
+            except Exception as e:
+                logger.warning(f"Error in LLM price estimation: {e}", exc_info=True)
         
         # Calculate total price per item based on quantity and unit price
         # The price from LLM/leaflet is typically a unit price, so we need to multiply by quantity
@@ -564,49 +599,75 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     norm_quantity_unit = normalize_unit(quantity_unit)
                     norm_offer_unit = normalize_unit(offer_unit)
                     
-                    # Calculate per-unit price
+                    # Log for debugging
+                    logger.info(f"Price calc for {item.get('ingredient')}: offer_price={offer_price}, package_size={package_size}, "
+                              f"offer_unit={offer_unit}->{norm_offer_unit}, quantity={required_qty} {norm_quantity_unit}")
+                    
+                    # Calculate per-unit price based on package size
                     if package_size and package_size > 0 and package_size != 1:
                         # Price is for a package, calculate per-unit price
                         per_unit_price = offer_price / package_size
-                        logger.debug(f"Package price detected for {item.get('ingredient')}: {offer_price} for {package_size} {norm_offer_unit}, per-unit: {per_unit_price}")
-                    elif package_size == 1 or (package_size is None and norm_offer_unit):
+                        logger.info(f"Package price: {offer_price} for {package_size} {norm_offer_unit}, per-unit: {per_unit_price} {norm_offer_unit}")
+                    else:
                         # Price is already per unit (per kg, per piece, etc.)
                         per_unit_price = offer_price
-                        logger.debug(f"Per-unit price for {item.get('ingredient')}: {per_unit_price} per {norm_offer_unit}")
-                    else:
-                        # No package size info - use heuristics
-                        # If price seems very high (> 100 CZK) and no unit, might be a package
-                        # But for now, assume it's per unit to avoid inflating prices further
-                        per_unit_price = offer_price
-                        logger.debug(f"No package info for {item.get('ingredient')}, assuming per-unit price: {per_unit_price}")
+                        logger.info(f"Per-unit price: {per_unit_price} per {norm_offer_unit or 'unit'}")
                     
                     # Now calculate total based on required quantity and units
-                    # If units match, multiply directly
+                    # CRITICAL: Handle unit conversions FIRST before multiplying
+                    
+                    # If units match exactly, multiply directly
                     if norm_quantity_unit == norm_offer_unit:
                         total = per_unit_price * required_qty
+                        logger.info(f"Units match: {total} = {per_unit_price} * {required_qty}")
                         return total
                     
                     # Handle unit conversions (kg <-> g, l <-> ml)
                     if norm_offer_unit == 'kg' and norm_quantity_unit == 'g':
                         # Offer is per kg, quantity is in grams: convert g to kg
-                        total = per_unit_price * (required_qty / Decimal('1000'))
+                        quantity_kg = required_qty / Decimal('1000')
+                        total = per_unit_price * quantity_kg
+                        logger.info(f"Unit conversion kg->g: {total} = {per_unit_price} * ({required_qty}g / 1000) = {per_unit_price} * {quantity_kg}kg")
                         return total
                     elif norm_offer_unit == 'g' and norm_quantity_unit == 'kg':
                         # Offer is per g, quantity is in kg: convert kg to g
-                        total = per_unit_price * (required_qty * Decimal('1000'))
+                        quantity_g = required_qty * Decimal('1000')
+                        total = per_unit_price * quantity_g
+                        logger.info(f"Unit conversion g->kg: {total} = {per_unit_price} * ({required_qty}kg * 1000) = {per_unit_price} * {quantity_g}g")
                         return total
                     elif norm_offer_unit == 'l' and norm_quantity_unit == 'ml':
                         # Offer is per l, quantity is in ml: convert ml to l
-                        total = per_unit_price * (required_qty / Decimal('1000'))
+                        quantity_l = required_qty / Decimal('1000')
+                        total = per_unit_price * quantity_l
+                        logger.info(f"Unit conversion l->ml: {total} = {per_unit_price} * ({required_qty}ml / 1000) = {per_unit_price} * {quantity_l}l")
                         return total
                     elif norm_offer_unit == 'ml' and norm_quantity_unit == 'l':
                         # Offer is per ml, quantity is in l: convert l to ml
-                        total = per_unit_price * (required_qty * Decimal('1000'))
+                        quantity_ml = required_qty * Decimal('1000')
+                        total = per_unit_price * quantity_ml
+                        logger.info(f"Unit conversion ml->l: {total} = {per_unit_price} * ({required_qty}l * 1000) = {per_unit_price} * {quantity_ml}ml")
+                        return total
+                    elif norm_offer_unit == 'ks' and norm_quantity_unit == 'ks':
+                        # Both are pieces, should have matched above, but just in case
+                        total = per_unit_price * required_qty
+                        logger.info(f"Pieces match: {total} = {per_unit_price} * {required_qty}")
                         return total
                     
-                    # If units don't match and we can't convert, assume they're compatible and multiply
-                    # This is a fallback - ideally units should match
-                    logger.debug(f"Units don't match for {item.get('ingredient')}: quantity_unit={norm_quantity_unit}, offer_unit={norm_offer_unit}. Attempting direct multiplication.")
+                    # If units don't match and we can't convert, this is a problem
+                    # For safety, assume offer_unit is per kg if it's null/empty and quantity is in grams
+                    if not norm_offer_unit and norm_quantity_unit == 'g':
+                        # Common case: offer has no unit but price is likely per kg, quantity is in grams
+                        quantity_kg = required_qty / Decimal('1000')
+                        total = per_unit_price * quantity_kg
+                        logger.warning(f"WARNING: No offer unit but quantity in grams for {item.get('ingredient')}. "
+                                     f"Assuming offer price is per kg. {total} = {per_unit_price} * {quantity_kg}kg")
+                        return total
+                    
+                    # Last resort: if we still can't match, log error and use direct multiplication
+                    # This will likely be wrong, but better than crashing
+                    logger.error(f"ERROR: Cannot convert units for {item.get('ingredient')}: "
+                               f"quantity_unit={norm_quantity_unit}, offer_unit={norm_offer_unit}. "
+                               f"Using direct multiplication (may be incorrect): {per_unit_price} * {required_qty}")
                     total = per_unit_price * required_qty
                     return total
                 

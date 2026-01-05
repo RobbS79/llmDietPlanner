@@ -569,4 +569,165 @@ Example format:
         except Exception as e:
             logger.error(f"Error extracting products from HTML using LLM for {url}: {e}", exc_info=True)
             return []
+    
+    def estimate_product_price(
+        self,
+        ingredient_name: str,
+        quantity: Optional[str] = None,
+        unit: Optional[str] = None,
+        shop: Optional[str] = None,
+        country: Optional[str] = None,
+        model: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Ask LLM to estimate the price of a product based on general knowledge about the shop.
+        
+        This is used as a fallback when the product is not found in scraped leaflet data.
+        
+        Args:
+            ingredient_name: Name of the ingredient/product
+            quantity: Required quantity (optional)
+            unit: Unit of measurement (optional)
+            shop: Shop code (e.g., 'LIDL_CZ')
+            country: Country code (e.g., 'CZ')
+            model: Model to use (optional)
+            
+        Returns:
+            Dict with estimated price info or None if estimation fails:
+            {
+                'price': Decimal,
+                'currency': str,
+                'unit': str (optional),
+                'display_name': str,
+                'estimated': True,  # Flag to indicate this is an estimate
+                'source': 'llm_estimate'
+            }
+        """
+        model = model or self.default_model
+        
+        # Currency mapping
+        currency_map = {
+            'CZ': 'CZK',
+            'SK': 'EUR',
+            'PL': 'PLN',
+            'HU': 'HUF',
+        }
+        currency = currency_map.get(country, 'CZK') if country else 'CZK'
+        
+        # Shop name mapping for better prompts
+        shop_names = {
+            'LIDL_CZ': 'Lidl Česká republika',
+            'LIDL_SK': 'Lidl Slovensko',
+            'ROHLIK': 'Rohlik.cz',
+            'LUNYS': 'Lunys.sk',
+        }
+        shop_name = shop_names.get(shop, shop) if shop else 'supermarketu'
+        
+        system_prompt = (
+            "You are a price estimation expert for Central European supermarkets. "
+            "Provide realistic price estimates based on typical prices at the specified shop. "
+            "Always respond with valid JSON only (no markdown, no code blocks)."
+        )
+        
+        quantity_info = ""
+        if quantity and unit:
+            quantity_info = f" Required quantity: {quantity} {unit}."
+        
+        user_prompt = f"""Odhadni cenu produktu na základě znalosti cen v {shop_name}.
+
+Produkt: {ingredient_name}
+{quantity_info}
+Měna: {currency}
+
+Poskytni realistický odhad ceny, jakou by tento produkt typicky měl v {shop_name} (leden 2026).
+Uvažuj běžné ceny, ne akční nabídky, pokud není uvedeno jinak.
+
+Vrať JSON objekt s následující strukturou:
+{{
+  "estimated_price": 12.90,
+  "currency": "{currency}",
+  "unit": "ks",
+  "display_name": "{ingredient_name}",
+  "note": "Typická cena pro běžné balení"
+}}
+
+Důležité:
+- Uveď cenu jako číslo (desetinné číslo, ne string)
+- Pokud znáš typické balení (např. "pepř 20g", "sůl 500g"), uveď to v unit
+- Pokud odhaduješ cenu pro konkrétní množství, uveď cenu celkem pro to množství
+- Pokud odhaduješ cenu za jednotku (kg, ks), uveď jednotkovou cenu a unit
+
+Příklad pro pepř černý mletý 20g v Lidl ČR:
+{{
+  "estimated_price": 8.90,
+  "currency": "CZK",
+  "unit": "20g",
+  "display_name": "Pepř černý mletý",
+  "note": "Typická cena za balení 20g"
+}}
+
+Příklad pro sůl 500g:
+{{
+  "estimated_price": 12.90,
+  "currency": "CZK",
+  "unit": "500g",
+  "display_name": "Sůl kuchyňská",
+  "note": "Typická cena za balení 500g"
+}}"""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3,  # Low temperature for consistent estimates
+            )
+            
+            content = response.choices[0].message.content
+            parsed = json.loads(content)
+            
+            estimated_price = parsed.get('estimated_price')
+            if estimated_price is None:
+                logger.warning(f"No estimated_price in LLM response for {ingredient_name}")
+                return None
+            
+            try:
+                if isinstance(estimated_price, (int, float)):
+                    price = Decimal(str(estimated_price))
+                elif isinstance(estimated_price, str):
+                    price_str = estimated_price.replace(',', '.').strip()
+                    price = Decimal(price_str)
+                else:
+                    price = Decimal(str(estimated_price))
+                
+                if price <= 0:
+                    logger.warning(f"Invalid estimated price for {ingredient_name}: {price}")
+                    return None
+                
+                result = {
+                    'price': price,
+                    'currency': parsed.get('currency', currency),
+                    'unit': parsed.get('unit'),
+                    'display_name': parsed.get('display_name', ingredient_name),
+                    'estimated': True,
+                    'source': 'llm_estimate',
+                    'note': parsed.get('note', '')
+                }
+                
+                logger.info(f"LLM estimated price for {ingredient_name}: {price} {result['currency']} ({result.get('unit', 'unit')})")
+                return result
+                
+            except (ValueError, InvalidOperation) as e:
+                logger.warning(f"Invalid estimated price format for {ingredient_name}: {e}")
+                return None
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM price estimate JSON for {ingredient_name}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error estimating price for {ingredient_name}: {e}", exc_info=True)
+            return None
 

@@ -489,47 +489,70 @@ class ScraperService:
         
         # Strategy 2: Partial match - scraped ingredient_name contains the search term
         # E.g., search "rajčata" matches "rajčata cherry" or "rajčata červená"
-        offer = LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            ingredient_name__icontains=normalized_name,
-            expires_at__gt=current_time,
-            price__isnull=False,
-            price__gt=0  # Only match offers with positive prices
-        ).order_by('-scraped_at').first()
-        
-        if offer:
-            logger.debug(f"Found partial price match (scraped contains search): {offer.display_name} - {offer.price} {offer.currency}")
-            return {
-                'price': Decimal(str(offer.price)),
-                'currency': offer.currency,
-                'unit': offer.unit or '',
-                'display_name': offer.display_name,
-            }
+        # BUT: Make it stricter - require the search term to be at least 3 characters
+        # and be a complete word boundary to avoid false matches
+        if len(normalized_name) >= 3:
+            offer = LeafletOffer.objects.filter(
+                shop=shop,
+                country=country,
+                ingredient_name__icontains=normalized_name,
+                expires_at__gt=current_time,
+                price__isnull=False,
+                price__gt=0  # Only match offers with positive prices
+            ).order_by('-scraped_at').first()
+            
+            if offer:
+                # Additional validation: check if the match makes sense
+                # Skip if the match seems unrelated (e.g., "pepper" matching "peppermint")
+                offer_name_lower = offer.ingredient_name.lower()
+                search_name_lower = normalized_name.lower()
+                
+                # Check if the match is reasonable:
+                # - The search term should be the main word, not just a substring of an unrelated word
+                # - Avoid matches where the search term is part of a compound word that's different
+                import re
+                word_boundary_match = re.search(r'\b' + re.escape(search_name_lower) + r'\b', offer_name_lower)
+                if word_boundary_match:
+                    logger.debug(f"Found partial price match (scraped contains search): {offer.display_name} - {offer.price} {offer.currency}")
+                    return {
+                        'price': Decimal(str(offer.price)),
+                        'currency': offer.currency,
+                        'unit': offer.unit or '',
+                        'display_name': offer.display_name,
+                    }
+                else:
+                    logger.debug(f"Skipping partial match - '{search_name_lower}' found in '{offer_name_lower}' but not as word boundary (likely false match)")
         
         # Strategy 3: Reverse partial match - search term contains scraped ingredient_name
         # E.g., search "rajčata cherry" matches "rajčata"
-        # We need to filter in Python since Django doesn't support this in the ORM efficiently
-        # But for performance, we'll limit the query first
-        candidates = LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            expires_at__gt=current_time,
-            price__isnull=False,
-            price__gt=0  # Only match offers with positive prices
-        ).order_by('-scraped_at')[:100]  # Limit to recent offers for performance
-        
-        for candidate in candidates:
-            if normalized_name.startswith(candidate.ingredient_name) or candidate.ingredient_name.startswith(normalized_name):
-                # Additional check: ensure significant overlap (at least 3 characters)
-                if len(normalized_name) >= 3 and len(candidate.ingredient_name) >= 3:
-                    logger.debug(f"Found reverse partial price match: {candidate.display_name} - {candidate.price} {candidate.currency}")
-                    return {
-                        'price': Decimal(str(candidate.price)),
-                        'currency': candidate.currency,
-                        'unit': candidate.unit or '',
-                        'display_name': candidate.display_name,
-                    }
+        # ONLY use this if the search term has multiple words (more likely to be a specific variant)
+        # AND the scraped name is a single meaningful word (not a fragment)
+        # Skip this strategy for very short search terms (likely to cause false matches)
+        if len(normalized_name) >= 5 and ' ' in normalized_name:
+            candidates = LeafletOffer.objects.filter(
+                shop=shop,
+                country=country,
+                expires_at__gt=current_time,
+                price__isnull=False,
+                price__gt=0  # Only match offers with positive prices
+            ).order_by('-scraped_at')[:100]  # Limit to recent offers for performance
+            
+            for candidate in candidates:
+                # More strict: the scraped name should be a complete word in the search term
+                if candidate.ingredient_name.lower() in normalized_name.lower():
+                    # Additional validation: check word boundaries to avoid false matches
+                    import re
+                    word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
+                    if re.search(word_pattern, normalized_name.lower()):
+                        # Ensure significant overlap (at least 3 characters)
+                        if len(candidate.ingredient_name) >= 3:
+                            logger.debug(f"Found reverse partial price match: {candidate.display_name} - {candidate.price} {candidate.currency}")
+                            return {
+                                'price': Decimal(str(candidate.price)),
+                                'currency': candidate.currency,
+                                'unit': candidate.unit or '',
+                                'display_name': candidate.display_name,
+                            }
         
         logger.debug(f"No price match found for '{ingredient_name}' in {shop} ({country})")
         return None
