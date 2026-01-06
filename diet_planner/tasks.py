@@ -207,8 +207,8 @@ def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[Lis
                     "product_unit",
                     "package_size"
                 ],
-                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients ONLY if they are the SAME or VERY SIMILAR ingredient type. Examples of GOOD matches: 'chicken' matches 'chicken breast' or 'chicken meat', 'eggs' matches 'chicken eggs' or 'eggs', 'spinach' matches 'fresh spinach' or 'spinach', 'tomatoes' matches 'cherry tomatoes' or 'tomatoes'. Examples of BAD matches (DO NOT match these): 'pepper' should NOT match 'peppermint' or 'bell pepper' unless it's actually black/white pepper spice, 'salt' should NOT match 'sea salt flakes' unless it's actually salt, 'olive oil' should match 'olive oil' but NOT 'sunflower oil'. If the ingredient is NOT in the available_ingredients list, set price to null - do NOT match to unrelated products. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value - use the EXACT price from available_ingredients, this is the TOTAL price for the product/package as listed in the leaflet), currency (3-letter code), product_unit (unit from available_ingredients - CRITICAL: this indicates what unit the price/package is measured in: 'ks'=pieces, 'kg'=kilograms, 'g'=grams, 'l'=liters, 'ml'=milliliters), and package_size (package_size from available_ingredients if present - CRITICAL: this indicates the size of the package that the price applies to. Example: if package_size=10 and unit='ks', the price is for a package of 10 pieces. If package_size=500 and unit='g', the price is for a package of 500g. If package_size is null or 1, the price is per unit (per piece, per kg, etc.)). CRITICAL: You MUST preserve package_size from available_ingredients exactly as provided - this is essential for correct price calculation. The backend will calculate the total price by determining how many packages are needed and multiplying by the package price. Only match if the ingredient types are the same - if unsure, set price to null.",
-                "notes": "Quantities are optional but recommended. Use metric units (g, kg, ml, l). Aggregate quantities for the entire meal plan across all days."
+                "matching_instructions": "For EVERY ingredient in the shopping list, you MUST find a matching product from the available_ingredients list. Match ingredients ONLY if they are the SAME or VERY SIMILAR ingredient type. Examples of GOOD matches: 'chicken' matches 'chicken breast' or 'chicken meat', 'eggs' matches 'chicken eggs' or 'eggs', 'spinach' matches 'fresh spinach' or 'spinach', 'tomatoes' matches 'cherry tomatoes' or 'tomatoes'. Examples of BAD matches (DO NOT match these): 'pepper' should NOT match 'peppermint' or 'bell pepper' unless it's actually black/white pepper spice, 'salt' should NOT match 'sea salt flakes' unless it's actually salt, 'olive oil' should match 'olive oil' but NOT 'sunflower oil'. If the ingredient is NOT in the available_ingredients list, set price to null - do NOT match to unrelated products. For each matched product, include: matched_product_name (use display_name from available_ingredients), price (numeric value - use the EXACT price from available_ingredients, this is the TOTAL price for the product/package as listed in the leaflet), currency (3-letter code), product_unit (unit from available_ingredients - CRITICAL: this indicates what unit the price/package is measured in: 'ks'=pieces, 'kg'=kilograms, 'g'=grams, 'l'=liters, 'ml'=milliliters), and package_size (package_size from available_ingredients if present - CRITICAL: this indicates the size of the package that the price applies to. Example: if package_size=10 and unit='ks', the price is for a package of 10 pieces. If package_size=500 and unit='g', the price is for a package of 500g. If package_size is null or 1, the price is per unit (per piece, per kg, etc.)). CRITICAL: You MUST preserve package_size from available_ingredients exactly as provided - this is essential for correct price calculation. The backend will automatically find the most economical package size from all available options. You only need to match the ingredient type - the system will handle package selection and price optimization. Only match if the ingredient types are the same - if unsure, set price to null.",
+                "notes": "CRITICAL: Calculate EXACT quantities needed for all meals across all days. Be precise: if a recipe needs 200g per serving and there are 7 servings, list exactly 1400g (not rounded). Use metric units (g, kg, ml, l, ks). The backend will find the most economical package size based on available offers."
             },
             "context_notes": [
                 f"This is a {goal.num_days}-day meal plan. For each day, you MUST include:",
@@ -507,6 +507,168 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     }
                     return unit_map.get(unit_lower, unit_lower)
                 
+                def normalize_to_base_unit(unit: str) -> str:
+                    """Convert unit to base unit (kg->g, l->ml, keep ks as is)."""
+                    unit_lower = normalize_unit(unit)
+                    if unit_lower in ['kg', 'kilogram']:
+                        return 'g'
+                    elif unit_lower in ['l', 'litre', 'liter']:
+                        return 'ml'
+                    elif unit_lower in ['ks', 'piece', 'pieces']:
+                        return 'ks'
+                    return unit_lower
+                
+                def convert_to_base_unit(quantity: Decimal, unit: str) -> Decimal:
+                    """Convert quantity to base unit (kg->g, l->ml, keep ks as is)."""
+                    unit_lower = normalize_unit(unit)
+                    if unit_lower in ['kg', 'kilogram']:
+                        return quantity * Decimal('1000')  # kg to g
+                    elif unit_lower in ['l', 'litre', 'liter']:
+                        return quantity * Decimal('1000')  # l to ml
+                    return quantity  # Already in base unit (g, ml, ks)
+                
+                def convert_product_to_base_unit(product: Dict[str, Any]) -> Decimal:
+                    """Convert product package size to base unit (g/ml/ks)."""
+                    package_size = product.get('package_size')
+                    unit = product.get('unit', '')
+                    
+                    if package_size is None:
+                        # No package size - assume 1 base unit
+                        return Decimal('1')
+                    
+                    package_size_decimal = Decimal(str(package_size))
+                    return convert_to_base_unit(package_size_decimal, unit)
+                
+                def calculate_price_per_unit(product: Dict[str, Any]) -> Optional[Decimal]:
+                    """
+                    Calculate price per base unit (per gram, per ml, per piece).
+                    
+                    Args:
+                        product: Dict with 'price', 'package_size', 'unit'
+                        
+                    Returns:
+                        Price per base unit (CZK per g, CZK per ml, CZK per piece) or None
+                    """
+                    try:
+                        price = Decimal(str(product['price']))
+                        if price <= 0:
+                            return None
+                        
+                        package_size = product.get('package_size')
+                        unit = product.get('unit', '')
+                        unit_normalized = normalize_unit(unit)
+                        
+                        if package_size and package_size > 0:
+                            # Price is for a package, calculate per-unit price
+                            package_size_decimal = Decimal(str(package_size))
+                            # Convert package size to base unit
+                            package_base = convert_to_base_unit(package_size_decimal, unit)
+                            if package_base > 0:
+                                return price / package_base  # Price per base unit
+                        else:
+                            # No package size - price is per unit (per kg, per l, per piece)
+                            if unit_normalized in ['kg', 'kilogram']:
+                                return price / Decimal('1000')  # Convert to per gram
+                            elif unit_normalized in ['l', 'litre', 'liter']:
+                                return price / Decimal('1000')  # Convert to per ml
+                            elif unit_normalized in ['ks', 'piece', 'pieces']:
+                                return price  # Already per piece
+                            elif unit_normalized in ['g', 'gram', 'ml', 'millilitre', 'milliliter']:
+                                return price  # Already per base unit
+                            else:
+                                # Unknown unit - try to infer from context
+                                # If no unit specified, assume per piece for now
+                                return price
+                    except (ValueError, TypeError, KeyError) as e:
+                        logger.debug(f"Error calculating price per unit for product {product.get('display_name', 'unknown')}: {e}")
+                        return None
+                
+                def find_optimal_package(
+                    required_quantity: Decimal,
+                    required_unit: str,
+                    available_products: List[Dict[str, Any]]
+                ) -> Optional[Dict[str, Any]]:
+                    """
+                    Find the most economical package size for the required quantity.
+                    
+                    Logic:
+                    1. Convert all products to base units (g, ml, ks)
+                    2. Filter packages that meet or slightly exceed requirement (up to 3x)
+                    3. Calculate price per unit for each
+                    4. Select the one with lowest price per unit
+                    
+                    Args:
+                        required_quantity: Exact quantity needed (e.g., 400 for 400ml)
+                        required_unit: Unit (g, kg, ml, l, ks)
+                        available_products: List of all matching products
+                        
+                    Returns:
+                        Best product dict or None
+                    """
+                    if not available_products:
+                        return None
+                    
+                    # Convert required quantity to base unit (g, ml, ks)
+                    required_base = convert_to_base_unit(required_quantity, required_unit)
+                    
+                    candidates = []
+                    
+                    for product in available_products:
+                        try:
+                            # Convert product package size to base unit
+                            package_base = convert_product_to_base_unit(product)
+                            
+                            # Calculate price per unit
+                            price_per_unit = calculate_price_per_unit(product)
+                            if price_per_unit is None or price_per_unit <= 0:
+                                continue
+                            
+                            # Only consider packages that meet or slightly exceed requirement
+                            # Allow up to 3x the required amount (to account for value packages)
+                            if package_base >= required_base:
+                                candidates.append({
+                                    'product': product,
+                                    'package_size_base': package_base,
+                                    'price_per_unit': price_per_unit,
+                                    'total_price': Decimal(str(product['price']))
+                                })
+                        except Exception as e:
+                            logger.debug(f"Error processing product {product.get('display_name', 'unknown')} for optimal selection: {e}")
+                            continue
+                    
+                    # If no exact matches, find closest packages that are reasonable
+                    if not candidates:
+                        max_reasonable = required_base * Decimal('3')
+                        for product in available_products:
+                            try:
+                                package_base = convert_product_to_base_unit(product)
+                                if required_base <= package_base <= max_reasonable:
+                                    price_per_unit = calculate_price_per_unit(product)
+                                    if price_per_unit and price_per_unit > 0:
+                                        candidates.append({
+                                            'product': product,
+                                            'package_size_base': package_base,
+                                            'price_per_unit': price_per_unit,
+                                            'total_price': Decimal(str(product['price']))
+                                        })
+                            except Exception as e:
+                                logger.debug(f"Error processing product {product.get('display_name', 'unknown')} for optimal selection: {e}")
+                                continue
+                    
+                    if not candidates:
+                        return None
+                    
+                    # Sort by price per unit (lowest is best)
+                    candidates.sort(key=lambda x: x['price_per_unit'])
+                    
+                    best_candidate = candidates[0]
+                    logger.info(f"Selected optimal package: {best_candidate['product']['display_name']} "
+                              f"(package: {best_candidate['package_size_base']} base units, "
+                              f"price per unit: {best_candidate['price_per_unit']:.4f}, "
+                              f"total: {best_candidate['total_price']})")
+                    
+                    return best_candidate['product']
+                
                 def extract_package_size(item: Dict[str, Any]) -> Optional[Decimal]:
                     """
                     Try to extract package size from item data.
@@ -553,9 +715,69 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     
                     return None
                 
+                def calculate_item_total_price_optimal(item: Dict[str, Any], goal: DietaryGoal) -> Optional[Decimal]:
+                    """
+                    Calculate total price using optimal package selection.
+                    
+                    1. Get exact quantity needed from item
+                    2. Find ALL matching products from leaflet
+                    3. Find most economical package
+                    4. Return total price for that package
+                    
+                    Args:
+                        item: Shopping list item dict
+                        goal: DietaryGoal object with shop/country info
+                        
+                    Returns:
+                        Total price (Decimal) or None
+                    """
+                    ingredient_name = item.get('ingredient', '')
+                    quantity_str = item.get('quantity', '')
+                    quantity_unit = item.get('unit', '')
+                    
+                    if not ingredient_name or not quantity_str:
+                        return None
+                    
+                    # Parse required quantity
+                    required_qty = parse_quantity(quantity_str, quantity_unit)
+                    if required_qty is None or required_qty <= 0:
+                        return None
+                    
+                    # Find ALL matching products (all package sizes)
+                    if goal.shop:
+                        try:
+                            all_products = ScraperService.find_all_matching_products(
+                                ingredient_name, goal.shop, goal.country
+                            )
+                            
+                            if all_products:
+                                # Find optimal package
+                                optimal = find_optimal_package(
+                                    required_qty, quantity_unit, all_products
+                                )
+                                
+                                if optimal:
+                                    # Update item with optimal product info
+                                    item['matched_product_name'] = optimal['display_name']
+                                    item['price'] = float(optimal['price'])
+                                    item['currency'] = optimal['currency']
+                                    item['product_unit'] = optimal.get('unit', '')
+                                    item['package_size'] = float(optimal['package_size']) if optimal.get('package_size') else None
+                                    item['optimal_package_selected'] = True
+                                    
+                                    logger.info(f"Optimal package selected for {ingredient_name}: "
+                                              f"{optimal['display_name']} at {optimal['price']} {optimal['currency']}")
+                                    
+                                    return Decimal(str(optimal['price']))
+                        except Exception as e:
+                            logger.warning(f"Error in optimal package selection for {ingredient_name}: {e}", exc_info=True)
+                    
+                    # Fallback: return None (will use existing calculate_item_total_price as fallback)
+                    return None
+                
                 def calculate_item_total_price(item: Dict[str, Any]) -> Optional[Decimal]:
                     """
-                    Calculate total price for a shopping list item.
+                    Calculate total price for a shopping list item (fallback method).
                     
                     The item contains:
                     - price: price from leaflet (could be per unit or per package)
@@ -738,12 +960,18 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     logger.error(f"  → Using direct multiplication (likely WRONG): {total} = {per_unit_price} * {required_qty}")
                     return total
                 
-                # Calculate total price for each item and update the item
+                # Calculate total price for each item using optimal package selection
                 total_price_sum = Decimal('0')
                 items_with_price_count = 0
                 
                 for item in enhanced_shopping_list:
-                    item_total = calculate_item_total_price(item)
+                    # Try optimal package selection first
+                    item_total = calculate_item_total_price_optimal(item, goal)
+                    
+                    # Fallback to existing calculation if optimal selection didn't work
+                    if item_total is None:
+                        item_total = calculate_item_total_price(item)
+                    
                     if item_total is not None:
                         # Store both unit price and total price
                         item['unit_price'] = str(item.get('price'))  # Keep original unit price

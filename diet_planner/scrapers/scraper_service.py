@@ -558,6 +558,131 @@ class ScraperService:
         return None
     
     @classmethod
+    def find_all_matching_products(cls, ingredient_name: str, shop: str, country: str) -> List[Dict[str, Any]]:
+        """
+        Find ALL products that match an ingredient name (not just the best one).
+        Returns all available package sizes so we can compare prices and select optimal package.
+        
+        Uses same matching strategies as match_ingredient_price() but returns all matches.
+        
+        Args:
+            ingredient_name: Normalized ingredient name to match
+            shop: Shop code
+            country: Country code
+            
+        Returns:
+            List of product dicts with price info:
+            [
+                {
+                    'price': Decimal,
+                    'currency': str,
+                    'unit': str,
+                    'display_name': str,
+                    'package_size': Decimal or None,
+                    'ingredient_name': str,
+                },
+                ...
+            ]
+        """
+        from django.utils import timezone
+        from decimal import Decimal
+        import re
+        
+        normalized_name = normalize_ingredient_name(ingredient_name)
+        logger.debug(f"Finding all matching products for: '{ingredient_name}' (normalized: '{normalized_name}') for {shop} ({country})")
+        
+        if not normalized_name:
+            logger.warning(f"Empty normalized name for ingredient: '{ingredient_name}'")
+            return []
+        
+        current_time = timezone.now()
+        all_matches = []
+        seen_combinations = set()  # Track (display_name, price, package_size) to avoid duplicates
+        
+        # Strategy 1: Exact match on normalized name
+        exact_matches = LeafletOffer.objects.filter(
+            shop=shop,
+            country=country,
+            ingredient_name=normalized_name,
+            expires_at__gt=current_time,
+            price__isnull=False,
+            price__gt=0
+        ).order_by('-scraped_at')
+        
+        for offer in exact_matches:
+            key = (offer.display_name, str(offer.price), str(offer.package_size) if offer.package_size else 'None')
+            if key not in seen_combinations:
+                seen_combinations.add(key)
+                all_matches.append({
+                    'price': Decimal(str(offer.price)),
+                    'currency': offer.currency,
+                    'unit': offer.unit or '',
+                    'display_name': offer.display_name,
+                    'package_size': offer.package_size,
+                    'ingredient_name': offer.ingredient_name,
+                })
+        
+        # Strategy 2: Partial match - scraped ingredient_name contains the search term
+        if len(normalized_name) >= 3:
+            partial_matches = LeafletOffer.objects.filter(
+                shop=shop,
+                country=country,
+                ingredient_name__icontains=normalized_name,
+                expires_at__gt=current_time,
+                price__isnull=False,
+                price__gt=0
+            ).order_by('-scraped_at')
+            
+            for offer in partial_matches:
+                # Additional validation: check word boundaries
+                offer_name_lower = offer.ingredient_name.lower()
+                search_name_lower = normalized_name.lower()
+                word_boundary_match = re.search(r'\b' + re.escape(search_name_lower) + r'\b', offer_name_lower)
+                
+                if word_boundary_match:
+                    key = (offer.display_name, str(offer.price), str(offer.package_size) if offer.package_size else 'None')
+                    if key not in seen_combinations:
+                        seen_combinations.add(key)
+                        all_matches.append({
+                            'price': Decimal(str(offer.price)),
+                            'currency': offer.currency,
+                            'unit': offer.unit or '',
+                            'display_name': offer.display_name,
+                            'package_size': offer.package_size,
+                            'ingredient_name': offer.ingredient_name,
+                        })
+        
+        # Strategy 3: Reverse partial match - search term contains scraped ingredient_name
+        if len(normalized_name) >= 5 and ' ' in normalized_name:
+            candidates = LeafletOffer.objects.filter(
+                shop=shop,
+                country=country,
+                expires_at__gt=current_time,
+                price__isnull=False,
+                price__gt=0
+            ).order_by('-scraped_at')[:100]
+            
+            for candidate in candidates:
+                # More strict: the scraped name should be a complete word in the search term
+                word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
+                if re.search(word_pattern, normalized_name.lower()):
+                    if len(candidate.ingredient_name) >= 3:
+                        key = (candidate.display_name, str(candidate.price), str(candidate.package_size) if candidate.package_size else 'None')
+                        if key not in seen_combinations:
+                            seen_combinations.add(key)
+                            all_matches.append({
+                                'price': Decimal(str(candidate.price)),
+                                'currency': candidate.currency,
+                                'unit': candidate.unit or '',
+                                'display_name': candidate.display_name,
+                                'package_size': candidate.package_size,
+                                'ingredient_name': candidate.ingredient_name,
+                            })
+        
+        logger.debug(f"Found {len(all_matches)} matching products for '{ingredient_name}' in {shop} ({country})")
+        return all_matches
+    
+    @classmethod
     def match_shopping_list_prices(cls, shopping_list: List[Dict[str, Any]], shop: str, country: str) -> List[Dict[str, Any]]:
         """
         Match shopping list items with prices from LeafletOffer.
