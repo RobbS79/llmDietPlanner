@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     # Local apps
     "diet_planner",
     "login_app",
+    "shopifyin",
 ]
 
 MIDDLEWARE = [

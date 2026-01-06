@@ -24,6 +24,7 @@ from . import views
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("login_app.urls")),
+    path("api/shopify/", include("shopifyin.urls")),
     path("api/", include("diet_planner.urls")),
     path("debug-prompt/", views.debug_prompt_view, name="debug-prompt"),
     path("test-ui/", views.test_ui_view, name="test-ui"),
