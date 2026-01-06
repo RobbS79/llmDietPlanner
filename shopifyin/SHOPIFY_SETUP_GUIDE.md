@@ -89,7 +89,6 @@ After creating the app, you'll see tabs at the top. Look for:
 
 2. **Scroll down** to find **"Storefront API access token"** section
 
-3. You'll see a long token that looks like: `shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 4. **Click the "Reveal token once"** button (or "Copy" button) next to it
 
@@ -100,7 +99,9 @@ After creating the app, you'll see tabs at the top. Look for:
 
 6. The token format looks like: 
    ```
+
    shpat_YOUR_TOKEN_HERE
+
    ```
 
 ---
