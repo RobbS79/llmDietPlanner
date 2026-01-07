@@ -8,12 +8,6 @@ from . import webhooks
 app_name = "shopifyin"
 
 urlpatterns = [
-    # Debug endpoint - remove after fixing
-    path(
-        "debug/",
-        views.ShopifyDebugView.as_view(),
-        name="debug",
-    ),
     path(
         "checkouts/",
         views.ShopifyCheckoutCreateView.as_view(),
