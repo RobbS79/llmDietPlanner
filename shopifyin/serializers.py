@@ -116,3 +116,4 @@ class ShopifyProductSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+

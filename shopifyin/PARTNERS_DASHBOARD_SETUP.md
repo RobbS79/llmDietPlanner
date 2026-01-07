@@ -126,3 +126,4 @@ This creates a "private app" just for your store, which is much simpler and does
 
 Since you're building a diet planner for your own use, the **private app method is recommended**.
 
+

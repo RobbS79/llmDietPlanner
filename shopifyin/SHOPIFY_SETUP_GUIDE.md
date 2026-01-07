@@ -190,3 +190,4 @@ For getting product variant IDs, you can:
 - Use Shopify Admin → Products → Click product → Look at URL or product details
 - Or use GraphQL query in Shopify's GraphQL explorer (advanced)
 
+
