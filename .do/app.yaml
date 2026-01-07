@@ -48,6 +48,9 @@ services:
       - key: OPENAI_API_KEY
         scope: RUN_TIME
         type: SECRET
+      - key: FIELD_ENCRYPTION_KEY
+        scope: RUN_TIME
+        type: SECRET
       - key: OPENAI_MODEL
         value: "gpt-4o-mini"
     routes:
