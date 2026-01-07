@@ -5,11 +5,13 @@ Uses DRF APIView for class-based views.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.db import connection
 from typing import Dict, Any, List
 import logging
+import traceback
 
 from .models import ShopifyStore, ShopifyCheckout, ShopifyProduct
 from .shopify_service import ShopifyService
@@ -375,3 +377,45 @@ class ShopifyProductListView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class ShopifyDebugView(APIView):
+    """
+    Debug endpoint to check shopifyin database status.
+    Remove in production after debugging!
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request) -> Response:
+        """Check if shopifyin tables exist and are accessible."""
+        results = {
+            "tables_exist": [],
+            "model_counts": {},
+            "errors": [],
+        }
+
+        # Check if tables exist
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT table_name FROM information_schema.tables
+                    WHERE table_schema = 'public' AND table_name LIKE 'shopifyin%%'
+                """)
+                tables = [row[0] for row in cursor.fetchall()]
+                results["tables_exist"] = tables
+        except Exception as e:
+            results["errors"].append(f"Table check error: {str(e)}")
+
+        # Try to access each model
+        for model_name, model_class in [
+            ("ShopifyStore", ShopifyStore),
+            ("ShopifyCheckout", ShopifyCheckout),
+            ("ShopifyProduct", ShopifyProduct),
+        ]:
+            try:
+                count = model_class.objects.count()
+                results["model_counts"][model_name] = count
+            except Exception as e:
+                results["errors"].append(f"{model_name} error: {str(e)}\n{traceback.format_exc()}")
+
+        return Response(results)
