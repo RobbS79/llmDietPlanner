@@ -3,6 +3,7 @@ URL configuration for shopifyin app.
 """
 from django.urls import path
 from . import views
+from . import webhooks
 
 app_name = "shopifyin"
 
@@ -26,6 +27,17 @@ urlpatterns = [
         "products/",
         views.ShopifyProductListView.as_view(),
         name="product-list",
+    ),
+    # Shopify webhooks
+    path(
+        "webhooks/order-paid/",
+        webhooks.shopify_order_paid_webhook,
+        name="webhook-order-paid",
+    ),
+    path(
+        "webhooks/order-cancelled/",
+        webhooks.shopify_order_cancelled_webhook,
+        name="webhook-order-cancelled",
     ),
 ]
 

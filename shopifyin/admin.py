@@ -31,6 +31,14 @@ class ShopifyStoreAdmin(admin.ModelAdmin):
             ),
             "description": "Storefront API token is required. Admin API credentials are optional.",
         }),
+        ("Webhook & Billing Configuration", {
+            "fields": (
+                "webhook_secret",
+                "meal_plan_variant_id",
+            ),
+            "description": "Webhook secret from Shopify Admin (Settings → Notifications → Webhooks). "
+                          "Meal plan variant ID is the Shopify variant ID for the €3 generation product.",
+        }),
         ("API URLs", {
             "fields": ("storefront_api_url", "admin_api_url"),
             "classes": ("collapse",),

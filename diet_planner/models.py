@@ -96,9 +96,15 @@ class DietaryGoal(models.Model):
     """
     class StatusChoices(models.TextChoices):
         PENDING = 'pending', 'Pending'
+        AWAITING_PAYMENT = 'awaiting_payment', 'Awaiting Payment'
+        PAYMENT_CONFIRMED = 'payment_confirmed', 'Payment Confirmed'
         PROCESSING = 'processing', 'Processing'
+        PROCESSING_MEAL_PLAN = 'processing_meal_plan', 'Generating Meal Plan'
+        PROCESSING_SHOPPING_LIST = 'processing_shopping_list', 'Creating Shopping List'
+        VALIDATING = 'validating', 'Validating'
         COMPLETED = 'completed', 'Completed'
         FAILED = 'failed', 'Failed'
+        REFUND_ELIGIBLE = 'refund_eligible', 'Refund Eligible'
     
     # User reference (not encrypted - needed for queries)
     user = models.ForeignKey(
@@ -120,10 +126,43 @@ class DietaryGoal(models.Model):
     
     # Non-sensitive metadata
     status = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=StatusChoices.choices,
         default=StatusChoices.PENDING,
         help_text="Processing status of the dietary goal"
+    )
+
+    # Payment tracking fields
+    is_free_generation = models.BooleanField(
+        default=False,
+        help_text="Whether this was a free generation (not charged)"
+    )
+    shopify_checkout_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Shopify checkout ID if payment required"
+    )
+    payment_confirmed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When payment was confirmed via webhook (ISO-8601)"
+    )
+
+    # Validation tracking
+    validation_passed = models.BooleanField(
+        default=False,
+        help_text="Whether the generated plan passed validation"
+    )
+    validation_errors = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="List of validation errors if validation failed"
+    )
+    error_message = models.TextField(
+        blank=True,
+        null=True,
+        help_text="User-friendly error message if generation failed"
     )
     
     # Location support (country/city determine currency automatically)
@@ -526,6 +565,34 @@ class LeafletOffer(models.Model):
         max_length=3,
         help_text="Currency code"
     )
+
+    # Price type tracking
+    PRICE_TYPE_CHOICES = [
+        ('DISCOUNTED', 'Discounted/Promotional'),
+        ('REGULAR', 'Regular Price'),
+        ('LLM_ESTIMATED', 'LLM Estimated'),
+    ]
+    price_type = models.CharField(
+        max_length=20,
+        choices=PRICE_TYPE_CHOICES,
+        default='REGULAR',
+        help_text="Type of price (from leaflet promotion, regular, or estimated)"
+    )
+    original_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0)],
+        help_text="Original price before discount (for discounted items)"
+    )
+    discount_percentage = models.IntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Discount percentage (for discounted items)"
+    )
+
     unit = models.CharField(
         max_length=50,
         blank=True,
@@ -728,10 +795,10 @@ class MealInstance(models.Model):
     class Meta:
         ordering = ['-cooked_at', '-created_at']
         indexes = [
-            models.Index(fields=['user', '-cooked_at'], name='diet_plann_mealinst_user_idx'),
-            models.Index(fields=['dietary_goal', 'day_number'], name='diet_plann_mealinst_goal_idx'),
-            models.Index(fields=['meal_identifier'], name='diet_plann_mealinst_meal_id_idx'),
-            models.Index(fields=['is_cooked'], name='diet_plann_mealinst_cook_idx'),
+            models.Index(fields=['user', '-cooked_at'], name='dp_mealinst_user_idx'),
+            models.Index(fields=['dietary_goal', 'day_number'], name='dp_mealinst_goal_idx'),
+            models.Index(fields=['meal_identifier'], name='dp_mealinst_mealid_idx'),
+            models.Index(fields=['is_cooked'], name='dp_mealinst_cooked_idx'),
         ]
         # Ensure a user can only have one instance per meal identifier
         unique_together = [['user', 'meal_identifier']]

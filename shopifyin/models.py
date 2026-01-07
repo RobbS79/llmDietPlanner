@@ -38,6 +38,18 @@ class ShopifyStore(models.Model):
         null=True,
         help_text="Shopify Admin API secret (optional - encrypted)"
     )
+    webhook_secret = EncryptedCharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Shopify webhook secret for verifying webhook signatures (encrypted)"
+    )
+    meal_plan_variant_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Shopify Product Variant ID for the meal plan generation product (e.g., gid://shopify/ProductVariant/...)"
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Whether this store configuration is active"
@@ -62,6 +74,15 @@ class ShopifyStore(models.Model):
     def admin_api_url(self) -> str:
         """Generate the Admin API URL for this store."""
         return f"https://{self.store_domain}/admin/api/2024-01"
+
+    def get_webhook_secret(self) -> Optional[str]:
+        """Get the decrypted webhook secret for HMAC verification."""
+        try:
+            if self.webhook_secret:
+                return self.webhook_secret
+        except Exception:
+            pass
+        return None
 
 
 class ShopifyCheckout(models.Model):
