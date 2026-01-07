@@ -411,6 +411,35 @@ class ShopifyTestConnectionView(APIView):
             # Check webhook secret
             results["webhook_configured"] = bool(store.get_webhook_secret())
 
+            # Try to validate variant ID by attempting a checkout
+            if store.meal_plan_variant_id:
+                try:
+                    # Ensure it's in the correct format
+                    variant_id = store.meal_plan_variant_id
+                    if not variant_id.startswith("gid://"):
+                        variant_id = f"gid://shopify/ProductVariant/{variant_id}"
+
+                    # Try creating a checkout to validate the variant
+                    test_checkout = shopify_service.create_checkout(
+                        line_items=[{"variantId": variant_id, "quantity": 1}],
+                        email="test@example.com"
+                    )
+                    results["variant_valid"] = True
+                    results["test_checkout_url"] = test_checkout.get("webUrl")
+                    results["test_checkout_price"] = test_checkout.get("totalPrice", {}).get("amount")
+                    results["test_checkout_currency"] = test_checkout.get("totalPrice", {}).get("currencyCode")
+                    # Clear the meal_plan_product error since variant works
+                    results["errors"] = [e for e in results["errors"] if "not found in products" not in e]
+                    results["meal_plan_product"] = {
+                        "variant_id": variant_id,
+                        "price": results["test_checkout_price"],
+                        "currency": results["test_checkout_currency"],
+                        "available": True,
+                    }
+                except Exception as e:
+                    results["variant_valid"] = False
+                    results["variant_error"] = str(e)
+
         except Exception as e:
             results["errors"].append(f"Unexpected error: {str(e)}")
 
