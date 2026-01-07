@@ -80,72 +80,72 @@ class ShopifyService:
         custom_attributes: Optional[List[Dict[str, str]]] = None
     ) -> Dict[str, Any]:
         """
-        Create a Shopify checkout.
-        
+        Create a Shopify cart (replaces deprecated checkout API).
+
         Args:
             line_items: List of line items, each with 'variantId' and 'quantity'
                        Example: [{"variantId": "gid://shopify/ProductVariant/123", "quantity": 1}]
             email: Optional customer email
-            shipping_address: Optional shipping address dict
+            shipping_address: Optional shipping address dict (not used in cart API)
             note: Optional note for the order
             custom_attributes: Optional custom attributes
-            
-        Returns:
-            Checkout data including checkout ID, token, and web URL
-        """
-        # Build custom attributes
-        attributes_list = []
-        if custom_attributes:
-            for attr in custom_attributes:
-                attributes_list.append({
-                    "key": attr.get("key", ""),
-                    "value": attr.get("value", ""),
-                })
 
-        # Build shipping address input
-        shipping_address_input = None
-        if shipping_address:
-            shipping_address_input = {
-                "address1": shipping_address.get("address1", ""),
-                "address2": shipping_address.get("address2"),
-                "city": shipping_address.get("city", ""),
-                "country": shipping_address.get("country", ""),
-                "province": shipping_address.get("province"),
-                "zip": shipping_address.get("zip", ""),
-                "firstName": shipping_address.get("firstName"),
-                "lastName": shipping_address.get("lastName"),
+        Returns:
+            Cart data including cart ID, token, and checkout URL
+        """
+        # Build cart lines from line items
+        cart_lines = []
+        for item in line_items:
+            line = {
+                "merchandiseId": item.get("variantId"),
+                "quantity": item.get("quantity", 1),
             }
+            # Add custom attributes to line item if provided
+            if custom_attributes:
+                line["attributes"] = [
+                    {"key": attr.get("key", ""), "value": attr.get("value", "")}
+                    for attr in custom_attributes
+                ]
+            cart_lines.append(line)
+
+        # Build buyer identity if email provided
+        buyer_identity = None
+        if email:
+            buyer_identity = {"email": email}
 
         query = """
-        mutation checkoutCreate($input: CheckoutCreateInput!) {
-            checkoutCreate(input: $input) {
-                checkout {
+        mutation cartCreate($input: CartInput!) {
+            cartCreate(input: $input) {
+                cart {
                     id
-                    webUrl
-                    token
-                    totalPrice {
-                        amount
-                        currencyCode
+                    checkoutUrl
+                    totalQuantity
+                    cost {
+                        totalAmount {
+                            amount
+                            currencyCode
+                        }
                     }
-                    lineItems(first: 100) {
+                    lines(first: 100) {
                         edges {
                             node {
                                 id
-                                title
                                 quantity
-                                variant {
-                                    id
-                                    title
-                                    price {
-                                        amount
-                                        currencyCode
+                                merchandise {
+                                    ... on ProductVariant {
+                                        id
+                                        title
+                                        price {
+                                            amount
+                                            currencyCode
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                checkoutUserErrors {
+                userErrors {
                     field
                     message
                 }
@@ -155,33 +155,35 @@ class ShopifyService:
 
         variables = {
             "input": {
-                "lineItems": line_items,
+                "lines": cart_lines,
             }
         }
 
-        if email:
-            variables["input"]["email"] = email
-        if shipping_address_input:
-            variables["input"]["shippingAddress"] = shipping_address_input
+        if buyer_identity:
+            variables["input"]["buyerIdentity"] = buyer_identity
         if note:
             variables["input"]["note"] = note
-        if attributes_list:
-            variables["input"]["customAttributes"] = attributes_list
 
         data = self._execute_graphql_query(query, variables)
-        checkout_create = data.get("checkoutCreate", {})
+        cart_create = data.get("cartCreate", {})
 
         # Check for user errors
-        errors = checkout_create.get("checkoutUserErrors", [])
+        errors = cart_create.get("userErrors", [])
         if errors:
             error_messages = [err.get("message", "Unknown error") for err in errors]
-            raise Exception(f"Checkout creation errors: {', '.join(error_messages)}")
+            raise Exception(f"Cart creation errors: {', '.join(error_messages)}")
 
-        checkout = checkout_create.get("checkout")
-        if not checkout:
-            raise Exception("No checkout returned from Shopify API")
+        cart = cart_create.get("cart")
+        if not cart:
+            raise Exception("No cart returned from Shopify API")
 
-        return checkout
+        # Map cart response to checkout-like structure for compatibility
+        return {
+            "id": cart.get("id"),
+            "webUrl": cart.get("checkoutUrl"),
+            "token": cart.get("id", "").split("/")[-1] if cart.get("id") else "",
+            "totalPrice": cart.get("cost", {}).get("totalAmount", {}),
+        }
 
     def get_checkout(self, checkout_token: str) -> Dict[str, Any]:
         """
