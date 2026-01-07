@@ -68,12 +68,12 @@ class ShopifyStore(models.Model):
     @property
     def storefront_api_url(self) -> str:
         """Generate the Storefront API URL for this store."""
-        return f"https://{self.store_domain}/api/2024-01/graphql.json"
+        return f"https://{self.store_domain}/api/2025-01/graphql.json"
 
     @property
     def admin_api_url(self) -> str:
         """Generate the Admin API URL for this store."""
-        return f"https://{self.store_domain}/admin/api/2024-01"
+        return f"https://{self.store_domain}/admin/api/2025-01"
 
     def get_webhook_secret(self) -> Optional[str]:
         """Get the decrypted webhook secret for HMAC verification."""

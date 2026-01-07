@@ -27,7 +27,7 @@ class ShopifyService:
         """
         self.store_domain = store_domain
         self.storefront_token = storefront_token
-        self.api_url = f"https://{store_domain}/api/2024-01/graphql.json"
+        self.api_url = f"https://{store_domain}/api/2025-01/graphql.json"
         self.headers = {
             "Content-Type": "application/json",
             "X-Shopify-Storefront-Access-Token": storefront_token,
