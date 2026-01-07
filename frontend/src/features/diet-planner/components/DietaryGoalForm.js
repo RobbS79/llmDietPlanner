@@ -4,12 +4,15 @@ import { CountryCitySelector } from './CountryCitySelector';
 import { LanguageSelector } from './LanguageSelector';
 import { ShopSelector } from './ShopSelector';
 import { COUNTRY_DEFAULT_LANGUAGE } from '../types';
+import { useAuth } from '../../../contexts/AuthContext';
+import { shopifyAPI } from '../../../utils/api';
 import './form.css';
 
 /**
  * Main form component for creating dietary goals
  */
 export function DietaryGoalForm({ onSuccess }) {
+  const { freeGenerationsRemaining, refreshProfile } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
   const [country, setCountry] = useState('');
@@ -23,8 +26,13 @@ export function DietaryGoalForm({ onSuccess }) {
   const [smallMealsPerDay, setSmallMealsPerDay] = useState(2);
   const [snacksPerDay, setSnacksPerDay] = useState(1);
   const [errors, setErrors] = useState({});
+  const [isRedirectingToPayment, setIsRedirectingToPayment] = useState(false);
 
   const createGoalMutation = useCreateDietaryGoal();
+
+  // Meal plan variant ID from Shopify store configuration
+  // This should match the variant ID configured in Django admin ShopifyStore
+  const MEAL_PLAN_VARIANT_ID = 'gid://shopify/ProductVariant/53735999340874';
 
   const handleCountryChange = (newCountry) => {
     setCountry(newCountry);
@@ -81,34 +89,79 @@ export function DietaryGoalForm({ onSuccess }) {
     }
 
     try {
-      const result = await createGoalMutation.mutateAsync({
-        prompt: prompt.trim(),
-        dietary_restrictions: dietaryRestrictions.trim() || null,
-        country,
-        city: city.trim(),
-        shop: shop || null,
-        language_code: languageCode,
-        num_days: numDays,
-        breakfast: breakfast,
-        lunch: lunch,
-        dinner: dinner,
-        small_meals_per_day: smallMealsPerDay,
-        snacks_per_day: snacksPerDay,
-      });
+      // Check if user has free generations
+      if (freeGenerationsRemaining > 0) {
+        // Free generation - create goal directly
+        const result = await createGoalMutation.mutateAsync({
+          prompt: prompt.trim(),
+          dietary_restrictions: dietaryRestrictions.trim() || null,
+          country,
+          city: city.trim(),
+          shop: shop || null,
+          language_code: languageCode,
+          num_days: numDays,
+          breakfast: breakfast,
+          lunch: lunch,
+          dinner: dinner,
+          small_meals_per_day: smallMealsPerDay,
+          snacks_per_day: snacksPerDay,
+        });
 
-      if (result.status === 'success') {
-        // Reset form
-        setPrompt('');
-        setDietaryRestrictions('');
-        setCountry('');
-        setCity('');
-        setShop('');
-        setLanguageCode('cs'); // Reset to Czech default for MVP
-        setErrors({});
+        if (result.status === 'success') {
+          // Refresh profile to update free_generations_remaining
+          await refreshProfile();
 
-        // Call success callback if provided
-        if (onSuccess) {
-          onSuccess(result.data);
+          // Reset form
+          setPrompt('');
+          setDietaryRestrictions('');
+          setCountry('');
+          setCity('');
+          setShop('');
+          setLanguageCode('cs'); // Reset to Czech default for MVP
+          setErrors({});
+
+          // Call success callback if provided
+          if (onSuccess) {
+            onSuccess(result.data);
+          }
+        }
+      } else {
+        // No free generations - redirect to Shopify checkout
+        setIsRedirectingToPayment(true);
+
+        try {
+          // Create Shopify checkout with meal plan variant
+          const checkoutResult = await shopifyAPI.createCheckout(
+            [MEAL_PLAN_VARIANT_ID],
+            [1],
+            {
+              // Store form data as metadata for later use after payment
+              prompt: prompt.trim(),
+              dietary_restrictions: dietaryRestrictions.trim() || '',
+              country,
+              city: city.trim(),
+              shop: shop || '',
+              language_code: languageCode,
+              num_days: numDays,
+              breakfast: breakfast,
+              lunch: lunch,
+              dinner: dinner,
+              small_meals_per_day: smallMealsPerDay,
+              snacks_per_day: snacksPerDay,
+            }
+          );
+
+          if (checkoutResult.status === 'success' && checkoutResult.data?.checkout_url) {
+            // Redirect to Shopify checkout
+            window.location.href = checkoutResult.data.checkout_url;
+          } else {
+            throw new Error('Failed to create checkout');
+          }
+        } catch (checkoutError) {
+          setIsRedirectingToPayment(false);
+          setErrors({
+            submit: checkoutError.message || 'Failed to create payment session. Please try again.'
+          });
         }
       }
     } catch (error) {
@@ -120,6 +173,24 @@ export function DietaryGoalForm({ onSuccess }) {
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Create Your Dietary Goal</h2>
+
+      {/* Free Generations Counter */}
+      <div className={`mb-6 p-4 rounded-lg ${freeGenerationsRemaining > 0 ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+        {freeGenerationsRemaining > 0 ? (
+          <p className="text-sm text-green-700">
+            <span className="font-semibold">Free generations remaining:</span> {freeGenerationsRemaining}
+          </p>
+        ) : (
+          <div>
+            <p className="text-sm text-yellow-800 font-semibold">
+              No free generations remaining
+            </p>
+            <p className="text-xs text-yellow-700 mt-1">
+              Creating a meal plan will require payment (100 CZK)
+            </p>
+          </div>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Dietary Prompt */}
@@ -325,14 +396,22 @@ export function DietaryGoalForm({ onSuccess }) {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={createGoalMutation.isPending}
+            disabled={createGoalMutation.isPending || isRedirectingToPayment}
             className={`px-6 py-2 rounded-md font-medium text-white ${
-              createGoalMutation.isPending
+              createGoalMutation.isPending || isRedirectingToPayment
                 ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                : freeGenerationsRemaining > 0
+                  ? 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500'
             } transition-colors`}
           >
-            {createGoalMutation.isPending ? 'Creating...' : 'Create Dietary Goal'}
+            {createGoalMutation.isPending
+              ? 'Creating...'
+              : isRedirectingToPayment
+                ? 'Redirecting to payment...'
+                : freeGenerationsRemaining > 0
+                  ? 'Create Dietary Goal'
+                  : 'Proceed to Payment (100 CZK)'}
           </button>
         </div>
       </form>

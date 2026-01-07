@@ -5,7 +5,7 @@ Uses DRF APIView for class-based views.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
@@ -22,6 +22,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .schemas import RegistrationRequest, LoginRequest, EmailVerificationRequest
 from .utils import generate_email_verification_token, verify_email_token, get_verification_email_content
 from .tasks import send_verification_email_task
+from .models import UserProfile
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -603,5 +604,59 @@ class TestEmailView(APIView):
                     "error": f"Failed to send test email: {error_msg}"
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class UserProfileView(APIView):
+    """
+    API endpoint to get user profile including free generations remaining.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:
+        """
+        Get current user's profile information.
+
+        Response:
+        {
+            "status": "success",
+            "data": {
+                "id": 1,
+                "username": "testuser",
+                "email": "test@example.com",
+                "free_generations_remaining": 10,
+                "total_generations": 0
+            },
+            "error": null
+        }
+        """
+        try:
+            user = request.user
+
+            # Get or create user profile
+            profile, created = UserProfile.objects.get_or_create(user=user)
+
+            return Response(
+                {
+                    "status": "success",
+                    "data": {
+                        "id": user.id,
+                        "username": user.username,
+                        "email": user.email,
+                        "free_generations_remaining": profile.free_generations_remaining,
+                        "total_generations": profile.total_generations,
+                    },
+                    "error": None,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "status": "error",
+                    "data": None,
+                    "error": f"Failed to get user profile: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

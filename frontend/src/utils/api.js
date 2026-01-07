@@ -171,10 +171,63 @@ export const authAPI = {
   },
 
   /**
+   * Get current user profile including free generations remaining
+   */
+  getProfile: async () => {
+    const response = await apiRequest('/auth/profile/');
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to get profile');
+    }
+    return data;
+  },
+
+  /**
    * Logout user
    */
   logout: () => {
     clearTokens();
+  },
+};
+
+/**
+ * Shopify API functions
+ */
+export const shopifyAPI = {
+  /**
+   * Create a Shopify checkout for meal plan purchase
+   * @param {string[]} variantIds - Array of Shopify product variant IDs
+   * @param {number[]} quantities - Array of quantities for each variant
+   * @param {Object} metadata - Metadata to attach to checkout (e.g., { goal_id: 123 })
+   */
+  createCheckout: async (variantIds, quantities, metadata = {}) => {
+    const response = await apiRequest('/shopify/checkouts/', {
+      method: 'POST',
+      body: JSON.stringify({
+        variant_ids: variantIds,
+        quantities: quantities,
+        metadata: metadata,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to create checkout');
+    }
+    return data;
+  },
+
+  /**
+   * Get checkout status
+   * @param {number} checkoutId - Django checkout ID
+   */
+  getCheckoutStatus: async (checkoutId) => {
+    const response = await apiRequest(`/shopify/checkouts/${checkoutId}/`);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to get checkout status');
+    }
+    return data;
   },
 };
 

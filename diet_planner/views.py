@@ -13,7 +13,7 @@ from typing import Dict, Any
 from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, get_currency_for_country, get_shops_for_country, SHOP_CHOICES
 from .llm_service import OpenAIService
 from .serializers import (
-    DietaryGoalSerializer, 
+    DietaryGoalSerializer,
     DietaryGoalDetailSerializer,
     RecipeSerializer,
     MealInstanceSerializer,
@@ -22,6 +22,7 @@ from .serializers import (
 from .schemas import DietaryGoalCreateRequest, DietaryGoalCreateResponse
 from .tasks import process_dietary_goal_task, build_llm_prompt_json
 from celery.result import AsyncResult
+from login_app.models import UserProfile
 
 
 class DietaryGoalCreateView(APIView):
@@ -58,10 +59,14 @@ class DietaryGoalCreateView(APIView):
         try:
             # Validate request using Pydantic schema
             schema = DietaryGoalCreateRequest(**request.data)
-            
+
             # Auto-determine currency from country
             currency = get_currency_for_country(schema.country.value)
-            
+
+            # Get or create user profile and check for free generations
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            is_free_generation = profile.has_free_generations()
+
             # Create dietary goal
             dietary_goal = DietaryGoal.objects.create(
                 user=request.user,
@@ -78,9 +83,14 @@ class DietaryGoalCreateView(APIView):
                 small_meals_per_day=schema.small_meals_per_day,
                 snacks_per_day=schema.snacks_per_day,
                 shop=schema.shop.value if schema.shop else None,
-                status=DietaryGoal.StatusChoices.PENDING
+                status=DietaryGoal.StatusChoices.PENDING,
+                is_free_generation=is_free_generation,
             )
-            
+
+            # Use free generation if available
+            if is_free_generation:
+                profile.use_free_generation()
+
             # Trigger async Celery task for LLM processing (optional - graceful fallback if Celery unavailable)
             try:
                 task = process_dietary_goal_task.delay(dietary_goal.id)
