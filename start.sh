@@ -3,11 +3,12 @@ set -e
 
 echo "=== Starting application ==="
 
-echo "Creating migrations for diet_planner app..."
-python manage.py makemigrations diet_planner --noinput || echo "Note: makemigrations may have failed or no changes needed"
+echo "Showing pending migrations..."
+python manage.py showmigrations --plan | grep -E "^\[ \]" || echo "No pending migrations"
 
 echo "Running database migrations..."
-python manage.py migrate --noinput || echo "Migration failed, continuing..."
+python manage.py migrate --noinput -v 2
+echo "Migrations completed successfully!"
 
 echo "Collecting static files..."
 python manage.py collectstatic --noinput || echo "Collectstatic failed, continuing..."
