@@ -329,6 +329,94 @@ class ShopifyCheckoutListView(APIView):
             )
 
 
+class ShopifyTestConnectionView(APIView):
+    """
+    Test Shopify API connection and configuration.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request) -> Response:
+        """Test the Shopify connection and meal plan product setup."""
+        results = {
+            "store_configured": False,
+            "api_connection": False,
+            "meal_plan_product": None,
+            "products_found": 0,
+            "errors": [],
+        }
+
+        try:
+            # Get active store
+            store = ShopifyStore.objects.filter(is_active=True).first()
+            if not store:
+                results["errors"].append("No active Shopify store configured")
+                return Response(results)
+
+            results["store_configured"] = True
+            results["store_name"] = store.name
+            results["store_domain"] = store.store_domain
+
+            # Initialize Shopify service
+            shopify_service = ShopifyService(
+                store_domain=store.store_domain,
+                storefront_token=store.storefront_access_token,
+            )
+
+            # Test API connection by fetching products
+            try:
+                products = shopify_service.search_products(query="", first=5)
+                results["api_connection"] = True
+                results["products_found"] = len(products)
+                results["products"] = [
+                    {"title": p.get("title"), "id": p.get("id")}
+                    for p in products
+                ]
+            except Exception as e:
+                results["errors"].append(f"API connection failed: {str(e)}")
+                return Response(results)
+
+            # Check meal plan variant ID
+            if store.meal_plan_variant_id:
+                results["meal_plan_variant_id"] = store.meal_plan_variant_id
+
+                # Try to find the product with this variant
+                # Extract product ID from variant ID if possible
+                try:
+                    # Search for meal plan product
+                    meal_products = shopify_service.search_products(query="meal plan", first=5)
+                    for product in meal_products:
+                        variants = product.get("variants", {}).get("edges", [])
+                        for variant_edge in variants:
+                            variant = variant_edge.get("node", {})
+                            if variant.get("id") == store.meal_plan_variant_id:
+                                results["meal_plan_product"] = {
+                                    "title": product.get("title"),
+                                    "variant_title": variant.get("title"),
+                                    "price": variant.get("price", {}).get("amount"),
+                                    "currency": variant.get("price", {}).get("currencyCode"),
+                                    "available": variant.get("availableForSale"),
+                                }
+                                break
+
+                    if not results["meal_plan_product"]:
+                        results["errors"].append(
+                            f"Meal plan variant ID '{store.meal_plan_variant_id}' not found in products. "
+                            "Make sure the product exists and is published to the Storefront API."
+                        )
+                except Exception as e:
+                    results["errors"].append(f"Failed to verify meal plan product: {str(e)}")
+            else:
+                results["errors"].append("No meal_plan_variant_id configured in store settings")
+
+            # Check webhook secret
+            results["webhook_configured"] = bool(store.get_webhook_secret())
+
+        except Exception as e:
+            results["errors"].append(f"Unexpected error: {str(e)}")
+
+        return Response(results)
+
+
 class ShopifyProductListView(APIView):
     """
     List available Shopify products (from cache).

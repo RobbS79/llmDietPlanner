@@ -9,6 +9,11 @@ app_name = "shopifyin"
 
 urlpatterns = [
     path(
+        "test/",
+        views.ShopifyTestConnectionView.as_view(),
+        name="test-connection",
+    ),
+    path(
         "checkouts/",
         views.ShopifyCheckoutCreateView.as_view(),
         name="checkout-create",
