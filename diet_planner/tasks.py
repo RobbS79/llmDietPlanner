@@ -1,22 +1,3 @@
-"""
-Celery tasks for async LLM processing.
-Handles dietary goal processing, meal idea generation, and shopping list creation.
-"""
-from celery import shared_task
-from django.utils import timezone
-from typing import Dict, Any, List, Optional
-import json
-import logging
-
-from .models import DietaryGoal, DietaryPlan
-from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
-from .llm_service import OpenAIService
-from .scrapers.scraper_service import ScraperService
-
-"""
-Celery tasks for async LLM processing.
-Handles dietary goal processing, meal idea generation, and shopping list creation.
-"""
 from celery import shared_task
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
@@ -29,7 +10,6 @@ from .models import DietaryGoal, DietaryPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 from .llm_service import OpenAIService
 from .scrapers.scraper_service import ScraperService
-
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +120,22 @@ def scrape_leaflet_task(self, shop: str, country: str) -> Dict[str, Any]:
         raise self.retry(exc=exc, countdown=60)
 
 
+
+def normalize_unit(unit: str) -> str:
+    """Standardize units for comparison."""
+    if not unit: return ''
+    u = str(unit).lower().strip()
+    mapping = {
+        'kg': 'kg', 'kilogram': 'kg', 'kilogramy': 'kg', 'kg.': 'kg',
+        'g': 'g', 'gram': 'g', 'gramy': 'g', 'g.': 'g',
+        'l': 'l', 'litr': 'l', 'litry': 'l', 'litrů': 'l',
+        'ml': 'ml', 'mililitr': 'ml', 'ml.': 'ml',
+        'ks': 'ks', 'kus': 'ks', 'kusy': 'ks', 'kusů': 'ks', 'piece': 'ks', 'pcs': 'ks'
+    }
+    return mapping.get(u, u)
+
+
+
 def convert_to_base_value(val: Decimal, unit: str) -> Decimal:
     """Convert value to base metric unit (g, ml, ks)."""
     u = normalize_unit(unit)
@@ -148,9 +144,10 @@ def convert_to_base_value(val: Decimal, unit: str) -> Decimal:
     return val
 
 
+
 def parse_numeric(val: Any) -> Optional[Decimal]:
     """Extract decimal from various formats."""
-    if val is None: return None
+    if val is None or val == '': return None
     if isinstance(val, (int, float, Decimal)): return Decimal(str(val))
     match = re.search(r'([\d,\.]+)', str(val))
     if match:
@@ -163,7 +160,6 @@ def parse_numeric(val: Any) -> Optional[Decimal]:
 def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
     """
     Logic: Determine how many full packages are needed to satisfy the required quantity.
-    Prevents per-gram inflation errors.
     """
     req_qty = parse_numeric(item.get('quantity'))
     req_unit = normalize_unit(item.get('unit'))
@@ -174,34 +170,23 @@ def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
     if req_qty is None or off_price is None:
         return None
 
-    # Step 1: Normalize requirement to base units (g, ml, ks)
     req_base = convert_to_base_value(req_qty, req_unit)
     
-    # Step 2: Determine package capacity in base units
-    # If off_pkg_size exists, the price is for that size. 
-    # If not, we assume price is per standard unit (1kg, 1l, or 1ks)
     if off_pkg_size and off_pkg_size > 0:
         pkg_base = convert_to_base_value(off_pkg_size, off_unit)
     else:
-        # Fallback: Price per kg/l/ks
-        if off_unit in ['kg', 'l']:
-            pkg_base = Decimal('1000')
-        else:
-            pkg_base = Decimal('1')
+        pkg_base = Decimal('1000') if off_unit in ['kg', 'l'] else Decimal('1')
 
-    # Logging for debug
-    logger.info(f"[CALC] Item: {item.get('ingredient')} | Need: {req_base} base | Pkg: {pkg_base} base | Price: {off_price}")
+    # Guard against division by zero
+    if pkg_base <= 0: return off_price
 
-    # Step 3: Calculate whole packages needed
+    # Calculate whole packages needed (e.g., needing 400g from 500g pkg = 1 pkg)
     num_packages = (req_base / pkg_base).to_integral_value(rounding='ROUND_CEILING')
     
-    # Cap absurd multipliers (sanity check)
-    if num_packages > 100:
-        logger.warning(f"[CALC] Sanity limit hit for {item.get('ingredient')}. Capping at 10 packages.")
-        num_packages = Decimal('10')
+    # Sanity check to prevent massive numbers
+    if num_packages > 100: num_packages = Decimal('10')
 
-    total = num_packages * off_price
-    return total
+    return num_packages * off_price
 
 
 @shared_task(bind=True, max_retries=3)
@@ -222,32 +207,49 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         )
 
         llm_response = llm_result['response']
+        # CRITICAL: Preserve the shopping list from LLM response
         shopping_list = llm_response.get('shopping_list', [])
         
-        # Enhanced Pricing Calculation
         total_sum = Decimal('0')
         for item in shopping_list:
-            # First try optimal matching if shop exists
-            item_price = calculate_package_aware_price(item)
+            # 1. Try our new backend math first
+            calculated_price = calculate_package_aware_price(item)
             
-            if item_price:
-                item['price_total'] = float(item_price)
-                item['price'] = float(item_price) # Set for UI
-                total_sum += item_price
+            if calculated_price:
+                item['price_total'] = float(calculated_price)
+                item['price'] = float(calculated_price)
+                total_sum += calculated_price
+                item['price_source'] = 'backend_package_logic'
             else:
-                # Attempt fallback estimation for missing items
-                est = llm_service.estimate_product_price(item.get('ingredient'), item.get('quantity'), item.get('unit'), goal.shop, goal.country)
+                # 2. If backend logic fails, try LLM's own price estimation fallback
+                est = llm_service.estimate_product_price(
+                    item.get('ingredient'), 
+                    item.get('quantity'), 
+                    item.get('unit'), 
+                    goal.shop, 
+                    goal.country
+                )
                 if est:
-                    item.update({'price': float(est['price']), 'currency': est['currency'], 'matched_product_name': est['display_name'], 'estimated': True})
+                    item.update({
+                        'price': float(est['price']),
+                        'currency': est['currency'],
+                        'matched_product_name': est['display_name'],
+                        'estimated': True,
+                        'price_source': 'llm_estimation_service'
+                    })
                     total_sum += est['price']
 
         plan = DietaryPlan.objects.create(
             dietary_goal=goal,
             days=transform_days_to_new_format(llm_response.get('days', []), goal),
-            shopping_list=shopping_list,
+            shopping_list=shopping_list, # Now explicitly passed here
             total_price=total_sum,
             currency=goal.currency,
-            llm_model_used=llm_result.get('model')
+            llm_model_used=llm_result.get('model'),
+            llm_input_tokens=llm_result.get('input_tokens'),
+            llm_output_tokens=llm_result.get('output_tokens'),
+            llm_total_tokens=llm_result.get('total_tokens'),
+            llm_cost_usd=llm_result.get('cost_usd')
         )
 
         goal.status = DietaryGoal.StatusChoices.COMPLETED
@@ -257,10 +259,12 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         return {'status': 'success', 'plan_id': plan.id}
 
     except Exception as exc:
+        logger.error(f"Task failed for goal {goal_id}: {str(exc)}", exc_info=True)
         goal = DietaryGoal.objects.get(id=goal_id)
         goal.status = DietaryGoal.StatusChoices.FAILED
         goal.save(update_fields=['status'])
         raise self.retry(exc=exc, countdown=30)
+
 
 def generate_mock_llm_response() -> Dict[str, Any]:
     """
