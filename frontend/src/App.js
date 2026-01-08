@@ -32,16 +32,20 @@ const App = () => {
     weight: '',
     targetWeight: '',
     height: '',
+    country: 'CZ', // CZ or SK
     location: '',
-    nutritionGoal: '', 
-    store_id: null, // Selected store ID
+    nutritionGoal: '',
+    shop: '', // Selected grocery shop (LIDL_CZ, ROHLIK, etc.)
+    store_id: null, // Selected Shopify store ID for payment
     mainCourses: ['Breakfast', 'Lunch', 'Dinner'],
     smallMeals: ['Morning Snack', 'Afternoon Snack'],
     smallSnacks: [],
   });
 
-  const [stores, setStores] = useState([]);
+  const [stores, setStores] = useState([]); // Shopify stores for payment
+  const [groceryShops, setGroceryShops] = useState([]); // Grocery shops for meal planning
   const [isLoadingStores, setIsLoadingStores] = useState(false);
+  const [isLoadingShops, setIsLoadingShops] = useState(false);
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -55,29 +59,54 @@ const App = () => {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Fetch active stores from backend on mount
+  // Fetch active Shopify stores from backend on mount
   useEffect(() => {
     const fetchStores = async () => {
       setIsLoadingStores(true);
       try {
-        // Assuming your backend has a list endpoint for ShopifyStore models
         const response = await fetch('/api/shopify/stores/');
         const result = await response.json();
         if (result.status === 'success') {
           setStores(result.data || []);
-          // Automatically select the first store if available
           if (result.data?.length > 0) {
             setFormData(prev => ({ ...prev, store_id: result.data[0].id }));
           }
         }
       } catch (err) {
-        console.error("Failed to fetch stores:", err);
+        console.error("Failed to fetch Shopify stores:", err);
       } finally {
         setIsLoadingStores(false);
       }
     };
     fetchStores();
   }, []);
+
+  // Fetch grocery shops when country changes
+  useEffect(() => {
+    const fetchGroceryShops = async () => {
+      if (!formData.country) return;
+      setIsLoadingShops(true);
+      try {
+        const response = await fetch(`/api/shops/?country=${formData.country}`);
+        const result = await response.json();
+        if (result.status === 'success') {
+          setGroceryShops(result.data?.shops || []);
+          // Auto-select first shop
+          if (result.data?.shops?.length > 0) {
+            setFormData(prev => ({ ...prev, shop: result.data.shops[0].code }));
+          } else {
+            setFormData(prev => ({ ...prev, shop: '' }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch grocery shops:", err);
+        setGroceryShops([]);
+      } finally {
+        setIsLoadingShops(false);
+      }
+    };
+    fetchGroceryShops();
+  }, [formData.country]);
 
   // Helper for Gemini API calls with exponential backoff
   const callGemini = async (prompt, systemInstruction = "") => {
@@ -255,14 +284,37 @@ const App = () => {
               </div>
             </div>
 
+            {/* Country Selector */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-2">
+                <MapPin className="w-3 h-3" /> Země
+              </label>
+              <div className="flex bg-gray-100 p-1 rounded-2xl">
+                {[{ code: 'CZ', label: 'Česko 🇨🇿' }, { code: 'SK', label: 'Slovensko 🇸🇰' }].map((c) => (
+                  <button
+                    key={c.code}
+                    onClick={() => setFormData({ ...formData, country: c.code, location: '' })}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                      formData.country === c.code ? 'bg-white shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Location & Grocery Shop */}
+          <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2 relative">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Lokalita (CZ/SK)</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Město</label>
               <div className="relative">
                 <Search className="absolute left-3.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
-                <input 
+                <input
                   name="location" value={formData.location} onChange={handleLocationChange}
                   className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold"
-                  placeholder="Město..."
+                  placeholder={formData.country === 'CZ' ? 'Praha, Brno...' : 'Bratislava, Košice...'}
                 />
               </div>
               {showSuggestions && locationSuggestions.length > 0 && (
@@ -273,31 +325,31 @@ const App = () => {
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Section: Store Selection */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-2">
-              <Store className="w-3 h-3" /> Vyberte obchod (Shop)
-            </label>
-            <div className="relative">
-              {isLoadingStores ? (
-                <div className="w-full p-2.5 bg-gray-100 rounded-xl animate-pulse h-10"></div>
-              ) : (
-                <select
-                  name="store_id"
-                  value={formData.store_id || ''}
-                  onChange={handleInputChange}
-                  className="w-full p-2.5 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold appearance-none"
-                >
-                  <option value="" disabled>Vyberte dostupný obchod...</option>
-                  {stores.map(store => (
-                    <option key={store.id} value={store.id}>{store.name || store.store_domain}</option>
-                  ))}
-                </select>
-              )}
-              <div className="absolute right-4 top-3 pointer-events-none text-slate-400">
-                <ChevronRight className="w-4 h-4 rotate-90" />
+            {/* Grocery Shop Selector */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-2">
+                <Store className="w-3 h-3" /> Obchod pro nákup
+              </label>
+              <div className="relative">
+                {isLoadingShops ? (
+                  <div className="w-full p-2.5 bg-gray-100 rounded-xl animate-pulse h-10"></div>
+                ) : (
+                  <select
+                    name="shop"
+                    value={formData.shop || ''}
+                    onChange={handleInputChange}
+                    className="w-full p-2.5 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold appearance-none"
+                  >
+                    <option value="" disabled>Vyberte obchod...</option>
+                    {groceryShops.map(shop => (
+                      <option key={shop.code} value={shop.code}>{shop.name}</option>
+                    ))}
+                  </select>
+                )}
+                <div className="absolute right-4 top-3 pointer-events-none text-slate-400">
+                  <ChevronRight className="w-4 h-4 rotate-90" />
+                </div>
               </div>
             </div>
           </div>

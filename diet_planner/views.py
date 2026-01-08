@@ -598,8 +598,9 @@ class ScraperDebugView(APIView):
 class ShopsListView(APIView):
     """
     Get list of available shops for a country.
+    Public endpoint - no authentication required.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
     
     def get(self, request) -> Response:
         """
