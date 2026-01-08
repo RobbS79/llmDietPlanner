@@ -13,6 +13,24 @@ from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 from .llm_service import OpenAIService
 from .scrapers.scraper_service import ScraperService
 
+"""
+Celery tasks for async LLM processing.
+Handles dietary goal processing, meal idea generation, and shopping list creation.
+"""
+from celery import shared_task
+from django.utils import timezone
+from typing import Dict, Any, List, Optional
+import json
+import logging
+import re
+from decimal import Decimal
+
+from .models import DietaryGoal, DietaryPlan
+from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
+from .llm_service import OpenAIService
+from .scrapers.scraper_service import ScraperService
+
+
 logger = logging.getLogger(__name__)
 
 
