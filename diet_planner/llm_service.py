@@ -662,9 +662,9 @@ Vrať JSON objekt s následující strukturou:
 
 Důležité:
 - Uveď cenu jako číslo (desetinné číslo, ne string)
-- Pokud znáš typické balení (např. "pepř 20g", "sůl 500g"), uveď to v unit
+- Pokud znáš typické balení (např. "pepř 20g", "sůl 500g", "jogurt 100g", "mleko 1L", "olej 700ml"), uveď to v unit
 - Pokud odhaduješ cenu pro konkrétní množství, uveď cenu celkem pro to množství
-- Pokud odhaduješ cenu za jednotku (kg, ks), uveď jednotkovou cenu a unit
+- Pokud odhaduješ cenu za jednotku (kg, ks, ml), uveď jednotkovou cenu a unit
 
 Příklad pro pepř černý mletý 20g v Lidl ČR:
 {{
