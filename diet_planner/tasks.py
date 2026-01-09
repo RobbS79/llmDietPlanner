@@ -37,6 +37,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import json
 import logging
 import re
+import uuid
 from decimal import Decimal
 
 from .models import DietaryGoal, DietaryPlan
@@ -171,7 +172,7 @@ def get_ingredient_category(ingredient_name: str) -> Optional[str]:
     return None
 
 
-def validate_shopping_item(item: Dict[str, Any], num_days: int = 7) -> Dict[str, Any]:
+def validate_shopping_item(item: Dict[str, Any], num_days: int = 7, context_id: str = "", goal_id: int = 0) -> Dict[str, Any]:
     """
     Validate and potentially adjust unreasonable quantities in a shopping item.
 
@@ -181,6 +182,8 @@ def validate_shopping_item(item: Dict[str, Any], num_days: int = 7) -> Dict[str,
     Args:
         item: Shopping item dict with keys: ingredient, quantity, unit
         num_days: Number of days in the meal plan (affects limits)
+        context_id: Context ID for logging
+        goal_id: Goal ID for logging
 
     Returns:
         Validated item with potentially adjusted quantity and a 'validation_note' if adjusted
@@ -189,18 +192,29 @@ def validate_shopping_item(item: Dict[str, Any], num_days: int = 7) -> Dict[str,
         >>> validate_shopping_item({'ingredient': 'salt', 'quantity': 5000, 'unit': 'g'})
         {'ingredient': 'salt', 'quantity': 100, 'unit': 'g', 'validation_note': 'Quantity reduced from 5000g to 100g (max for spices)'}
     """
+    log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]" if context_id and goal_id else ""
     ingredient = item.get('ingredient', '')
     quantity = parse_numeric(item.get('quantity'))
     unit = normalize_unit(item.get('unit', ''))
+    
+    if log_prefix:
+        logger.debug(f"{log_prefix} DETAIL: Validating '{ingredient}' - input: {item.get('quantity')}{item.get('unit', '')}")
 
     if quantity is None:
-        logger.warning(f"Shopping list validation: No quantity for '{ingredient}'")
+        warning_msg = f"Shopping list validation: No quantity for '{ingredient}'"
+        if log_prefix:
+            logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+        else:
+            logger.warning(warning_msg)
         return item
 
     # Scale limits based on number of days (base is 7 days)
     day_factor = Decimal(str(num_days)) / Decimal('7')
 
     category = get_ingredient_category(ingredient)
+    if log_prefix:
+        logger.debug(f"{log_prefix} DETAIL: '{ingredient}' category: {category or 'unknown'}, day_factor: {day_factor}")
+    
     if not category:
         # Unknown category - apply general sanity check
         # Max 10kg of anything or 100 pieces
@@ -209,71 +223,118 @@ def validate_shopping_item(item: Dict[str, Any], num_days: int = 7) -> Dict[str,
 
         base_qty = convert_to_base_value(quantity, unit)
         if unit in ['g', 'kg'] and base_qty > max_g:
-            logger.warning(
+            warning_msg = (
                 f"Shopping list validation: '{ingredient}' quantity {quantity}{unit} "
                 f"exceeds general max {max_g}g, capping"
             )
+            if log_prefix:
+                logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+            else:
+                logger.warning(warning_msg)
             item = item.copy()
             item['quantity'] = float(max_g)
             item['unit'] = 'g'
             item['validation_note'] = f"Quantity reduced from {quantity}{unit} to {max_g}g (general max)"
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' adjusted: {quantity}{unit} → {max_g}g")
         elif unit == 'ks' and quantity > max_ks:
-            logger.warning(
+            warning_msg = (
                 f"Shopping list validation: '{ingredient}' quantity {quantity}{unit} "
                 f"exceeds general max {max_ks}ks, capping"
             )
+            if log_prefix:
+                logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+            else:
+                logger.warning(warning_msg)
             item = item.copy()
             item['quantity'] = float(max_ks)
             item['validation_note'] = f"Quantity reduced from {quantity}ks to {max_ks}ks (general max)"
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' adjusted: {quantity}ks → {max_ks}ks")
+        else:
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' - quantity: {quantity}{unit}, category: unknown, within limits ✓")
         return item
 
     config = QUANTITY_LIMITS[category]
+    max_g = Decimal(str(config.get('max_g', 10000))) * day_factor
+    max_ml = Decimal(str(config.get('max_ml', 5000))) * day_factor
+    max_ks = Decimal(str(config.get('max_ks', 50))) * day_factor
+
+    if log_prefix:
+        logger.debug(
+            f"{log_prefix} DETAIL: '{ingredient}' limits (category: {category}, {num_days} days): "
+            f"max_g={max_g}g, max_ml={max_ml}ml, max_ks={max_ks}ks"
+        )
 
     # Check against category-specific limits
     if unit in ['g', 'kg']:
         base_qty_g = convert_to_base_value(quantity, unit)  # Convert to grams
-        max_g = Decimal(str(config.get('max_g', 10000))) * day_factor
 
         if base_qty_g > max_g:
-            logger.warning(
+            warning_msg = (
                 f"Shopping list validation: '{ingredient}' ({category}) quantity "
                 f"{quantity}{unit} ({base_qty_g}g) exceeds max {max_g}g, capping"
             )
+            if log_prefix:
+                logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+            else:
+                logger.warning(warning_msg)
             item = item.copy()
             item['quantity'] = float(max_g)
             item['unit'] = 'g'
             item['validation_note'] = f"Quantity reduced from {quantity}{unit} to {max_g}g (max for {category})"
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' adjusted: {quantity}{unit} ({base_qty_g}g) → {max_g}g")
+        else:
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' - quantity: {quantity}{unit} ({base_qty_g}g), category: {category}, within limits ✓")
 
     elif unit in ['ml', 'l']:
         base_qty_ml = convert_to_base_value(quantity, unit)  # Convert to ml
-        max_ml = Decimal(str(config.get('max_ml', 5000))) * day_factor
 
         if base_qty_ml > max_ml:
-            logger.warning(
+            warning_msg = (
                 f"Shopping list validation: '{ingredient}' ({category}) quantity "
                 f"{quantity}{unit} ({base_qty_ml}ml) exceeds max {max_ml}ml, capping"
             )
+            if log_prefix:
+                logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+            else:
+                logger.warning(warning_msg)
             item = item.copy()
             item['quantity'] = float(max_ml)
             item['unit'] = 'ml'
             item['validation_note'] = f"Quantity reduced from {quantity}{unit} to {max_ml}ml (max for {category})"
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' adjusted: {quantity}{unit} ({base_qty_ml}ml) → {max_ml}ml")
+        else:
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' - quantity: {quantity}{unit} ({base_qty_ml}ml), category: {category}, within limits ✓")
 
     elif unit == 'ks':
-        max_ks = Decimal(str(config.get('max_ks', 50))) * day_factor
-
         if quantity > max_ks:
-            logger.warning(
+            warning_msg = (
                 f"Shopping list validation: '{ingredient}' ({category}) quantity "
                 f"{quantity}ks exceeds max {max_ks}ks, capping"
             )
+            if log_prefix:
+                logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+            else:
+                logger.warning(warning_msg)
             item = item.copy()
             item['quantity'] = float(max_ks)
             item['validation_note'] = f"Quantity reduced from {quantity}ks to {max_ks}ks (max for {category})"
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' adjusted: {quantity}ks → {max_ks}ks")
+        else:
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: '{ingredient}' - quantity: {quantity}ks, category: {category}, within limits ✓")
 
     return item
 
 
-def aggregate_ingredients_from_meals(days: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def aggregate_ingredients_from_meals(days: List[Dict[str, Any]], context_id: str = "", goal_id: int = 0) -> List[Dict[str, Any]]:
     """
     Aggregate all ingredients from all meals across all days into a shopping list.
 
@@ -283,6 +344,8 @@ def aggregate_ingredients_from_meals(days: List[Dict[str, Any]]) -> List[Dict[st
 
     Args:
         days: List of day objects from the meal plan, each containing meal data
+        context_id: Context ID for logging
+        goal_id: Goal ID for logging
 
     Returns:
         List of aggregated shopping items with structure:
@@ -293,23 +356,46 @@ def aggregate_ingredients_from_meals(days: List[Dict[str, Any]]) -> List[Dict[st
         >>> aggregate_ingredients_from_meals(days)
         [{'ingredient': 'eggs', 'quantity': 2.0, 'unit': 'ks', 'occurrences': 1}]
     """
-    # Aggregation map: normalized_name -> {quantity_g/ml/ks: Decimal, unit_type: str, original_name: str, occurrences: int}
+    log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]" if context_id and goal_id else ""
+    
+    if log_prefix:
+        logger.info(f"{log_prefix} Aggregating ingredients from {len(days)} days of meals...")
+    
+    # Aggregation map: normalized_name -> {quantity_g/ml/ks: Decimal, unit_type: str, original_name: str, occurrences: int, quantities: List}
     aggregated = {}
 
-    for day in days:
+    # Track per-day ingredient extraction for logging
+    day_ingredient_counts = {}
+
+    for day_idx, day in enumerate(days, 1):
+        day_num = day.get('day_number', day_idx)
+        day_ingredient_counts[day_num] = {}
+        
         # Process all meal types
         for meal_type in ['breakfast', 'lunch', 'dinner']:
             meal = day.get(meal_type)
             if meal and isinstance(meal, dict):
-                _aggregate_meal_ingredients(meal, aggregated)
+                meal_ingredients = _aggregate_meal_ingredients(meal, aggregated, context_id, goal_id, day_num, meal_type)
+                if meal_ingredients:
+                    day_ingredient_counts[day_num][meal_type] = len(meal_ingredients)
 
         # Process arrays of meals (small_meals, snacks)
         for meal_type in ['small_meals', 'snacks']:
             meals = day.get(meal_type, [])
             if isinstance(meals, list):
+                total_ingredients = 0
                 for meal in meals:
                     if isinstance(meal, dict):
-                        _aggregate_meal_ingredients(meal, aggregated)
+                        meal_ingredients = _aggregate_meal_ingredients(meal, aggregated, context_id, goal_id, day_num, meal_type)
+                        if meal_ingredients:
+                            total_ingredients += len(meal_ingredients)
+                if total_ingredients > 0:
+                    day_ingredient_counts[day_num][meal_type] = total_ingredients
+        
+        # Log per-day summary
+        if log_prefix and day_ingredient_counts[day_num]:
+            meal_summary = ", ".join([f"{mt}: {count} ingredients" for mt, count in day_ingredient_counts[day_num].items()])
+            logger.debug(f"{log_prefix} DETAIL: Day {day_num} - {meal_summary}")
 
     # Convert aggregated map to list
     result = []
@@ -317,6 +403,7 @@ def aggregate_ingredients_from_meals(days: List[Dict[str, Any]]) -> List[Dict[st
         # Determine best unit for display (use larger unit if quantity is large)
         quantity = data['quantity']
         unit_type = data['unit_type']
+        quantities_list = data.get('quantities', [])
 
         if unit_type == 'mass':
             # If >= 1000g, display as kg
@@ -345,19 +432,39 @@ def aggregate_ingredients_from_meals(days: List[Dict[str, Any]]) -> List[Dict[st
             'occurrences': data['occurrences']
         })
 
-    logger.info(f"Aggregated {len(result)} unique ingredients from meal plan")
+        # Log aggregation details for each ingredient
+        if log_prefix:
+            quantities_str = f"quantities {quantities_list}" if quantities_list else f"total {display_qty}{display_unit}"
+            logger.debug(
+                f"{log_prefix} DETAIL: Found '{data['original_name']}' in {data['occurrences']} meals: "
+                f"{quantities_str} → total {display_qty}{display_unit}"
+            )
+
+    if log_prefix:
+        logger.info(f"{log_prefix} Aggregated {len(result)} unique ingredients from meal plan")
+    else:
+        logger.info(f"Aggregated {len(result)} unique ingredients from meal plan")
     return result
 
 
-def _aggregate_meal_ingredients(meal: Dict[str, Any], aggregated: Dict[str, Any]) -> None:
+def _aggregate_meal_ingredients(meal: Dict[str, Any], aggregated: Dict[str, Any], context_id: str = "", goal_id: int = 0, day_num: int = 0, meal_type: str = "") -> List[str]:
     """
     Helper function to aggregate ingredients from a single meal into the aggregated dict.
 
     Args:
         meal: Meal object with 'ingredients' list
         aggregated: Dict to accumulate ingredients into (modified in place)
+        context_id: Context ID for logging
+        goal_id: Goal ID for logging
+        day_num: Day number for logging
+        meal_type: Meal type for logging
+        
+    Returns:
+        List of ingredient names found in this meal
     """
+    log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]" if context_id and goal_id else ""
     ingredients = meal.get('ingredients', [])
+    found_ingredients = []
 
     for ing in ingredients:
         # Handle both dict and string formats
@@ -402,27 +509,45 @@ def _aggregate_meal_ingredients(meal: Dict[str, Any], aggregated: Dict[str, Any]
             unit_type = 'count'
             base_qty = qty  # pieces/units
 
+        # Log ingredient parsing details
+        if log_prefix:
+            logger.debug(
+                f"{log_prefix} DETAIL: Parsed ingredient '{name}': "
+                f"raw qty={quantity}, raw unit='{unit}' → parsed qty={qty}, "
+                f"normalized unit='{norm_unit}', base qty={base_qty} ({unit_type})"
+            )
+
         # Aggregate
         if normalized not in aggregated:
             aggregated[normalized] = {
                 'quantity': base_qty,
                 'unit_type': unit_type,
                 'original_name': name,
-                'occurrences': 1
+                'occurrences': 1,
+                'quantities': [f"{qty}{norm_unit}"]
             }
+            found_ingredients.append(name)
         else:
             # Add to existing (only if same unit type)
             existing = aggregated[normalized]
             if existing['unit_type'] == unit_type:
                 existing['quantity'] += base_qty
                 existing['occurrences'] += 1
+                existing['quantities'].append(f"{qty}{norm_unit}")
+                found_ingredients.append(name)
             else:
                 # Unit type mismatch - log warning and keep first
-                logger.warning(
+                warning_msg = (
                     f"Ingredient '{name}' has mixed unit types: "
                     f"{existing['unit_type']} vs {unit_type}, keeping first"
                 )
+                if log_prefix:
+                    logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+                else:
+                    logger.warning(warning_msg)
                 existing['occurrences'] += 1
+    
+    return found_ingredients
 
 
 def build_llm_prompt_json(goal: DietaryGoal, available_ingredients: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -673,7 +798,7 @@ def parse_numeric(val: Any) -> Optional[Decimal]:
 # PRICE CALCULATION FUNCTIONS
 # =============================================================================
 
-def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
+def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", goal_id: int = 0) -> Optional[Decimal]:
     """
     Calculate total price based on how many full packages are needed.
 
@@ -687,6 +812,8 @@ def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
             - price: Price per package/unit from shop
             - product_unit: Unit of the shop product (e.g., 'kg', 'g')
             - package_size: Size of package (e.g., 500 for 500g package)
+        context_id: Context ID for logging
+        goal_id: Goal ID for logging
 
     Returns:
         Total price as Decimal, or None if calculation not possible
@@ -714,6 +841,8 @@ def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
     Debugging:
         Check logs for "Price calculation" entries with full item details
     """
+    log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]" if context_id and goal_id else ""
+    
     # Extract and parse values
     req_qty = parse_numeric(item.get('quantity'))
     req_unit = normalize_unit(item.get('unit', ''))
@@ -723,6 +852,13 @@ def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
     ingredient = item.get('ingredient', 'unknown')
 
     # Log input for debugging
+    if log_prefix:
+        logger.debug(
+            f"{log_prefix} DETAIL: Price calculation for '{ingredient}': "
+            f"need {req_qty}{req_unit}, product: {off_price} {item.get('currency', '')} per "
+            f"{off_pkg_size or '?'}{off_unit} (package_size: {off_pkg_size}, product_unit: '{off_unit}')"
+        )
+    else:
     logger.debug(
         f"Price calculation for '{ingredient}': "
         f"need {req_qty}{req_unit}, "
@@ -731,18 +867,30 @@ def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
 
     # Validate required fields
     if req_qty is None:
-        logger.warning(f"Price calculation: No quantity for '{ingredient}'")
+        warning_msg = f"Price calculation: No quantity for '{ingredient}'"
+        if log_prefix:
+            logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+        else:
+            logger.warning(warning_msg)
         return None
     if off_price is None:
-        logger.warning(f"Price calculation: No price for '{ingredient}'")
+        warning_msg = f"Price calculation: No price for '{ingredient}'"
+        if log_prefix:
+            logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+        else:
+            logger.warning(warning_msg)
         return None
 
     # Convert required quantity to base unit
     req_base = convert_to_base_value(req_qty, req_unit)
+    if log_prefix:
+        logger.debug(f"{log_prefix} DETAIL: Converted required quantity: {req_qty}{req_unit} → {req_base} base units")
 
     # Determine package size in base units
     if off_pkg_size and off_pkg_size > 0:
         pkg_base = convert_to_base_value(off_pkg_size, off_unit)
+        if log_prefix:
+            logger.debug(f"{log_prefix} DETAIL: Package size: {off_pkg_size}{off_unit} → {pkg_base} base units")
     else:
         # No package size specified - assume per-unit pricing
         # For kg/l, assume price is per kg/l (1000g/ml)
@@ -753,32 +901,57 @@ def calculate_package_aware_price(item: Dict[str, Any]) -> Optional[Decimal]:
             pkg_base = Decimal('1')
         else:
             pkg_base = Decimal('1')
+        if log_prefix:
+            logger.debug(f"{log_prefix} DETAIL: No package_size specified, assuming pkg_base={pkg_base} for unit '{off_unit}'")
 
     # Guard against division by zero
     if pkg_base <= 0:
-        logger.warning(f"Price calculation: Invalid package size for '{ingredient}'")
+        warning_msg = f"Price calculation: Invalid package size for '{ingredient}'"
+        if log_prefix:
+            logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+        else:
+            logger.warning(warning_msg)
         return off_price
 
     # Calculate whole packages needed (round up)
     num_packages = (req_base / pkg_base).to_integral_value(rounding='ROUND_CEILING')
+    if log_prefix:
+        logger.debug(
+            f"{log_prefix} DETAIL: Packages calculation: {req_base} base units / {pkg_base} base units per package = "
+            f"{req_base / pkg_base} → rounded up to {num_packages} packages"
+        )
 
     # Sanity checks
     if num_packages > Decimal('100'):
-        logger.warning(
+        warning_msg = (
             f"Price calculation: Excessive packages ({num_packages}) for '{ingredient}', "
             f"capping at 10. Check quantity ({req_qty}{req_unit}) and package ({off_pkg_size}{off_unit})"
         )
+        if log_prefix:
+            logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+        else:
+            logger.warning(warning_msg)
         num_packages = Decimal('10')
 
     total_price = num_packages * off_price
 
     # Sanity check on total price (max 1000 per item for reasonable meal plan)
     if total_price > Decimal('1000'):
-        logger.warning(
+        warning_msg = (
             f"Price calculation: Excessive price ({total_price}) for '{ingredient}', "
             f"something may be wrong with units or quantities"
         )
+        if log_prefix:
+            logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+        else:
+            logger.warning(warning_msg)
 
+    if log_prefix:
+        logger.debug(
+            f"{log_prefix} DETAIL: Price calculation result for '{ingredient}': "
+            f"{num_packages} packages × {off_price} {item.get('currency', '')} = {total_price} {item.get('currency', '')}"
+        )
+    else:
     logger.debug(
         f"Price calculation result for '{ingredient}': "
         f"{num_packages} packages x {off_price} = {total_price}"
@@ -813,23 +986,30 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         - Look for "Aggregated X unique ingredients" log
     """
     try:
+        # Generate unique context ID for tracing this shopping list creation
+        context_id = str(uuid.uuid4())[:8]
+        log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]"
+        
         goal = DietaryGoal.objects.get(id=goal_id)
         goal.status = DietaryGoal.StatusChoices.PROCESSING
         goal.save(update_fields=['status'])
-        logger.info(f"Processing dietary goal {goal_id} for {goal.num_days} days")
+        logger.info(f"{log_prefix} Processing dietary goal {goal_id} for {goal.num_days} days")
 
         # Step 1: Fetch available ingredients from shop
         available_ingredients = []
         if goal.shop:
-            logger.info(f"Fetching ingredients from {goal.shop} ({goal.country})")
+            logger.info(f"{log_prefix} Step 1: Fetching ingredients from {goal.shop} ({goal.country})")
             available_ingredients = ScraperService.get_available_ingredients(
                 goal.shop, goal.country, force_refresh=True
             )
-            logger.info(f"Found {len(available_ingredients)} available ingredients")
+            logger.info(f"{log_prefix} Found {len(available_ingredients)} available ingredients")
+            if available_ingredients:
+                sample_ingredients = [ing.get('name', 'unknown') for ing in available_ingredients[:5]]
+                logger.debug(f"{log_prefix} DETAIL: Sample ingredients: {sample_ingredients}")
 
         # Step 2: Generate meal plan via LLM
         llm_service = OpenAIService()
-        logger.info("Calling LLM to generate meal plan")
+        logger.info(f"{log_prefix} Step 2: Calling LLM to generate meal plan")
         llm_result = llm_service.generate_dietary_plan(
             prompt_text=json.dumps(build_llm_prompt_json(goal, available_ingredients), ensure_ascii=False),
             language_code=goal.language_code
@@ -837,33 +1017,56 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
 
         llm_response = llm_result['response']
         days = llm_response.get('days', [])
-        logger.info(f"LLM generated {len(days)} days of meals")
+        total_meals = sum(
+            len([m for m in [day.get('breakfast'), day.get('lunch'), day.get('dinner')] if m]) +
+            len(day.get('small_meals', [])) + len(day.get('snacks', []))
+            for day in days
+        )
+        logger.info(f"{log_prefix} LLM generated {len(days)} days with {total_meals} meals total")
 
         # Step 3: Transform days to standard format
+        logger.info(f"{log_prefix} Step 3: Transforming days to standard format")
         transformed_days = transform_days_to_new_format(days, goal)
+        logger.debug(f"{log_prefix} DETAIL: Transformed {len(transformed_days)} days")
 
         # Step 4: Aggregate ingredients from all meals (backend logic, not LLM)
         # This replaces trusting LLM's shopping_list with our own aggregation
-        shopping_list = aggregate_ingredients_from_meals(transformed_days)
-        logger.info(f"Aggregated {len(shopping_list)} items for shopping list")
+        logger.info(f"{log_prefix} Step 4: Aggregating ingredients from all meals")
+        shopping_list = aggregate_ingredients_from_meals(transformed_days, context_id, goal_id)
+        logger.info(f"{log_prefix} Aggregated {len(shopping_list)} items for shopping list")
 
         # Step 5: Validate quantities to catch unreasonable values
+        logger.info(f"{log_prefix} Step 5: Validating shopping list items")
         validated_shopping_list = []
+        validation_adjustments = []
         for item in shopping_list:
-            validated_item = validate_shopping_item(item, num_days=goal.num_days)
+            validated_item = validate_shopping_item(item, num_days=goal.num_days, context_id=context_id, goal_id=goal_id)
+            if validated_item.get('validation_note'):
+                validation_adjustments.append({
+                    'ingredient': validated_item.get('ingredient'),
+                    'note': validated_item.get('validation_note')
+                })
             validated_shopping_list.append(validated_item)
+        
+        if validation_adjustments:
+            logger.warning(f"{log_prefix} WARNING: {len(validation_adjustments)} items were adjusted during validation")
+            for adj in validation_adjustments:
+                logger.debug(f"{log_prefix} DETAIL: Validation adjustment - {adj['ingredient']}: {adj['note']}")
 
         # Step 6: Match with shop products and calculate prices
         # Use ScraperService.match_ingredient_price() which queries the database directly
         # and has better matching logic with multiple strategies
+        logger.info(f"{log_prefix} Step 6: Matching prices for {len(validated_shopping_list)} items")
         total_sum = Decimal('0')
         matched_count = 0
         estimated_count = 0
+        not_found_count = 0
         
         for item in validated_shopping_list:
             ingredient_name = item.get('ingredient', '')
             
             # Try to find matching product from database using improved matching
+            logger.debug(f"{log_prefix} DETAIL: Matching '{ingredient_name}' in {goal.shop} ({goal.country})")
             matched_product = ScraperService.match_ingredient_price(
                 ingredient_name,
                 goal.shop,
@@ -886,22 +1089,34 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 item['estimated'] = False
                 item['price_source'] = 'leaflet_offer'
                 
+                logger.debug(
+                    f"{log_prefix} DETAIL: Matched '{ingredient_name}' → '{item['matched_product_name']}' "
+                    f"({base_price} {item['currency']}, package: {item['package_size']}{item['product_unit']}, "
+                    f"type: {item['price_type']})"
+                )
+                
                 # Set base price for package-aware calculation
                 item['price'] = base_price
                 
                 # Calculate price using package-aware logic (accounts for quantity needed)
-                calculated_price = calculate_package_aware_price(item)
-                
-                if calculated_price:
-                    item['price_total'] = float(calculated_price)
+                calculated_price = calculate_package_aware_price(item, context_id, goal_id)
+
+            if calculated_price:
+                item['price_total'] = float(calculated_price)
                     item['price'] = float(calculated_price)  # Update to total calculated price for display
-                    total_sum += calculated_price
+                total_sum += calculated_price
                     matched_count += 1
-                    logger.debug(f"Matched '{ingredient_name}' -> '{matched_product.get('display_name')}' ({calculated_price} {goal.currency})")
-                else:
+                    logger.debug(
+                        f"{log_prefix} DETAIL: '{ingredient_name}' final price: {calculated_price} {goal.currency} "
+                        f"(from {base_price} base price)"
+                    )
+            else:
                     # If calculation fails but we have a base price from leaflet, use it as fallback
                     # This is better than LLM estimation since we have a real price
-                    logger.warning(f"Price calculation failed for '{ingredient_name}' (base: {base_price}), using base price as fallback")
+                    logger.warning(
+                        f"{log_prefix} WARNING: Price calculation failed for '{ingredient_name}' "
+                        f"(base: {base_price}), using base price as fallback"
+                    )
                     item['price_total'] = base_price
                     item['price'] = base_price
                     total_sum += Decimal(str(base_price))
@@ -911,7 +1126,7 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     item['price_source'] = 'leaflet_offer_estimated_quantity'
             else:
                 # No match found in database - fallback to LLM price estimation
-                logger.info(f"No price match in database for '{ingredient_name}', using LLM estimation")
+                logger.debug(f"{log_prefix} DETAIL: No price match in database for '{ingredient_name}', using LLM estimation")
                 est = llm_service.estimate_product_price(
                     ingredient_name,
                     item.get('quantity'),
@@ -931,19 +1146,21 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     })
                     total_sum += Decimal(str(est['price']))
                     estimated_count += 1
+                    logger.debug(
+                        f"{log_prefix} DETAIL: LLM estimated '{ingredient_name}': {est['price']} {est.get('currency', goal.currency)}"
+                    )
                 else:
                     item['price'] = None
                     item['price_total'] = None
                     item['price_source'] = 'not_found'
                     item['estimated'] = True
-                    logger.warning(f"Could not estimate price for '{ingredient_name}'")
-        
-        logger.info(
-            f"Price matching complete: {matched_count} matched from leaflet, {estimated_count} estimated, "
-            f"total: {total_sum} {goal.currency}"
-        )
+                    not_found_count += 1
+                    logger.warning(f"{log_prefix} WARNING: Could not estimate price for '{ingredient_name}'")
 
-        logger.info(f"Total shopping list price: {total_sum} {goal.currency}")
+        logger.info(
+            f"{log_prefix} Price matching complete: {matched_count} matched from leaflet, "
+            f"{estimated_count} estimated, {not_found_count} not found, total: {total_sum} {goal.currency}"
+        )
 
         # Step 7: Create DietaryPlan
         plan = DietaryPlan.objects.create(
@@ -963,7 +1180,22 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         goal.completed_at = timezone.now()
         goal.save(update_fields=['status', 'completed_at'])
 
-        logger.info(f"Successfully created plan {plan.id} for goal {goal_id}")
+        # Final Summary Log
+        logger.info(f"{log_prefix} SUMMARY: Shopping list creation complete")
+        logger.info(f"{log_prefix} SUMMARY: Plan ID: {plan.id}, Total items: {len(validated_shopping_list)}")
+        logger.info(f"{log_prefix} SUMMARY: Price breakdown - Matched: {matched_count}, Estimated: {estimated_count}, Not found: {not_found_count}")
+        logger.info(f"{log_prefix} SUMMARY: Total price: {total_sum} {goal.currency}")
+        
+        # Log sample items with full details
+        sample_items = validated_shopping_list[:5]  # First 5 items
+        logger.debug(f"{log_prefix} SUMMARY: Sample items:")
+        for item in sample_items:
+            logger.debug(f"{log_prefix} SUMMARY:   - {_log_item_details(item)}")
+        
+        if validation_adjustments:
+            logger.warning(f"{log_prefix} SUMMARY: {len(validation_adjustments)} items were adjusted during validation")
+        
+        logger.info(f"{log_prefix} Successfully created plan {plan.id} for goal {goal_id}")
         return {'status': 'success', 'plan_id': plan.id}
 
     except Exception as exc:
