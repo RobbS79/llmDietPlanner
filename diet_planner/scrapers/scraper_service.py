@@ -422,11 +422,15 @@ class ScraperService:
                 
                 ingredients.append({
                     'name': offer.ingredient_name,
+                    'ingredient_name': offer.ingredient_name,  # Also include for compatibility
                     'display_name': offer.display_name,
                     'price': float(offer.price),
                     'currency': offer.currency,
                     'unit': offer.unit or '',
                     'package_size': package_size,  # Include package_size if detected
+                    'price_type': offer.price_type or 'REGULAR',
+                    'original_price': float(offer.original_price) if offer.original_price else None,
+                    'discount_percentage': offer.discount_percentage,
                 })
         
         return ingredients
@@ -437,7 +441,7 @@ class ScraperService:
         Match an ingredient name with a price from LeafletOffer.
         
         Uses multiple matching strategies:
-        1. Exact match on normalized name
+        1. Exact match on normalized name (prioritizes discounted items)
         2. Partial match (scraped name contains search term)
         3. Reverse partial match (search term contains scraped name)
         
@@ -453,11 +457,17 @@ class ScraperService:
                 'currency': str,
                 'unit': str,
                 'display_name': str,
+                'package_size': float or None,
+                'price_type': str ('DISCOUNTED' or 'REGULAR'),
+                'original_price': Decimal or None,
+                'discount_percentage': int or None,
+                'ingredient_name': str,
             }
         """
         from django.utils import timezone
         from decimal import Decimal
         from django.db.models import Q
+        import re
         
         normalized_name = normalize_ingredient_name(ingredient_name)
         logger.debug(f"Matching ingredient: '{ingredient_name}' (normalized: '{normalized_name}') for {shop} ({country})")
@@ -468,60 +478,107 @@ class ScraperService:
         
         current_time = timezone.now()
         
+        def extract_package_size(display_name: str, unit: str) -> Optional[float]:
+            """Extract package size from display_name."""
+            if not display_name:
+                return None
+            # Pattern: number + unit (e.g., "10 ks", "500 g", "1kg")
+            patterns = [
+                r'(\d+[\.,]?\d*)\s*(ks|piece|pieces|pcs|pc|bal|balíček)',  # Pieces
+                r'(\d+[\.,]?\d*)\s*(kg|kilogram)',  # Kilograms  
+                r'(\d+[\.,]?\d*)\s*(g|gram)',  # Grams
+                r'(\d+[\.,]?\d*)\s*(l|litre|liter)',  # Liters
+                r'(\d+[\.,]?\d*)\s*(ml|millilitre|milliliter)',  # Milliliters
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, display_name, re.I)
+                if match:
+                    try:
+                        size_str = match.group(1).replace(',', '.')
+                        return float(size_str)
+                    except (ValueError, Exception):
+                        continue
+            return None
+        
+        def format_match_result(offer) -> Dict[str, Any]:
+            """Format an offer into a match result dict."""
+            package_size = extract_package_size(offer.display_name or '', offer.unit or '')
+            result = {
+                'price': Decimal(str(offer.price)),
+                'currency': offer.currency,
+                'unit': offer.unit or '',
+                'display_name': offer.display_name,
+                'package_size': package_size,
+                'price_type': offer.price_type or 'REGULAR',
+                'original_price': Decimal(str(offer.original_price)) if offer.original_price else None,
+                'discount_percentage': offer.discount_percentage,
+                'ingredient_name': offer.ingredient_name,
+            }
+            return result
+        
         # Strategy 1: Exact match on normalized name
-        offer = LeafletOffer.objects.filter(
+        # Prioritize discounted items first, then regular price
+        discounted_offer = LeafletOffer.objects.filter(
             shop=shop,
             country=country,
             ingredient_name=normalized_name,
             expires_at__gt=current_time,
             price__isnull=False,
-            price__gt=0  # Only match offers with positive prices
+            price__gt=0,
+            price_type='DISCOUNTED'
         ).order_by('-scraped_at').first()
         
-        if offer:
-            logger.debug(f"Found exact price match: {offer.display_name} - {offer.price} {offer.currency}")
-            return {
-                'price': Decimal(str(offer.price)),
-                'currency': offer.currency,
-                'unit': offer.unit or '',
-                'display_name': offer.display_name,
-            }
+        if discounted_offer:
+            logger.debug(f"Found exact discounted price match: {discounted_offer.display_name} - {discounted_offer.price} {discounted_offer.currency}")
+            return format_match_result(discounted_offer)
+        
+        # Try regular price exact match
+        regular_offer = LeafletOffer.objects.filter(
+            shop=shop,
+            country=country,
+            ingredient_name=normalized_name,
+            expires_at__gt=current_time,
+            price__isnull=False,
+            price__gt=0
+        ).order_by('-scraped_at').first()
+        
+        if regular_offer:
+            logger.debug(f"Found exact price match: {regular_offer.display_name} - {regular_offer.price} {regular_offer.currency}")
+            return format_match_result(regular_offer)
         
         # Strategy 2: Partial match - scraped ingredient_name contains the search term
         # E.g., search "rajčata" matches "rajčata cherry" or "rajčata červená"
         # BUT: Make it stricter - require the search term to be at least 3 characters
         # and be a complete word boundary to avoid false matches
         if len(normalized_name) >= 3:
-            offer = LeafletOffer.objects.filter(
+            # Try discounted first
+            partial_query = LeafletOffer.objects.filter(
                 shop=shop,
                 country=country,
                 ingredient_name__icontains=normalized_name,
                 expires_at__gt=current_time,
                 price__isnull=False,
-                price__gt=0  # Only match offers with positive prices
-            ).order_by('-scraped_at').first()
+                price__gt=0
+            )
             
-            if offer:
-                # Additional validation: check if the match makes sense
-                # Skip if the match seems unrelated (e.g., "pepper" matching "peppermint")
-                offer_name_lower = offer.ingredient_name.lower()
+            discounted_partial = partial_query.filter(price_type='DISCOUNTED').order_by('-scraped_at').first()
+            if discounted_partial:
+                offer_name_lower = discounted_partial.ingredient_name.lower()
                 search_name_lower = normalized_name.lower()
-                
-                # Check if the match is reasonable:
-                # - The search term should be the main word, not just a substring of an unrelated word
-                # - Avoid matches where the search term is part of a compound word that's different
-                import re
                 word_boundary_match = re.search(r'\b' + re.escape(search_name_lower) + r'\b', offer_name_lower)
                 if word_boundary_match:
-                    logger.debug(f"Found partial price match (scraped contains search): {offer.display_name} - {offer.price} {offer.currency}")
-                    return {
-                        'price': Decimal(str(offer.price)),
-                        'currency': offer.currency,
-                        'unit': offer.unit or '',
-                        'display_name': offer.display_name,
-                    }
-                else:
-                    logger.debug(f"Skipping partial match - '{search_name_lower}' found in '{offer_name_lower}' but not as word boundary (likely false match)")
+                    logger.debug(f"Found partial discounted price match: {discounted_partial.display_name} - {discounted_partial.price} {discounted_partial.currency}")
+                    return format_match_result(discounted_partial)
+            
+            # Try regular price partial match
+            regular_partial = partial_query.order_by('-scraped_at').first()
+            if regular_partial:
+                offer_name_lower = regular_partial.ingredient_name.lower()
+                search_name_lower = normalized_name.lower()
+                word_boundary_match = re.search(r'\b' + re.escape(search_name_lower) + r'\b', offer_name_lower)
+                if word_boundary_match:
+                    logger.debug(f"Found partial price match (scraped contains search): {regular_partial.display_name} - {regular_partial.price} {regular_partial.currency}")
+                    return format_match_result(regular_partial)
         
         # Strategy 3: Reverse partial match - search term contains scraped ingredient_name
         # E.g., search "rajčata cherry" matches "rajčata"
@@ -529,30 +586,38 @@ class ScraperService:
         # AND the scraped name is a single meaningful word (not a fragment)
         # Skip this strategy for very short search terms (likely to cause false matches)
         if len(normalized_name) >= 5 and ' ' in normalized_name:
+            # Try discounted first
             candidates = LeafletOffer.objects.filter(
                 shop=shop,
                 country=country,
                 expires_at__gt=current_time,
                 price__isnull=False,
-                price__gt=0  # Only match offers with positive prices
-            ).order_by('-scraped_at')[:100]  # Limit to recent offers for performance
+                price__gt=0,
+                price_type='DISCOUNTED'
+            ).order_by('-scraped_at')[:100]
             
             for candidate in candidates:
-                # More strict: the scraped name should be a complete word in the search term
                 if candidate.ingredient_name.lower() in normalized_name.lower():
-                    # Additional validation: check word boundaries to avoid false matches
-                    import re
                     word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
-                    if re.search(word_pattern, normalized_name.lower()):
-                        # Ensure significant overlap (at least 3 characters)
-                        if len(candidate.ingredient_name) >= 3:
-                            logger.debug(f"Found reverse partial price match: {candidate.display_name} - {candidate.price} {candidate.currency}")
-                            return {
-                                'price': Decimal(str(candidate.price)),
-                                'currency': candidate.currency,
-                                'unit': candidate.unit or '',
-                                'display_name': candidate.display_name,
-                            }
+                    if re.search(word_pattern, normalized_name.lower()) and len(candidate.ingredient_name) >= 3:
+                        logger.debug(f"Found reverse partial discounted price match: {candidate.display_name} - {candidate.price} {candidate.currency}")
+                        return format_match_result(candidate)
+            
+            # Try regular price reverse partial match
+            candidates_regular = LeafletOffer.objects.filter(
+                shop=shop,
+                country=country,
+                expires_at__gt=current_time,
+                price__isnull=False,
+                price__gt=0
+            ).order_by('-scraped_at')[:100]
+            
+            for candidate in candidates_regular:
+                if candidate.ingredient_name.lower() in normalized_name.lower():
+                    word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
+                    if re.search(word_pattern, normalized_name.lower()) and len(candidate.ingredient_name) >= 3:
+                        logger.debug(f"Found reverse partial price match: {candidate.display_name} - {candidate.price} {candidate.currency}")
+                        return format_match_result(candidate)
         
         logger.debug(f"No price match found for '{ingredient_name}' in {shop} ({country})")
         return None
@@ -599,6 +664,27 @@ class ScraperService:
         all_matches = []
         seen_combinations = set()  # Track (display_name, price, package_size) to avoid duplicates
         
+        def extract_package_size_from_offer(offer) -> Optional[float]:
+            """Extract package size from offer display_name."""
+            if not offer.display_name:
+                return None
+            patterns = [
+                r'(\d+[\.,]?\d*)\s*(ks|piece|pieces|pcs|pc|bal|balíček)',  # Pieces
+                r'(\d+[\.,]?\d*)\s*(kg|kilogram)',  # Kilograms  
+                r'(\d+[\.,]?\d*)\s*(g|gram)',  # Grams
+                r'(\d+[\.,]?\d*)\s*(l|litre|liter)',  # Liters
+                r'(\d+[\.,]?\d*)\s*(ml|millilitre|milliliter)',  # Milliliters
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, offer.display_name, re.I)
+                if match:
+                    try:
+                        size_str = match.group(1).replace(',', '.')
+                        return float(size_str)
+                    except (ValueError, Exception):
+                        continue
+            return None
+        
         # Strategy 1: Exact match on normalized name
         exact_matches = LeafletOffer.objects.filter(
             shop=shop,
@@ -610,7 +696,8 @@ class ScraperService:
         ).order_by('-scraped_at')
         
         for offer in exact_matches:
-            key = (offer.display_name, str(offer.price), str(offer.package_size) if offer.package_size else 'None')
+            package_size = extract_package_size_from_offer(offer)
+            key = (offer.display_name, str(offer.price), str(package_size) if package_size else 'None')
             if key not in seen_combinations:
                 seen_combinations.add(key)
                 all_matches.append({
@@ -618,7 +705,7 @@ class ScraperService:
                     'currency': offer.currency,
                     'unit': offer.unit or '',
                     'display_name': offer.display_name,
-                    'package_size': offer.package_size,
+                    'package_size': package_size,
                     'ingredient_name': offer.ingredient_name,
                 })
         
@@ -640,7 +727,8 @@ class ScraperService:
                 word_boundary_match = re.search(r'\b' + re.escape(search_name_lower) + r'\b', offer_name_lower)
                 
                 if word_boundary_match:
-                    key = (offer.display_name, str(offer.price), str(offer.package_size) if offer.package_size else 'None')
+                    package_size = extract_package_size_from_offer(offer)
+                    key = (offer.display_name, str(offer.price), str(package_size) if package_size else 'None')
                     if key not in seen_combinations:
                         seen_combinations.add(key)
                         all_matches.append({
@@ -648,7 +736,7 @@ class ScraperService:
                             'currency': offer.currency,
                             'unit': offer.unit or '',
                             'display_name': offer.display_name,
-                            'package_size': offer.package_size,
+                            'package_size': package_size,
                             'ingredient_name': offer.ingredient_name,
                         })
         
@@ -667,7 +755,8 @@ class ScraperService:
                 word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
                 if re.search(word_pattern, normalized_name.lower()):
                     if len(candidate.ingredient_name) >= 3:
-                        key = (candidate.display_name, str(candidate.price), str(candidate.package_size) if candidate.package_size else 'None')
+                        package_size = extract_package_size_from_offer(candidate)
+                        key = (candidate.display_name, str(candidate.price), str(package_size) if package_size else 'None')
                         if key not in seen_combinations:
                             seen_combinations.add(key)
                             all_matches.append({
@@ -675,7 +764,7 @@ class ScraperService:
                                 'currency': candidate.currency,
                                 'unit': candidate.unit or '',
                                 'display_name': candidate.display_name,
-                                'package_size': candidate.package_size,
+                                'package_size': package_size,
                                 'ingredient_name': candidate.ingredient_name,
                             })
         

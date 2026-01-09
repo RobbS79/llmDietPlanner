@@ -854,36 +854,66 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             validated_shopping_list.append(validated_item)
 
         # Step 6: Match with shop products and calculate prices
+        # Use ScraperService.match_ingredient_price() which queries the database directly
+        # and has better matching logic with multiple strategies
         total_sum = Decimal('0')
+        matched_count = 0
+        estimated_count = 0
+        
         for item in validated_shopping_list:
-            # Try to find matching product from available ingredients
-            matched_product = _find_matching_product(
-                item.get('ingredient', ''),
-                available_ingredients
+            ingredient_name = item.get('ingredient', '')
+            
+            # Try to find matching product from database using improved matching
+            matched_product = ScraperService.match_ingredient_price(
+                ingredient_name,
+                goal.shop,
+                goal.country
             )
 
             if matched_product:
                 # Update item with product info for price calculation
-                item['price'] = matched_product.get('price')
+                # Store base price per package for calculation
+                base_price = float(matched_product.get('price'))
                 item['product_unit'] = matched_product.get('unit', '')
                 item['package_size'] = matched_product.get('package_size')
                 item['matched_product_name'] = matched_product.get('display_name', '')
                 item['currency'] = matched_product.get('currency', goal.currency)
-
-            # Calculate price using package-aware logic
-            calculated_price = calculate_package_aware_price(item)
-
-            if calculated_price:
-                item['price_total'] = float(calculated_price)
-                item['price'] = float(calculated_price)
-                total_sum += calculated_price
-                item['price_source'] = 'backend_package_logic'
-                logger.debug(f"Price for '{item.get('ingredient')}': {calculated_price}")
+                item['price_type'] = matched_product.get('price_type', 'REGULAR')
+                if matched_product.get('original_price'):
+                    item['original_price'] = float(matched_product.get('original_price'))
+                if matched_product.get('discount_percentage') is not None:
+                    item['discount_percentage'] = matched_product.get('discount_percentage')
+                item['estimated'] = False
+                item['price_source'] = 'leaflet_offer'
+                
+                # Set base price for package-aware calculation
+                item['price'] = base_price
+                
+                # Calculate price using package-aware logic (accounts for quantity needed)
+                calculated_price = calculate_package_aware_price(item)
+                
+                if calculated_price:
+                    item['price_total'] = float(calculated_price)
+                    item['price'] = float(calculated_price)  # Update to total calculated price for display
+                    total_sum += calculated_price
+                    matched_count += 1
+                    logger.debug(f"Matched '{ingredient_name}' -> '{matched_product.get('display_name')}' ({calculated_price} {goal.currency})")
+                else:
+                    # If calculation fails but we have a base price from leaflet, use it as fallback
+                    # This is better than LLM estimation since we have a real price
+                    logger.warning(f"Price calculation failed for '{ingredient_name}' (base: {base_price}), using base price as fallback")
+                    item['price_total'] = base_price
+                    item['price'] = base_price
+                    total_sum += Decimal(str(base_price))
+                    matched_count += 1
+                    # Mark as estimated since we couldn't calculate the exact total for the quantity needed
+                    item['estimated'] = True
+                    item['price_source'] = 'leaflet_offer_estimated_quantity'
             else:
-                # Fallback to LLM price estimation
-                logger.info(f"No price match for '{item.get('ingredient')}', using LLM estimation")
+                # No match found in database - fallback to LLM price estimation
+                logger.info(f"No price match in database for '{ingredient_name}', using LLM estimation")
                 est = llm_service.estimate_product_price(
-                    item.get('ingredient'),
+                    ingredient_name,
                     item.get('quantity'),
                     item.get('unit'),
                     goal.shop,
@@ -893,15 +923,25 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     item.update({
                         'price': float(est['price']),
                         'price_total': float(est['price']),
-                        'currency': est['currency'],
-                        'matched_product_name': est['display_name'],
+                        'currency': est.get('currency', goal.currency),
+                        'matched_product_name': est.get('display_name', ingredient_name),
                         'estimated': True,
-                        'price_source': 'llm_estimation_service'
+                        'price_source': 'llm_estimation_service',
+                        'price_type': 'LLM_ESTIMATED',
                     })
-                    total_sum += est['price']
+                    total_sum += Decimal(str(est['price']))
+                    estimated_count += 1
                 else:
                     item['price'] = None
+                    item['price_total'] = None
                     item['price_source'] = 'not_found'
+                    item['estimated'] = True
+                    logger.warning(f"Could not estimate price for '{ingredient_name}'")
+        
+        logger.info(
+            f"Price matching complete: {matched_count} matched from leaflet, {estimated_count} estimated, "
+            f"total: {total_sum} {goal.currency}"
+        )
 
         logger.info(f"Total shopping list price: {total_sum} {goal.currency}")
 
