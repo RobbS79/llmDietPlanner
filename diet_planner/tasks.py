@@ -1551,9 +1551,20 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             llm_cost_usd=llm_result.get('cost_usd')
         )
         
+        # Mark as COMPLETED - meal plan successfully generated and rendered
+        # This is when the user should be considered "charged" (fulfillment complete)
         goal.status = DietaryGoal.StatusChoices.COMPLETED
         goal.completed_at = timezone.now()
         goal.save(update_fields=['status', 'completed_at'])
+        
+        # Note: Shopify already charged the user when payment was received (webhook)
+        # We mark as COMPLETED here to indicate fulfillment is complete
+        # If this step fails, the order remains unfulfilled and can be refunded
+        if goal.shopify_order_id:
+            logger.info(
+                f"{log_prefix} Meal plan completed for order {goal.shopify_order_id}. "
+                f"Order fulfillment complete - user has received their meal plan."
+            )
         
         logger.info(
             f"{log_prefix} Successfully created plan {plan.id} with {len(validated_shopping_list)} items, "
@@ -1565,10 +1576,22 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         logger.error(f"Task failed for goal {goal_id}: {str(exc)}", exc_info=True)
         try:
             goal = DietaryGoal.objects.get(id=goal_id)
-            goal.status = DietaryGoal.StatusChoices.FAILED
-            goal.save(update_fields=['status'])
+            # If payment was received but meal plan generation failed, mark as refund eligible
+            # This ensures user is not charged for a failed service
+            if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
+                goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
+                goal.error_message = f"Meal plan generation failed: {str(exc)}"
+                logger.warning(
+                    f"Goal {goal_id} failed after payment - marked as REFUND_ELIGIBLE. "
+                    f"Order {goal.shopify_order_id} should be refunded."
+                )
+            else:
+                goal.status = DietaryGoal.StatusChoices.FAILED
+            goal.save(update_fields=['status', 'error_message'])
         except Exception:
             pass
+        
+        # Retry with exponential backoff (Celery will handle max_retries from decorator)
         raise self.retry(exc=exc, countdown=30)
 
 

@@ -97,6 +97,7 @@ class DietaryGoal(models.Model):
     class StatusChoices(models.TextChoices):
         PENDING = 'pending', 'Pending'
         AWAITING_PAYMENT = 'awaiting_payment', 'Awaiting Payment'
+        PAYMENT_PENDING = 'payment_pending', 'Payment Pending'
         PAYMENT_CONFIRMED = 'payment_confirmed', 'Payment Confirmed'
         PROCESSING = 'processing', 'Processing'
         PROCESSING_MEAL_PLAN = 'processing_meal_plan', 'Generating Meal Plan'
@@ -142,6 +143,12 @@ class DietaryGoal(models.Model):
         blank=True,
         null=True,
         help_text="Shopify checkout ID if payment required"
+    )
+    shopify_order_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Shopify order ID after payment (for fulfillment tracking)"
     )
     payment_confirmed_at = models.DateTimeField(
         blank=True,

@@ -105,6 +105,8 @@ export function RecipePage() {
         console.error('RecipePage: Error loading recipe:', err);
         console.error('RecipePage: Error stack:', err.stack);
         setError(err.message || 'Failed to load recipe');
+      } finally {
+        console.log('RecipePage: Setting loading to false');
         setLoading(false);
       }
     };
@@ -218,6 +220,11 @@ export function RecipePage() {
   // Add error boundary check
   if (error && !loading) {
     console.error('RecipePage: Rendering error state:', error);
+  }
+
+  // Safety check: ensure recipe has required fields
+  if (recipe && (!recipe.name || (!recipe.ingredients || recipe.ingredients.length === 0) && (!recipe.instructions || recipe.instructions.length === 0))) {
+    console.warn('RecipePage: Recipe data incomplete:', recipe);
   }
 
   return (

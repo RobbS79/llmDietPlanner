@@ -165,16 +165,20 @@ def shopify_order_paid_webhook(request: HttpRequest) -> HttpResponse:
             return HttpResponse("Goal not found", status=200)
 
         # Check if already processed (idempotency)
-        if goal.status not in ('awaiting_payment', 'pending'):
+        # Allow processing if status is awaiting_payment or pending (initial states)
+        if goal.status not in ('awaiting_payment', 'pending', 'payment_pending'):
             logger.info(f"Goal {goal_id} already processed (status: {goal.status}) - skipping")
             return HttpResponse("OK - Already processed", status=200)
 
-        # Update goal status
-        goal.status = DietaryGoal.StatusChoices.PAYMENT_CONFIRMED
+        # Store order_id for later fulfillment
+        goal.shopify_order_id = str(order_id)
+        
+        # Update goal status to PAYMENT_PENDING (payment received but meal plan not generated yet)
+        goal.status = DietaryGoal.StatusChoices.PAYMENT_PENDING
         goal.payment_confirmed_at = timezone.now()
-        goal.save(update_fields=['status', 'payment_confirmed_at', 'updated_at'])
+        goal.save(update_fields=['status', 'payment_confirmed_at', 'shopify_order_id', 'updated_at'])
 
-        logger.info(f"Updated goal {goal_id} to payment_confirmed")
+        logger.info(f"Updated goal {goal_id} to payment_pending (order_id: {order_id})")
 
         # Update checkout status if we have it
         if goal.shopify_checkout_id:
