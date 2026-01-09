@@ -73,6 +73,7 @@ export function GoalDetailPage() {
     // Fetch goal details with token refresh handling
     const fetchGoal = async () => {
       try {
+        console.log('GoalDetailPage: Fetching goal for goalId:', goalId);
         const { getAccessToken, getRefreshToken, setTokens, clearTokens } = await import('../utils/api');
         let token = getAccessToken();
         let headers = {
@@ -137,20 +138,27 @@ export function GoalDetailPage() {
         }
         
         const data = await response.json();
+        console.log('GoalDetailPage: Goal data received:', data);
         if (data.status === 'success') {
+          console.log('GoalDetailPage: Setting goal:', data.data);
           setGoal(data.data);
         } else {
           throw new Error(data.error || 'Failed to load goal');
         }
       } catch (err) {
-        setError(err.message);
-      } finally {
+        console.error('GoalDetailPage: Error loading goal:', err);
+        console.error('GoalDetailPage: Error stack:', err.stack);
+        setError(err.message || 'Failed to load goal');
         setLoading(false);
       }
     };
 
     if (goalId) {
       fetchGoal();
+    } else {
+      console.warn('GoalDetailPage: No goalId provided');
+      setError('No goal ID provided');
+      setLoading(false);
     }
   }, [goalId]);
 
@@ -399,21 +407,34 @@ export function GoalDetailPage() {
                         Ingredients:
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {meal.ingredients.map((ingredient, i) => (
-                          <span
-                            key={i}
-                            style={{
-                              padding: '0.25rem 0.75rem',
-                              background: 'white',
-                              border: '1px solid #d1d5db',
-                              borderRadius: '6px',
-                              fontSize: '0.875rem',
-                              color: '#374151',
-                            }}
-                          >
-                            {ingredient}
-                          </span>
-                        ))}
+                        {meal.ingredients.map((ingredient, i) => {
+                          // Handle both object format {name, quantity, unit} and string format
+                          let ingredientText = ingredient;
+                          if (typeof ingredient === 'object' && ingredient !== null) {
+                            const quantity = ingredient.quantity || '';
+                            const unit = ingredient.unit || '';
+                            const name = ingredient.name || '';
+                            ingredientText = quantity && unit 
+                              ? `${quantity} ${unit} ${name}`.trim()
+                              : name || JSON.stringify(ingredient);
+                          }
+                          
+                          return (
+                            <span
+                              key={i}
+                              style={{
+                                padding: '0.25rem 0.75rem',
+                                background: 'white',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '0.875rem',
+                                color: '#374151',
+                              }}
+                            >
+                              {ingredientText}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -515,10 +536,15 @@ export function GoalDetailPage() {
     );
   }
 
+  // Add error boundary check
+  if (error && !loading) {
+    console.error('GoalDetailPage: Rendering error state:', error);
+  }
+
   return (
     <div className="App">
       <Navigation />
-      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem', minHeight: '400px' }}>
         <div style={{ marginBottom: '2rem' }}>
           <button
             onClick={() => navigate('/goals')}

@@ -215,10 +215,15 @@ export function RecipePage() {
 
   const isCooked = mealInstance?.is_cooked || false;
 
+  // Add error boundary check
+  if (error && !loading) {
+    console.error('RecipePage: Rendering error state:', error);
+  }
+
   return (
     <div className="App">
       <Navigation />
-      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem', minHeight: '400px' }}>
         <div style={{
           background: 'white',
           padding: '2rem',
