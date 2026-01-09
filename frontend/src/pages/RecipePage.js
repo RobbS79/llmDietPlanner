@@ -19,6 +19,7 @@ export function RecipePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('RecipePage: Fetching recipe for mealIdentifier:', mealIdentifier);
         const { getAccessToken, getRefreshToken, setTokens, clearTokens } = await import('../utils/api');
         let token = getAccessToken();
         let headers = {
@@ -82,7 +83,9 @@ export function RecipePage() {
         }
         
         const recipeData = await recipeResponse.json();
+        console.log('RecipePage: Recipe data received:', recipeData);
         if (recipeData.status === 'success') {
+          console.log('RecipePage: Setting recipe:', recipeData.data);
           setRecipe(recipeData.data);
         } else {
           throw new Error(recipeData.error || 'Failed to load recipe');
@@ -99,14 +102,19 @@ export function RecipePage() {
           console.log('Meal instance not found, will be created when marked as cooked');
         }
       } catch (err) {
-        setError(err.message);
-      } finally {
+        console.error('RecipePage: Error loading recipe:', err);
+        console.error('RecipePage: Error stack:', err.stack);
+        setError(err.message || 'Failed to load recipe');
         setLoading(false);
       }
     };
 
     if (mealIdentifier) {
       fetchData();
+    } else {
+      console.warn('RecipePage: No mealIdentifier provided');
+      setError('No meal identifier provided');
+      setLoading(false);
     }
   }, [mealIdentifier]);
 
@@ -294,22 +302,35 @@ export function RecipePage() {
                 border: '1px solid #e5e7eb',
               }}>
                 <ul style={{ margin: 0, paddingLeft: '1.5rem', listStyle: 'none' }}>
-                  {recipe.ingredients.map((ingredient, i) => (
-                    <li key={i} style={{
-                      marginBottom: '0.75rem',
-                      paddingLeft: '1.5rem',
-                      position: 'relative',
-                      color: '#374151',
-                    }}>
-                      <span style={{
-                        position: 'absolute',
-                        left: 0,
-                        color: '#10b981',
-                        fontWeight: 'bold',
-                      }}>•</span>
-                      {ingredient}
-                    </li>
-                  ))}
+                  {recipe.ingredients.map((ingredient, i) => {
+                    // Handle both object format {name, quantity, unit} and string format
+                    let ingredientText = ingredient;
+                    if (typeof ingredient === 'object' && ingredient !== null) {
+                      const quantity = ingredient.quantity || '';
+                      const unit = ingredient.unit || '';
+                      const name = ingredient.name || '';
+                      ingredientText = quantity && unit 
+                        ? `${quantity} ${unit} ${name}`.trim()
+                        : name || JSON.stringify(ingredient);
+                    }
+                    
+                    return (
+                      <li key={i} style={{
+                        marginBottom: '0.75rem',
+                        paddingLeft: '1.5rem',
+                        position: 'relative',
+                        color: '#374151',
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          left: 0,
+                          color: '#10b981',
+                          fontWeight: 'bold',
+                        }}>•</span>
+                        {ingredientText}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
