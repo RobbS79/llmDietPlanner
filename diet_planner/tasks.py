@@ -859,11 +859,11 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
             f"{off_pkg_size or '?'}{off_unit} (package_size: {off_pkg_size}, product_unit: '{off_unit}')"
         )
     else:
-    logger.debug(
-        f"Price calculation for '{ingredient}': "
-        f"need {req_qty}{req_unit}, "
-        f"product: {off_price} per {off_pkg_size or '?'}{off_unit}"
-    )
+        logger.debug(
+            f"Price calculation for '{ingredient}': "
+            f"need {req_qty}{req_unit}, "
+            f"product: {off_price} per {off_pkg_size or '?'}{off_unit}"
+        )
 
     # Validate required fields
     if req_qty is None:
@@ -952,10 +952,10 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
             f"{num_packages} packages × {off_price} {item.get('currency', '')} = {total_price} {item.get('currency', '')}"
         )
     else:
-    logger.debug(
-        f"Price calculation result for '{ingredient}': "
-        f"{num_packages} packages x {off_price} = {total_price}"
-    )
+        logger.debug(
+            f"Price calculation result for '{ingredient}': "
+            f"{num_packages} packages x {off_price} = {total_price}"
+        )
 
     return total_price
 
@@ -1100,17 +1100,17 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 
                 # Calculate price using package-aware logic (accounts for quantity needed)
                 calculated_price = calculate_package_aware_price(item, context_id, goal_id)
-
-            if calculated_price:
-                item['price_total'] = float(calculated_price)
+                
+                if calculated_price:
+                    item['price_total'] = float(calculated_price)
                     item['price'] = float(calculated_price)  # Update to total calculated price for display
-                total_sum += calculated_price
+                    total_sum += calculated_price
                     matched_count += 1
                     logger.debug(
                         f"{log_prefix} DETAIL: '{ingredient_name}' final price: {calculated_price} {goal.currency} "
                         f"(from {base_price} base price)"
                     )
-            else:
+                else:
                     # If calculation fails but we have a base price from leaflet, use it as fallback
                     # This is better than LLM estimation since we have a real price
                     logger.warning(
