@@ -1404,9 +1404,10 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not get shop URL: {e}")
         
-        # SINGLE LLM CALL - Does everything (meal plan + recipes + shopping list + prices)
+        # TWO LLM CALLS - Step 1: Meal plan, Step 2: Shopping list with prices
+        # Split into two calls to avoid 8192 token limit truncation
         llm_service = GeminiService()
-        logger.info(f"{log_prefix} Calling Gemini to generate complete plan (meal plan + recipes + shopping list + prices)")
+        logger.info(f"{log_prefix} Calling Gemini (2-step process: meal plan + shopping list)")
         
         llm_result = llm_service.generate_complete_plan_with_shopping_list(
             user_prompt=goal.prompt,  # Full user prompt/document
