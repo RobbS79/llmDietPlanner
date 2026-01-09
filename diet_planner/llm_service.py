@@ -422,9 +422,10 @@ CRITICAL RULES:
 3. For ingredients sold per piece (avocado, eggs), convert weights to pieces (e.g., 200g avocado = 2 pieces)
 4. For liquids, select appropriate package size (e.g., 300ml oil needed → 500ml bottle from shop)
 5. DO NOT consider leftovers - always round UP to purchasable packages
-6. Include step-by-step cooking instructions for each meal
+6. Include step-by-step cooking instructions for each meal (keep instructions concise: 3-4 steps max per meal)
 7. All prices must be in {currency}
 8. Quantities should be realistic per-meal amounts
+9. Keep all text concise - descriptions should be brief (1-2 sentences max)
 
 MEAL PLAN REQUIREMENTS:
 - {getattr(goal, 'num_days', 7)} days
@@ -448,11 +449,18 @@ Return JSON with days (meal plan with recipes) and shopping_list (with real pric
                 system_instruction=system_prompt
             )
             
+            # Determine max_output_tokens based on model limits
+            # gemini-2.0-flash-exp max is 8192 tokens
+            # For Czech/Slovak responses, ~1 token per 2-3 chars due to accents
+            # 23k chars ≈ 7.6k-11.5k tokens, so 8192 may be tight for large plans
+            MAX_OUTPUT_TOKENS = 8192  # Max for gemini-2.0-flash-exp model
+            
             response = gemini_model.generate_content(
                 full_prompt,
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.7,
+                    "max_output_tokens": MAX_OUTPUT_TOKENS,
                 },
                 request_options={"timeout": 300}  # 5 minutes for complex response
             )
@@ -460,9 +468,27 @@ Return JSON with days (meal plan with recipes) and shopping_list (with real pric
             content = response.text
             usage = response.usage_metadata
             
+            # Check if response was truncated (finish_reason should be 'STOP' for complete responses)
+            finish_reason = None
+            try:
+                if hasattr(response, 'candidates') and response.candidates:
+                    finish_reason = getattr(response.candidates[0], 'finish_reason', None)
+                    if finish_reason and finish_reason != 'STOP':
+                        logger.warning(f"Response may be truncated: finish_reason={finish_reason}")
+            except (AttributeError, IndexError):
+                pass
+            
             # Apply same JSON cleaning logic as generate_dietary_plan
             response_length = len(content)
-            logger.debug(f"Gemini complete plan response length: {response_length} characters")
+            logger.debug(f"Gemini complete plan response length: {response_length} characters, output_tokens: {usage.candidates_token_count}")
+            
+            # Check if we hit the token limit (indicates truncation)
+            # For Czech/Slovak, ~1 token per 2-3 chars, so 23k chars ≈ 7.6k-11.5k tokens
+            if usage.candidates_token_count >= 8150:  # Very close to MAX_OUTPUT_TOKENS limit (8192)
+                logger.warning(
+                    f"Response may be truncated: used {usage.candidates_token_count} tokens "
+                    f"(limit: {MAX_OUTPUT_TOKENS}). Consider using a model with higher limits for plans >7 days."
+                )
             
             if response_length > 10000:
                 try:
@@ -478,17 +504,80 @@ Return JSON with days (meal plan with recipes) and shopping_list (with real pric
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse Gemini complete plan JSON: {e}")
                 logger.error(f"Error at position {e.pos if hasattr(e, 'pos') else 'unknown'}")
+                logger.error(f"Response length: {response_length} chars, Output tokens: {usage.candidates_token_count}")
                 logger.error(f"Response content (first 1000 chars): {content[:1000]}")
                 logger.error(f"Response content (last 1000 chars): {content[-1000:] if len(content) > 1000 else content}")
+                
+                # Check for truncation indicators
+                is_truncated = (
+                    (finish_reason and finish_reason != 'STOP') or
+                    (usage.candidates_token_count >= MAX_OUTPUT_TOKENS - 10) or  # Within 10 tokens of limit
+                    ('Unterminated string' in str(e)) or
+                    ('Expecting value' in str(e) and hasattr(e, 'pos') and e.pos >= len(content) - 10)
+                )
+                
+                if is_truncated:
+                    logger.error("Response appears to be truncated - retrying with more concise prompt...")
+                    # Can't increase beyond 8192 for gemini-2.0-flash-exp, so modify prompt to be more concise
+                    concise_prompt = f"""{user_prompt}
+
+Create a complete meal plan with shopping list from {shop_url}.
+IMPORTANT: Keep instructions brief (2-3 steps max per meal). Keep descriptions short.
+Browse the shop URL to get current prices and availability.
+Return JSON with days (meal plan with recipes) and shopping_list (with real prices)."""
+                    
+                    response = gemini_model.generate_content(
+                        concise_prompt,
+                        generation_config={
+                            "response_mime_type": "application/json",
+                            "temperature": 0.7,
+                            "max_output_tokens": MAX_OUTPUT_TOKENS,  # Still 8192 (model limit)
+                        },
+                        request_options={"timeout": 300}
+                    )
+                    content = response.text
+                    usage = response.usage_metadata
+                    logger.info(f"Retry response length: {len(content)} chars, tokens: {usage.candidates_token_count}")
+                    # Try parsing the retry response directly
+                    try:
+                        parsed_response = json.loads(content)
+                        logger.info("Successfully parsed JSON from retry response")
+                        return {
+                            'response': parsed_response,
+                            'input_tokens': usage.prompt_token_count,
+                            'output_tokens': usage.candidates_token_count,
+                            'total_tokens': usage.total_token_count,
+                            'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
+                            'model': model,
+                        }
+                    except json.JSONDecodeError as retry_error:
+                        logger.error(f"Retry response also has JSON errors: {retry_error}")
+                        # Continue with cleaning logic below
                 
                 # Try cleaning
                 try:
                     logger.info("Attempting to clean and repair JSON...")
                     cleaned_content = content
+                    # Remove trailing incomplete strings/objects
+                    if is_truncated:
+                        # Try to find last complete JSON object and close it
+                        last_complete_pos = max(
+                            cleaned_content.rfind('}') if cleaned_content.rfind('}') > cleaned_content.rfind(']') else -1,
+                            cleaned_content.rfind(']')
+                        )
+                        if last_complete_pos > len(cleaned_content) * 0.8:  # If close to end
+                            # Try to close incomplete structures
+                            open_braces = cleaned_content.count('{') - cleaned_content.count('}')
+                            open_brackets = cleaned_content.count('[') - cleaned_content.count(']')
+                            cleaned_content = cleaned_content.rstrip().rstrip(',')
+                            cleaned_content += '}' * open_braces
+                            cleaned_content += ']' * open_brackets
+                            logger.info(f"Attempted to close {open_braces} braces and {open_brackets} brackets")
+                    
                     cleaned_content = re.sub(r',\s*}', '}', cleaned_content)
                     cleaned_content = re.sub(r',\s*]', ']', cleaned_content)
                     parsed_response = json.loads(cleaned_content)
-                    logger.warning("Successfully parsed JSON after cleaning trailing commas")
+                    logger.warning("Successfully parsed JSON after cleaning")
                 except json.JSONDecodeError as e2:
                     logger.error(f"Failed to parse even after cleaning: {e2}")
                     try:
@@ -497,7 +586,7 @@ Return JSON with days (meal plan with recipes) and shopping_list (with real pric
                         logger.error(f"Saved invalid response to /tmp/gemini_invalid_complete_plan.json")
                     except Exception:
                         pass
-                    raise ValueError(f"Gemini returned invalid JSON that could not be repaired: {e}")
+                    raise ValueError(f"Gemini returned invalid JSON that could not be repaired (likely truncated): {e}")
             
             return {
                 'response': parsed_response,
