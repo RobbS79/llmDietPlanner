@@ -11,7 +11,7 @@ from django.utils import timezone
 from typing import Dict, Any
 
 from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, get_currency_for_country, get_shops_for_country, SHOP_CHOICES
-from .llm_service import OpenAIService
+from .llm_service import GeminiService
 from .serializers import (
     DietaryGoalSerializer,
     DietaryGoalDetailSerializer,
@@ -457,8 +457,8 @@ class ScraperDebugView(APIView):
             # Test LLM extraction directly
             llm_extraction_result = None
             try:
-                from .llm_service import OpenAIService
-                llm_service = OpenAIService()
+                from .llm_service import GeminiService
+                llm_service = GeminiService()
                 
                 if scraper_url and html_sample and not html_sample.startswith("Error"):
                     # Get full HTML content
@@ -778,7 +778,7 @@ class RecipeDetailView(APIView):
                     description = meal_data.get('description', '')
                     
                     try:
-                        llm_service = OpenAIService()
+                        llm_service = GeminiService()
                         instructions = llm_service.generate_recipe_instructions(
                             meal_name=meal_name,
                             ingredients=ingredients,

@@ -7,28 +7,24 @@ import logging
 from typing import Dict, Any, Optional, List
 
 from django.conf import settings
-import openai
 
 from diet_planner.models import DietaryGoal
+from diet_planner.llm_service import GeminiService
 
 logger = logging.getLogger(__name__)
 
 
 class MealPlanService:
     """
-    Service for generating meal plans using OpenAI.
+    Service for generating meal plans using Gemini.
     Phase 1: Creates meal plan based solely on dietary requirements.
     Does NOT include pricing - that's handled by Phase 2.
     """
 
     def __init__(self):
-        """Initialize OpenAI client."""
-        api_key = getattr(settings, 'OPENAI_API_KEY', None)
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY not set in settings.")
-
-        self.client = openai.OpenAI(api_key=api_key)
-        self.model = getattr(settings, 'OPENAI_MODEL', 'gpt-4o-mini')
+        """Initialize Gemini service."""
+        self.llm_service = GeminiService()
+        self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash-exp')
 
     def generate_meal_plan(self, goal: DietaryGoal) -> Dict[str, Any]:
         """
@@ -49,22 +45,32 @@ class MealPlanService:
         system_prompt = self._build_system_prompt(goal)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.7,
+            import google.generativeai as genai
+            
+            # Use Gemini API
+            gemini_model = genai.GenerativeModel(
+                model_name=self.model,
+                system_instruction=system_prompt
+            )
+            
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.7,
+                }
             )
 
-            content = response.choices[0].message.content
-            usage = response.usage
+            content = response.text
+            usage = response.usage_metadata
+            
+            input_tokens = usage.prompt_token_count
+            output_tokens = usage.candidates_token_count
+            total_tokens = usage.total_token_count
 
             # Calculate cost
             from diet_planner.llm_service import calculate_cost
-            cost_usd = calculate_cost(usage.prompt_tokens, usage.completion_tokens, self.model)
+            cost_usd = calculate_cost(input_tokens, output_tokens, self.model)
 
             # Parse response
             parsed = json.loads(content)
@@ -75,14 +81,14 @@ class MealPlanService:
 
             logger.info(
                 f"MealPlanService: Generated {len(days)} days, "
-                f"tokens: {usage.total_tokens}, cost: ${cost_usd}"
+                f"tokens: {total_tokens}, cost: ${cost_usd}"
             )
 
             return {
                 'days': days,
-                'input_tokens': usage.prompt_tokens,
-                'output_tokens': usage.completion_tokens,
-                'total_tokens': usage.total_tokens,
+                'input_tokens': input_tokens,
+                'output_tokens': output_tokens,
+                'total_tokens': total_tokens,
                 'cost_usd': cost_usd,
                 'model': self.model,
             }

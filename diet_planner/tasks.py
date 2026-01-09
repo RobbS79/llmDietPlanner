@@ -43,7 +43,7 @@ from collections import Counter
 
 from .models import DietaryGoal, DietaryPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
-from .llm_service import OpenAIService
+from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
 
 logger = logging.getLogger(__name__)
@@ -1418,11 +1418,22 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 logger.debug(f"{log_prefix} DETAIL: Sample ingredients: {sample_ingredients}")
 
         # Step 2: Generate meal plan via LLM
-        llm_service = OpenAIService()
+        llm_service = GeminiService()
         logger.info(f"{log_prefix} Step 2: Calling LLM to generate meal plan")
+        
+        # Get shop URL for Gemini to browse (if shop is specified)
+        shop_url = None
+        if goal.shop:
+            try:
+                shop_url = ScraperService._get_shop_urls(goal.shop, goal.country)[0]
+                logger.info(f"{log_prefix} Shop URL for Gemini browsing: {shop_url}")
+            except Exception as e:
+                logger.warning(f"{log_prefix} Could not get shop URL: {e}")
+        
         llm_result = llm_service.generate_dietary_plan(
             prompt_text=json.dumps(build_llm_prompt_json(goal, available_ingredients), ensure_ascii=False),
-            language_code=goal.language_code
+            language_code=goal.language_code,
+            shop_url=shop_url  # NEW: Gemini browses this URL for current prices
         )
 
         llm_response = llm_result['response']

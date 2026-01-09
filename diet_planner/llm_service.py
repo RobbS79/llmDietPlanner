@@ -1,8 +1,9 @@
 """
-OpenAI LLM Service for Dietary Plan Generation
-==============================================
+Google Gemini LLM Service for Dietary Plan Generation
+======================================================
 
-This module handles all OpenAI API interactions for the diet planner application.
+This module handles all Google Gemini API interactions for the diet planner application.
+Gemini can browse URLs directly, enabling real-time price fetching from shop websites.
 
 ## Responsibilities:
 - Generate meal plans (days with meals and ingredients)
@@ -30,103 +31,46 @@ Costs are stored in DietaryPlan.llm_cost_usd for billing/monitoring.
 from typing import Dict, Any, Optional, List
 import json
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
-from openai import OpenAI
-import tiktoken
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
 
-# OpenAI pricing per 1M tokens (as of 2024, update as needed)
+# Gemini pricing per 1M tokens (as of 2024)
 # Prices in USD
-OPENAI_PRICING = {
-    'gpt-4o': {
-        'input': 2.50,  # $2.50 per 1M input tokens
-        'output': 10.00,  # $10.00 per 1M output tokens
+GEMINI_PRICING = {
+    'gemini-2.0-flash-exp': {
+        'input': 0.0,  # Free tier
+        'output': 0.0,  # Free tier
     },
-    'gpt-4o-mini': {
-        'input': 0.15,  # $0.15 per 1M input tokens
-        'output': 0.60,  # $0.60 per 1M output tokens
+    'gemini-1.5-pro': {
+        'input': 1.25,  # $1.25 per 1M input tokens
+        'output': 5.00,  # $5.00 per 1M output tokens
     },
-    'gpt-4-turbo': {
-        'input': 10.00,  # $10.00 per 1M input tokens
-        'output': 30.00,  # $30.00 per 1M output tokens
-    },
-    'gpt-4': {
-        'input': 30.00,  # $30.00 per 1M input tokens
-        'output': 60.00,  # $60.00 per 1M output tokens
-    },
-    'gpt-3.5-turbo': {
-        'input': 0.50,  # $0.50 per 1M input tokens
-        'output': 1.50,  # $1.50 per 1M output tokens
+    'gemini-1.5-flash': {
+        'input': 0.075,  # $0.075 per 1M input tokens
+        'output': 0.30,  # $0.30 per 1M output tokens
     },
 }
 
 
 def get_model_pricing(model: str) -> Dict[str, float]:
     """
-    Get pricing for a specific model.
+    Get pricing for a specific Gemini model.
     
     Args:
-        model: Model name (e.g., 'gpt-4o', 'gpt-4o-mini')
+        model: Model name (e.g., 'gemini-2.0-flash-exp', 'gemini-1.5-pro')
         
     Returns:
         Dict with 'input' and 'output' prices per 1M tokens
     """
-    # Handle model variants (e.g., 'gpt-4o-2024-05-13' -> 'gpt-4o')
-    base_model = model.split('-')[0:3]  # Get first 3 parts (e.g., ['gpt', '4o', '2024'])
-    if len(base_model) >= 2:
-        base_model_name = '-'.join(base_model[:2])  # 'gpt-4o'
-    else:
-        base_model_name = model
-    
-    return OPENAI_PRICING.get(
-        base_model_name,
-        OPENAI_PRICING.get('gpt-4o-mini')  # Default to cheapest option
+    return GEMINI_PRICING.get(
+        model,
+        GEMINI_PRICING.get('gemini-1.5-flash')  # Default to cheapest paid option
     )
-
-
-def count_tokens(text: str, model: str = 'gpt-4o') -> int:
-    """
-    Count tokens in a text string using tiktoken.
-    
-    Args:
-        text: Text to count tokens for
-        model: Model name to use for encoding
-        
-    Returns:
-        Number of tokens
-    """
-    try:
-        # Map model names to tiktoken encodings
-        encoding_map = {
-            'gpt-4o': 'o200k_base',
-            'gpt-4o-mini': 'o200k_base',
-            'gpt-4-turbo': 'cl100k_base',
-            'gpt-4': 'cl100k_base',
-            'gpt-3.5-turbo': 'cl100k_base',
-        }
-        
-        # Get base model for encoding
-        base_model = model.split('-')[0:3]
-        if len(base_model) >= 2:
-            base_model_name = '-'.join(base_model[:2])
-        else:
-            base_model_name = model
-        
-        encoding_name = encoding_map.get(base_model_name, 'cl100k_base')
-        
-        # Get encoding
-        encoding = tiktoken.get_encoding(encoding_name)
-        
-        # Count tokens
-        return len(encoding.encode(text))
-    except Exception as e:
-        logger.warning(f"Error counting tokens: {e}. Using approximate count.")
-        # Fallback: approximate 1 token = 4 characters
-        return len(text) // 4
 
 
 def calculate_cost(
@@ -154,26 +98,26 @@ def calculate_cost(
     return total_cost.quantize(Decimal('0.000001'))  # Round to 6 decimal places
 
 
-class OpenAIService:
+class GeminiService:
     """
-    Service for interacting with OpenAI API.
+    Service for interacting with Google Gemini API.
     Handles API calls, token counting, and cost tracking.
     """
     
     def __init__(self):
-        """Initialise OpenAI client with API key from settings."""
-        api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        """Initialise Gemini client with API key from settings."""
+        api_key = getattr(settings, 'GEMINI_API_KEY', None)
         if not api_key:
             raise ValueError(
-                "OPENAI_API_KEY not set in settings. "
+                "GEMINI_API_KEY not set in settings. "
                 "Please set it as an environment variable."
             )
         
-        self.client = OpenAI(api_key=api_key)
+        genai.configure(api_key=api_key)
         self.default_model = getattr(
             settings,
-            'OPENAI_MODEL',
-            'gpt-4o-mini'  # Default to cost-effective model
+            'GEMINI_MODEL',
+            'gemini-2.0-flash-exp'  # Default to free tier
         )
     
     def generate_dietary_plan(
@@ -181,16 +125,18 @@ class OpenAIService:
         prompt_text: str,
         system_prompt: Optional[str] = None,
         model: Optional[str] = None,
-        language_code: Optional[str] = None
+        language_code: Optional[str] = None,
+        shop_url: Optional[str] = None  # NEW: Pass shop URL for Gemini to browse
     ) -> Dict[str, Any]:
         """
-        Generate a dietary plan using OpenAI API.
+        Generate a dietary plan using Gemini API.
         
         Args:
-            prompt_text: User prompt (JSON formatted)
+            prompt_text: User prompt (JSON formatted or natural language)
             system_prompt: System prompt (optional, uses default if not provided)
             model: Model to use (optional, uses default if not provided)
             language_code: Language code for response (e.g., 'cs', 'pl', 'en')
+            shop_url: Optional shop URL for Gemini to browse for prices
             
         Returns:
             Dict containing:
@@ -262,34 +208,37 @@ EXAMPLE INGREDIENT FORMAT:
   {{"name": "vejce", "quantity": 2, "unit": "ks"}}
 ]"""
         
-        # Count input tokens
-        input_tokens = count_tokens(system_prompt + prompt_text, model)
-        
         try:
-            # Make API call
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt_text}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.7,
+            # Initialize model with system instruction
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=system_prompt
+            )
+            
+            # Build full prompt
+            full_prompt = prompt_text
+            
+            # If shop_url provided, instruct Gemini to browse it
+            if shop_url:
+                full_prompt += f"\n\nIMPORTANT: Browse {shop_url} to get current product prices and availability. Use this information when creating the meal plan."
+            
+            # Generate content
+            response = gemini_model.generate_content(
+                full_prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.7,
+                }
             )
             
             # Extract response
-            content = response.choices[0].message.content
+            content = response.text
             
             # Get token usage from API response
-            usage = response.usage
-            input_tokens_api = usage.prompt_tokens
-            output_tokens_api = usage.completion_tokens
-            total_tokens_api = usage.total_tokens
-            
-            # Use API token counts (more accurate)
-            input_tokens = input_tokens_api
-            output_tokens = output_tokens_api
-            total_tokens = total_tokens_api
+            usage = response.usage_metadata
+            input_tokens = usage.prompt_token_count
+            output_tokens = usage.candidates_token_count
+            total_tokens = usage.total_token_count
             
             # Calculate cost
             cost_usd = calculate_cost(input_tokens, output_tokens, model)
@@ -298,9 +247,9 @@ EXAMPLE INGREDIENT FORMAT:
             try:
                 parsed_response = json.loads(content)
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse LLM JSON response: {e}")
-                logger.error(f"Response content: {content}")
-                raise ValueError(f"LLM returned invalid JSON: {e}")
+                logger.error(f"Failed to parse Gemini JSON response: {e}")
+                logger.error(f"Response content: {content[:500]}")
+                raise ValueError(f"Gemini returned invalid JSON: {e}")
             
             return {
                 'response': parsed_response,
@@ -312,7 +261,7 @@ EXAMPLE INGREDIENT FORMAT:
             }
             
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            logger.error(f"Gemini API error: {e}", exc_info=True)
             raise
     
     def generate_recipe_instructions(
@@ -324,7 +273,7 @@ EXAMPLE INGREDIENT FORMAT:
         model: Optional[str] = None
     ) -> list:
         """
-        Generate detailed cooking instructions for a recipe using LLM.
+        Generate detailed cooking instructions for a recipe using Gemini.
         
         Args:
             meal_name: Name of the meal
@@ -354,23 +303,26 @@ Requirements:
 - Instructions should be practical and easy to follow
 - Write in {language_code} language
 
-Return ONLY a JSON array of instruction strings, like this:
-["Step 1 instruction", "Step 2 instruction", "Step 3 instruction", ...]"""
+Return ONLY a JSON object with an "instructions" array of strings:
+{{"instructions": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction", ...]}}"""
 
         system_prompt = "You are a professional chef providing clear, detailed cooking instructions. Always respond with valid JSON."
         
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.7,
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=system_prompt
             )
             
-            content = response.choices[0].message.content
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.7,
+                }
+            )
+            
+            content = response.text
             parsed = json.loads(content)
             
             # Extract instructions array (could be under 'instructions' key or be the root)
@@ -386,7 +338,7 @@ Return ONLY a JSON array of instruction strings, like this:
                 return []
                 
         except Exception as e:
-            logger.error(f"Error generating recipe instructions: {e}")
+            logger.error(f"Error generating recipe instructions: {e}", exc_info=True)
             # Return empty list on error - fallback will be used
             return []
     
@@ -399,7 +351,7 @@ Return ONLY a JSON array of instruction strings, like this:
         model: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Use LLM to extract products and prices from HTML content of a leaflet/offer page.
+        Use Gemini to extract products and prices from HTML content of a leaflet/offer page.
         
         This is much more robust than regex-based scraping and handles HTML structure changes.
         
@@ -408,7 +360,7 @@ Return ONLY a JSON array of instruction strings, like this:
             url: URL of the page being scraped
             shop: Shop code (e.g., 'LIDL_CZ')
             country: Country code (e.g., 'CZ')
-            model: Model to use (optional, defaults to gpt-4o-mini for cost efficiency)
+            model: Model to use (optional, defaults to default model for cost efficiency)
             
         Returns:
             List of product dictionaries with structure:
@@ -422,7 +374,8 @@ Return ONLY a JSON array of instruction strings, like this:
             }
         """
         from bs4 import BeautifulSoup
-        from decimal import Decimal, InvalidOperation
+        from decimal import Decimal
+        from decimal import InvalidOperation
         
         model = model or self.default_model
         
@@ -544,39 +497,36 @@ Example format:
 }}"""
         
         try:
-            # Count input tokens for logging
-            input_tokens = count_tokens(system_prompt + user_prompt, model)
-            logger.debug(f"LLM extraction request: {input_tokens} input tokens for {url}")
-            
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1,  # Low temperature for consistent extraction
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=system_prompt
             )
             
-            content = response.choices[0].message.content
+            response = gemini_model.generate_content(
+                user_prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.1,  # Low temperature for consistent extraction
+                }
+            )
+            
+            content = response.text
             
             # Get token usage
-            usage = response.usage
-            input_tokens_api = usage.prompt_tokens
-            output_tokens_api = usage.completion_tokens
-            total_tokens_api = usage.total_tokens
+            usage = response.usage_metadata
+            input_tokens = usage.prompt_token_count
+            output_tokens = usage.candidates_token_count
             
             # Calculate cost
-            cost_usd = calculate_cost(input_tokens_api, output_tokens_api, model)
+            cost_usd = calculate_cost(input_tokens, output_tokens, model)
             
             logger.info(
-                f"LLM extraction for {url}: "
-                f"{input_tokens_api} input tokens, {output_tokens_api} output tokens, "
+                f"Gemini extraction for {url}: "
+                f"{input_tokens} input tokens, {output_tokens} output tokens, "
                 f"cost ${cost_usd}, model {model}"
             )
             
             parsed = json.loads(content)
-            
             products = parsed.get('products', [])
             
             # Convert price to Decimal and validate
@@ -625,15 +575,15 @@ Example format:
                     logger.warning(f"Invalid price for product {product.get('display_name')}: {e}")
                     continue
             
-            logger.info(f"LLM extracted {len(validated_products)} products with prices from {url}")
+            logger.info(f"Gemini extracted {len(validated_products)} products with prices from {url}")
             return validated_products
             
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM JSON response from {url}: {e}")
+            logger.error(f"Failed to parse Gemini JSON response from {url}: {e}")
             logger.error(f"Response content: {content[:500] if 'content' in locals() else 'N/A'}")
             return []
         except Exception as e:
-            logger.error(f"Error extracting products from HTML using LLM for {url}: {e}", exc_info=True)
+            logger.error(f"Error extracting products from HTML using Gemini for {url}: {e}", exc_info=True)
             return []
     
     def estimate_product_price(
@@ -646,7 +596,7 @@ Example format:
         model: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Ask LLM to estimate the price of a product based on general knowledge about the shop.
+        Ask Gemini to estimate the price of a product based on general knowledge about the shop.
         
         This is used as a fallback when the product is not found in scraped leaflet data.
         
@@ -742,22 +692,25 @@ Příklad pro sůl 500g:
 }}"""
         
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3,  # Low temperature for consistent estimates
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=system_prompt
             )
             
-            content = response.choices[0].message.content
+            response = gemini_model.generate_content(
+                user_prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.3,  # Low temperature for consistent estimates
+                }
+            )
+            
+            content = response.text
             parsed = json.loads(content)
             
             estimated_price = parsed.get('estimated_price')
             if estimated_price is None:
-                logger.warning(f"No estimated_price in LLM response for {ingredient_name}")
+                logger.warning(f"No estimated_price in Gemini response for {ingredient_name}")
                 return None
             
             try:
@@ -783,7 +736,7 @@ Příklad pro sůl 500g:
                     'note': parsed.get('note', '')
                 }
                 
-                logger.info(f"LLM estimated price for {ingredient_name}: {price} {result['currency']} ({result.get('unit', 'unit')})")
+                logger.info(f"Gemini estimated price for {ingredient_name}: {price} {result['currency']} ({result.get('unit', 'unit')})")
                 return result
                 
             except (ValueError, InvalidOperation) as e:
@@ -791,9 +744,13 @@ Příklad pro sůl 500g:
                 return None
                 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM price estimate JSON for {ingredient_name}: {e}")
+            logger.error(f"Failed to parse Gemini price estimate JSON for {ingredient_name}: {e}")
             return None
         except Exception as e:
             logger.error(f"Error estimating price for {ingredient_name}: {e}", exc_info=True)
             return None
 
+
+# Temporary alias for backward compatibility during migration
+# Can be removed after full migration
+OpenAIService = GeminiService

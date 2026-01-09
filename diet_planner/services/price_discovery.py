@@ -9,9 +9,9 @@ from decimal import Decimal
 from dataclasses import dataclass
 
 from django.conf import settings
-import openai
 
 from diet_planner.models import DietaryGoal, LeafletOffer
+from diet_planner.llm_service import GeminiService
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +48,9 @@ class PriceDiscoveryService:
         self.shop = goal.shop
         self.currency = goal.currency
 
-        # Initialize OpenAI client
-        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = getattr(settings, 'OPENAI_MODEL', 'gpt-4o-mini')
+        # Initialize Gemini service
+        self.llm_service = GeminiService()
+        self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash-exp')
 
     def fill_missing_prices(self, shopping_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -221,28 +221,25 @@ Important:
 """
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a helpful assistant that estimates grocery prices. Always respond with valid JSON."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,  # Lower temperature for more consistent prices
-                max_tokens=2000
+            import google.generativeai as genai
+            
+            # Use Gemini API
+            gemini_model = genai.GenerativeModel(
+                model_name=self.model,
+                system_instruction="You are a helpful assistant that estimates grocery prices. Always respond with valid JSON."
+            )
+            
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.3,  # Lower temperature for more consistent prices
+                }
             )
 
-            content = response.choices[0].message.content.strip()
+            content = response.text.strip()
 
-            # Clean up potential markdown formatting
-            if content.startswith('```'):
-                content = content.split('```')[1]
-                if content.startswith('json'):
-                    content = content[4:]
-                content = content.strip()
-
+            # Parse JSON (Gemini should return clean JSON with response_mime_type)
             estimates_data = json.loads(content)
 
             results = []

@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 def get_llm_service():
     """Get LLM service instance with lazy loading."""
     try:
-        from ..llm_service import OpenAIService
-        return OpenAIService()
+        from ..llm_service import GeminiService
+        return GeminiService()
     except Exception as e:
         logger.error(f"Failed to import/initialize LLM service: {e}", exc_info=True)
         raise

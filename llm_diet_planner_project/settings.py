@@ -243,9 +243,9 @@ if _field_encryption_key is None:
 
 FIELD_ENCRYPTION_KEY = _field_encryption_key
 
-# OpenAI Configuration
-OPENAI_API_KEY = config('OPENAI_API_KEY', default=None)
-OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+# Google Gemini Configuration
+GEMINI_API_KEY = config('GEMINI_API_KEY', default=None)
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash-exp')
 
 # Celery Configuration
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
