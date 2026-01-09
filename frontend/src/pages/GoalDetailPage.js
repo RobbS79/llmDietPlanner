@@ -116,12 +116,14 @@ export function GoalDetailPage() {
             } catch (refreshError) {
               // Refresh failed, clear tokens and redirect to login
               clearTokens();
+              setLoading(false);
               window.location.href = '/login';
               return;
             }
           } else {
             // No refresh token, redirect to login
             clearTokens();
+            setLoading(false);
             window.location.href = '/login';
             return;
           }
@@ -131,6 +133,7 @@ export function GoalDetailPage() {
           const errorData = await response.json().catch(() => ({}));
           if (response.status === 401) {
             clearTokens();
+            setLoading(false);
             window.location.href = '/login';
             return;
           }
@@ -142,6 +145,9 @@ export function GoalDetailPage() {
         if (data.status === 'success') {
           console.log('GoalDetailPage: Setting goal:', data.data);
           setGoal(data.data);
+          // Explicitly set loading to false after setting goal
+          setLoading(false);
+          console.log('GoalDetailPage: Loading set to false after setting goal');
         } else {
           throw new Error(data.error || 'Failed to load goal');
         }
@@ -149,6 +155,11 @@ export function GoalDetailPage() {
         console.error('GoalDetailPage: Error loading goal:', err);
         console.error('GoalDetailPage: Error stack:', err.stack);
         setError(err.message || 'Failed to load goal');
+        setLoading(false);
+        console.log('GoalDetailPage: Loading set to false after error');
+      } finally {
+        // Ensure loading is always set to false
+        console.log('GoalDetailPage: Finally block - ensuring loading is false');
         setLoading(false);
       }
     };
@@ -165,7 +176,10 @@ export function GoalDetailPage() {
   // Fetch cooked meals using batch endpoint
   useEffect(() => {
     const fetchCookedMeals = async () => {
-      if (!goal) return;
+      if (!goal) {
+        console.log('GoalDetailPage: No goal yet, skipping cooked meals fetch');
+        return;
+      }
       
       try {
         const response = await getMealInstancesForGoal(goal.id);
