@@ -39,6 +39,7 @@ import logging
 import re
 import uuid
 from decimal import Decimal
+from collections import Counter
 
 from .models import DietaryGoal, DietaryPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
@@ -46,6 +47,67 @@ from .llm_service import OpenAIService
 from .scrapers.scraper_service import ScraperService
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# INGREDIENT PACKAGE KNOWLEDGE BASE
+# =============================================================================
+# Information about how ingredients are typically sold, their average weights/sizes,
+# and common package sizes. Used for unit conversion and package size inference.
+
+INGREDIENT_PACKAGE_INFO = {
+    # Fruits sold per piece
+    'avokádo': {'typical_unit': 'ks', 'avg_weight_g': 150, 'typical_packages': [1]},
+    'avocado': {'typical_unit': 'ks', 'avg_weight_g': 150, 'typical_packages': [1]},
+    'banán': {'typical_unit': 'ks', 'avg_weight_g': 120, 'typical_packages': [1]},
+    'banana': {'typical_unit': 'ks', 'avg_weight_g': 120, 'typical_packages': [1]},
+    'jablko': {'typical_unit': 'ks', 'avg_weight_g': 180, 'typical_packages': [1]},
+    'apple': {'typical_unit': 'ks', 'avg_weight_g': 180, 'typical_packages': [1]},
+    'pomeranč': {'typical_unit': 'ks', 'avg_weight_g': 200, 'typical_packages': [1]},
+    'orange': {'typical_unit': 'ks', 'avg_weight_g': 200, 'typical_packages': [1]},
+    'citron': {'typical_unit': 'ks', 'avg_weight_g': 100, 'typical_packages': [1]},
+    'lemon': {'typical_unit': 'ks', 'avg_weight_g': 100, 'typical_packages': [1]},
+    'rajče': {'typical_unit': 'ks', 'avg_weight_g': 150, 'typical_packages': [1]},
+    'tomato': {'typical_unit': 'ks', 'avg_weight_g': 150, 'typical_packages': [1]},
+    'okurka': {'typical_unit': 'ks', 'avg_weight_g': 300, 'typical_packages': [1]},
+    'cucumber': {'typical_unit': 'ks', 'avg_weight_g': 300, 'typical_packages': [1]},
+    
+    # Oils and liquids - common bottle sizes
+    'olivový olej': {'typical_unit': 'ml', 'typical_packages': [250, 500, 700, 1000]},
+    'olive oil': {'typical_unit': 'ml', 'typical_packages': [250, 500, 700, 1000]},
+    'slunečnicový olej': {'typical_unit': 'ml', 'typical_packages': [500, 1000]},
+    'sunflower oil': {'typical_unit': 'ml', 'typical_packages': [500, 1000]},
+    'řepkový olej': {'typical_unit': 'ml', 'typical_packages': [500, 1000]},
+    'canola oil': {'typical_unit': 'ml', 'typical_packages': [500, 1000]},
+    
+    # Eggs - sold per piece (typically in packages of 6, 10, 15)
+    'vejce': {'typical_unit': 'ks', 'avg_weight_g': 50, 'typical_packages': [6, 10, 15]},
+    'egg': {'typical_unit': 'ks', 'avg_weight_g': 50, 'typical_packages': [6, 10, 15]},
+    
+    # Vegetables with typical package sizes
+    'špenát': {'typical_unit': 'g', 'typical_packages': [150, 250, 300]},
+    'spinach': {'typical_unit': 'g', 'typical_packages': [150, 250, 300]},
+    'salát': {'typical_unit': 'g', 'typical_packages': [150, 200, 300]},
+    'lettuce': {'typical_unit': 'g', 'typical_packages': [150, 200, 300]},
+    'mix listové zeleniny': {'typical_unit': 'g', 'typical_packages': [150, 200, 300]},
+    'leafy green mix': {'typical_unit': 'g', 'typical_packages': [150, 200, 300]},
+    
+    # Dairy products
+    'mléko': {'typical_unit': 'ml', 'typical_packages': [500, 1000]},
+    'milk': {'typical_unit': 'ml', 'typical_packages': [500, 1000]},
+    'tvaroh': {'typical_unit': 'g', 'typical_packages': [250, 500]},
+    'cottage cheese': {'typical_unit': 'g', 'typical_packages': [250, 500]},
+    'jogurt': {'typical_unit': 'g', 'typical_packages': [150, 200, 250]},
+    'yogurt': {'typical_unit': 'g', 'typical_packages': [150, 200, 250]},
+    
+    # Meat and fish - usually sold by weight but can have packages
+    'kuřecí prsa': {'typical_unit': 'g', 'typical_packages': [500, 1000]},
+    'chicken breast': {'typical_unit': 'g', 'typical_packages': [500, 1000]},
+    'losos': {'typical_unit': 'g', 'typical_packages': [200, 300, 500]},
+    'salmon': {'typical_unit': 'g', 'typical_packages': [200, 300, 500]},
+    'tuňák': {'typical_unit': 'g', 'typical_packages': [100, 150, 200]},
+    'tuna': {'typical_unit': 'g', 'typical_packages': [100, 150, 200]},
+}
 
 
 # =============================================================================
@@ -795,6 +857,232 @@ def convert_to_base_value(val: Decimal, unit: str) -> Decimal:
     return val  # g, ml, ks remain unchanged
 
 
+# =============================================================================
+# PACKAGE SIZE INFERENCE AND UNIT CONVERSION
+# =============================================================================
+
+def get_ingredient_package_info(ingredient_name: str) -> Optional[Dict[str, Any]]:
+    """
+    Lookup package information for an ingredient from knowledge base.
+    
+    Handles normalized names and aliases (e.g., 'avokádo' and 'avocado').
+    
+    Args:
+        ingredient_name: Ingredient name (can be in any language)
+        
+    Returns:
+        Dict with package info or None if not found:
+        {
+            'typical_unit': 'ks' | 'g' | 'ml',
+            'avg_weight_g': float (for piece-based items),
+            'typical_packages': [list of common package sizes]
+        }
+    """
+    if not ingredient_name:
+        return None
+    
+    name_lower = ingredient_name.lower().strip()
+    
+    # Direct lookup
+    if name_lower in INGREDIENT_PACKAGE_INFO:
+        return INGREDIENT_PACKAGE_INFO[name_lower]
+    
+    # Try normalized lookup (remove accents, special chars)
+    normalized = re.sub(r'[^a-z0-9\s]', '', name_lower.lower())
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    
+    if normalized in INGREDIENT_PACKAGE_INFO:
+        return INGREDIENT_PACKAGE_INFO[normalized]
+    
+    # Try partial match (e.g., "avokádo bio" matches "avokádo")
+    for key, info in INGREDIENT_PACKAGE_INFO.items():
+        if key in name_lower or name_lower in key:
+            return info
+    
+    return None
+
+
+def infer_package_size(ingredient_name: str, product_unit: str, matched_offers: List[Dict[str, Any]], context_id: str = "", goal_id: int = 0) -> Optional[Decimal]:
+    """
+    Infer package size when it's missing from the matched product.
+    
+    Strategy:
+    1. Check ingredient knowledge base
+    2. Look at actual offers to see what packages exist
+    3. Return most reasonable package size
+    
+    Args:
+        ingredient_name: Name of the ingredient
+        product_unit: Unit from the shop product (e.g., 'ks', 'g', 'ml')
+        matched_offers: List of matched offers (can be empty)
+        context_id: Context ID for logging
+        goal_id: Goal ID for logging
+        
+    Returns:
+        Decimal package size or None if can't infer
+    """
+    log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]" if context_id and goal_id else ""
+    
+    # Strategy 1: Check actual offers first - most reliable
+    if matched_offers:
+        package_sizes = []
+        for offer in matched_offers:
+            pkg_size = offer.get('package_size')
+            unit = offer.get('unit', '')
+            if pkg_size and normalize_unit(unit) == normalize_unit(product_unit):
+                package_sizes.append(Decimal(str(pkg_size)))
+        
+        if package_sizes:
+            # Return most common package size
+            size_counts = Counter(package_sizes)
+            most_common = size_counts.most_common(1)[0][0]
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: Inferred package_size={most_common} for '{ingredient_name}' from {len(package_sizes)} offers")
+            return most_common
+    
+    # Strategy 2: Check knowledge base
+    info = get_ingredient_package_info(ingredient_name)
+    if info:
+        typical_unit = info.get('typical_unit', '')
+        if normalize_unit(typical_unit) == normalize_unit(product_unit):
+            typical_packages = info.get('typical_packages', [])
+            if typical_packages:
+                # For piece-based items, return 1 piece
+                if typical_unit == 'ks':
+                    if log_prefix:
+                        logger.debug(f"{log_prefix} DETAIL: Inferred package_size=1 piece for '{ingredient_name}' from knowledge base")
+                    return Decimal('1')
+                # For other units, return most common package size
+                else:
+                    most_common = Decimal(str(typical_packages[0]))
+                    if log_prefix:
+                        logger.debug(f"{log_prefix} DETAIL: Inferred package_size={most_common} for '{ingredient_name}' from knowledge base")
+                    return most_common
+    
+    # Strategy 3: Default inference based on unit
+    if normalize_unit(product_unit) == 'ks':
+        # Piece-based items default to 1 piece
+        if log_prefix:
+            logger.debug(f"{log_prefix} DETAIL: Default inference: package_size=1 for piece-based '{ingredient_name}'")
+        return Decimal('1')
+    elif normalize_unit(product_unit) in ['g', 'ml']:
+        # For g/ml without package size, assume it's per unit (1g or 1ml)
+        # This is a fallback - ideally we'd have better data
+        if log_prefix:
+            logger.debug(f"{log_prefix} DETAIL: Default inference: package_size=1 for '{ingredient_name}' (unit: {product_unit})")
+        return Decimal('1')
+    
+    if log_prefix:
+        logger.warning(f"{log_prefix} WARNING: Could not infer package_size for '{ingredient_name}' (unit: {product_unit})")
+    return None
+
+
+def convert_requirement_to_purchasable_units(item: Dict[str, Any], matched_product: Dict[str, Any], ingredient_info: Optional[Dict[str, Any]] = None, context_id: str = "", goal_id: int = 0) -> Dict[str, Any]:
+    """
+    Convert recipe requirement to how item is actually sold.
+    
+    Examples:
+    - Recipe: "200g avocado", Shop: "avocado 49 CZK/piece" → "2 pieces"
+    - Recipe: "300ml olive oil", Shop: "oil 89 CZK/500ml" → "1 bottle (500ml)"
+    
+    Args:
+        item: Shopping item with recipe requirement (quantity, unit)
+        matched_product: Matched product from shop (unit, package_size)
+        ingredient_info: Optional ingredient package info from knowledge base
+        context_id: Context ID for logging
+        goal_id: Goal ID for logging
+        
+    Returns:
+        Updated item dict with converted quantity and unit
+    """
+    log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]" if context_id and goal_id else ""
+    
+    req_qty = parse_numeric(item.get('quantity'))
+    req_unit = normalize_unit(item.get('unit', ''))
+    product_unit = normalize_unit(matched_product.get('unit', ''))
+    package_size = matched_product.get('package_size')
+    
+    if req_qty is None:
+        return item
+    
+    # Get ingredient info if not provided
+    if ingredient_info is None:
+        ingredient_info = get_ingredient_package_info(item.get('ingredient', ''))
+    
+    # Case 1: Unit mismatch - recipe in weight/volume, product in pieces
+    if req_unit in ['g', 'kg', 'ml', 'l'] and product_unit == 'ks':
+        if ingredient_info and ingredient_info.get('avg_weight_g'):
+            avg_weight = Decimal(str(ingredient_info['avg_weight_g']))
+            req_base = convert_to_base_value(req_qty, req_unit)
+            pieces_needed = (req_base / avg_weight).to_integral_value(rounding='ROUND_CEILING')
+            
+            if log_prefix:
+                logger.debug(
+                    f"{log_prefix} DETAIL: Converting {req_qty}{req_unit} ({req_base}g) "
+                    f"→ {pieces_needed} pieces (avg {avg_weight}g/piece) for '{item.get('ingredient')}'"
+                )
+            
+            item['quantity'] = float(pieces_needed)
+            item['unit'] = 'ks'
+            item['original_requirement'] = {'quantity': req_qty, 'unit': req_unit}
+            return item
+    
+    # Case 2: Same unit type but need to select appropriate package size
+    # This will be handled in find_appropriate_package_size()
+    
+    return item
+
+
+def find_appropriate_package_size(required_qty: Decimal, required_unit: str, available_packages: List[Decimal], product_unit: str, context_id: str = "", goal_id: int = 0) -> Optional[Decimal]:
+    """
+    Find the smallest package size that satisfies the requirement.
+    
+    Always rounds UP - if need 450ml and packages are [250ml, 500ml, 700ml],
+    returns 700ml (smallest that fits, since 500ml isn't enough).
+    
+    Args:
+        required_qty: Required quantity
+        required_unit: Unit of required quantity
+        available_packages: List of available package sizes
+        product_unit: Unit of product packages
+        context_id: Context ID for logging
+        goal_id: Goal ID for logging
+        
+    Returns:
+        Decimal package size or None if no suitable package found
+    """
+    log_prefix = f"[SHOPPING_LIST:{goal_id}:{context_id}]" if context_id and goal_id else ""
+    
+    if not available_packages:
+        return None
+    
+    # Convert required quantity to base unit
+    req_base = convert_to_base_value(required_qty, required_unit)
+    
+    # Sort packages ascending
+    sorted_packages = sorted(available_packages)
+    
+    # Find smallest package that satisfies requirement
+    for pkg_size in sorted_packages:
+        pkg_base = convert_to_base_value(pkg_size, product_unit)
+        if pkg_base >= req_base:
+            if log_prefix:
+                logger.debug(
+                    f"{log_prefix} DETAIL: Selected package {pkg_size}{product_unit} "
+                    f"(need {required_qty}{required_unit} = {req_base} base units)"
+                )
+            return pkg_size
+    
+    # If no package is large enough, return largest available (user will need multiple)
+    largest = sorted_packages[-1]
+    if log_prefix:
+        logger.debug(
+            f"{log_prefix} DETAIL: No single package satisfies {required_qty}{required_unit}, "
+            f"using largest available: {largest}{product_unit}"
+        )
+    return largest
+
+
 def parse_numeric(val: Any) -> Optional[Decimal]:
     """
     Extract decimal number from various formats.
@@ -867,10 +1155,11 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
         Total price as Decimal, or None if calculation not possible
 
     Algorithm:
-        1. Convert required quantity to base unit (g/ml/ks)
-        2. Convert package size to base unit
-        3. Calculate packages needed: ceil(required / package_size)
-        4. Total price = packages * price_per_package
+        1. Infer package_size if missing
+        2. Convert required quantity to base unit (g/ml/ks)
+        3. Convert package size to base unit
+        4. Calculate packages needed: ceil(required / package_size)
+        5. Total price = packages * price_per_package
 
     Examples:
         Need 400g, package is 500g at 39 CZK:
@@ -929,6 +1218,29 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
             logger.warning(warning_msg)
         return None
 
+    # Infer package_size if missing
+    if off_pkg_size is None or off_pkg_size <= 0:
+        # Try to get all matching offers to see available packages
+        ingredient_name = item.get('ingredient', '')
+        shop = item.get('shop', '')
+        country = item.get('country', '')
+        
+        matched_offers = []
+        if ingredient_name and shop and country:
+            try:
+                from .scrapers.scraper_service import ScraperService
+                matched_offers = ScraperService.find_all_matching_products(ingredient_name, shop, country)
+            except Exception as e:
+                if log_prefix:
+                    logger.debug(f"{log_prefix} DETAIL: Could not fetch all offers for inference: {e}")
+        
+        inferred_pkg_size = infer_package_size(ingredient_name, off_unit, matched_offers, context_id, goal_id)
+        if inferred_pkg_size:
+            off_pkg_size = inferred_pkg_size
+            item['package_size'] = float(inferred_pkg_size)
+            if log_prefix:
+                logger.debug(f"{log_prefix} DETAIL: Using inferred package_size: {off_pkg_size}{off_unit}")
+
     # Convert required quantity to base unit
     req_base = convert_to_base_value(req_qty, req_unit)
     if log_prefix:
@@ -940,7 +1252,7 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
         if log_prefix:
             logger.debug(f"{log_prefix} DETAIL: Package size: {off_pkg_size}{off_unit} → {pkg_base} base units")
     else:
-        # No package size specified - assume per-unit pricing
+        # No package size specified and couldn't infer - assume per-unit pricing
         # For kg/l, assume price is per kg/l (1000g/ml)
         # For ks/g/ml, assume price is per unit
         if off_unit in ['kg', 'l']:
@@ -950,7 +1262,7 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
         else:
             pkg_base = Decimal('1')
         if log_prefix:
-            logger.debug(f"{log_prefix} DETAIL: No package_size specified, assuming pkg_base={pkg_base} for unit '{off_unit}'")
+            logger.debug(f"{log_prefix} DETAIL: No package_size specified and inference failed, assuming pkg_base={pkg_base} for unit '{off_unit}'")
 
     # Guard against division by zero
     if pkg_base <= 0:
@@ -969,6 +1281,29 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
             f"{req_base / pkg_base} → rounded up to {num_packages} packages"
         )
 
+    # Check if we should look for better package options
+    ingredient_name = item.get('ingredient', '')
+    shop = item.get('shop', '')
+    country = item.get('country', '')
+    ingredient_info = get_ingredient_package_info(ingredient_name)
+    
+    # If we have multiple package options from knowledge base or offers, try to find better fit
+    if ingredient_info and ingredient_info.get('typical_packages'):
+        typical_packages = [Decimal(str(p)) for p in ingredient_info['typical_packages']]
+        if typical_packages and off_pkg_size not in typical_packages:
+            # Check if any typical package would be better
+            better_package = find_appropriate_package_size(
+                req_qty, req_unit, typical_packages, off_unit, context_id, goal_id
+            )
+            if better_package and better_package != off_pkg_size:
+                # Note: We can't change the package size here as we're using the matched product's price
+                # But we can log it for debugging
+                if log_prefix:
+                    logger.debug(
+                        f"{log_prefix} DETAIL: Knowledge base suggests better package size {better_package}{off_unit} "
+                        f"(current: {off_pkg_size}{off_unit}) for '{ingredient}', but using matched product price"
+                    )
+
     # Sanity checks
     if num_packages > Decimal('100'):
         warning_msg = (
@@ -983,11 +1318,38 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
 
     total_price = num_packages * off_price
 
-    # Sanity check on total price (max 1000 per item for reasonable meal plan)
-    if total_price > Decimal('1000'):
+    # Enhanced price validation with per-unit calculation
+    price_per_base_unit = None
+    if pkg_base > 0 and off_price:
+        price_per_base_unit = off_price / pkg_base
+    
+    # Calculate price per 100g or per piece for easier debugging
+    price_per_100g = None
+    price_per_piece = None
+    if req_unit in ['g', 'kg'] and pkg_base > 0:
+        # Convert price to per 100g
+        price_per_100g = (off_price / pkg_base) * Decimal('100')
+    elif req_unit == 'ks' or off_unit == 'ks':
+        price_per_piece = off_price / num_packages if num_packages > 0 else off_price
+    
+    # Sanity check on total price (max 2000 per item for reasonable meal plan)
+    if total_price > Decimal('2000'):
         warning_msg = (
-            f"Price calculation: Excessive price ({total_price}) for '{ingredient}', "
-            f"something may be wrong with units or quantities"
+            f"Price calculation: Excessive price ({total_price} {item.get('currency', '')}) for '{ingredient}'. "
+            f"Quantity: {req_qty}{req_unit}, Packages: {num_packages} × {off_price} {item.get('currency', '')}, "
+            f"Package size: {off_pkg_size}{off_unit}"
+        )
+        if price_per_100g:
+            warning_msg += f", Price per 100g: {price_per_100g:.2f}"
+        if log_prefix:
+            logger.warning(f"{log_prefix} WARNING: {warning_msg}")
+        else:
+            logger.warning(warning_msg)
+    elif price_per_100g and price_per_100g > Decimal('500'):
+        # Warn if price per 100g seems very high (e.g., >500 CZK per 100g is unusual)
+        warning_msg = (
+            f"Price calculation: High price per 100g ({price_per_100g:.2f} {item.get('currency', '')}/100g) "
+            f"for '{ingredient}'. Total: {total_price} {item.get('currency', '')} for {req_qty}{req_unit}"
         )
         if log_prefix:
             logger.warning(f"{log_prefix} WARNING: {warning_msg}")
@@ -1130,6 +1492,8 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 item['matched_product_name'] = matched_product.get('display_name', '')
                 item['currency'] = matched_product.get('currency', goal.currency)
                 item['price_type'] = matched_product.get('price_type', 'REGULAR')
+                item['shop'] = goal.shop
+                item['country'] = goal.country
                 if matched_product.get('original_price'):
                     item['original_price'] = float(matched_product.get('original_price'))
                 if matched_product.get('discount_percentage') is not None:
@@ -1142,6 +1506,9 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     f"({base_price} {item['currency']}, package: {item['package_size']}{item['product_unit']}, "
                     f"type: {item['price_type']})"
                 )
+                
+                # Convert requirement to purchasable units if needed (e.g., 200g avocado → 2 pieces)
+                item = convert_requirement_to_purchasable_units(item, matched_product, context_id=context_id, goal_id=goal_id)
                 
                 # Set base price for package-aware calculation
                 item['price'] = base_price
