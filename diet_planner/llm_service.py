@@ -316,6 +316,219 @@ EXAMPLE INGREDIENT FORMAT:
             logger.error(f"Gemini API error: {e}", exc_info=True)
             raise
     
+    def generate_meal_plan_only(
+        self,
+        user_prompt: str,
+        shop_url: str,
+        goal: Any,
+        model: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate meal plan ONLY (no shopping list) to avoid token limits.
+        This is the first call in a two-step process.
+        """
+        model = model or self.default_model
+        
+        # Language and currency setup
+        language_names = {
+            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
+            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
+            'de': 'German', 'en': 'English',
+        }
+        target_language = language_names.get(getattr(goal, 'language_code', 'en') or 'en', 'English')
+        
+        currency_map = {'CZ': 'CZK', 'SK': 'EUR', 'PL': 'PLN', 'HU': 'HUF'}
+        country = getattr(goal, 'country', 'CZ')
+        currency = currency_map.get(country, 'CZK')
+        
+        system_prompt = f"""You are a nutrition expert creating meal plans.
+
+RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}
+
+TASK:
+1. Browse {shop_url} to see available products
+2. Create meal plan with recipes (step-by-step instructions)
+3. DO NOT generate shopping list - that will be done separately
+
+OUTPUT STRUCTURE:
+{{
+  "days": [
+    {{
+      "day_number": 1,
+      "breakfast": {{
+        "name": "meal name",
+        "description": "brief 1 sentence",
+        "preparation_time": 15,
+        "ingredients": [{{"name": "ingredient", "quantity": 200, "unit": "g"}}],
+        "instructions": ["Step 1", "Step 2", "Step 3"],
+        "nutritional_info": {{"calories": 450, "protein": "30g", "carbs": "25g", "fat": "20g"}}
+      }},
+      "lunch": {{...}},
+      "dinner": {{...}},
+      "small_meals": [{{...}}],
+      "snacks": [{{...}}]
+    }}
+  ]
+}}
+
+CRITICAL RULES:
+- Keep instructions VERY BRIEF: 3 steps maximum per meal
+- Keep descriptions to 1 sentence
+- Browse {shop_url} for context but don't list prices
+- {getattr(goal, 'num_days', 7)} days total"""
+
+        full_prompt = f"""{user_prompt}
+
+Create meal plan with recipes from {shop_url}.
+Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
+
+        try:
+            gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
+            MAX_OUTPUT_TOKENS = 8192
+            
+            response = gemini_model.generate_content(
+                full_prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.7,
+                    "max_output_tokens": MAX_OUTPUT_TOKENS,
+                },
+                request_options={"timeout": 300}
+            )
+            
+            content = response.text
+            usage = response.usage_metadata
+            
+            # Parse JSON
+            try:
+                parsed_response = json.loads(content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse meal plan JSON: {e}")
+                # Try cleaning
+                try:
+                    cleaned = re.sub(r',\s*}', '}', content)
+                    cleaned = re.sub(r',\s*]', ']', cleaned)
+                    parsed_response = json.loads(cleaned)
+                except json.JSONDecodeError:
+                    raise ValueError(f"Invalid JSON from meal plan generation: {e}")
+            
+            return {
+                'response': parsed_response,
+                'input_tokens': usage.prompt_token_count,
+                'output_tokens': usage.candidates_token_count,
+                'total_tokens': usage.total_token_count,
+                'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
+                'model': model,
+            }
+            
+        except Exception as e:
+            logger.error(f"Meal plan generation error: {e}", exc_info=True)
+            raise
+    
+    def generate_shopping_list_with_prices(
+        self,
+        meal_plan_days: List[Dict],
+        shop_url: str,
+        goal: Any,
+        model: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate shopping list with prices based on meal plan.
+        This is the second call - separate to avoid token limits.
+        """
+        model = model or self.default_model
+        
+        language_names = {
+            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
+            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
+            'de': 'German', 'en': 'English',
+        }
+        target_language = language_names.get(getattr(goal, 'language_code', 'en') or 'en', 'English')
+        currency_map = {'CZ': 'CZK', 'SK': 'EUR', 'PL': 'PLN', 'HU': 'HUF'}
+        currency = currency_map.get(getattr(goal, 'country', 'CZ'), 'CZK')
+        
+        # Extract ingredients summary for prompt
+        import json as json_module
+        days_summary = json_module.dumps(meal_plan_days, ensure_ascii=False)[:5000]  # Limit prompt size
+        
+        system_prompt = f"""You are a shopping assistant. Create shopping list with prices from {shop_url}.
+
+RESPONSE FORMAT: Valid JSON only, all text in {target_language}
+
+OUTPUT:
+{{
+  "shopping_list": [
+    {{
+      "ingredient": "name",
+      "quantity": 500,
+      "unit": "g",
+      "matched_product_name": "actual product from {shop_url}",
+      "price": 89.90,
+      "price_total": 89.90,
+      "currency": "{currency}",
+      "package_size": 500,
+      "product_unit": "g",
+      "price_type": "REGULAR",
+      "estimated": false
+    }}
+  ],
+  "total_cost": 2345.67
+}}
+
+RULES:
+1. Browse {shop_url} for ACTUAL prices
+2. Convert weights to pieces when needed (200g avocado → 2 pieces)
+3. Round UP to purchasable packages (300ml oil → 500ml bottle)
+4. Mark estimated: true only if product not found"""
+
+        prompt = f"""Based on this meal plan, create shopping list with prices from {shop_url}.
+
+Meal plan (summary):
+{days_summary}
+
+Browse {shop_url} and return complete shopping list with real prices."""
+
+        try:
+            gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
+            MAX_OUTPUT_TOKENS = 8192
+            
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.3,  # Lower temp for price accuracy
+                    "max_output_tokens": MAX_OUTPUT_TOKENS,
+                },
+                request_options={"timeout": 300}
+            )
+            
+            content = response.text
+            usage = response.usage_metadata
+            
+            try:
+                parsed_response = json.loads(content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse shopping list JSON: {e}")
+                try:
+                    cleaned = re.sub(r',\s*}', '}', content)
+                    cleaned = re.sub(r',\s*]', ']', cleaned)
+                    parsed_response = json.loads(cleaned)
+                except json.JSONDecodeError:
+                    raise ValueError(f"Invalid JSON from shopping list generation: {e}")
+            
+            return {
+                'response': parsed_response,
+                'input_tokens': usage.prompt_token_count,
+                'output_tokens': usage.candidates_token_count,
+                'total_tokens': usage.total_token_count,
+                'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
+                'model': model,
+            }
+            
+        except Exception as e:
+            logger.error(f"Shopping list generation error: {e}", exc_info=True)
+            raise
+    
     def generate_complete_plan_with_shopping_list(
         self,
         user_prompt: str,  # Full clinical document from user
@@ -324,23 +537,51 @@ EXAMPLE INGREDIENT FORMAT:
         model: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Single comprehensive LLM call that:
-        1. Browses shop_url for current prices
-        2. Generates meal plan with recipes (step-by-step instructions)
-        3. Creates shopping list with real prices from shop_url
-        4. Calculates total costs
+        Generate complete plan with shopping list using TWO calls to avoid token limits:
+        1. Generate meal plan first (recipes, ingredients)
+        2. Generate shopping list with prices based on meal plan
         
-        This matches the Gemini web UI approach - one call does everything.
+        This avoids hitting the 8192 token limit that was causing truncation.
         
         Args:
             user_prompt: Full user prompt/document with dietary requirements
-            shop_url: Shop URL for Gemini to browse (e.g., https://www.rohlik.cz/cs/akcni-nabidka)
+            shop_url: Shop URL for Gemini to browse
             goal: DietaryGoal object with all configuration
             model: Optional model override
             
         Returns:
             Dict with 'response' containing complete plan with shopping list
         """
+        logger.info("Generating meal plan (step 1/2)...")
+        meal_plan_result = self.generate_meal_plan_only(user_prompt, shop_url, goal, model)
+        days = meal_plan_result['response'].get('days', [])
+        
+        logger.info(f"Meal plan generated: {len(days)} days. Generating shopping list (step 2/2)...")
+        shopping_list_result = self.generate_shopping_list_with_prices(days, shop_url, goal, model)
+        shopping_data = shopping_list_result['response']
+        
+        # Combine results
+        combined_response = {
+            'days': days,
+            'shopping_list': shopping_data.get('shopping_list', []),
+            'total_cost': shopping_data.get('total_cost', 0)
+        }
+        
+        # Sum up tokens and costs
+        total_input_tokens = meal_plan_result['input_tokens'] + shopping_list_result['input_tokens']
+        total_output_tokens = meal_plan_result['output_tokens'] + shopping_list_result['output_tokens']
+        total_cost = meal_plan_result['cost_usd'] + shopping_list_result['cost_usd']
+        
+        logger.info(f"Complete plan generated: {len(days)} days, {len(combined_response['shopping_list'])} shopping items")
+        
+        return {
+            'response': combined_response,
+            'input_tokens': total_input_tokens,
+            'output_tokens': total_output_tokens,
+            'total_tokens': total_input_tokens + total_output_tokens,
+            'cost_usd': total_cost,
+            'model': model or self.default_model,
+        }
         model = model or self.default_model
         
         # Language mapping
