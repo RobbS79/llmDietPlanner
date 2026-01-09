@@ -1373,27 +1373,17 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
 @shared_task(bind=True, max_retries=3)
 def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
     """
-    Main Celery task for processing a dietary goal and generating a meal plan.
-
-    This task orchestrates the complete flow:
-    1. Fetch available ingredients from shop scraper
-    2. Call LLM to generate meal plan (days with meals and ingredients)
-    3. Aggregate ingredients from all meals into shopping list (backend logic)
-    4. Validate quantities to catch LLM errors
-    5. Match ingredients with shop products
-    6. Calculate prices using package-aware logic
-    7. Create DietaryPlan with all data
-
+    Main Celery task - SIMPLIFIED: Single LLM call does everything.
+    
+    This matches Gemini web UI approach:
+    1. One LLM call generates meal plan + recipes + shopping list + prices
+    2. Backend only validates and stores results
+    
     Args:
         goal_id: ID of the DietaryGoal to process
 
     Returns:
         Dict with 'status' and 'plan_id' on success
-
-    Debugging:
-        - Check logs for "Shopping list validation" entries
-        - Check logs for "Price calculation" entries
-        - Look for "Aggregated X unique ingredients" log
     """
     try:
         # Generate unique context ID for tracing this shopping list creation
@@ -1405,23 +1395,7 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         goal.save(update_fields=['status'])
         logger.info(f"{log_prefix} Processing dietary goal {goal_id} for {goal.num_days} days")
 
-        # Step 1: Fetch available ingredients from shop
-        available_ingredients = []
-        if goal.shop:
-            logger.info(f"{log_prefix} Step 1: Fetching ingredients from {goal.shop} ({goal.country})")
-            available_ingredients = ScraperService.get_available_ingredients(
-                goal.shop, goal.country, force_refresh=True
-            )
-            logger.info(f"{log_prefix} Found {len(available_ingredients)} available ingredients")
-            if available_ingredients:
-                sample_ingredients = [ing.get('name', 'unknown') for ing in available_ingredients[:5]]
-                logger.debug(f"{log_prefix} DETAIL: Sample ingredients: {sample_ingredients}")
-
-        # Step 2: Generate meal plan via LLM
-        llm_service = GeminiService()
-        logger.info(f"{log_prefix} Step 2: Calling LLM to generate meal plan")
-        
-        # Get shop URL for Gemini to browse (if shop is specified)
+        # Get shop URL for Gemini to browse
         shop_url = None
         if goal.shop:
             try:
@@ -1430,170 +1404,144 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not get shop URL: {e}")
         
-        llm_result = llm_service.generate_dietary_plan(
-            prompt_text=json.dumps(build_llm_prompt_json(goal, available_ingredients), ensure_ascii=False),
-            language_code=goal.language_code,
-            shop_url=shop_url  # NEW: Gemini browses this URL for current prices
+        # SINGLE LLM CALL - Does everything (meal plan + recipes + shopping list + prices)
+        llm_service = GeminiService()
+        logger.info(f"{log_prefix} Calling Gemini to generate complete plan (meal plan + recipes + shopping list + prices)")
+        
+        llm_result = llm_service.generate_complete_plan_with_shopping_list(
+            user_prompt=goal.prompt,  # Full user prompt/document
+            shop_url=shop_url,
+            goal=goal
         )
-
+        
         llm_response = llm_result['response']
         days = llm_response.get('days', [])
+        shopping_list_from_llm = llm_response.get('shopping_list', [])
+        total_cost_from_llm = llm_response.get('total_cost')
+        
         total_meals = sum(
             len([m for m in [day.get('breakfast'), day.get('lunch'), day.get('dinner')] if m]) +
             len(day.get('small_meals', [])) + len(day.get('snacks', []))
             for day in days
         )
-        logger.info(f"{log_prefix} LLM generated {len(days)} days with {total_meals} meals total")
-
-        # Step 3: Transform days to standard format
-        logger.info(f"{log_prefix} Step 3: Transforming days to standard format")
-        transformed_days = transform_days_to_new_format(days, goal)
-        logger.debug(f"{log_prefix} DETAIL: Transformed {len(transformed_days)} days")
-
-        # Step 4: Aggregate ingredients from all meals (backend logic, not LLM)
-        # This replaces trusting LLM's shopping_list with our own aggregation
-        logger.info(f"{log_prefix} Step 4: Aggregating ingredients from all meals")
-        shopping_list = aggregate_ingredients_from_meals(transformed_days, context_id, goal_id)
-        logger.info(f"{log_prefix} Aggregated {len(shopping_list)} items for shopping list")
-
-        # Step 5: Validate quantities to catch unreasonable values
-        logger.info(f"{log_prefix} Step 5: Validating shopping list items")
-        validated_shopping_list = []
-        validation_adjustments = []
-        for item in shopping_list:
-            validated_item = validate_shopping_item(item, num_days=goal.num_days, context_id=context_id, goal_id=goal_id)
-            if validated_item.get('validation_note'):
-                validation_adjustments.append({
-                    'ingredient': validated_item.get('ingredient'),
-                    'note': validated_item.get('validation_note')
-                })
-            validated_shopping_list.append(validated_item)
+        logger.info(f"{log_prefix} Gemini generated {len(days)} days with {total_meals} meals and {len(shopping_list_from_llm)} shopping list items")
         
-        if validation_adjustments:
-            logger.warning(f"{log_prefix} WARNING: {len(validation_adjustments)} items were adjusted during validation")
-            for adj in validation_adjustments:
-                logger.debug(f"{log_prefix} DETAIL: Validation adjustment - {adj['ingredient']}: {adj['note']}")
-
-        # Step 6: Match with shop products and calculate prices
-        # Use ScraperService.match_ingredient_price() which queries the database directly
-        # and has better matching logic with multiple strategies
-        logger.info(f"{log_prefix} Step 6: Matching prices for {len(validated_shopping_list)} items")
+        # Transform days to standard format
+        logger.info(f"{log_prefix} Transforming days to standard format")
+        transformed_days = transform_days_to_new_format(days, goal)
+        
+        # Backend validation only - validate quantities and enhance with database prices where available
+        logger.info(f"{log_prefix} Validating shopping list and enhancing with database prices")
+        validated_shopping_list = []
         total_sum = Decimal('0')
         matched_count = 0
         estimated_count = 0
-        not_found_count = 0
         
-        for item in validated_shopping_list:
-            ingredient_name = item.get('ingredient', '')
-            
-            # Try to find matching product from database using improved matching
-            logger.debug(f"{log_prefix} DETAIL: Matching '{ingredient_name}' in {goal.shop} ({goal.country})")
-            matched_product = ScraperService.match_ingredient_price(
-                ingredient_name,
-                goal.shop,
-                goal.country
+        for item in shopping_list_from_llm:
+            # Validate quantities
+            validated_item = validate_shopping_item(
+                item, 
+                num_days=goal.num_days, 
+                context_id=context_id, 
+                goal_id=goal_id
             )
-
-            if matched_product:
-                # Update item with product info for price calculation
-                # Store base price per package for calculation
-                base_price = float(matched_product.get('price'))
-                item['product_unit'] = matched_product.get('unit', '')
-                item['package_size'] = matched_product.get('package_size')
-                item['matched_product_name'] = matched_product.get('display_name', '')
-                item['currency'] = matched_product.get('currency', goal.currency)
-                item['price_type'] = matched_product.get('price_type', 'REGULAR')
-                item['shop'] = goal.shop
-                item['country'] = goal.country
-                if matched_product.get('original_price'):
-                    item['original_price'] = float(matched_product.get('original_price'))
-                if matched_product.get('discount_percentage') is not None:
-                    item['discount_percentage'] = matched_product.get('discount_percentage')
-                item['estimated'] = False
-                item['price_source'] = 'leaflet_offer'
-                
-                logger.debug(
-                    f"{log_prefix} DETAIL: Matched '{ingredient_name}' → '{item['matched_product_name']}' "
-                    f"({base_price} {item['currency']}, package: {item['package_size']}{item['product_unit']}, "
-                    f"type: {item['price_type']})"
-                )
-                
-                # Convert requirement to purchasable units if needed (e.g., 200g avocado → 2 pieces)
-                item = convert_requirement_to_purchasable_units(item, matched_product, context_id=context_id, goal_id=goal_id)
-                
-                # Set base price for package-aware calculation
-                item['price'] = base_price
-                
-                # Calculate price using package-aware logic (accounts for quantity needed)
-                calculated_price = calculate_package_aware_price(item, context_id, goal_id)
-                
-                if calculated_price:
-                    item['price_total'] = float(calculated_price)
-                    item['price'] = float(calculated_price)  # Update to total calculated price for display
-                    total_sum += calculated_price
-                    matched_count += 1
-                    logger.debug(
-                        f"{log_prefix} DETAIL: '{ingredient_name}' final price: {calculated_price} {goal.currency} "
-                        f"(from {base_price} base price)"
-                    )
-                else:
-                    # If calculation fails but we have a base price from leaflet, use it as fallback
-                    # This is better than LLM estimation since we have a real price
-                    logger.warning(
-                        f"{log_prefix} WARNING: Price calculation failed for '{ingredient_name}' "
-                        f"(base: {base_price}), using base price as fallback"
-                    )
-                    item['price_total'] = base_price
-                    item['price'] = base_price
-                    total_sum += Decimal(str(base_price))
-                    matched_count += 1
-                    # Mark as estimated since we couldn't calculate the exact total for the quantity needed
-                    item['estimated'] = True
-                    item['price_source'] = 'leaflet_offer_estimated_quantity'
-            else:
-                # No match found in database - fallback to LLM price estimation
-                logger.debug(f"{log_prefix} DETAIL: No price match in database for '{ingredient_name}', using LLM estimation")
-                est = llm_service.estimate_product_price(
+            
+            # Enhance with database price matching if available (for better package info)
+            ingredient_name = validated_item.get('ingredient', '')
+            if goal.shop:
+                matched_product = ScraperService.match_ingredient_price(
                     ingredient_name,
-                    item.get('quantity'),
-                    item.get('unit'),
                     goal.shop,
                     goal.country
                 )
-                if est:
-                    item.update({
-                        'price': float(est['price']),
-                        'price_total': float(est['price']),
-                        'currency': est.get('currency', goal.currency),
-                        'matched_product_name': est.get('display_name', ingredient_name),
-                        'estimated': True,
-                        'price_source': 'llm_estimation_service',
-                        'price_type': 'LLM_ESTIMATED',
-                    })
-                    total_sum += Decimal(str(est['price']))
-                    estimated_count += 1
-                    logger.debug(
-                        f"{log_prefix} DETAIL: LLM estimated '{ingredient_name}': {est['price']} {est.get('currency', goal.currency)}"
+                if matched_product:
+                    # Use database match for better package info and price validation
+                    base_price = float(matched_product.get('price'))
+                    validated_item['product_unit'] = matched_product.get('unit', validated_item.get('product_unit', ''))
+                    validated_item['package_size'] = matched_product.get('package_size') or validated_item.get('package_size')
+                    validated_item['matched_product_name'] = matched_product.get('display_name', validated_item.get('matched_product_name', ingredient_name))
+                    validated_item['currency'] = matched_product.get('currency', validated_item.get('currency', goal.currency))
+                    validated_item['price_type'] = matched_product.get('price_type', validated_item.get('price_type', 'REGULAR'))
+                    
+                    if matched_product.get('original_price'):
+                        validated_item['original_price'] = float(matched_product.get('original_price'))
+                    if matched_product.get('discount_percentage') is not None:
+                        validated_item['discount_percentage'] = matched_product.get('discount_percentage')
+                    
+                    # Convert to purchasable units if needed
+                    validated_item = convert_requirement_to_purchasable_units(
+                        validated_item, matched_product, context_id=context_id, goal_id=goal_id
                     )
+                    
+                    # Recalculate price with package-aware logic
+                    validated_item['price'] = base_price
+                    calculated_price = calculate_package_aware_price(validated_item, context_id, goal_id)
+                    
+                    if calculated_price:
+                        validated_item['price_total'] = float(calculated_price)
+                        validated_item['price'] = float(calculated_price)
+                        validated_item['estimated'] = False
+                        validated_item['price_source'] = 'leaflet_offer'
+                        total_sum += calculated_price
+                        matched_count += 1
+                    else:
+                        # Use LLM price if calculation fails
+                        llm_price = validated_item.get('price_total') or validated_item.get('price')
+                        if llm_price:
+                            validated_item['price_total'] = float(llm_price)
+                            validated_item['price'] = float(llm_price)
+                            total_sum += Decimal(str(llm_price))
+                        else:
+                            validated_item['price_total'] = base_price
+                            validated_item['price'] = base_price
+                            total_sum += Decimal(str(base_price))
+                        validated_item['estimated'] = True
+                        validated_item['price_source'] = 'leaflet_offer_estimated_quantity'
+                        matched_count += 1
                 else:
-                    item['price'] = None
-                    item['price_total'] = None
-                    item['price_source'] = 'not_found'
-                    item['estimated'] = True
-                    not_found_count += 1
-                    logger.warning(f"{log_prefix} WARNING: Could not estimate price for '{ingredient_name}'")
-
-        logger.info(
-            f"{log_prefix} Price matching complete: {matched_count} matched from leaflet, "
-            f"{estimated_count} estimated, {not_found_count} not found, total: {total_sum} {goal.currency}"
-        )
-
-        # Step 7: Create DietaryPlan
+                    # No database match - use LLM-provided price
+                    llm_price = validated_item.get('price_total') or validated_item.get('price')
+                    if llm_price:
+                        validated_item['price_total'] = float(llm_price)
+                        validated_item['price'] = float(llm_price)
+                        total_sum += Decimal(str(llm_price))
+                        estimated_count += 1
+                        validated_item['estimated'] = validated_item.get('estimated', True)
+                        validated_item['price_source'] = validated_item.get('price_source', 'llm_from_shop_url')
+                    else:
+                        validated_item['price'] = None
+                        validated_item['price_total'] = None
+                        validated_item['estimated'] = True
+                        validated_item['price_source'] = 'not_found'
+            else:
+                # No shop specified - use LLM prices as-is
+                llm_price = validated_item.get('price_total') or validated_item.get('price')
+                if llm_price:
+                    validated_item['price_total'] = float(llm_price)
+                    validated_item['price'] = float(llm_price)
+                    total_sum += Decimal(str(llm_price))
+                validated_item['estimated'] = validated_item.get('estimated', True)
+            
+            validated_shopping_list.append(validated_item)
+        
+        # Use calculated total (prefer our calculation over LLM)
+        final_total = total_sum if total_sum > 0 else (Decimal(str(total_cost_from_llm)) if total_cost_from_llm else Decimal('0'))
+        
+        # Warn if totals differ significantly
+        if total_cost_from_llm and total_sum > 0:
+            diff_percent = abs(float(total_cost_from_llm) - float(total_sum)) / float(total_cost_from_llm) * 100
+            if diff_percent > 20:
+                logger.warning(
+                    f"{log_prefix} Total cost mismatch: LLM={total_cost_from_llm} {goal.currency}, "
+                    f"Calculated={total_sum} {goal.currency} ({diff_percent:.1f}% difference)"
+                )
+        
+        # Create DietaryPlan
         plan = DietaryPlan.objects.create(
             dietary_goal=goal,
             days=transformed_days,
             shopping_list=validated_shopping_list,
-            total_price=total_sum,
+            total_price=final_total,
             currency=goal.currency,
             llm_model_used=llm_result.get('model'),
             llm_input_tokens=llm_result.get('input_tokens'),
@@ -1601,27 +1549,15 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             llm_total_tokens=llm_result.get('total_tokens'),
             llm_cost_usd=llm_result.get('cost_usd')
         )
-
+        
         goal.status = DietaryGoal.StatusChoices.COMPLETED
         goal.completed_at = timezone.now()
         goal.save(update_fields=['status', 'completed_at'])
-
-        # Final Summary Log
-        logger.info(f"{log_prefix} SUMMARY: Shopping list creation complete")
-        logger.info(f"{log_prefix} SUMMARY: Plan ID: {plan.id}, Total items: {len(validated_shopping_list)}")
-        logger.info(f"{log_prefix} SUMMARY: Price breakdown - Matched: {matched_count}, Estimated: {estimated_count}, Not found: {not_found_count}")
-        logger.info(f"{log_prefix} SUMMARY: Total price: {total_sum} {goal.currency}")
         
-        # Log sample items with full details
-        sample_items = validated_shopping_list[:5]  # First 5 items
-        logger.debug(f"{log_prefix} SUMMARY: Sample items:")
-        for item in sample_items:
-            logger.debug(f"{log_prefix} SUMMARY:   - {_log_item_details(item)}")
-        
-        if validation_adjustments:
-            logger.warning(f"{log_prefix} SUMMARY: {len(validation_adjustments)} items were adjusted during validation")
-        
-        logger.info(f"{log_prefix} Successfully created plan {plan.id} for goal {goal_id}")
+        logger.info(
+            f"{log_prefix} Successfully created plan {plan.id} with {len(validated_shopping_list)} items, "
+            f"total: {final_total} {goal.currency} (matched: {matched_count}, estimated: {estimated_count})"
+        )
         return {'status': 'success', 'plan_id': plan.id}
 
     except Exception as exc:

@@ -31,6 +31,7 @@ Costs are stored in DietaryPlan.llm_cost_usd for billing/monitoring.
 from typing import Dict, Any, Optional, List
 import json
 import logging
+import re
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -222,13 +223,14 @@ EXAMPLE INGREDIENT FORMAT:
             if shop_url:
                 full_prompt += f"\n\nIMPORTANT: Browse {shop_url} to get current product prices and availability. Use this information when creating the meal plan."
             
-            # Generate content
+            # Generate content with extended timeout for complex prompts and URL browsing
             response = gemini_model.generate_content(
                 full_prompt,
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.7,
-                }
+                },
+                request_options={"timeout": 300}  # 5 minutes timeout for long responses
             )
             
             # Extract response
@@ -243,13 +245,63 @@ EXAMPLE INGREDIENT FORMAT:
             # Calculate cost
             cost_usd = calculate_cost(input_tokens, output_tokens, model)
             
-            # Parse JSON response
+            # Log full response for debugging (Option 2)
+            response_length = len(content)
+            logger.debug(f"Gemini response length: {response_length} characters")
+            
+            # If response is very long, save to file for detailed inspection
+            if response_length > 10000:
+                try:
+                    with open('/tmp/gemini_response.json', 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    logger.warning(f"Response too long ({response_length} chars), saved to /tmp/gemini_response.json for inspection")
+                    logger.error(f"Response content (first 1000 chars): {content[:1000]}")
+                    logger.error(f"Response content (last 1000 chars): {content[-1000:]}")
+                except Exception as save_error:
+                    logger.warning(f"Failed to save response to file: {save_error}")
+                    logger.error(f"Response content (first 2000 chars): {content[:2000]}")
+            else:
+                logger.debug(f"Full Gemini response: {content}")
+            
+            # Parse JSON response with error handling and cleaning (Option 1)
             try:
                 parsed_response = json.loads(content)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse Gemini JSON response: {e}")
-                logger.error(f"Response content: {content[:500]}")
-                raise ValueError(f"Gemini returned invalid JSON: {e}")
+                logger.error(f"Error at position {e.pos if hasattr(e, 'pos') else 'unknown'}")
+                logger.error(f"Response content (first 1000 chars): {content[:1000]}")
+                logger.error(f"Response content (last 1000 chars): {content[-1000:] if len(content) > 1000 else content}")
+                
+                # Try to fix common JSON issues (Option 1)
+                try:
+                    logger.info("Attempting to clean and repair JSON...")
+                    cleaned_content = content
+                    
+                    # Remove trailing commas before } or ] (most common JSON error)
+                    cleaned_content = re.sub(r',\s*}', '}', cleaned_content)
+                    cleaned_content = re.sub(r',\s*]', ']', cleaned_content)
+                    
+                    # Try parsing cleaned version
+                    parsed_response = json.loads(cleaned_content)
+                    logger.warning("Successfully parsed JSON after cleaning trailing commas")
+                except json.JSONDecodeError as e2:
+                    logger.error(f"Failed to parse even after cleaning: {e2}")
+                    logger.error(f"Cleaned content length: {len(cleaned_content)}")
+                    if len(cleaned_content) > 2000:
+                        logger.error(f"Cleaned content (first 1000 chars): {cleaned_content[:1000]}")
+                        logger.error(f"Cleaned content (last 1000 chars): {cleaned_content[-1000:]}")
+                    else:
+                        logger.error(f"Cleaned content: {cleaned_content}")
+                    
+                    # Save problematic response for detailed analysis
+                    try:
+                        with open('/tmp/gemini_invalid_response.json', 'w', encoding='utf-8') as f:
+                            f.write(content)
+                        logger.error(f"Saved invalid response to /tmp/gemini_invalid_response.json for analysis")
+                    except Exception:
+                        pass
+                    
+                    raise ValueError(f"Gemini returned invalid JSON that could not be repaired: {e}")
             
             return {
                 'response': parsed_response,
@@ -262,6 +314,202 @@ EXAMPLE INGREDIENT FORMAT:
             
         except Exception as e:
             logger.error(f"Gemini API error: {e}", exc_info=True)
+            raise
+    
+    def generate_complete_plan_with_shopping_list(
+        self,
+        user_prompt: str,  # Full clinical document from user
+        shop_url: str,
+        goal: Any,  # DietaryGoal - using Any to avoid circular import
+        model: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Single comprehensive LLM call that:
+        1. Browses shop_url for current prices
+        2. Generates meal plan with recipes (step-by-step instructions)
+        3. Creates shopping list with real prices from shop_url
+        4. Calculates total costs
+        
+        This matches the Gemini web UI approach - one call does everything.
+        
+        Args:
+            user_prompt: Full user prompt/document with dietary requirements
+            shop_url: Shop URL for Gemini to browse (e.g., https://www.rohlik.cz/cs/akcni-nabidka)
+            goal: DietaryGoal object with all configuration
+            model: Optional model override
+            
+        Returns:
+            Dict with 'response' containing complete plan with shopping list
+        """
+        model = model or self.default_model
+        
+        # Language mapping
+        language_names = {
+            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
+            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
+            'de': 'German', 'en': 'English',
+        }
+        target_language = language_names.get(getattr(goal, 'language_code', 'en') or 'en', 'English')
+        
+        # Currency mapping
+        currency_map = {
+            'CZ': 'CZK', 'SK': 'EUR', 'PL': 'PLN', 'HU': 'HUF',
+        }
+        country = getattr(goal, 'country', 'CZ')
+        currency = currency_map.get(country, 'CZK')
+        
+        # Build comprehensive system prompt
+        system_prompt = f"""You are a nutrition expert and shopping assistant creating personalised meal plans with complete shopping lists.
+
+RESPONSE FORMAT:
+- Valid JSON only, no markdown, no code blocks
+- All text content in {target_language} language
+
+TASK:
+1. Browse {shop_url} to get current product prices and availability
+2. Create a meal plan with recipes (step-by-step instructions)
+3. Generate complete shopping list with exact quantities
+4. Match products from {shop_url} and use REAL prices (not estimates)
+5. Calculate total cost
+
+OUTPUT STRUCTURE:
+{{
+  "days": [
+    {{
+      "day_number": 1,
+      "breakfast": {{
+        "name": "meal name",
+        "description": "brief description",
+        "preparation_time": 15,
+        "ingredients": [
+          {{"name": "ingredient", "quantity": 200, "unit": "g"}}
+        ],
+        "instructions": ["Step 1", "Step 2", ...],
+        "nutritional_info": {{
+          "calories": 450,
+          "protein": "30g",
+          "carbs": "25g",
+          "fat": "20g"
+        }}
+      }},
+      "lunch": {{...}},
+      "dinner": {{...}},
+      "small_meals": [{{...}}],
+      "snacks": [{{...}}]
+    }}
+  ],
+  "shopping_list": [
+    {{
+      "ingredient": "ingredient name",
+      "quantity": 500,
+      "unit": "g",
+      "matched_product_name": "actual product name from {shop_url}",
+      "price": 89.90,
+      "price_total": 89.90,
+      "currency": "{currency}",
+      "package_size": 500,
+      "product_unit": "g",
+      "price_type": "REGULAR" or "DISCOUNTED",
+      "estimated": false
+    }}
+  ],
+  "total_cost": 2345.67
+}}
+
+CRITICAL RULES:
+1. Browse {shop_url} and use ACTUAL prices from the website
+2. If product not found on {shop_url}, mark as estimated: true
+3. For ingredients sold per piece (avocado, eggs), convert weights to pieces (e.g., 200g avocado = 2 pieces)
+4. For liquids, select appropriate package size (e.g., 300ml oil needed → 500ml bottle from shop)
+5. DO NOT consider leftovers - always round UP to purchasable packages
+6. Include step-by-step cooking instructions for each meal
+7. All prices must be in {currency}
+8. Quantities should be realistic per-meal amounts
+
+MEAL PLAN REQUIREMENTS:
+- {getattr(goal, 'num_days', 7)} days
+- Breakfast: {'YES' if getattr(goal, 'breakfast', True) else 'NO'}
+- Lunch: {'YES' if getattr(goal, 'lunch', True) else 'NO'}
+- Dinner: {'YES' if getattr(goal, 'dinner', True) else 'NO'}
+- Small meals: {getattr(goal, 'small_meals_per_day', 2)} per day
+- Snacks: {getattr(goal, 'snacks_per_day', 2)} per day
+- Language: {target_language}
+- Currency: {currency}"""
+
+        full_prompt = f"""{user_prompt}
+
+Create a complete meal plan with shopping list from {shop_url}.
+Browse the shop URL to get current prices and availability.
+Return JSON with days (meal plan with recipes) and shopping_list (with real prices)."""
+
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=system_prompt
+            )
+            
+            response = gemini_model.generate_content(
+                full_prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.7,
+                },
+                request_options={"timeout": 300}  # 5 minutes for complex response
+            )
+            
+            content = response.text
+            usage = response.usage_metadata
+            
+            # Apply same JSON cleaning logic as generate_dietary_plan
+            response_length = len(content)
+            logger.debug(f"Gemini complete plan response length: {response_length} characters")
+            
+            if response_length > 10000:
+                try:
+                    with open('/tmp/gemini_complete_plan_response.json', 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    logger.warning(f"Response too long ({response_length} chars), saved to /tmp/gemini_complete_plan_response.json")
+                except Exception:
+                    pass
+            
+            # Parse JSON with cleaning
+            try:
+                parsed_response = json.loads(content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse Gemini complete plan JSON: {e}")
+                logger.error(f"Error at position {e.pos if hasattr(e, 'pos') else 'unknown'}")
+                logger.error(f"Response content (first 1000 chars): {content[:1000]}")
+                logger.error(f"Response content (last 1000 chars): {content[-1000:] if len(content) > 1000 else content}")
+                
+                # Try cleaning
+                try:
+                    logger.info("Attempting to clean and repair JSON...")
+                    cleaned_content = content
+                    cleaned_content = re.sub(r',\s*}', '}', cleaned_content)
+                    cleaned_content = re.sub(r',\s*]', ']', cleaned_content)
+                    parsed_response = json.loads(cleaned_content)
+                    logger.warning("Successfully parsed JSON after cleaning trailing commas")
+                except json.JSONDecodeError as e2:
+                    logger.error(f"Failed to parse even after cleaning: {e2}")
+                    try:
+                        with open('/tmp/gemini_invalid_complete_plan.json', 'w', encoding='utf-8') as f:
+                            f.write(content)
+                        logger.error(f"Saved invalid response to /tmp/gemini_invalid_complete_plan.json")
+                    except Exception:
+                        pass
+                    raise ValueError(f"Gemini returned invalid JSON that could not be repaired: {e}")
+            
+            return {
+                'response': parsed_response,
+                'input_tokens': usage.prompt_token_count,
+                'output_tokens': usage.candidates_token_count,
+                'total_tokens': usage.total_token_count,
+                'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
+                'model': model,
+            }
+            
+        except Exception as e:
+            logger.error(f"Gemini complete plan API error: {e}", exc_info=True)
             raise
     
     def generate_recipe_instructions(
@@ -319,7 +567,8 @@ Return ONLY a JSON object with an "instructions" array of strings:
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.7,
-                }
+                },
+                request_options={"timeout": 300}  # 5 minutes timeout
             )
             
             content = response.text
@@ -507,7 +756,8 @@ Example format:
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.1,  # Low temperature for consistent extraction
-                }
+                },
+                request_options={"timeout": 300}  # 5 minutes timeout for HTML extraction
             )
             
             content = response.text
@@ -702,7 +952,8 @@ Příklad pro sůl 500g:
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.3,  # Low temperature for consistent estimates
-                }
+                },
+                request_options={"timeout": 300}  # 5 minutes timeout
             )
             
             content = response.text

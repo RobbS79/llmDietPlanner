@@ -234,7 +234,8 @@ Important:
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.3,  # Lower temperature for more consistent prices
-                }
+                },
+                request_options={"timeout": 300}  # 5 minutes timeout for price estimation
             )
 
             content = response.text.strip()

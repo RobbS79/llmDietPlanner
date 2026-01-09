@@ -58,7 +58,8 @@ class MealPlanService:
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.7,
-                }
+                },
+                request_options={"timeout": 300}  # 5 minutes timeout for meal plan generation
             )
 
             content = response.text

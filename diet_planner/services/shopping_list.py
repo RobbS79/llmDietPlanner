@@ -67,7 +67,8 @@ class ShoppingListService:
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.3,  # Lower temperature for consistent matching
-                }
+                },
+                request_options={"timeout": 300}  # 5 minutes timeout for shopping list generation
             )
 
             content = response.text
