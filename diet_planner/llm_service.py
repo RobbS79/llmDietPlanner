@@ -1,6 +1,31 @@
 """
-OpenAI LLM Service for generating dietary plans.
-Handles API calls, token counting, and cost calculation.
+OpenAI LLM Service for Dietary Plan Generation
+==============================================
+
+This module handles all OpenAI API interactions for the diet planner application.
+
+## Responsibilities:
+- Generate meal plans (days with meals and ingredients)
+- Extract products from scraped HTML (for price discovery)
+- Estimate prices for products not found in shop data
+
+## Important Design Decision:
+The LLM generates ONLY the meal plan structure with ingredients per meal.
+The backend (tasks.py) handles:
+- Aggregating ingredients into shopping list
+- Matching ingredients with shop products
+- Calculating prices
+
+This separation prevents confusion and ensures consistent pricing logic.
+
+## Cost Tracking:
+All API calls track token usage and calculate costs in USD.
+Costs are stored in DietaryPlan.llm_cost_usd for billing/monitoring.
+
+## Debugging Tips:
+- Check logs for "LLM extraction" entries with token counts
+- Look for "estimated price" logs for price estimation calls
+- Token counts help identify prompt optimization opportunities
 """
 from typing import Dict, Any, Optional, List
 import json
@@ -192,18 +217,50 @@ class OpenAIService:
                 'en': 'English',
             }
             target_language = language_names.get(language_code or 'en', 'English')
-            
-            system_prompt = (
-                f"You are a nutrition expert creating personalised day-by-day meal plans for users in Central and Eastern Europe. "
-                f"Your responses must be valid JSON only, with no markdown formatting or code blocks. "
-                f"All meal names, descriptions, and content should be in {target_language} language (language code: {language_code or 'en'}). "
-                f"Focus on ingredients available in local supermarkets (Lidl, Biedronka, Kaufland, etc.). "
-                f"Consider local cuisine preferences and dietary restrictions. "
-                f"Generate a 'days' array where each day has 'day_number', 'main_courses', 'small_meals', and 'snacks' arrays. "
-                f"Generate exactly the number of main courses, small meals, and snacks per day as specified in the meal plan configuration. "
-                f"Each meal must include: name, description, ingredients, preparation_time, and nutritional_info (calories, protein, carbs, fat). "
-                f"Do not include prices - the system will calculate them separately."
-            )
+
+            # Clear, unambiguous system prompt - NO shopping list, NO prices
+            system_prompt = f"""You are a nutrition expert creating personalised day-by-day meal plans.
+
+RESPONSE FORMAT:
+- Valid JSON only, no markdown, no code blocks
+- All text content in {target_language} language
+
+OUTPUT STRUCTURE:
+Generate a 'days' array where each day object contains:
+- day_number: integer (1, 2, 3, ...)
+- breakfast: single meal object (if requested)
+- lunch: single meal object (if requested)
+- dinner: single meal object (if requested)
+- small_meals: array of meal objects
+- snacks: array of meal objects
+
+MEAL OBJECT STRUCTURE:
+Each meal must include:
+- name: meal name in {target_language}
+- description: brief description in {target_language}
+- preparation_time: integer minutes
+- ingredients: array of ingredient objects
+- nutritional_info: object with calories (number), protein (string like "20g"), carbs (string), fat (string)
+
+INGREDIENT OBJECT STRUCTURE:
+Each ingredient must be an object with:
+- name: ingredient name in {target_language}
+- quantity: numeric value (e.g., 200, 2, 0.5)
+- unit: metric unit only (g, kg, ml, l, ks)
+
+CRITICAL RULES:
+1. Use REALISTIC per-meal quantities (e.g., 200g chicken, 2 eggs, 30ml oil - NOT 2000g or 20 eggs)
+2. DO NOT generate a shopping_list - the backend creates it from ingredients
+3. DO NOT include prices - the backend handles pricing
+4. Focus on ingredients available in Central European supermarkets (Lidl, Kaufland, etc.)
+5. Consider local cuisine preferences
+
+EXAMPLE INGREDIENT FORMAT:
+"ingredients": [
+  {{"name": "kuřecí prsa", "quantity": 200, "unit": "g"}},
+  {{"name": "olivový olej", "quantity": 30, "unit": "ml"}},
+  {{"name": "vejce", "quantity": 2, "unit": "ks"}}
+]"""
         
         # Count input tokens
         input_tokens = count_tokens(system_prompt + prompt_text, model)

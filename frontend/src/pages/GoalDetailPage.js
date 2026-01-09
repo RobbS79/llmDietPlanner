@@ -5,8 +5,61 @@ import { Navigation } from '../components/Navigation';
 import { generateMealIdentifier, getMealInstancesForGoal, markMealAsCooked, getRecipe } from '../features/diet-planner/utils/api';
 
 /**
- * Page for viewing details of a specific dietary goal
+ * Page for viewing details of a specific dietary goal.
+ *
+ * Displays:
+ * - Goal metadata (status, location, shop)
+ * - Shopping list with quantities and prices
+ * - Day-by-day meal plan with accordion navigation
+ *
+ * Shopping List Data Structure (from backend):
+ * {
+ *   ingredient: string,      // Ingredient name
+ *   quantity: number,        // Required quantity
+ *   unit: string,           // Unit (g, kg, ml, l, ks)
+ *   price: number | null,   // Calculated price (may be null if not found)
+ *   currency: string,       // Currency code (CZK, EUR, etc.)
+ *   matched_product_name: string,  // Name of matched shop product
+ *   price_source: string,   // 'backend_package_logic' | 'llm_estimation_service' | 'not_found'
+ *   validation_note: string // If quantity was adjusted
+ * }
  */
+
+/**
+ * Safely parse a price value to a displayable string.
+ * Handles null, undefined, NaN, and invalid values gracefully.
+ *
+ * @param {any} price - Price value to parse
+ * @returns {string | null} - Formatted price string or null if invalid
+ */
+const safeParsePrice = (price) => {
+  if (price === null || price === undefined) {
+    return null;
+  }
+  const parsed = parseFloat(price);
+  if (isNaN(parsed) || !isFinite(parsed)) {
+    return null;
+  }
+  return parsed.toFixed(2);
+};
+
+/**
+ * Format quantity with unit for display.
+ * Handles edge cases like missing values.
+ *
+ * @param {number} quantity - Quantity value
+ * @param {string} unit - Unit string
+ * @returns {string} - Formatted quantity string
+ */
+const formatQuantity = (quantity, unit) => {
+  if (!quantity && quantity !== 0) return '';
+  const qty = typeof quantity === 'number' ? quantity : parseFloat(quantity);
+  if (isNaN(qty)) return '';
+  // Round to 2 decimal places if needed
+  const displayQty = Number.isInteger(qty) ? qty : qty.toFixed(2);
+  return unit ? `${displayQty} ${unit}` : `${displayQty}`;
+};
+
 export function GoalDetailPage() {
   const navigate = useNavigate();
   const { goalId } = useParams();
@@ -531,99 +584,131 @@ export function GoalDetailPage() {
                       borderRadius: '8px',
                       border: '1px solid #e5e7eb',
                     }}>
-                      {plan.total_price && (
-                        <div style={{
-                          marginBottom: '1.5rem',
-                          padding: '1rem',
-                          background: '#f0f9ff',
-                          borderRadius: '6px',
-                          border: '1px solid #bfdbfe',
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '600', color: '#1e40af', fontSize: '1.125rem' }}>
-                              Total Price:
-                            </span>
-                            <span style={{ fontWeight: '700', color: '#1e40af', fontSize: '1.25rem' }}>
-                              {parseFloat(plan.total_price).toFixed(2)} {plan.currency}
-                            </span>
+                      {/* Total price summary */}
+                      {(() => {
+                        const totalPrice = safeParsePrice(plan.total_price);
+                        if (!totalPrice) return null;
+
+                        return (
+                          <div style={{
+                            marginBottom: '1.5rem',
+                            padding: '1rem',
+                            background: '#f0f9ff',
+                            borderRadius: '6px',
+                            border: '1px solid #bfdbfe',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: '600', color: '#1e40af', fontSize: '1.125rem' }}>
+                                Total Price:
+                              </span>
+                              <span style={{ fontWeight: '700', color: '#1e40af', fontSize: '1.25rem' }}>
+                                {totalPrice} {plan.currency || ''}
+                              </span>
+                            </div>
+                            {/* Show item count for transparency */}
+                            <div style={{ fontSize: '0.75rem', color: '#3b82f6', marginTop: '0.5rem' }}>
+                              {(plan?.shopping_list || plan?.shoppingList || []).length} items
+                              {' | '}
+                              {(plan?.shopping_list || plan?.shoppingList || []).filter(i => safeParsePrice(i.price) !== null).length} priced
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                       <div style={{ display: 'grid', gap: '0.75rem' }}>
-                        {(plan?.shopping_list || plan?.shoppingList || []).map((item, index) => (
-                          <div
-                            key={index}
-                            style={{
-                              padding: '1rem',
-                              background: 'white',
-                              borderRadius: '6px',
-                              border: '1px solid #e5e7eb',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '0.25rem' }}>
-                                {item.offer_display_name || item.ingredient}
+                        {(plan?.shopping_list || plan?.shoppingList || []).map((item, index) => {
+                          const priceDisplay = safeParsePrice(item.price);
+                          const quantityDisplay = formatQuantity(item.quantity, item.unit);
+                          const isEstimated = item.price_source === 'llm_estimation_service' || item.estimated;
+
+                          return (
+                            <div
+                              key={item.ingredient ? `${item.ingredient}-${index}` : index}
+                              style={{
+                                padding: '1rem',
+                                background: 'white',
+                                borderRadius: '6px',
+                                border: '1px solid #e5e7eb',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                              }}
+                            >
+                              {/* Left side: Item name and details */}
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '0.25rem' }}>
+                                  {item.matched_product_name || item.offer_display_name || item.ingredient || 'Unknown item'}
+                                </div>
+                                {/* Show original ingredient name if matched to different product */}
+                                {item.matched_product_name && item.ingredient && item.matched_product_name !== item.ingredient && (
+                                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
+                                    ({item.ingredient})
+                                  </div>
+                                )}
+                                {item.notes && (
+                                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                                    {item.notes}
+                                  </div>
+                                )}
+                                {/* Show validation note if quantity was adjusted */}
+                                {item.validation_note && (
+                                  <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginBottom: '0.25rem' }}>
+                                    {item.validation_note}
+                                  </div>
+                                )}
                               </div>
-                              {item.notes && (
-                                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                                  {item.notes}
-                                </div>
-                              )}
-                              {(item.quantity || item.unit) && (
-                                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                                  {item.quantity} {item.unit}
-                                </div>
-                              )}
+
+                              {/* Right side: Quantity badge and price */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                {/* Quantity badge */}
+                                {quantityDisplay && (
+                                  <div style={{
+                                    padding: '0.5rem 1rem',
+                                    background: '#eff6ff',
+                                    borderRadius: '6px',
+                                    fontWeight: '600',
+                                    color: '#1e40af',
+                                    fontSize: '0.875rem',
+                                    whiteSpace: 'nowrap',
+                                  }}>
+                                    {quantityDisplay}
+                                  </div>
+                                )}
+
+                                {/* Price badge */}
+                                {priceDisplay !== null ? (
+                                  <div style={{
+                                    padding: '0.5rem 1rem',
+                                    background: isEstimated ? '#fef3c7' : '#f0fdf4',
+                                    borderRadius: '6px',
+                                    fontWeight: '600',
+                                    color: isEstimated ? '#92400e' : '#166534',
+                                    fontSize: '0.875rem',
+                                    minWidth: '80px',
+                                    textAlign: 'right',
+                                  }}>
+                                    {priceDisplay} {item.currency || plan.currency || ''}
+                                    {isEstimated && (
+                                      <div style={{ fontSize: '0.65rem', color: '#b45309', marginTop: '0.125rem' }}>
+                                        (estimated)
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div style={{
+                                    padding: '0.5rem 1rem',
+                                    background: '#fee2e2',
+                                    borderRadius: '6px',
+                                    fontWeight: '600',
+                                    color: '#991b1b',
+                                    fontSize: '0.875rem',
+                                  }}>
+                                    Price N/A
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              {(item.quantity || item.unit) && (
-                                <div style={{
-                                  padding: '0.5rem 1rem',
-                                  background: '#eff6ff',
-                                  borderRadius: '6px',
-                                  fontWeight: '600',
-                                  color: '#1e40af',
-                                  fontSize: '0.875rem',
-                                }}>
-                                  {item.quantity} {item.unit}
-                                </div>
-                              )}
-                              {item.price !== null && item.price !== undefined ? (
-                                <div style={{
-                                  padding: '0.5rem 1rem',
-                                  background: '#f0fdf4',
-                                  borderRadius: '6px',
-                                  fontWeight: '600',
-                                  color: '#166534',
-                                  fontSize: '0.875rem',
-                                  minWidth: '80px',
-                                  textAlign: 'right',
-                                }}>
-                                  {parseFloat(item.price).toFixed(2)} {item.currency || plan.currency}
-                                  {item.offer_unit && item.offer_unit !== item.unit && (
-                                    <div style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.125rem' }}>
-                                      / {item.offer_unit}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div style={{
-                                  padding: '0.5rem 1rem',
-                                  background: '#fef3c7',
-                                  borderRadius: '6px',
-                                  fontWeight: '600',
-                                  color: '#92400e',
-                                  fontSize: '0.875rem',
-                                }}>
-                                  Price N/A
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
