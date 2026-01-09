@@ -447,6 +447,54 @@ def aggregate_ingredients_from_meals(days: List[Dict[str, Any]], context_id: str
     return result
 
 
+def _log_item_details(item: Dict[str, Any]) -> str:
+    """
+    Format item details for logging.
+    
+    Args:
+        item: Shopping list item dictionary
+        
+    Returns:
+        Formatted string with item details
+    """
+    parts = []
+    
+    # Ingredient name
+    ingredient = item.get('ingredient', 'unknown')
+    parts.append(f"'{ingredient}'")
+    
+    # Quantity
+    quantity = item.get('quantity')
+    unit = item.get('unit', '')
+    if quantity is not None:
+        parts.append(f"{quantity}{unit}")
+    
+    # Price information
+    price = item.get('price')
+    price_total = item.get('price_total')
+    currency = item.get('currency', '')
+    
+    if price_total is not None:
+        parts.append(f"{price_total} {currency}")
+        if price != price_total:
+            parts.append(f"(per unit: {price} {currency})")
+    elif price is not None:
+        parts.append(f"{price} {currency}")
+    
+    # Source/status
+    if item.get('estimated'):
+        parts.append("[ESTIMATED]")
+    else:
+        parts.append("[FROM LEAFLET]")
+    
+    # Matched product name if available
+    matched_name = item.get('matched_product_name')
+    if matched_name and matched_name != ingredient:
+        parts.append(f"-> '{matched_name}'")
+    
+    return " | ".join(parts)
+
+
 def _aggregate_meal_ingredients(meal: Dict[str, Any], aggregated: Dict[str, Any], context_id: str = "", goal_id: int = 0, day_num: int = 0, meal_type: str = "") -> List[str]:
     """
     Helper function to aggregate ingredients from a single meal into the aggregated dict.
