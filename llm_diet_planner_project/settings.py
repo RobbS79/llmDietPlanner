@@ -209,6 +209,7 @@ REST_AUTH = {
     'JWT_AUTH_SAMESITE': 'Lax',
     'JWT_AUTH_RETURN_EXPIRATION': True,
     'USER_DETAILS_SERIALIZER': 'login_app.serializers.UserDetailsSerializer',
+    'TOKEN_MODEL': None,  # We use JWT, not token-based auth
 }
 
 # JWT Configuration
