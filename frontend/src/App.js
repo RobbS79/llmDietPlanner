@@ -16,6 +16,13 @@ import './App.css';
 // Google OAuth Client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
+// Log warning if Google OAuth is not configured (helpful for debugging)
+if (!GOOGLE_CLIENT_ID) {
+  console.warn('[App] REACT_APP_GOOGLE_CLIENT_ID is not set. Google OAuth will be disabled.');
+} else {
+  console.log('[App] Google OAuth configured with client ID:', GOOGLE_CLIENT_ID.substring(0, 20) + '...');
+}
+
 /**
  * Protected Route Component - redirects to login if not authenticated
  *

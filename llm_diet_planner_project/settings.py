@@ -259,10 +259,12 @@ EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS = 24
 # ALLAUTH & SOCIAL AUTHENTICATION CONFIGURATION
 # =============================================================================
 
-# Account settings
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+# Account settings - using new allauth 0.60+ format to avoid deprecation warnings
+# ACCOUNT_LOGIN_METHODS replaces ACCOUNT_AUTHENTICATION_METHOD
+ACCOUNT_LOGIN_METHODS = {'email', 'username'}
+# ACCOUNT_SIGNUP_FIELDS replaces ACCOUNT_EMAIL_REQUIRED and ACCOUNT_USERNAME_REQUIRED
+# The asterisk (*) indicates required fields
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Keep existing behavior for email signup
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https' if not DEBUG else 'http'
 

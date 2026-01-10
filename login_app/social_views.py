@@ -142,7 +142,7 @@ class GoogleLogin(StandardizedSocialLoginView):
     Returns JWT tokens and user info on successful authentication.
     Creates a new user if one doesn't exist with the Google email.
     Links to existing account if email already registered.
-    
+
     Environment variables required:
     - GOOGLE_CLIENT_ID: OAuth 2.0 Client ID from Google Cloud Console
     - GOOGLE_CLIENT_SECRET: OAuth 2.0 Client Secret from Google Cloud Console
@@ -153,7 +153,7 @@ class GoogleLogin(StandardizedSocialLoginView):
     client_class = OAuth2Client
     provider_name = "Google"
     credential_env_vars = "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET"
-    
+
     def _check_credentials_configured(self) -> bool:
         """Check if Google OAuth credentials are configured."""
         google_provider = settings.SOCIALACCOUNT_PROVIDERS.get('google', {})
@@ -161,6 +161,33 @@ class GoogleLogin(StandardizedSocialLoginView):
         client_id = app_config.get('client_id', '')
         client_secret = app_config.get('secret', '')
         return bool(client_id and client_secret)
+
+    def post(self, request, *args, **kwargs):
+        """Override post to add debug logging."""
+        import sys
+        import traceback
+
+        print(f"[DEBUG OAUTH] GoogleLogin.post: Request received", file=sys.stderr, flush=True)
+        print(f"[DEBUG OAUTH] GoogleLogin.post: Request data keys: {list(request.data.keys())}", file=sys.stderr, flush=True)
+        print(f"[DEBUG OAUTH] GoogleLogin.post: Has access_token: {'access_token' in request.data}", file=sys.stderr, flush=True)
+        print(f"[DEBUG OAUTH] GoogleLogin.post: Has code: {'code' in request.data}", file=sys.stderr, flush=True)
+
+        # Check credentials
+        if not self._check_credentials_configured():
+            print(f"[DEBUG OAUTH] GoogleLogin.post: Credentials NOT configured!", file=sys.stderr, flush=True)
+        else:
+            print(f"[DEBUG OAUTH] GoogleLogin.post: Credentials are configured", file=sys.stderr, flush=True)
+
+        try:
+            # Call parent's post method
+            response = super().post(request, *args, **kwargs)
+            print(f"[DEBUG OAUTH] GoogleLogin.post: Response status: {response.status_code}", file=sys.stderr, flush=True)
+            print(f"[DEBUG OAUTH] GoogleLogin.post: Response data keys: {list(response.data.keys()) if hasattr(response.data, 'keys') else type(response.data)}", file=sys.stderr, flush=True)
+            return response
+        except Exception as e:
+            print(f"[DEBUG OAUTH] GoogleLogin.post: EXCEPTION: {str(e)}", file=sys.stderr, flush=True)
+            print(f"[DEBUG OAUTH] GoogleLogin.post: Traceback:\n{traceback.format_exc()}", file=sys.stderr, flush=True)
+            raise
 
 
 @method_decorator(csrf_exempt, name='dispatch')
