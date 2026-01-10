@@ -1,6 +1,6 @@
 /**
  * API utility for making requests to the backend.
- * Handles JWT token storage and authentication headers.
+ * Handles JWT token storage, authentication headers, and safe response parsing.
  */
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
@@ -23,8 +23,8 @@ export const getRefreshToken = () => {
  * Store JWT tokens in localStorage
  */
 export const setTokens = (accessToken, refreshToken) => {
-  localStorage.setItem('access_token', accessToken);
-  localStorage.setItem('refresh_token', refreshToken);
+  if (accessToken) localStorage.setItem('access_token', accessToken);
+  if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
 };
 
 /**
@@ -52,6 +52,18 @@ export const getUser = () => {
 };
 
 /**
+ * Helper to safely parse JSON from a response.
+ * Prevents crashes when the server returns 500 HTML error pages.
+ */
+const safeJson = async (response) => {
+  try {
+    return await response.json();
+  } catch (err) {
+    return null; // Return null if parsing fails
+  }
+};
+
+/**
  * Make an authenticated API request
  */
 export const apiRequest = async (endpoint, options = {}) => {
@@ -65,42 +77,52 @@ export const apiRequest = async (endpoint, options = {}) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-  if (response.status === 401) {
-    // Token might be expired, try to refresh
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      try {
-        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh: refreshToken }),
-        });
-
-        if (refreshResponse.ok) {
-          const data = await refreshResponse.json();
-          setTokens(data.access, refreshToken);
-          // Retry original request with new token
-          headers['Authorization'] = `Bearer ${data.access}`;
-          return fetch(`${API_BASE_URL}${endpoint}`, {
-            ...options,
-            headers,
+    if (response.status === 401) {
+      // Token might be expired, try to refresh
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        try {
+          const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh: refreshToken }),
           });
+
+          if (refreshResponse.ok) {
+            const data = await refreshResponse.json();
+            // Update tokens - keep old refresh token if new one isn't provided
+            setTokens(data.access, data.refresh || refreshToken);
+            
+            // Retry original request with new token
+            headers['Authorization'] = `Bearer ${data.access}`;
+            return fetch(`${API_BASE_URL}${endpoint}`, {
+              ...options,
+              headers,
+            });
+          } else {
+            // Refresh token invalid
+            throw new Error('Refresh failed');
+          }
+        } catch (error) {
+          // Refresh failed, clear tokens and redirect
+          clearTokens();
+          window.location.href = '/login';
+          throw new Error('Session expired. Please login again.');
         }
-      } catch (error) {
-        // Refresh failed, clear tokens
-        clearTokens();
-        window.location.href = '/login';
-        throw new Error('Session expired. Please login again.');
       }
     }
-  }
 
-  return response;
+    return response;
+  } catch (error) {
+    console.error('API Request Error:', error);
+    throw error;
+  }
 };
 
 /**
@@ -122,9 +144,11 @@ export const authAPI = {
       }),
     });
 
-    const data = await response.json();
+    const data = await safeJson(response);
+    
     if (!response.ok) {
-      throw new Error(data.error || 'Registration failed');
+      const errorMsg = data?.error || data?.detail || response.statusText || 'Registration failed';
+      throw new Error(errorMsg);
     }
     return data;
   },
@@ -139,17 +163,23 @@ export const authAPI = {
       body: JSON.stringify({ username, password }),
     });
 
-    const data = await response.json();
+    const data = await safeJson(response);
+
     if (!response.ok) {
-      throw new Error(data.error || 'Login failed');
+      const errorMsg = data?.error || data?.detail || response.statusText || 'Login failed';
+      throw new Error(errorMsg);
     }
 
     // Store tokens and user data
-    if (data.data && data.data.access && data.data.refresh) {
+    if (data?.data?.access && data?.data?.refresh) {
       setTokens(data.data.access, data.data.refresh);
       if (data.data.user) {
         setUser(data.data.user);
       }
+    } else if (data?.access && data?.refresh) {
+      // Handle standard SimpleJWT response format
+      setTokens(data.access, data.refresh);
+      if (data.user) setUser(data.user);
     }
 
     return data;
@@ -163,9 +193,10 @@ export const authAPI = {
       `${API_BASE_URL}/auth/verify-email/?uid=${uid}&token=${token}`
     );
 
-    const data = await response.json();
+    const data = await safeJson(response);
+    
     if (!response.ok) {
-      throw new Error(data.error || 'Email verification failed');
+      throw new Error(data?.error || response.statusText || 'Email verification failed');
     }
     return data;
   },
@@ -175,9 +206,12 @@ export const authAPI = {
    */
   getProfile: async () => {
     const response = await apiRequest('/auth/profile/');
-    const data = await response.json();
+    const data = await safeJson(response);
+
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to get profile');
+      // If we get a 500 error (like from the LLM service crash), data will be null
+      const errorMsg = data?.error || data?.detail || response.statusText || 'Failed to get profile';
+      throw new Error(errorMsg);
     }
     return data;
   },
@@ -200,28 +234,25 @@ export const authAPI = {
       body: JSON.stringify({ access_token: accessToken }),
     });
 
-    const data = await response.json();
-    console.log('[API] googleLogin: Response status:', response.status);
-    console.log('[API] googleLogin: Response data keys:', data ? Object.keys(data) : 'null');
-    console.log('[API] googleLogin: data.data keys:', data?.data ? Object.keys(data.data) : 'null');
+    const data = await safeJson(response);
 
     if (!response.ok) {
-      console.error('[API] googleLogin: Request failed:', data.error);
-      throw new Error(data.error || 'Google login failed');
+      console.error('[API] googleLogin: Request failed:', data?.error);
+      throw new Error(data?.error || response.statusText || 'Google login failed');
     }
 
     // Store tokens and user data
-    if (data.data && data.data.access && data.data.refresh) {
+    // Handles both wrapped { data: { access... } } and flat { access... } structures
+    const payload = data?.data || data;
+    
+    if (payload && payload.access && payload.refresh) {
       console.log('[API] googleLogin: Storing tokens in localStorage');
-      setTokens(data.data.access, data.data.refresh);
-      if (data.data.user) {
-        console.log('[API] googleLogin: Storing user in localStorage:', data.data.user.username);
-        setUser(data.data.user);
+      setTokens(payload.access, payload.refresh);
+      if (payload.user) {
+        setUser(payload.user);
       }
     } else {
-      console.warn('[API] googleLogin: Tokens not found in expected format!');
-      console.warn('[API] googleLogin: data.data.access:', !!data.data?.access);
-      console.warn('[API] googleLogin: data.data.refresh:', !!data.data?.refresh);
+      console.warn('[API] googleLogin: Tokens not found in response');
     }
 
     return data;
@@ -237,16 +268,18 @@ export const authAPI = {
       body: JSON.stringify({ access_token: accessToken }),
     });
 
-    const data = await response.json();
+    const data = await safeJson(response);
+    
     if (!response.ok) {
-      throw new Error(data.error || 'Facebook login failed');
+      throw new Error(data?.error || response.statusText || 'Facebook login failed');
     }
 
     // Store tokens and user data
-    if (data.data && data.data.access && data.data.refresh) {
-      setTokens(data.data.access, data.data.refresh);
-      if (data.data.user) {
-        setUser(data.data.user);
+    const payload = data?.data || data;
+    if (payload && payload.access && payload.refresh) {
+      setTokens(payload.access, payload.refresh);
+      if (payload.user) {
+        setUser(payload.user);
       }
     }
 
@@ -260,9 +293,6 @@ export const authAPI = {
 export const shopifyAPI = {
   /**
    * Create a Shopify checkout for meal plan purchase
-   * @param {string[]} variantIds - Array of Shopify product variant IDs
-   * @param {number[]} quantities - Array of quantities for each variant
-   * @param {Object} metadata - Metadata to attach to checkout (e.g., { goal_id: 123 })
    */
   createCheckout: async (variantIds, quantities, metadata = {}) => {
     const response = await apiRequest('/shopify/checkouts/', {
@@ -274,28 +304,24 @@ export const shopifyAPI = {
       }),
     });
 
-    const data = await response.json();
+    const data = await safeJson(response);
+    
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to create checkout');
+      throw new Error(data?.error || response.statusText || 'Failed to create checkout');
     }
     return data;
   },
 
   /**
    * Get checkout status
-   * @param {number} checkoutId - Django checkout ID
    */
   getCheckoutStatus: async (checkoutId) => {
     const response = await apiRequest(`/shopify/checkouts/${checkoutId}/`);
-    const data = await response.json();
+    const data = await safeJson(response);
+    
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to get checkout status');
+      throw new Error(data?.error || response.statusText || 'Failed to get checkout status');
     }
     return data;
   },
 };
-
-
-
-
-
