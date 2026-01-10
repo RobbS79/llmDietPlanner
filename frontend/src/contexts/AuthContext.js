@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }) => {
 
   const socialLogin = async (provider, accessToken) => {
     try {
+      console.log('[AuthContext] socialLogin called for provider:', provider);
       let response;
       if (provider === 'google') {
         response = await authAPI.googleLogin(accessToken);
@@ -83,11 +84,21 @@ export const AuthProvider = ({ children }) => {
       } else {
         throw new Error(`Unknown provider: ${provider}`);
       }
+      console.log('[AuthContext] API response:', {
+        status: response.status,
+        hasData: !!response.data,
+        hasUser: !!response.data?.user,
+        hasAccess: !!response.data?.access,
+        hasRefresh: !!response.data?.refresh
+      });
       const userData = response.data?.user || getUser();
+      console.log('[AuthContext] Setting user state:', { hasUserData: !!userData, username: userData?.username });
       setUserState(userData);
       await fetchProfile();
+      console.log('[AuthContext] Profile fetched, returning success');
       return { success: true, data: response.data };
     } catch (error) {
+      console.error('[AuthContext] socialLogin error:', error.message);
       return { success: false, error: error.message };
     }
   };

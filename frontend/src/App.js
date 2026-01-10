@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -51,17 +51,68 @@ const ProtectedRoute = ({ children }) => {
 
 /**
  * Auth Pages Component - handles login/register
+ *
+ * Uses useEffect to handle navigation after successful login/OAuth
+ * to avoid race conditions with React state updates.
  */
 const AuthPages = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const isRegisterPage = location.pathname === '/register';
+  const [loginAttempted, setLoginAttempted] = useState(false);
 
-  // If already authenticated, redirect to home
-  if (isAuthenticated) {
-    const from = location.state?.from?.pathname || '/';
-    return <Navigate to={from} replace />;
+  // Check both React state AND localStorage for authentication
+  // This handles the race condition where tokens are stored but state hasn't updated yet
+  const hasTokensInStorage = !!(getAccessToken() && getUser());
+  const hasValidSession = isAuthenticated || hasTokensInStorage;
+
+  // Use useEffect to navigate after state updates
+  // This ensures navigation happens AFTER React has processed state changes
+  useEffect(() => {
+    if (hasValidSession) {
+      const from = location.state?.from?.pathname || '/';
+      console.log('[Auth] User authenticated, redirecting to:', from);
+      navigate(from, { replace: true });
+    }
+  }, [hasValidSession, navigate, location.state]);
+
+  // Also navigate when login is attempted and tokens exist
+  // This handles the case where state hasn't updated but tokens are in localStorage
+  useEffect(() => {
+    if (loginAttempted && hasTokensInStorage) {
+      const from = location.state?.from?.pathname || '/';
+      console.log('[Auth] Login successful (tokens in storage), redirecting to:', from);
+      navigate(from, { replace: true });
+    }
+  }, [loginAttempted, hasTokensInStorage, navigate, location.state]);
+
+  // Handle successful login - just mark login as attempted
+  // The useEffect above will handle the actual navigation
+  const handleLoginSuccess = () => {
+    console.log('[Auth] Login success callback triggered');
+    setLoginAttempted(true);
+    // Also force a small delay to allow state to propagate
+    setTimeout(() => {
+      const token = getAccessToken();
+      const user = getUser();
+      console.log('[Auth] After login - Token exists:', !!token, 'User exists:', !!user);
+      if (token && user) {
+        const from = location.state?.from?.pathname || '/';
+        navigate(from, { replace: true });
+      }
+    }, 100);
+  };
+
+  // If already authenticated, show loading briefly then redirect
+  if (hasValidSession) {
+    return (
+      <div className="App">
+        <div className="container" style={{ textAlign: 'center', padding: '4rem' }}>
+          <p style={{ color: 'white' }}>Redirecting...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -87,11 +138,7 @@ const AuthPages = () => {
         ) : (
           <LoginForm
             onSwitchToRegister={() => navigate('/register', { state: location.state })}
-            onSuccess={() => {
-              // Navigate to the page they were trying to access, or home
-              const from = location.state?.from?.pathname || '/';
-              navigate(from, { replace: true });
-            }}
+            onSuccess={handleLoginSuccess}
           />
         )}
       </div>

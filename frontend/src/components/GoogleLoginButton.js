@@ -12,22 +12,28 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
+      console.log('[GoogleLogin] Google OAuth success, received token');
       setLoading(true);
       try {
+        console.log('[GoogleLogin] Calling socialLogin with access token...');
         const result = await socialLogin('google', tokenResponse.access_token);
+        console.log('[GoogleLogin] socialLogin result:', { success: result.success, hasData: !!result.data, error: result.error });
         if (result.success) {
+          console.log('[GoogleLogin] Login successful, calling onSuccess callback');
           if (onSuccess) onSuccess(result.data);
         } else {
+          console.error('[GoogleLogin] Login failed:', result.error);
           if (onError) onError(result.error);
         }
       } catch (error) {
+        console.error('[GoogleLogin] Exception during login:', error);
         if (onError) onError(error.message);
       } finally {
         setLoading(false);
       }
     },
     onError: (error) => {
-      console.error('Google login error:', error);
+      console.error('[GoogleLogin] Google OAuth error:', error);
       if (onError) onError('Google login was cancelled or failed');
     },
   });

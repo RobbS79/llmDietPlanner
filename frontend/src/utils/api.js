@@ -193,6 +193,7 @@ export const authAPI = {
    * Google OAuth login - sends access token to backend
    */
   googleLogin: async (accessToken) => {
+    console.log('[API] googleLogin: Sending request to backend...');
     const response = await fetch(`${API_BASE_URL}/auth/google/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -200,16 +201,27 @@ export const authAPI = {
     });
 
     const data = await response.json();
+    console.log('[API] googleLogin: Response status:', response.status);
+    console.log('[API] googleLogin: Response data keys:', data ? Object.keys(data) : 'null');
+    console.log('[API] googleLogin: data.data keys:', data?.data ? Object.keys(data.data) : 'null');
+
     if (!response.ok) {
+      console.error('[API] googleLogin: Request failed:', data.error);
       throw new Error(data.error || 'Google login failed');
     }
 
     // Store tokens and user data
     if (data.data && data.data.access && data.data.refresh) {
+      console.log('[API] googleLogin: Storing tokens in localStorage');
       setTokens(data.data.access, data.data.refresh);
       if (data.data.user) {
+        console.log('[API] googleLogin: Storing user in localStorage:', data.data.user.username);
         setUser(data.data.user);
       }
+    } else {
+      console.warn('[API] googleLogin: Tokens not found in expected format!');
+      console.warn('[API] googleLogin: data.data.access:', !!data.data?.access);
+      console.warn('[API] googleLogin: data.data.refresh:', !!data.data?.refresh);
     }
 
     return data;
