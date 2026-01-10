@@ -31,7 +31,7 @@ This module handles the core dietary plan generation workflow using Celery tasks
 - If prices seem wrong, verify unit and package_size from shop data
 """
 
-from celery import shared_task
+from llm_diet_planner_project.celery_compat import shared_task
 from django.utils import timezone
 from typing import Dict, Any, List, Optional, Tuple
 import json

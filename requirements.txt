@@ -6,6 +6,8 @@ gunicorn>=21.2.0
 whitenoise>=6.6.0
 djangorestframework>=3.14.0
 django-encrypted-model-fields>=0.6.5
+# Celery and Redis are optional for basic Django operations (migrations, etc.)
+# but required for async task processing (meal plan generation, email sending, etc.)
 celery>=5.3.0
 redis>=5.0.0
 pydantic>=2.5.0
@@ -13,6 +15,7 @@ pydantic[email]>=2.5.0
 email-validator>=2.0.0
 python-dotenv>=1.0.0
 djangorestframework-simplejwt>=5.3.0
+dj-rest-auth[with_social]>=7.0.0
 google-generativeai>=0.3.0
 requests>=2.31.0
 beautifulsoup4>=4.12.0

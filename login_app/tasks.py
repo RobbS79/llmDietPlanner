@@ -2,7 +2,7 @@
 Celery tasks for login_app.
 Handles async email sending for user verification.
 """
-from celery import shared_task
+from llm_diet_planner_project.celery_compat import shared_task
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.urls import reverse

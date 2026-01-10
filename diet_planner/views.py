@@ -21,7 +21,7 @@ from .serializers import (
 )
 from .schemas import DietaryGoalCreateRequest, DietaryGoalCreateResponse
 from .tasks import process_dietary_goal_task, build_llm_prompt_json
-from celery.result import AsyncResult
+from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
 
 
@@ -259,51 +259,98 @@ class DietaryGoalTaskStatusView(APIView):
                     status=status.HTTP_200_OK
                 )
             
-            # Check Celery task status
-            task_result = AsyncResult(goal.celery_task_id)
-            
-            # Map Celery states to readable status
-            task_status_map = {
-                'PENDING': 'pending',
-                'STARTED': 'processing',
-                'SUCCESS': 'completed',
-                'FAILURE': 'failed',
-                'RETRY': 'processing',
-                'REVOKED': 'failed',
-            }
-            
-            task_status = task_status_map.get(task_result.state, task_result.state.lower())
-            
-            # Get task result if available
-            result_data = None
-            if task_result.ready():
-                if task_result.successful():
-                    result_data = task_result.result
-                else:
-                    # Task failed
-                    result_data = {
-                        "error": str(task_result.info) if task_result.info else "Task failed"
-                    }
-            
-            # Get goal status from DB (may be more up-to-date than task status)
-            goal_status = goal.status
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": {
-                        "goal_id": goal_id,
-                        "task_id": goal.celery_task_id,
-                        "task_status": task_status,
-                        "celery_state": task_result.state,
-                        "goal_status": goal_status,
-                        "result": result_data,
-                        "ready": task_result.ready(),
+            # Check if Celery is available
+            if not is_celery_available():
+                # Celery is not available - return goal status from DB only
+                return Response(
+                    {
+                        "status": "success",
+                        "data": {
+                            "goal_id": goal_id,
+                            "task_id": goal.celery_task_id,
+                            "task_status": "CELERY_UNAVAILABLE",
+                            "celery_state": "NOT_STARTED",
+                            "goal_status": goal.status,
+                            "result": None,
+                            "ready": False,
+                            "message": "Celery is not available - cannot check task status. Goal status reflects current state."
+                        },
+                        "error": None
                     },
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
+                    status=status.HTTP_200_OK
+                )
+            
+            # Check Celery task status
+            try:
+                task_result = AsyncResult(goal.celery_task_id)
+                
+                # Map Celery states to readable status
+                task_status_map = {
+                    'PENDING': 'pending',
+                    'STARTED': 'processing',
+                    'SUCCESS': 'completed',
+                    'FAILURE': 'failed',
+                    'RETRY': 'processing',
+                    'REVOKED': 'failed',
+                    'NOT_STARTED': 'not_started',
+                }
+                
+                task_status = task_status_map.get(task_result.state, task_result.state.lower() if hasattr(task_result.state, 'lower') else str(task_result.state))
+                
+                # Get task result if available
+                result_data = None
+                if hasattr(task_result, 'ready') and task_result.ready():
+                    if hasattr(task_result, 'successful') and task_result.successful():
+                        result_data = task_result.result
+                    else:
+                        # Task failed
+                        info = task_result.info if hasattr(task_result, 'info') else None
+                        result_data = {
+                            "error": str(info) if info else "Task failed"
+                        }
+                
+                # Get goal status from DB (may be more up-to-date than task status)
+                goal_status = goal.status
+                
+                return Response(
+                    {
+                        "status": "success",
+                        "data": {
+                            "goal_id": goal_id,
+                            "task_id": goal.celery_task_id,
+                            "task_status": task_status,
+                            "celery_state": task_result.state,
+                            "goal_status": goal_status,
+                            "result": result_data,
+                            "ready": task_result.ready() if hasattr(task_result, 'ready') else False,
+                        },
+                        "error": None
+                    },
+                    status=status.HTTP_200_OK
+                )
+            except (AttributeError, NotImplementedError) as e:
+                # Handle case where AsyncResult methods fail (e.g., Celery unavailable)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Could not check Celery task status for goal {goal_id}: {e}")
+                
+                return Response(
+                    {
+                        "status": "success",
+                        "data": {
+                            "goal_id": goal_id,
+                            "task_id": goal.celery_task_id,
+                            "task_status": "UNAVAILABLE",
+                            "celery_state": "UNKNOWN",
+                            "goal_status": goal.status,
+                            "result": None,
+                            "ready": False,
+                            "message": f"Task status cannot be determined: {str(e)}"
+                        },
+                        "error": None
+                    },
+                    status=status.HTTP_200_OK
+                )
             
         except DietaryGoal.DoesNotExist:
             return Response(
