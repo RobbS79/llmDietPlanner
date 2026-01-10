@@ -285,6 +285,8 @@ SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
 GOOGLE_CALLBACK_URL = config('GOOGLE_CALLBACK_URL', default='')
 FACEBOOK_CALLBACK_URL = config('FACEBOOK_CALLBACK_URL', default='')
 
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
