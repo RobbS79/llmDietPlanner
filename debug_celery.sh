@@ -89,3 +89,4 @@ timeout 5 celery -A llm_diet_planner_project worker --loglevel=info 2>&1 | head 
 
 
 
+

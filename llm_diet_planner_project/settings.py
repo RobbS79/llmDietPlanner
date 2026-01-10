@@ -39,15 +39,26 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",  # Required by allauth
     # Third-party apps
     "rest_framework",
     "rest_framework_simplejwt",
     "encrypted_model_fields",
+    # dj-rest-auth & allauth for social authentication
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.facebook",
     # Local apps
     "diet_planner",
     "login_app",
     "shopifyin",
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -58,6 +69,13 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",  # Required by allauth
+]
+
+# Authentication backends for allauth
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 ROOT_URLCONF = "llm_diet_planner_project.urls"
@@ -166,7 +184,8 @@ if not DEBUG:
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'dj_rest_auth.jwt_auth.JWTCookieAuthentication',  # For cookie-based JWT
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # For header-based JWT
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -178,6 +197,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
     ],
+}
+
+# dj-rest-auth Configuration
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'llm-diet-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'llm-diet-refresh',
+    'JWT_AUTH_SECURE': not DEBUG,  # True in production
+    'JWT_AUTH_HTTPONLY': True,
+    'JWT_AUTH_SAMESITE': 'Lax',
+    'JWT_AUTH_RETURN_EXPIRATION': True,
+    'USER_DETAILS_SERIALIZER': 'login_app.serializers.UserDetailsSerializer',
 }
 
 # JWT Configuration
@@ -213,6 +244,60 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@llmdietplanne
 
 # Email Verification Settings
 EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS = 24
+
+# =============================================================================
+# ALLAUTH & SOCIAL AUTHENTICATION CONFIGURATION
+# =============================================================================
+
+# Account settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Keep existing behavior for email signup
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https' if not DEBUG else 'http'
+
+# Social account settings
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'  # Trust Google/Facebook verified emails
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_STORE_TOKENS = False  # Security: don't store OAuth tokens in DB
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Allow login via verified email
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Auto-link social accounts
+
+# Custom adapter for social account handling
+SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
+
+# OAuth Provider Configuration
+# Credentials should be set via environment variables
+GOOGLE_CALLBACK_URL = config('GOOGLE_CALLBACK_URL', default='')
+FACEBOOK_CALLBACK_URL = config('FACEBOOK_CALLBACK_URL', default='')
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'OAUTH_PKCE_ENABLED': True,
+        'APP': {
+            'client_id': config('GOOGLE_CLIENT_ID', default=''),
+            'secret': config('GOOGLE_CLIENT_SECRET', default=''),
+            'key': '',
+        }
+    },
+    'facebook': {
+        'METHOD': 'oauth2',
+        'SCOPE': ['email', 'public_profile'],
+        'FIELDS': ['id', 'first_name', 'last_name', 'name', 'email'],
+        'EXCHANGE_TOKEN': True,
+        'VERIFIED_EMAIL': True,
+        'VERSION': 'v18.0',
+        'APP': {
+            'client_id': config('FACEBOOK_APP_ID', default=''),
+            'secret': config('FACEBOOK_APP_SECRET', default=''),
+            'key': '',
+        }
+    }
+}
 
 # Encrypted Model Fields Configuration (GDPR compliance)
 # Generate a key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

@@ -188,6 +188,58 @@ export const authAPI = {
   logout: () => {
     clearTokens();
   },
+
+  /**
+   * Google OAuth login - sends access token to backend
+   */
+  googleLogin: async (accessToken) => {
+    const response = await fetch(`${API_BASE_URL}/auth/google/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Google login failed');
+    }
+
+    // Store tokens and user data
+    if (data.data && data.data.access && data.data.refresh) {
+      setTokens(data.data.access, data.data.refresh);
+      if (data.data.user) {
+        setUser(data.data.user);
+      }
+    }
+
+    return data;
+  },
+
+  /**
+   * Facebook OAuth login - sends access token to backend
+   */
+  facebookLogin: async (accessToken) => {
+    const response = await fetch(`${API_BASE_URL}/auth/facebook/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Facebook login failed');
+    }
+
+    // Store tokens and user data
+    if (data.data && data.data.access && data.data.refresh) {
+      setTokens(data.data.access, data.data.refresh);
+      if (data.data.user) {
+        setUser(data.data.user);
+      }
+    }
+
+    return data;
+  },
 };
 
 /**
@@ -230,6 +282,7 @@ export const shopifyAPI = {
     return data;
   },
 };
+
 
 
 

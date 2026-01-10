@@ -3,6 +3,8 @@
  */
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import GoogleLoginButton from './GoogleLoginButton';
+import SocialAuthDivider from './SocialAuthDivider';
 import './AuthForms.css';
 
 const RegistrationForm = ({ onSwitchToLogin, onSuccess }) => {
@@ -16,6 +18,16 @@ const RegistrationForm = ({ onSwitchToLogin, onSuccess }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  const handleSocialSuccess = () => {
+    if (onSuccess) {
+      onSuccess();
+    }
+  };
+
+  const handleSocialError = (errorMessage) => {
+    setError(errorMessage || 'Social sign up failed. Please try again.');
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -104,6 +116,16 @@ const RegistrationForm = ({ onSwitchToLogin, onSuccess }) => {
 
       {error && <div className="auth-error">{error}</div>}
 
+      <div className="social-auth-buttons">
+        <GoogleLoginButton
+          onSuccess={handleSocialSuccess}
+          onError={handleSocialError}
+          text="Sign up with Google"
+        />
+      </div>
+
+      <SocialAuthDivider text="or sign up with email" />
+
       <form onSubmit={handleSubmit} className="auth-form">
         <div className="form-group">
           <label htmlFor="reg-username">Username</label>
@@ -183,6 +205,7 @@ const RegistrationForm = ({ onSwitchToLogin, onSuccess }) => {
 };
 
 export default RegistrationForm;
+
 
 
 

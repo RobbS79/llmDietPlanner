@@ -73,6 +73,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const socialLogin = async (provider, accessToken) => {
+    try {
+      let response;
+      if (provider === 'google') {
+        response = await authAPI.googleLogin(accessToken);
+      } else if (provider === 'facebook') {
+        response = await authAPI.facebookLogin(accessToken);
+      } else {
+        throw new Error(`Unknown provider: ${provider}`);
+      }
+      const userData = response.data?.user || getUser();
+      setUserState(userData);
+      await fetchProfile();
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
   const logout = () => {
     authAPI.logout();
     setUserState(null);
@@ -93,12 +112,14 @@ export const AuthProvider = ({ children }) => {
     totalGenerations: profile?.total_generations ?? 0,
     login,
     register,
+    socialLogin,
     logout,
     refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
 
 
 
