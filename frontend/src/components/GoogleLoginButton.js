@@ -93,6 +93,8 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
     onSuccess: handleGoogleSuccess,
     onError: handleGoogleError,
     onNonOAuthError: handleNonOAuthError,
+    flow: 'implicit',  // Explicitly set flow type
+    prompt: 'select_account',  // Force account selection to avoid silent failures
   });
 
   // If Google OAuth is not configured, show disabled button
@@ -133,8 +135,16 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
         type="button"
         className="btn-social btn-google"
         onClick={() => {
+          console.log('[GoogleLogin] Button clicked, initiating OAuth flow...');
+          console.log('[GoogleLogin] Client ID configured:', GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 20) + '...' : 'NOT SET');
           setLocalError(null);
-          googleLogin();
+          try {
+            googleLogin();
+            console.log('[GoogleLogin] googleLogin() called successfully, popup should open');
+          } catch (err) {
+            console.error('[GoogleLogin] Error calling googleLogin():', err);
+            setLocalError('Failed to start Google sign-in: ' + err.message);
+          }
         }}
         disabled={loading}
       >

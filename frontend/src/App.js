@@ -236,7 +236,11 @@ function App() {
   }
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider
+      clientId={GOOGLE_CLIENT_ID}
+      onScriptLoadError={() => console.error('[App] Google OAuth script failed to load')}
+      onScriptLoadSuccess={() => console.log('[App] Google OAuth script loaded successfully')}
+    >
       <AuthProvider>
         <BrowserRouter>
           <AppContent />
