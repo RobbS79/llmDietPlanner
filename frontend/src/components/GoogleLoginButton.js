@@ -2,17 +2,33 @@
  * Google Login Button Component
  * Uses @react-oauth/google to handle Google OAuth
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 
 // Check if Google OAuth is configured at build time
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
+// Validate client ID format
+const isValidClientIdFormat = GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.endsWith('.apps.googleusercontent.com');
+if (GOOGLE_CLIENT_ID && !isValidClientIdFormat) {
+  console.error('[GoogleLogin] Invalid GOOGLE_CLIENT_ID format. Expected: xxx.apps.googleusercontent.com, Got:', GOOGLE_CLIENT_ID);
+}
+
 const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }) => {
   const { socialLogin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
+  const [popupOpenTime, setPopupOpenTime] = useState(null);
+
+  // Log configuration status on mount
+  useEffect(() => {
+    console.log('[GoogleLogin] Component mounted. Config status:', {
+      clientIdSet: !!GOOGLE_CLIENT_ID,
+      clientIdFormat: isValidClientIdFormat ? 'valid' : 'invalid',
+      clientIdPreview: GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 20) + '...' : 'NOT SET'
+    });
+  }, []);
 
   // Memoize the success handler to avoid recreating on every render
   const handleGoogleSuccess = useCallback(async (tokenResponse) => {
@@ -22,6 +38,7 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
       token_type: tokenResponse.token_type,
       expires_in: tokenResponse.expires_in,
     });
+    setPopupOpenTime(null); // Reset popup timer
     setLocalError(null);
     setLoading(true);
 
@@ -75,17 +92,37 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
   const handleNonOAuthError = useCallback((error) => {
     // This catches popup closed, popup blocked, etc.
     console.error('[GoogleLogin] Non-OAuth error:', error);
+    console.error('[GoogleLogin] Error details:', JSON.stringify(error, null, 2));
+
+    // Calculate how long the popup was open
+    const popupDuration = popupOpenTime ? Date.now() - popupOpenTime : null;
+    console.log('[GoogleLogin] Popup was open for:', popupDuration, 'ms');
+
     let errorMsg;
     if (error?.type === 'popup_closed') {
-      errorMsg = 'Google sign-in popup was closed. Please try again.';
+      // If popup closed very quickly (< 2 seconds), it's likely a configuration issue
+      if (popupDuration !== null && popupDuration < 2000) {
+        errorMsg = 'Google sign-in failed immediately. This usually means:\n' +
+          '1. The Google Client ID is invalid or not configured\n' +
+          '2. Your domain is not in the allowed JavaScript origins in Google Cloud Console\n' +
+          '3. Check browser console for more details';
+        console.error('[GoogleLogin] Popup closed too quickly - likely a configuration issue');
+        console.error('[GoogleLogin] Please verify:');
+        console.error('  - REACT_APP_GOOGLE_CLIENT_ID is set correctly');
+        console.error('  - Current origin', window.location.origin, 'is in Google Cloud Console JavaScript origins');
+      } else {
+        errorMsg = 'Google sign-in popup was closed. Please try again.';
+      }
     } else if (error?.type === 'popup_failed_to_open') {
-      errorMsg = 'Could not open Google sign-in popup. Please check your popup blocker settings.';
+      errorMsg = 'Could not open Google sign-in popup. Please disable your popup blocker for this site.';
     } else {
-      errorMsg = 'Google sign-in failed to initialize. Please refresh and try again.';
+      errorMsg = `Google sign-in failed to initialize: ${error?.message || 'Unknown error'}. Please refresh and try again.`;
     }
+
+    setPopupOpenTime(null);
     setLocalError(errorMsg);
     if (onError) onError(errorMsg);
-  }, [onError]);
+  }, [onError, popupOpenTime]);
 
   // Hook must be called unconditionally (React rules of hooks)
   // When GOOGLE_CLIENT_ID is not set, this hook will not work but we handle that in the UI
@@ -137,12 +174,16 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
         onClick={() => {
           console.log('[GoogleLogin] Button clicked, initiating OAuth flow...');
           console.log('[GoogleLogin] Client ID configured:', GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 20) + '...' : 'NOT SET');
+          console.log('[GoogleLogin] Current origin:', window.location.origin);
+          console.log('[GoogleLogin] Ensure this origin is in Google Cloud Console JavaScript origins');
           setLocalError(null);
+          setPopupOpenTime(Date.now()); // Track when popup opens
           try {
             googleLogin();
             console.log('[GoogleLogin] googleLogin() called successfully, popup should open');
           } catch (err) {
             console.error('[GoogleLogin] Error calling googleLogin():', err);
+            setPopupOpenTime(null);
             setLocalError('Failed to start Google sign-in: ' + err.message);
           }
         }}

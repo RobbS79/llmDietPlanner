@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -19,9 +19,20 @@ const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 // Log warning if Google OAuth is not configured (helpful for debugging)
 if (!GOOGLE_CLIENT_ID) {
   console.warn('[App] REACT_APP_GOOGLE_CLIENT_ID is not set. Google OAuth will be disabled.');
+  console.warn('[App] To enable Google OAuth:');
+  console.warn('  1. Set REACT_APP_GOOGLE_CLIENT_ID in your .env file');
+  console.warn('  2. Rebuild the frontend (npm run build or restart npm start)');
 } else {
   console.log('[App] Google OAuth configured with client ID:', GOOGLE_CLIENT_ID.substring(0, 20) + '...');
+  // Validate format
+  if (!GOOGLE_CLIENT_ID.endsWith('.apps.googleusercontent.com')) {
+    console.error('[App] WARNING: Client ID format appears invalid. Expected format: xxx.apps.googleusercontent.com');
+  }
 }
+
+// Context to share Google OAuth script load status
+const GoogleOAuthStatusContext = createContext({ scriptLoaded: false, scriptError: false });
+export const useGoogleOAuthStatus = () => useContext(GoogleOAuthStatusContext);
 
 /**
  * Protected Route Component - redirects to login if not authenticated
@@ -224,28 +235,46 @@ const AppContent = () => {
  * Conditionally wraps with GoogleOAuthProvider only if client ID is configured
  */
 function App() {
+  const [googleOAuthStatus, setGoogleOAuthStatus] = useState({
+    scriptLoaded: false,
+    scriptError: false
+  });
+
   // If no Google client ID is configured, render without GoogleOAuthProvider
   if (!GOOGLE_CLIENT_ID) {
     return (
-      <AuthProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </AuthProvider>
+      <GoogleOAuthStatusContext.Provider value={{ scriptLoaded: false, scriptError: false, clientIdMissing: true }}>
+        <AuthProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </AuthProvider>
+      </GoogleOAuthStatusContext.Provider>
     );
   }
 
   return (
     <GoogleOAuthProvider
       clientId={GOOGLE_CLIENT_ID}
-      onScriptLoadError={() => console.error('[App] Google OAuth script failed to load')}
-      onScriptLoadSuccess={() => console.log('[App] Google OAuth script loaded successfully')}
+      onScriptLoadError={() => {
+        console.error('[App] Google OAuth script failed to load');
+        console.error('[App] This may be due to network issues or content blockers');
+        setGoogleOAuthStatus({ scriptLoaded: false, scriptError: true });
+      }}
+      onScriptLoadSuccess={() => {
+        console.log('[App] Google OAuth script loaded successfully');
+        console.log('[App] Current origin:', window.location.origin);
+        console.log('[App] Make sure this origin is added to Google Cloud Console JavaScript origins');
+        setGoogleOAuthStatus({ scriptLoaded: true, scriptError: false });
+      }}
     >
-      <AuthProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </AuthProvider>
+      <GoogleOAuthStatusContext.Provider value={googleOAuthStatus}>
+        <AuthProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </AuthProvider>
+      </GoogleOAuthStatusContext.Provider>
     </GoogleOAuthProvider>
   );
 }
