@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.sites",  # Required by allauth
     # Third-party apps
     "rest_framework",
+    "rest_framework.authtoken",  # Required by dj-rest-auth even when using JWT
     "rest_framework_simplejwt",
     "encrypted_model_fields",
     # dj-rest-auth & allauth for social authentication
