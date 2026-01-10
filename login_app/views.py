@@ -645,6 +645,8 @@ class UserProfileView(APIView):
                         "email": user.email,
                         "free_generations_remaining": profile.free_generations_remaining,
                         "total_generations": profile.total_generations,
+                        "primary_auth_provider": profile.primary_auth_provider,
+                        "email_verified": profile.email_verified,
                     },
                     "error": None,
                 },
