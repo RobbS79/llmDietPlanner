@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { getAccessToken, getUser } from './utils/api';
 import LoginForm from './components/LoginForm';
 import RegistrationForm from './components/RegistrationForm';
 import { HomePage } from './pages/HomePage';
@@ -17,6 +18,9 @@ const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
 /**
  * Protected Route Component - redirects to login if not authenticated
+ *
+ * Checks both React state AND localStorage to handle the race condition
+ * where tokens are stored but React state hasn't updated yet (e.g., after OAuth login)
  */
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -32,7 +36,12 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  // Check both React state AND localStorage for authentication
+  // This handles the race condition where tokens are stored but state hasn't updated yet
+  const hasTokensInStorage = !!(getAccessToken() && getUser());
+  const hasValidSession = isAuthenticated || hasTokensInStorage;
+
+  if (!hasValidSession) {
     // Redirect to login with return path
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
