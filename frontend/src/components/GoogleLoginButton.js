@@ -38,7 +38,6 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
       token_type: tokenResponse.token_type,
       expires_in: tokenResponse.expires_in,
     });
-    setPopupOpenTime(null); // Reset popup timer
     setLocalError(null);
     setLoading(true);
 
@@ -126,15 +125,12 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
 
   // Hook must be called unconditionally (React rules of hooks)
   // When GOOGLE_CLIENT_ID is not set, this hook will not work but we handle that in the UI
-  // Inside GoogleLoginButton.js
-const googleLogin = useGoogleLogin({
-  onSuccess: handleGoogleSuccess,
-  onError: handleGoogleError,
-  onNonOAuthError: handleNonOAuthError,
-  flow: 'implicit',
-  ux_mode: 'redirect', // Change this from popup to redirect
-  redirect_uri: 'https://squid-app-6avsy.ondigitalocean.app/login', // Your login page
-});
+  const googleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: handleGoogleError,
+    flow: 'implicit',
+    ux_mode: 'redirect', // This avoids the popup window entirely
+  });
 
   // If Google OAuth is not configured, show disabled button
   // This check is done AFTER all hooks are called to comply with React rules
