@@ -2,7 +2,7 @@
  * Google Login Button Component
  * Uses @react-oauth/google to handle Google OAuth
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -14,8 +14,89 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
 
+  // Memoize the success handler to avoid recreating on every render
+  const handleGoogleSuccess = useCallback(async (tokenResponse) => {
+    console.log('[GoogleLogin] Google OAuth success, token response:', {
+      access_token: tokenResponse.access_token ? 'present' : 'missing',
+      credential: tokenResponse.credential ? 'present' : 'missing',
+      token_type: tokenResponse.token_type,
+      expires_in: tokenResponse.expires_in,
+    });
+    setLocalError(null);
+    setLoading(true);
+
+    // Check if we actually got an access token
+    if (!tokenResponse.access_token) {
+      const errMsg = 'Google did not return an access token. Please try again.';
+      console.error('[GoogleLogin] Error:', errMsg);
+      setLocalError(errMsg);
+      if (onError) onError(errMsg);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log('[GoogleLogin] Calling socialLogin with access token...');
+      const result = await socialLogin('google', tokenResponse.access_token);
+      console.log('[GoogleLogin] socialLogin result:', {
+        success: result.success,
+        hasData: !!result.data,
+        error: result.error
+      });
+
+      if (result.success) {
+        console.log('[GoogleLogin] Login successful, calling onSuccess callback');
+        setLocalError(null);
+        if (onSuccess) onSuccess(result.data);
+      } else {
+        const errMsg = result.error || 'Google login failed. Please try again.';
+        console.error('[GoogleLogin] Login failed:', errMsg);
+        setLocalError(errMsg);
+        if (onError) onError(errMsg);
+      }
+    } catch (error) {
+      const errMsg = error.message || 'An unexpected error occurred during Google login.';
+      console.error('[GoogleLogin] Exception during login:', error);
+      setLocalError(errMsg);
+      if (onError) onError(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  }, [socialLogin, onSuccess, onError]);
+
+  const handleGoogleError = useCallback((error) => {
+    console.error('[GoogleLogin] Google OAuth error:', error);
+    // Google Identity Services error structure
+    const errorMsg = error?.error_description || error?.error || 'Google sign-in was cancelled or failed';
+    setLocalError(errorMsg);
+    if (onError) onError(errorMsg);
+  }, [onError]);
+
+  const handleNonOAuthError = useCallback((error) => {
+    // This catches popup closed, popup blocked, etc.
+    console.error('[GoogleLogin] Non-OAuth error:', error);
+    let errorMsg;
+    if (error?.type === 'popup_closed') {
+      errorMsg = 'Google sign-in popup was closed. Please try again.';
+    } else if (error?.type === 'popup_failed_to_open') {
+      errorMsg = 'Could not open Google sign-in popup. Please check your popup blocker settings.';
+    } else {
+      errorMsg = 'Google sign-in failed to initialize. Please refresh and try again.';
+    }
+    setLocalError(errorMsg);
+    if (onError) onError(errorMsg);
+  }, [onError]);
+
+  // Hook must be called unconditionally (React rules of hooks)
+  // When GOOGLE_CLIENT_ID is not set, this hook will not work but we handle that in the UI
+  const googleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: handleGoogleError,
+    onNonOAuthError: handleNonOAuthError,
+  });
+
   // If Google OAuth is not configured, show disabled button
-  // This prevents silent failures when REACT_APP_GOOGLE_CLIENT_ID is not set
+  // This check is done AFTER all hooks are called to comply with React rules
   if (!GOOGLE_CLIENT_ID) {
     console.warn('[GoogleLogin] REACT_APP_GOOGLE_CLIENT_ID is not configured. Google OAuth disabled.');
     return (
@@ -45,78 +126,6 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
       </div>
     );
   }
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      console.log('[GoogleLogin] Google OAuth success, token response:', {
-        access_token: tokenResponse.access_token ? 'present' : 'missing',
-        credential: tokenResponse.credential ? 'present' : 'missing',
-        token_type: tokenResponse.token_type,
-        expires_in: tokenResponse.expires_in,
-      });
-      setLocalError(null);
-      setLoading(true);
-
-      // Check if we actually got an access token
-      if (!tokenResponse.access_token) {
-        const errMsg = 'Google did not return an access token. Please try again.';
-        console.error('[GoogleLogin] Error:', errMsg);
-        setLocalError(errMsg);
-        if (onError) onError(errMsg);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        console.log('[GoogleLogin] Calling socialLogin with access token...');
-        const result = await socialLogin('google', tokenResponse.access_token);
-        console.log('[GoogleLogin] socialLogin result:', {
-          success: result.success,
-          hasData: !!result.data,
-          error: result.error
-        });
-
-        if (result.success) {
-          console.log('[GoogleLogin] Login successful, calling onSuccess callback');
-          setLocalError(null);
-          if (onSuccess) onSuccess(result.data);
-        } else {
-          const errMsg = result.error || 'Google login failed. Please try again.';
-          console.error('[GoogleLogin] Login failed:', errMsg);
-          setLocalError(errMsg);
-          if (onError) onError(errMsg);
-        }
-      } catch (error) {
-        const errMsg = error.message || 'An unexpected error occurred during Google login.';
-        console.error('[GoogleLogin] Exception during login:', error);
-        setLocalError(errMsg);
-        if (onError) onError(errMsg);
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: (error) => {
-      console.error('[GoogleLogin] Google OAuth error:', error);
-      // Google Identity Services error structure
-      const errorMsg = error?.error_description || error?.error || 'Google sign-in was cancelled or failed';
-      setLocalError(errorMsg);
-      if (onError) onError(errorMsg);
-    },
-    onNonOAuthError: (error) => {
-      // This catches popup closed, popup blocked, etc.
-      console.error('[GoogleLogin] Non-OAuth error:', error);
-      let errorMsg;
-      if (error?.type === 'popup_closed') {
-        errorMsg = 'Google sign-in popup was closed. Please try again.';
-      } else if (error?.type === 'popup_failed_to_open') {
-        errorMsg = 'Could not open Google sign-in popup. Please check your popup blocker settings.';
-      } else {
-        errorMsg = 'Google sign-in failed to initialize. Please refresh and try again.';
-      }
-      setLocalError(errorMsg);
-      if (onError) onError(errorMsg);
-    },
-  });
 
   return (
     <div className="google-login-wrapper">
