@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Try to import Celery components
 try:
     from celery import shared_task, Celery
-    from celery.result import AsyncResult as CeleryAsyncResult
+    from celery.result import AsyncResult
     CELERY_AVAILABLE = True
     logger.info("Celery is available - using real Celery components")
 except ImportError:
