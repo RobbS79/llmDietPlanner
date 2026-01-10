@@ -11,7 +11,15 @@ python manage.py migrate --noinput -v 2
 echo "Migrations completed successfully!"
 
 echo "Collecting static files..."
-python manage.py collectstatic --noinput || echo "Collectstatic failed, continuing..."
+if ! python manage.py collectstatic --noinput; then
+    echo "ERROR: collectstatic failed!"
+    echo "Checking if staticfiles directory exists..."
+    ls -la /app/staticfiles/ 2>/dev/null || echo "staticfiles directory does not exist"
+    echo "Checking frontend build..."
+    ls -la /app/frontend/build/static/ 2>/dev/null || echo "Frontend build not found"
+    exit 1
+fi
+echo "Static files collected successfully!"
 
 # Start Redis server in background (for in-container Celery)
 echo "Starting Redis server..."

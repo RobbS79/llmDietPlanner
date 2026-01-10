@@ -154,7 +154,15 @@ STATICFILES_DIRS = [
     REACT_APP_DIR / "build" / "static",
 ]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# STORAGES configuration for Django 5.1+ (replaces deprecated STATICFILES_STORAGE)
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # React app build path
 REACT_BUILD_DIR = REACT_APP_DIR / "build"

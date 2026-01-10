@@ -22,7 +22,7 @@ services:
         scope: RUN_TIME
         type: SECRET
       - key: ALLOWED_HOSTS
-        value: "your-app-name.ondigitalocean.app"
+        value: "squid-app-6avsy.ondigitalocean.app"
       - key: CELERY_BROKER_URL
         value: "redis://127.0.0.1:6379/0"
       - key: CELERY_RESULT_BACKEND
@@ -53,6 +53,17 @@ services:
         type: SECRET
       - key: OPENAI_MODEL
         value: "gpt-4o-mini"
+      # Google OAuth - Frontend (build-time)
+      - key: REACT_APP_GOOGLE_CLIENT_ID
+        scope: BUILD_TIME
+        type: SECRET
+      # Google OAuth - Backend (run-time)
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GOOGLE_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
     routes:
       - path: /
     run_command: /app/start.sh

@@ -158,8 +158,20 @@ const AppContent = () => {
 
 /**
  * Main App Component with Auth Provider and Router
+ * Conditionally wraps with GoogleOAuthProvider only if client ID is configured
  */
 function App() {
+  // If no Google client ID is configured, render without GoogleOAuthProvider
+  if (!GOOGLE_CLIENT_ID) {
+    return (
+      <AuthProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </AuthProvider>
+    );
+  }
+
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <AuthProvider>

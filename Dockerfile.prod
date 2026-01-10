@@ -13,6 +13,10 @@ RUN npm install
 # Copy frontend source
 COPY frontend/ .
 
+# Build arg for Google OAuth (passed during build time)
+ARG REACT_APP_GOOGLE_CLIENT_ID=""
+ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
+
 # Build React app
 RUN npm run build
 
