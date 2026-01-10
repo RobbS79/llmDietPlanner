@@ -68,7 +68,7 @@ except ImportError:
                 # Add .delay() method that calls synchronously
                 def delay(*args, **kwargs):
                     """Call the task synchronously when Celery is unavailable."""
-                    logger.warning(f"Celery not available - executing task {func.__name__} synchronously")
+                    logger.warning("Celery not available - executing task %s synchronously" % func.__name__)
                     # Create mock self for bound tasks
                     class MockSelf:
                         def retry(self, exc=None, countdown=60):
@@ -86,7 +86,7 @@ except ImportError:
                         def __init__(self, task_id):
                             self.id = task_id
                     
-                    task_id = f"mock-{func.__name__}-{uuid.uuid4().hex[:8]}"
+                    task_id = "mock-%s-%s" % (func.__name__, uuid.uuid4().hex[:8])
                     return MockTaskResult(task_id)
                 
                 wrapper.delay = delay
@@ -103,7 +103,7 @@ except ImportError:
                 # Add .delay() method that calls synchronously
                 def delay(*args, **kwargs):
                     """Call the task synchronously when Celery is unavailable."""
-                    logger.warning(f"Celery not available - executing task {func.__name__} synchronously")
+                    logger.warning("Celery not available - executing task %s synchronously" % func.__name__)
                     # Execute task synchronously
                     result = func(*args, **kwargs)
                     
@@ -113,7 +113,7 @@ except ImportError:
                         def __init__(self, task_id):
                             self.id = task_id
                     
-                    task_id = f"mock-{func.__name__}-{uuid.uuid4().hex[:8]}"
+                    task_id = "mock-%s-%s" % (func.__name__, uuid.uuid4().hex[:8])
                     return MockTaskResult(task_id)
                 
                 func.delay = delay
@@ -130,6 +130,16 @@ except ImportError:
     # Create mock Celery app
     class MockCeleryApp:
         """Mock Celery app when Celery is not available."""
+        
+        def __init__(self, name=None, **kwargs):
+            """
+            Initialize mock Celery app.
+            
+            Args:
+                name: App name (ignored when Celery unavailable)
+                **kwargs: Additional arguments (ignored)
+            """
+            self.name = name or 'llm_diet_planner_project'
         
         def config_from_object(self, obj, namespace=None):
             """No-op configuration."""
@@ -196,13 +206,20 @@ except ImportError:
                 "Celery is not installed. Task results cannot be retrieved. "
                 "Install Celery to enable async task processing."
             )
-        
-        def ready(self):
-            """Always returns False when Celery is unavailable."""
-            return False
     
     Celery = MockCeleryApp
-    CeleryAsyncResult = AsyncResult
+    # AsyncResult is now defined in this except block
+
+# Ensure AsyncResult is always in module namespace
+# This explicit check guarantees it's available for import
+if not CELERY_AVAILABLE:
+    # AsyncResult was defined in the except block, verify it exists
+    if 'AsyncResult' not in globals():
+        raise RuntimeError("AsyncResult not properly defined in celery_compat module")
+else:
+    # AsyncResult was imported in try block, verify it exists
+    if 'AsyncResult' not in globals():
+        raise RuntimeError("AsyncResult not properly imported in celery_compat module")
 
 
 def is_celery_available() -> bool:

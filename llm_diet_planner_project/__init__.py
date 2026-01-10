@@ -8,7 +8,7 @@ except Exception as e:
     # If Celery configuration fails, create a mock app so Django can still start
     import logging
     logger = logging.getLogger(__name__)
-    logger.warning(f"Failed to import Celery app: {e}. Django will continue without Celery support.")
+    logger.warning("Failed to import Celery app: %s. Django will continue without Celery support." % str(e))
     
     # Import mock Celery app from compatibility layer
     try:
