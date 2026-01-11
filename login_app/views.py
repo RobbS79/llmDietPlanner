@@ -25,6 +25,90 @@ from .tasks import send_verification_email_task
 from .models import UserProfile
 
 
+"""
+Updated API Views to handle Google OAuth2 flow.
+"""
+import requests
+from django.shortcuts import redirect
+from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from django.contrib.auth.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class GoogleLoginRedirectView(APIView):
+    """
+    Constructs the Google OAuth2 authorization URL and redirects the user.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        # Configuration for Google OAuth
+        # These should be in your .env file
+        client_id = settings.GOOGLE_CLIENT_ID
+        redirect_uri = request.build_absolute_uri('/api/auth/google/callback/')
+        scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+        
+        # Build the authorization URL
+        auth_url = (
+            f"https://accounts.google.com/o/oauth2/v2/auth?"
+            f"response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&"
+            f"scope={scope}&access_type=offline&prompt=select_account"
+        )
+        
+        return redirect(auth_url)
+
+class GoogleCallbackView(APIView):
+    """
+    Handles the callback from Google, exchanges the code for tokens, 
+    and authenticates the user.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        code = request.GET.get('code')
+        if not code:
+            return Response({"error": "No code provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Exchange code for access token
+        token_url = "https://oauth2.googleapis.com/token"
+        data = {
+            'code': code,
+            'client_id': settings.GOOGLE_CLIENT_ID,
+            'client_secret': settings.GOOGLE_CLIENT_SECRET,
+            'redirect_uri': request.build_absolute_uri('/api/auth/google/callback/'),
+            'grant_type': 'authorization_code',
+        }
+        
+        token_res = requests.post(token_url, data=data)
+        token_data = token_res.json()
+        access_token = token_data.get('access_token')
+
+        # 2. Get user info from Google
+        user_info_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+        user_info_res = requests.get(user_info_url, headers={'Authorization': f'Bearer {access_token}'})
+        user_data = user_info_res.json()
+
+        # 3. Create or get user
+        email = user_data.get('email')
+        username = email.split('@')[0]  # Simple fallback for username
+        
+        user, created = User.objects.get_or_create(email=email, defaults={'username': username})
+        if created:
+            user.set_unusable_password()
+            user.save()
+
+        # 4. Generate JWT for our app
+        refresh = RefreshToken.for_user(user)
+        
+        # Redirect back to frontend with tokens (or set cookies)
+        # Note: In a production app, you might use a secure cookie or a short-lived URL param
+        frontend_url = f"{settings.FRONTEND_URL}/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}"
+        return redirect(frontend_url)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class RegistrationView(APIView):
     """
@@ -676,50 +760,100 @@ from rest_framework.permissions import AllowAny
 
 logger = logging.getLogger(__name__)
 
+
+"""
+Social Authentication Views.
+Handles Google and Facebook OAuth login.
+"""
+import logging
+from django.conf import settings
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+
+logger = logging.getLogger(__name__)
+
 class StandardizedSocialLoginView(SocialLoginView):
     """Base class with robust error handling for Social Auth."""
+    permission_classes = [AllowAny]
     
     def _validate_access_token(self, request) -> tuple[bool, str]:
+        """Validate access token format before processing."""
         access_token = request.data.get('access_token')
         if not access_token:
             return False, "Missing 'access_token' in request body."
-        if len(str(access_token)) < 20:
-            return False, "Access token appears malformed (too short)."
+        
+        token_str = str(access_token)
+        if len(token_str) < 20:
+            return False, "access_token appears to be invalid (too short)"
+        
         return True, ""
 
     def post(self, request, *args, **kwargs):
         is_valid, error_msg = self._validate_access_token(request)
         if not is_valid:
-            return Response({"status": "error", "error": error_msg}, status=400)
+            return Response(
+                {"status": "error", "error": error_msg}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             return super().post(request, *args, **kwargs)
         except Exception as e:
-            # Fix for the empty colon error: use repr(e) and log trace
-            exc_msg = str(e) or repr(e)
-            logger.error(f"[OAUTH ERROR] {exc_msg}")
-            return Response({
-                "status": "error",
-                "error": f"Google authentication failed: {exc_msg}"
-            }, status=500)
+            # Captures the actual error instead of an empty string
+            error_detail = repr(e)
+            logger.error(f"[OAUTH ERROR] Google authentication failed: {error_detail}")
+            return Response(
+                {
+                    "status": "error", 
+                    "error": f"An error occurred during Google authentication: {error_detail}"
+                }, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class GoogleLogin(StandardizedSocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     client_class = OAuth2Client
 
-class GoogleOAuthDiagnosticView(SocialLoginView):
-    """Endpoint to check if Google Auth is configured correctly on the server."""
-    permission_classes = [AllowAny]
-    
-    def get(self, request):
-        from allauth.socialaccount.models import SocialApp
-        google_app = SocialApp.objects.filter(provider='google').first()
-        
-        return Response({
-            "configured_in_db": bool(google_app),
-            "client_id_prefix": google_app.client_id[:10] if google_app else "None",
-            "has_secret": bool(google_app.secret) if google_app else False,
-            "settings_pkce": settings.SOCIALACCOUNT_PROVIDERS.get('google', {}).get('OAUTH_PKCE_ENABLED'),
-            "callback_url_env": settings.GOOGLE_CALLBACK_URL
-        })
 
+class FacebookLogin(StandardizedSocialLoginView):
+    adapter_class = FacebookOAuth2Adapter
+
+
+class GoogleOAuthDiagnosticView(SocialLoginView):
+    """
+    Diagnostic endpoint to verify Google OAuth configuration.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        from allauth.socialaccount.models import SocialApp
+        
+        try:
+            google_app = SocialApp.objects.filter(provider='google').first()
+            
+            # Check settings safety
+            google_settings = settings.SOCIALACCOUNT_PROVIDERS.get('google', {})
+            
+            return Response({
+                "status": "success",
+                "diagnostics": {
+                    "google_app_configured": bool(google_app),
+                    "client_id_found": bool(google_app.client_id) if google_app else False,
+                    "secret_found": bool(google_app.secret) if google_app else False,
+                    "pkce_enabled": google_settings.get('OAUTH_PKCE_ENABLED', 'Not Set'),
+                    "callback_url_env": settings.GOOGLE_CALLBACK_URL or "Not Set",
+                    "site_id": settings.SITE_ID,
+                }
+            })
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "error": str(e)
+            }, status=500)

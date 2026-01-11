@@ -1,11 +1,9 @@
 """
-URL configuration for login_app.
-Includes social authentication endpoints.
+Updated URL configuration for login_app including Google OAuth routes.
 """
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
-from . import social_views # Ensure this import is present
 
 app_name = 'login_app'
 
@@ -16,7 +14,7 @@ urlpatterns = [
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('test-email/', views.TestEmailView.as_view(), name='test-email'),
     
-    # Social Auth Endpoints
-    path('google/', social_views.GoogleLogin.as_view(), name='google_login'),
-    path('google/diagnostic/', social_views.GoogleOAuthDiagnosticView.as_view(), name='google-diagnostic'),
+    # Google OAuth2 Endpoints
+    path('google/login/', views.GoogleLoginRedirectView.as_view(), name='google-login'),
+    path('google/callback/', views.GoogleCallbackView.as_view(), name='google-callback'),
 ]

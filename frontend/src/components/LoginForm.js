@@ -1,10 +1,8 @@
 /**
- * Login Form Component
+ * Login Form Component with Google Auth
  */
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import GoogleLoginButton from './GoogleLoginButton';
-import SocialAuthDivider from './SocialAuthDivider';
 import './AuthForms.css';
 
 const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
@@ -15,16 +13,6 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const handleSocialSuccess = () => {
-    if (onSuccess) {
-      onSuccess();
-    }
-  };
-
-  const handleSocialError = (errorMessage) => {
-    setError(errorMessage || 'Social login failed. Please try again.');
-  };
 
   const handleChange = (e) => {
     setFormData({
@@ -42,14 +30,23 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
     const result = await login(formData.username, formData.password);
 
     if (result.success) {
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
     } else {
       setError(result.error || 'Login failed. Please try again.');
     }
 
     setLoading(false);
+  };
+
+  /**
+   * Handler for Google Auth Button
+   * Initiates the OAuth flow by redirecting to the backend social-auth endpoint.
+   */
+  const handleGoogleLogin = () => {
+    console.log("Initiating Google Login redirect...");
+    // Use window.location.assign for a more standard programmatic redirect
+    // Ensure the path matches the one defined in the backend login_app/urls.py
+    window.location.assign('/api/auth/google/login/');
   };
 
   return (
@@ -58,16 +55,6 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
       <p className="auth-form-subtitle">Welcome back! Please login to your account.</p>
 
       {error && <div className="auth-error">{error}</div>}
-
-      <div className="social-auth-buttons">
-        <GoogleLoginButton
-          onSuccess={handleSocialSuccess}
-          onError={handleSocialError}
-          text="Sign in with Google"
-        />
-      </div>
-
-      <SocialAuthDivider text="or sign in with email" />
 
       <form onSubmit={handleSubmit} className="auth-form">
         <div className="form-group">
@@ -101,6 +88,20 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
         <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
           {loading ? 'Logging in...' : 'Login'}
         </button>
+
+        <div className="auth-divider">
+          <span>OR</span>
+        </div>
+
+        <button 
+          type="button" 
+          className="btn btn-google btn-block" 
+          onClick={handleGoogleLogin}
+          title="Sign in with Google"
+        >
+          <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: '20px' }} />
+          Sign in with Google
+        </button>
       </form>
 
       <div className="auth-form-footer">
@@ -116,8 +117,3 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
 };
 
 export default LoginForm;
-
-
-
-
-
