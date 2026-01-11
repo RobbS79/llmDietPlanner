@@ -1,17 +1,11 @@
-/**
- * Authentication Context for managing user authentication state.
- */
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import { getUser, getAccessToken, setUser as storeUser } from '../utils/api';
-import { authAPI } from '../utils/api';
+import { getUser, getAccessToken, setUser as storeUser, authAPI } from '../utils/api';
 
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
@@ -20,32 +14,25 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile including free_generations_remaining
   const fetchProfile = useCallback(async () => {
     try {
       const response = await authAPI.getProfile();
       if (response.status === 'success' && response.data) {
         setProfile(response.data);
-        // Update stored user with profile data
-        const updatedUser = {
-          ...getUser(),
-          ...response.data,
-        };
+        const updatedUser = { ...getUser(), ...response.data };
         storeUser(updatedUser);
         setUserState(updatedUser);
       }
     } catch (error) {
-      console.error('Failed to fetch profile:', error);
+      console.error('[AuthContext] Failed to fetch profile:', error);
     }
   }, []);
 
   useEffect(() => {
-    // Check if user is logged in on mount
     const storedUser = getUser();
     const token = getAccessToken();
     if (storedUser && token) {
       setUserState(storedUser);
-      // Fetch fresh profile data
       fetchProfile();
     }
     setLoading(false);
@@ -56,17 +43,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(username, password);
       const userData = response.data?.user || getUser();
       setUserState(userData);
-      // Fetch profile after login to get free_generations_remaining
       await fetchProfile();
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  const register = async (username, email, password, passwordConfirm) => {
-    try {
-      const response = await authAPI.register(username, email, password, passwordConfirm);
       return { success: true, data: response.data };
     } catch (error) {
       return { success: false, error: error.message };
@@ -75,30 +52,15 @@ export const AuthProvider = ({ children }) => {
 
   const socialLogin = async (provider, accessToken) => {
     try {
-      console.log('[AuthContext] socialLogin called for provider:', provider);
-      let response;
-      if (provider === 'google') {
-        response = await authAPI.googleLogin(accessToken);
-      } else if (provider === 'facebook') {
-        response = await authAPI.facebookLogin(accessToken);
-      } else {
-        throw new Error(`Unknown provider: ${provider}`);
-      }
-      console.log('[AuthContext] API response:', {
-        status: response.status,
-        hasData: !!response.data,
-        hasUser: !!response.data?.user,
-        hasAccess: !!response.data?.access,
-        hasRefresh: !!response.data?.refresh
-      });
-      const userData = response.data?.user || getUser();
-      console.log('[AuthContext] Setting user state:', { hasUserData: !!userData, username: userData?.username });
+      let response = provider === 'google' 
+        ? await authAPI.googleLogin(accessToken) 
+        : await authAPI.facebookLogin(accessToken);
+
+      const userData = response.data?.user || response.user || getUser();
       setUserState(userData);
       await fetchProfile();
-      console.log('[AuthContext] Profile fetched, returning success');
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('[AuthContext] socialLogin error:', error.message);
       return { success: false, error: error.message };
     }
   };
@@ -109,29 +71,12 @@ export const AuthProvider = ({ children }) => {
     setProfile(null);
   };
 
-  // Refresh profile (e.g., after a generation is used)
-  const refreshProfile = async () => {
-    await fetchProfile();
-  };
-
-  const value = {
-    user,
-    profile,
-    loading,
-    isAuthenticated: !!user,
-    freeGenerationsRemaining: profile?.free_generations_remaining ?? 0,
-    totalGenerations: profile?.total_generations ?? 0,
-    login,
-    register,
-    socialLogin,
-    logout,
-    refreshProfile,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{
+      user, profile, loading, isAuthenticated: !!user,
+      login, socialLogin, logout, refreshProfile: fetchProfile
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
-
-
-
-
-
