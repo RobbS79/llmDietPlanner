@@ -17,6 +17,6 @@ urlpatterns = [
     path('test-email/', views.TestEmailView.as_view(), name='test-email'),
     
     # Social Auth Endpoints
-    path('google/', social_views.GoogleLoginView.as_view(), name='google_login'),
+    path('google/', social_views.GoogleLogin.as_view(), name='google_login'),
     path('google/diagnostic/', social_views.GoogleOAuthDiagnosticView.as_view(), name='google-diagnostic'),
 ]
