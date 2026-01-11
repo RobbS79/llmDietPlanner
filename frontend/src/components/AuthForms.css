@@ -1,8 +1,8 @@
 /**
- * Styles for authentication forms
+ * Refactored Styles for authentication forms with Google Button
  */
 
-.auth-form-container {
+ .auth-form-container {
   max-width: 450px;
   width: 100%;
   background: white;
@@ -30,7 +30,7 @@
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .form-group {
@@ -51,24 +51,16 @@
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  font-family: inherit;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.form-group input::placeholder {
-  color: #999;
 }
 
 .btn-block {
   width: 100%;
   padding: 0.875rem;
   font-size: 1rem;
-  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
 }
 
 .btn-primary {
@@ -78,158 +70,54 @@
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
 }
 
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+/* Google Button Styles */
+.btn-google {
+  background: white;
+  color: #757575;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.btn-google:hover {
+  background-color: #f7f7f7;
+}
+
+.btn-google img {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #aaa;
+  font-size: 0.8rem;
+  margin: 0.5rem 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #eee;
+}
+
+.auth-divider span {
+  padding: 0 10px;
 }
 
 .auth-error {
-  background: #fee;
-  color: #c33;
-  padding: 1rem;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 0.75rem;
   border-radius: 8px;
-  border: 1px solid #fcc;
+  border: 1px solid #fecaca;
   margin-bottom: 1rem;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
-
-.auth-success {
-  text-align: center;
-}
-
-.auth-success h2 {
-  color: #28a745;
-  margin-bottom: 1rem;
-}
-
-.auth-success p {
-  color: #666;
-  margin-bottom: 1rem;
-  line-height: 1.6;
-}
-
-.auth-form-footer {
-  margin-top: 1.5rem;
-  text-align: center;
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.link-button {
-  background: none;
-  border: none;
-  color: #667eea;
-  cursor: pointer;
-  font-weight: 600;
-  text-decoration: underline;
-  font-size: inherit;
-  padding: 0;
-}
-
-.link-button:hover {
-  color: #764ba2;
-}
-
-/* Social Authentication Buttons */
-.social-auth-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.btn-social {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.875rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: inherit;
-}
-
-.btn-social:hover:not(:disabled) {
-  border-color: #ccc;
-  background: #f8f9fa;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.btn-social:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-google {
-  color: #333;
-}
-
-.btn-google:hover:not(:disabled) {
-  border-color: #4285F4;
-}
-
-.btn-facebook {
-  color: #1877F2;
-  border-color: #1877F2;
-}
-
-.btn-facebook:hover:not(:disabled) {
-  background: #1877F2;
-  color: white;
-}
-
-.social-icon {
-  flex-shrink: 0;
-}
-
-/* Social Auth Divider */
-.social-auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-
-.divider-line {
-  flex: 1;
-  height: 1px;
-  background: #e0e0e0;
-}
-
-.divider-text {
-  color: #999;
-  font-size: 0.85rem;
-  text-transform: lowercase;
-  white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-  .auth-form-container {
-    padding: 2rem 1.5rem;
-    margin: 1rem;
-  }
-
-  .auth-form-title {
-    font-size: 1.75rem;
-  }
-}
-
-
-
-
-

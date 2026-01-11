@@ -13,6 +13,7 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -43,10 +44,23 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
    * Initiates the OAuth flow by redirecting to the backend social-auth endpoint.
    */
   const handleGoogleLogin = () => {
-    console.log("Initiating Google Login redirect...");
-    // Use window.location.assign for a more standard programmatic redirect
-    // Ensure the path matches the one defined in the backend login_app/urls.py
-    window.location.assign('/api/auth/google/login/');
+    setGoogleLoading(true);
+    setError('');
+    
+    try {
+      console.log("Initiating Google Login redirect...");
+      
+      // Determine the absolute URL to ensure the browser handles the transition correctly
+      const authEndpoint = '/api/auth/google/login/';
+      const absoluteUrl = window.location.origin + authEndpoint;
+      
+      // Use href for standard redirection behavior across all browsers
+      window.location.href = absoluteUrl;
+    } catch (err) {
+      console.error("Google login redirection failed:", err);
+      setError("Could not initialize Google login. Please try again.");
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -68,6 +82,7 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
             required
             autoComplete="username"
             placeholder="Enter your username or email"
+            disabled={loading || googleLoading}
           />
         </div>
 
@@ -82,10 +97,15 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
             required
             autoComplete="current-password"
             placeholder="Enter your password"
+            disabled={loading || googleLoading}
           />
         </div>
 
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+        <button 
+          type="submit" 
+          className="btn btn-primary btn-block" 
+          disabled={loading || googleLoading}
+        >
           {loading ? 'Logging in...' : 'Login'}
         </button>
 
@@ -97,17 +117,29 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
           type="button" 
           className="btn btn-google btn-block" 
           onClick={handleGoogleLogin}
+          disabled={loading || googleLoading}
           title="Sign in with Google"
         >
-          <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: '20px' }} />
-          Sign in with Google
+          {googleLoading ? (
+            'Connecting to Google...'
+          ) : (
+            <>
+              <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: '20px' }} />
+              Sign in with Google
+            </>
+          )}
         </button>
       </form>
 
       <div className="auth-form-footer">
         <p>
           Don't have an account?{' '}
-          <button type="button" className="link-button" onClick={onSwitchToRegister}>
+          <button 
+            type="button" 
+            className="link-button" 
+            onClick={onSwitchToRegister}
+            disabled={loading || googleLoading}
+          >
             Register here
           </button>
         </p>
