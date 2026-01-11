@@ -15,6 +15,6 @@ urlpatterns = [
     path('test-email/', views.TestEmailView.as_view(), name='test-email'),
     
     # NEW ROUTES FOR GOOGLE AUTH
-    path('google/login/', views.GoogleLoginView.as_view(), name='google-login'),
+    path('google/login/', views.GoogleLogin.as_view(), name='google-login'),
     path('google/callback/', views.GoogleCallbackView.as_view(), name='google-callback'),
 ]
