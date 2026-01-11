@@ -26,5 +26,8 @@ urlpatterns = [
     # Social authentication (OAuth)
     path('google/', social_views.GoogleLogin.as_view(), name='google-login'),
     path('facebook/', social_views.FacebookLogin.as_view(), name='facebook-login'),
+
+    # ... existing paths
+    path('google/diagnostic/', social_views.GoogleOAuthDiagnosticView.as_view(), name='google-diagnostic'),
 ]
 

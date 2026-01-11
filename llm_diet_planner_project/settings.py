@@ -291,7 +291,7 @@ SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
         'AUTH_PARAMS': {'access_type': 'online'},
-        'OAUTH_PKCE_ENABLED': True,
+        'OAUTH_PKCE_ENABLED': False,  # Disabled - implicit flow doesn't use PKCE
         'APP': {
             'client_id': config('GOOGLE_CLIENT_ID', default=''),
             'secret': config('GOOGLE_CLIENT_SECRET', default=''),

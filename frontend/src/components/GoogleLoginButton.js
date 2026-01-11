@@ -128,8 +128,9 @@ const GoogleLoginButton = ({ onSuccess, onError, text = 'Continue with Google' }
   const googleLogin = useGoogleLogin({
     onSuccess: handleGoogleSuccess,
     onError: handleGoogleError,
+    onNonOAuthError: handleNonOAuthError,
     flow: 'implicit',
-    ux_mode: 'redirect', // This avoids the popup window entirely
+    ux_mode: 'popup', // Use popup for proper callback handling
   });
 
   // If Google OAuth is not configured, show disabled button

@@ -662,3 +662,64 @@ class UserProfileView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
+import sys
+import logging
+import traceback
+from django.conf import settings
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+
+logger = logging.getLogger(__name__)
+
+class StandardizedSocialLoginView(SocialLoginView):
+    """Base class with robust error handling for Social Auth."""
+    
+    def _validate_access_token(self, request) -> tuple[bool, str]:
+        access_token = request.data.get('access_token')
+        if not access_token:
+            return False, "Missing 'access_token' in request body."
+        if len(str(access_token)) < 20:
+            return False, "Access token appears malformed (too short)."
+        return True, ""
+
+    def post(self, request, *args, **kwargs):
+        is_valid, error_msg = self._validate_access_token(request)
+        if not is_valid:
+            return Response({"status": "error", "error": error_msg}, status=400)
+
+        try:
+            return super().post(request, *args, **kwargs)
+        except Exception as e:
+            # Fix for the empty colon error: use repr(e) and log trace
+            exc_msg = str(e) or repr(e)
+            logger.error(f"[OAUTH ERROR] {exc_msg}")
+            return Response({
+                "status": "error",
+                "error": f"Google authentication failed: {exc_msg}"
+            }, status=500)
+
+class GoogleLogin(StandardizedSocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    client_class = OAuth2Client
+
+class GoogleOAuthDiagnosticView(SocialLoginView):
+    """Endpoint to check if Google Auth is configured correctly on the server."""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        from allauth.socialaccount.models import SocialApp
+        google_app = SocialApp.objects.filter(provider='google').first()
+        
+        return Response({
+            "configured_in_db": bool(google_app),
+            "client_id_prefix": google_app.client_id[:10] if google_app else "None",
+            "has_secret": bool(google_app.secret) if google_app else False,
+            "settings_pkce": settings.SOCIALACCOUNT_PROVIDERS.get('google', {}).get('OAUTH_PKCE_ENABLED'),
+            "callback_url_env": settings.GOOGLE_CALLBACK_URL
+        })
+
