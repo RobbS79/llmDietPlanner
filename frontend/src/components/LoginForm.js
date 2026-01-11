@@ -1,7 +1,7 @@
 /**
- * Login Form Component with Google Auth
+ * Login Form Component with robust Google Auth redirection.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './AuthForms.css';
 
@@ -13,14 +13,18 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Lifecycle check to confirm the component is active in production
+  useEffect(() => {
+    console.log("[Auth] LoginForm mounted successfully.");
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-    setError(''); // Clear error on input change
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -40,31 +44,26 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
   };
 
   /**
-   * Handler for Google Auth Button
-   * Initiates the OAuth flow by redirecting to the backend social-auth endpoint.
+   * Hard redirect to backend Google Login.
+   * We use a manual click handler to ensure we bypass any React Event synthetic lag.
    */
-  const handleGoogleLogin = () => {
-    setGoogleLoading(true);
-    setError('');
+  const handleGoogleLogin = (e) => {
+    // Stop all other events to prevent form submission or bubble blocking
+    e.preventDefault();
+    e.stopPropagation();
     
-    try {
-      console.log("Initiating Google Login redirect...");
-      
-      // Determine the absolute URL to ensure the browser handles the transition correctly
-      const authEndpoint = '/api/auth/google/login/';
-      const absoluteUrl = window.location.origin + authEndpoint;
-      
-      // Use href for standard redirection behavior across all browsers
-      window.location.href = absoluteUrl;
-    } catch (err) {
-      console.error("Google login redirection failed:", err);
-      setError("Could not initialize Google login. Please try again.");
-      setGoogleLoading(false);
-    }
+    console.log("[GoogleAuth] Redirect initiated to /api/auth/google/login/");
+    
+    // Construct absolute URL to force the browser to leave the React SPA
+    const target = window.location.origin + '/api/auth/google/login/';
+    
+    // Perform hard navigation
+    window.location.assign(target);
   };
 
   return (
-    <div className="auth-form-container">
+    /* We use z-index and relative positioning to ensure no invisible overlays block the click */
+    <div className="auth-form-container" style={{ position: 'relative', zIndex: 100 }}>
       <h2 className="auth-form-title">Login</h2>
       <p className="auth-form-subtitle">Welcome back! Please login to your account.</p>
 
@@ -82,7 +81,6 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
             required
             autoComplete="username"
             placeholder="Enter your username or email"
-            disabled={loading || googleLoading}
           />
         </div>
 
@@ -97,15 +95,10 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
             required
             autoComplete="current-password"
             placeholder="Enter your password"
-            disabled={loading || googleLoading}
           />
         </div>
 
-        <button 
-          type="submit" 
-          className="btn btn-primary btn-block" 
-          disabled={loading || googleLoading}
-        >
+        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
           {loading ? 'Logging in...' : 'Login'}
         </button>
 
@@ -113,33 +106,22 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
           <span>OR</span>
         </div>
 
-        <button 
-          type="button" 
-          className="btn btn-google btn-block" 
+        {/* Using a styled link for the Google button is more reliable for external redirects */}
+        <a 
+          href="/api/auth/google/login/" 
+          className="btn btn-google btn-block"
           onClick={handleGoogleLogin}
-          disabled={loading || googleLoading}
-          title="Sign in with Google"
+          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          {googleLoading ? (
-            'Connecting to Google...'
-          ) : (
-            <>
-              <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: '20px' }} />
-              Sign in with Google
-            </>
-          )}
-        </button>
+          <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: '20px', marginRight: '10px' }} />
+          Sign in with Google
+        </a>
       </form>
 
       <div className="auth-form-footer">
         <p>
           Don't have an account?{' '}
-          <button 
-            type="button" 
-            className="link-button" 
-            onClick={onSwitchToRegister}
-            disabled={loading || googleLoading}
-          >
+          <button type="button" className="link-button" onClick={onSwitchToRegister}>
             Register here
           </button>
         </p>

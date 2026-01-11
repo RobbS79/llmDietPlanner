@@ -1,5 +1,5 @@
 """
-Updated URL configuration for login_app including Google OAuth routes.
+Refactored URL configuration for login_app including Google OAuth routes.
 """
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -14,7 +14,7 @@ urlpatterns = [
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('test-email/', views.TestEmailView.as_view(), name='test-email'),
     
-    # Google OAuth2 Endpoints
-    path('google/login/', views.GoogleLoginRedirectView.as_view(), name='google-login'),
+    # NEW ROUTES FOR GOOGLE AUTH
+    path('google/login/', views.GoogleLoginView.as_view(), name='google-login'),
     path('google/callback/', views.GoogleCallbackView.as_view(), name='google-callback'),
 ]
