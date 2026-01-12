@@ -1,3 +1,6 @@
+"""
+URL patterns for authentication.
+"""
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
@@ -5,7 +8,7 @@ from . import views
 app_name = 'login_app'
 
 urlpatterns = [
-    # Standard email auth
+    # Standard
     path('register/', views.RegistrationView.as_view(), name='register'),
     path('verify-email/', views.VerifyEmailView.as_view(), name='verify-email'),
     path('login/', views.LoginView.as_view(), name='login'),
@@ -15,6 +18,6 @@ urlpatterns = [
     path('google/login/', views.GoogleLoginRedirectView.as_view(), name='google-login'),
     path('google/callback/', views.GoogleCallbackView.as_view(), name='google-callback'),
     
-    # Utils
+    # Test
     path('test-email/', views.TestEmailView.as_view(), name='test-email'),
 ]
