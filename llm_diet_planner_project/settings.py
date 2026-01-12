@@ -20,6 +20,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.ondigitalocean.app', cast=Csv())
 
 # --- GOOGLE OAUTH CONFIGURATION ---
+# DigitalOcean expects these variables. Ensure they match your Dashboard keys.
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
 GOOGLE_REDIRECT_URI = config('GOOGLE_REDIRECT_URI', default='')
@@ -44,7 +45,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Required for serving React assets
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Correct position for WhiteNoise
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -55,7 +56,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 
-# FIX: Standard Templates configuration to resolve (admin.E403)
+# FIX: Configuration for Admin Application (Resolves admin.E403)
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -80,20 +81,21 @@ DATABASES = {
     'default': dj_database_url.parse(DATABASE_URL)
 }
 
-# Static Files & WhiteNoise (Restores the "dark blue" theme)
+# Static Files & WhiteNoise (Ensures the "dark blue" theme loads correctly)
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# React build integration
+# React build directory integration
 REACT_APP_DIR = os.path.join(BASE_DIR, "frontend")
 REACT_BUILD_DIR = os.path.join(REACT_APP_DIR, "build")
 
 # Crucial: Tell Django where the built assets live before they are collected
 STATICFILES_DIRS = [
+    # Include the main build static folder (contains bundled css, js, media)
     os.path.join(REACT_BUILD_DIR, "static"),
 ]
 
-# Optimized serving for production
+# Use WhiteNoise's optimized storage for production
 if not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
@@ -105,7 +107,7 @@ CSRF_TRUSTED_ORIGINS = config(
 )
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = False
+    SECURE_SSL_REDIRECT = False  # DigitalOcean handles SSL termination
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
