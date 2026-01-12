@@ -7,8 +7,8 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-key-ensure-this-is-set-in-digital-ocean')
-DEBUG = config('DEBUG', default=False, cast=bool)
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-local-testing-key-only')
+DEBUG = config('DEBUG', default=False, cast=bool) 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=Csv())
 
 # Application definition
@@ -34,7 +34,6 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.google",
     "dj_rest_auth",
     "dj_rest_auth.registration",
-    'rest_framework.authtoken',
     
     # Local apps
     "diet_planner",
@@ -44,7 +43,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
-    "corsheaders.middleware.CorsMiddleware", # Correctly placed before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware", 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -54,7 +53,6 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-# --- CRITICAL FIX: RE-ADDED TEMPLATES CONFIGURATION ---
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -86,17 +84,18 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 REACT_BUILD_DIR = BASE_DIR / "frontend" / "dist"
 
+# Production static serving (WhiteNoise)
 STATICFILES_DIRS = [
     os.path.join(REACT_BUILD_DIR),
-]
+] if os.path.exists(REACT_BUILD_DIR) else []
+
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# --- ALLAUTH UPDATED SETTINGS (Fixed Deprecations) ---
+# --- MODERN AUTH SETTINGS (Fixed Deprecations) ---
 SITE_ID = 1
-ACCOUNT_LOGIN_METHODS = {'email'} # Replaces ACCOUNT_AUTHENTICATION_METHOD
+ACCOUNT_LOGIN_METHODS = {'email'} 
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-# Using default SIGNUP_FIELDS to resolve warnings
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -124,12 +123,26 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Production Proxies
+# Production Proxies & Security
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        'https://squid-app-6avsy.ondigitalocean.app'
+    ]
+    CSRF_TRUSTED_ORIGINS = [
+        'https://squid-app-6avsy.ondigitalocean.app'
+    ]
+else:
+    # LOCAL TESTING: More lenient
+    CORS_ALLOW_ALL_ORIGINS = True
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://localhost:5173'
+    ]
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://squid-app-6avsy.ondigitalocean.app', cast=Csv())
-FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='')
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-dev-encryption-key-32-chars-!@#')
