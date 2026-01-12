@@ -24,24 +24,23 @@ def test_ui_view(request):
     return render(request, 'test_ui.html')
 
 
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.conf import settings
+import os
+
 def react_app_view(request):
     """
     Serve React app's index.html for all non-API routes.
     """
+    # Use absolute path to the built index.html
+    index_path = os.path.join(settings.REACT_BUILD_DIR, 'index.html')
+    
     try:
-        with open(os.path.join(settings.REACT_BUILD_DIR, 'index.html'), 'r') as f:
+        with open(index_path, 'r') as f:
             return HttpResponse(f.read())
     except FileNotFoundError:
         return HttpResponse(
-            """
-            <html>
-                <body>
-                    <h1>React app not built</h1>
-                    <p>Please run 'npm install && npm run build' in the frontend directory.</p>
-                    <p><a href="/debug-prompt/">Or use the Debug Tool to view JSON prompts</a></p>
-                </body>
-            </html>
-            """,
+            f"React build not found at {index_path}. Please ensure 'npm run build' was successful.",
             status=503
         )
-

@@ -9,7 +9,7 @@ services:
     dockerfile_path: Dockerfile.prod
     http_port: 8000
     instance_count: 1
-    instance_size_slug: basic-xs  # Upgraded from basic-xxs for more memory (75-80% usage was too high)
+    instance_size_slug: basic-xxs
     health_check:
       http_path: /
     envs:
@@ -22,7 +22,13 @@ services:
         scope: RUN_TIME
         type: SECRET
       - key: ALLOWED_HOSTS
-        value: "squid-app-6avsy.ondigitalocean.app"
+        value: ".ondigitalocean.app"
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: GOOGLE_CLIENT_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
       - key: CELERY_BROKER_URL
         value: "redis://127.0.0.1:6379/0"
       - key: CELERY_RESULT_BACKEND
@@ -45,26 +51,6 @@ services:
       - key: DEFAULT_FROM_EMAIL
         scope: RUN_TIME
         type: SECRET
-      - key: OPENAI_API_KEY
-        scope: RUN_TIME
-        type: SECRET
-      - key: FIELD_ENCRYPTION_KEY
-        scope: RUN_TIME
-        type: SECRET
-      - key: OPENAI_MODEL
-        value: "gpt-4o-mini"
-      # Google OAuth - Frontend (build-time)
-      - key: REACT_APP_GOOGLE_CLIENT_ID
-        scope: BUILD_TIME
-        type: SECRET
-      # Google OAuth - Backend (run-time)
-      - key: GOOGLE_CLIENT_ID
-        scope: RUN_TIME
-        type: SECRET
-      - key: GOOGLE_CLIENT_SECRET
-        scope: RUN_TIME
-        type: SECRET
     routes:
       - path: /
     run_command: /app/start.sh
-
