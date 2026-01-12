@@ -15,7 +15,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-key-ensure-this-is-se
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=Csv())
 
-# Application definition
+# 1. Update INSTALLED_APPS to include Auth stack
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -25,13 +25,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     
-    # Third-party apps
+    "corsheaders", # This matches the package added to requirements.txt
     "rest_framework",
     "rest_framework_simplejwt",
-    "encrypted_model_fields",
-    "corsheaders",
     
-    # Authentication Stack
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -39,7 +36,6 @@ INSTALLED_APPS = [
     "dj_rest_auth",
     "dj_rest_auth.registration",
     
-    # Local apps
     "diet_planner",
     "login_app",
 ]
@@ -51,10 +47,11 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
+# 2. Add CORS Middleware (MUST be above CommonMiddleware)
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware", # Production static serving
-    "corsheaders.middleware.CorsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware", # ADD THIS
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -77,10 +74,11 @@ DATABASES = {
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Point to the Vite output folder 'dist'
-REACT_APP_DIR = BASE_DIR / "frontend"
-REACT_BUILD_DIR = REACT_APP_DIR / "dist"
-
+# 3. Update Static Files to point to Vite 'dist'
+REACT_BUILD_DIR = BASE_DIR / "frontend" / "dist"
+STATICFILES_DIRS = [
+    os.path.join(REACT_BUILD_DIR),
+]
 STATICFILES_DIRS = [
     os.path.join(REACT_BUILD_DIR), # Serve the raw dist folder
 ]

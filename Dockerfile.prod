@@ -1,34 +1,39 @@
-# --- Stage 1: Build React (Vite) ---
-    FROM node:20-alpine AS builder
-    WORKDIR /app/frontend
-    COPY frontend/package*.json ./
-    # Use node 20 to support Vite 7/8
-    RUN npm install --legacy-peer-deps
-    COPY frontend/ ./
-    RUN npm run build # Creates /app/frontend/dist
-    
-    # --- Stage 2: Final Image ---
-    FROM python:3.11-slim
-    ENV PYTHONDONTWRITEBYTECODE=1
-    ENV PYTHONUNBUFFERED=1
-    
-    WORKDIR /app
-    
-    # System dependencies for database and task queue
-    RUN apt-get update && apt-get install -y \
-        postgresql-client \
-        redis-server \
-        && rm -rf /var/lib/apt/lists/*
-    
-    COPY requirements.txt ./
-    RUN pip install --no-cache-dir -r requirements.txt
-    
-    COPY . .
-    
-    # Copy only the built assets into the final image
-    COPY --from=builder /app/frontend/dist /app/frontend/dist
-    
-    RUN chmod +x start.sh
-    EXPOSE 8000
-    
-    CMD ["bash", "start.sh"]
+# --- STAGE 1: Build the Vite Frontend ---
+# Using Node 20 to ensure modern dependencies build correctly
+FROM node:20-alpine AS builder
+
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install --legacy-peer-deps
+COPY frontend/ ./
+RUN npm run build  # This creates the 'dist' directory
+
+# --- STAGE 2: Build the Django Backend ---
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install system requirements
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    redis-server \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python requirements
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project code
+COPY . .
+
+# CRITICAL INTEGRATION: 
+# Copy the 'dist' folder (Vite) instead of 'build' (old CRA)
+COPY --from=builder /app/frontend/dist /app/frontend/dist
+
+RUN chmod +x start.sh
+EXPOSE 8000
+
+CMD ["bash", "start.sh"]
