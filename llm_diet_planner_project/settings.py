@@ -1,6 +1,6 @@
 """
 Django settings for llm_diet_planner_project project.
-Refactored to fix TEMPLATES configuration, static files, and Google OAuth.
+Final refactor for production stability, styling, and Google OAuth.
 """
 
 from pathlib import Path
@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "encrypted_model_fields",
+    "whitenoise.runserver_nostatic",
     # Local apps
     "diet_planner",
     "login_app",
@@ -43,7 +44,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Correct position for WhiteNoise
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Required for serving React assets
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -54,7 +55,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 
-# FIX: Configuration for Admin Application (Resolves admin.E403)
+# FIX: Standard Templates configuration to resolve (admin.E403)
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -79,20 +80,20 @@ DATABASES = {
     'default': dj_database_url.parse(DATABASE_URL)
 }
 
-# Static Files & WhiteNoise (Ensures the "dark blue" theme loads correctly)
+# Static Files & WhiteNoise (Restores the "dark blue" theme)
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# React build directory paths
+# React build integration
 REACT_APP_DIR = os.path.join(BASE_DIR, "frontend")
 REACT_BUILD_DIR = os.path.join(REACT_APP_DIR, "build")
 
+# Crucial: Tell Django where the built assets live before they are collected
 STATICFILES_DIRS = [
-    # Include the main build static folder (contains bundled css, js, media)
     os.path.join(REACT_BUILD_DIR, "static"),
 ]
 
-# Use WhiteNoise's optimized storage for production
+# Optimized serving for production
 if not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
@@ -104,7 +105,7 @@ CSRF_TRUSTED_ORIGINS = config(
 )
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = False  # DigitalOcean handles SSL termination
+    SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -132,8 +133,8 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,
 }
 
-# Encryption Key for PII (Persistent across builds)
-FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='placeholder-key-for-migrations')
+# Encryption Key for sensitive fields (GDPR)
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='key-for-migrations-only-replace-in-prod')
 
 # Celery Configuration
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
