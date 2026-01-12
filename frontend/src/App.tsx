@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
-import { Plus, Utensils, Apple } from 'lucide-react';
+import { Utensils, Apple } from 'lucide-react';
 import axios from 'axios';
 
 /**
  * FIXED APP:
- * 1. Removed unused imports that caused build failure.
+ * 1. Removed unused imports (React, LogIn, Plus, etc.) to satisfy strict 'tsc' rules.
  * 2. Implemented Dark Blue Brand style.
- * 3. Pointed Google Auth to the correct Django initiation endpoint.
+ * 3. Unified API communication.
  */
 
 const api = axios.create({
@@ -51,7 +51,7 @@ const LoginView = () => {
         
         <button 
           onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-4 bg-white text-black font-bold py-4 px-6 rounded-2xl hover:bg-gray-100 transition-transform active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-4 bg-white text-black font-bold py-4 rounded-2xl hover:bg-gray-100 transition-transform active:scale-[0.98]"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
