@@ -1,3 +1,4 @@
+// File: frontend/src/App.tsx
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
@@ -5,10 +6,9 @@ import { Utensils, Apple } from 'lucide-react';
 import axios from 'axios';
 
 /**
- * FIXED APP:
- * 1. Removed unused imports (React, LogIn, Plus, etc.) to satisfy strict 'tsc' rules.
- * 2. Implemented Dark Blue Brand style.
- * 3. Unified API communication.
+ * BRAND THEME: Dark Blue UI
+ * This file contains the consolidated logic for the frontend.
+ * Ensure your index.html script tag points to main.tsx which imports this.
  */
 
 const api = axios.create({
