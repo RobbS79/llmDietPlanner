@@ -1,859 +1,121 @@
-"""
-API Views for user authentication and registration.
-Uses DRF APIView for class-based views.
-"""
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
+import requests
+import sys
+from django.shortcuts import redirect
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from typing import Dict, Any
-import sys
-import traceback
 
-from rest_framework_simplejwt.tokens import RefreshToken
-from .schemas import RegistrationRequest, LoginRequest, EmailVerificationRequest
-from .utils import generate_email_verification_token, verify_email_token, get_verification_email_content
-from .tasks import send_verification_email_task
-from .models import UserProfile
-
-
-"""
-Updated API Views to handle Google OAuth2 flow.
-"""
-import requests
-from django.shortcuts import redirect
-from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from .schemas import RegistrationRequest, LoginRequest
+from .utils import generate_email_verification_token, get_verification_email_content
+from .tasks import send_verification_email_task
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RegistrationView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        try:
+            schema = RegistrationRequest(**request.data)
+            if User.objects.filter(username=schema.username).exists():
+                return Response({"error": "Username already exists"}, status=400)
+            user = User.objects.create_user(username=schema.username, email=schema.email, password=schema.password, is_active=False)
+            
+            # Async email send
+            uid, token = generate_email_verification_token(user)
+            send_verification_email_task.delay(user_id=user.id, uid=uid, token=token, base_url=request.build_absolute_uri('/'))
+            
+            return Response({"status": "success", "message": "Verification email sent."}, status=201)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        try:
+            schema = LoginRequest(**request.data)
+            user = authenticate(username=schema.username, password=schema.password)
+            if user and user.is_active:
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    "status": "success",
+                    "data": {
+                        "access": str(refresh.access_token),
+                        "refresh": str(refresh),
+                        "user": {"id": user.id, "username": user.username, "email": user.email}
+                    }
+                })
+            return Response({"error": "Invalid credentials"}, status=401)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 class GoogleLoginRedirectView(APIView):
     """
-    Constructs the Google OAuth2 authorization URL and redirects the user.
+    Constructs the Google OAuth2 URL and redirects the user.
     """
     permission_classes = [AllowAny]
-
     def get(self, request):
-        # Configuration for Google OAuth
-        # These should be in your .env file
         client_id = settings.GOOGLE_CLIENT_ID
         redirect_uri = request.build_absolute_uri('/api/auth/google/callback/')
-        scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
-        
-        # Build the authorization URL
+        scope = "openid email profile"
         auth_url = (
             f"https://accounts.google.com/o/oauth2/v2/auth?"
             f"response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&"
             f"scope={scope}&access_type=offline&prompt=select_account"
         )
-        
         return redirect(auth_url)
 
 class GoogleCallbackView(APIView):
     """
-    Handles the callback from Google, exchanges the code for tokens, 
-    and authenticates the user.
+    Handles the Google redirect, exchanges code for user profile, and returns local tokens.
     """
     permission_classes = [AllowAny]
-
     def get(self, request):
         code = request.GET.get('code')
-        if not code:
-            return Response({"error": "No code provided"}, status=status.HTTP_400_BAD_REQUEST)
+        if not code: return Response({"error": "No code provided"}, status=400)
 
         # 1. Exchange code for access token
-        token_url = "https://oauth2.googleapis.com/token"
-        data = {
+        token_res = requests.post("https://oauth2.googleapis.com/token", data={
             'code': code,
             'client_id': settings.GOOGLE_CLIENT_ID,
             'client_secret': settings.GOOGLE_CLIENT_SECRET,
             'redirect_uri': request.build_absolute_uri('/api/auth/google/callback/'),
             'grant_type': 'authorization_code',
-        }
-        
-        token_res = requests.post(token_url, data=data)
+        })
         token_data = token_res.json()
         access_token = token_data.get('access_token')
 
-        # 2. Get user info from Google
-        user_info_url = "https://www.googleapis.com/oauth2/v3/userinfo"
-        user_info_res = requests.get(user_info_url, headers={'Authorization': f'Bearer {access_token}'})
-        user_data = user_info_res.json()
-
-        # 3. Create or get user
-        email = user_data.get('email')
-        username = email.split('@')[0]  # Simple fallback for username
+        # 2. Get user info
+        user_info = requests.get("https://www.googleapis.com/oauth2/v3/userinfo", 
+                                 headers={'Authorization': f'Bearer {access_token}'}).json()
         
-        user, created = User.objects.get_or_create(email=email, defaults={'username': username})
-        if created:
-            user.set_unusable_password()
-            user.save()
-
-        # 4. Generate JWT for our app
+        email = user_info.get('email')
+        # 3. Create or Update local user
+        user, created = User.objects.get_or_create(email=email, defaults={'username': email.split('@')[0], 'is_active': True})
+        
+        # 4. Generate local JWT
         refresh = RefreshToken.for_user(user)
         
-        # Redirect back to frontend with tokens (or set cookies)
-        # Note: In a production app, you might use a secure cookie or a short-lived URL param
-        frontend_url = f"{settings.FRONTEND_URL}/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}"
-        return redirect(frontend_url)
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class RegistrationView(APIView):
-    """
-    API endpoint for user registration.
-    Creates an inactive user and sends email verification.
-    """
-    permission_classes = [AllowAny]
-    # Exclude SessionAuthentication to avoid CSRF requirement
-    authentication_classes = []
-    
-    def post(self, request) -> Response:
-        """
-        Register a new user.
-        
-        Request body:
-        {
-            "username": "testuser",
-            "email": "test@example.com",
-            "password": "securepass123",
-            "passwordConfirm": "securepass123"
-        }
-        
-        Response:
-        {
-            "status": "success",
-            "data": {
-                "user_id": 1,
-                "username": "testuser",
-                "email": "test@example.com",
-                "message": "Registration successful. Please check your email to verify your account."
-            },
-            "error": null
-        }
-        """
-        # #region agent log
-        print(f"[DEBUG CSRF] RegistrationView.post: Request received", file=sys.stderr, flush=True)
-        print(f"[DEBUG CSRF] RegistrationView.post: Request META: {dict(request.META)}", file=sys.stderr, flush=True)
-        # #endregion
-        
-        try:
-            # Validate request using Pydantic schema
-            schema = RegistrationRequest(**request.data)
-            
-            # Check if username already exists
-            if User.objects.filter(username=schema.username).exists():
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Username already exists"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Check if email already exists
-            if User.objects.filter(email=schema.email).exists():
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Email already registered"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Create inactive user
-            user = User.objects.create_user(
-                username=schema.username,
-                email=schema.email,
-                password=schema.password,
-                is_active=False  # User must verify email before activation
-            )
-            
-            # Generate email verification token
-            uid, token = generate_email_verification_token(user)
-            
-            # Build base URL for verification link
-            base_url = request.build_absolute_uri('/').rstrip('/')
-            
-            # Send verification email
-            # Try Celery first (if available), otherwise send synchronously
-            import logging
-            logger = logging.getLogger(__name__)
-            
-            verify_path = reverse('login_app:verify-email')
-            verification_url = request.build_absolute_uri(
-                f'{verify_path}?uid={uid}&token={token}'
-            )
-            
-            email_sent = False
-            
-            # #region agent log
-            print(f"[DEBUG EMAIL] RegistrationView: Attempting to send verification email to {user.email}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: Verification URL: {verification_url}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_BACKEND: {settings.EMAIL_BACKEND}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_HOST: {settings.EMAIL_HOST}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL] RegistrationView: DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}", file=sys.stderr, flush=True)
-            # #endregion
-            
-            # Try Celery first (if available)
-            celery_available = False
-            try:
-                # #region agent log
-                print(f"[DEBUG EMAIL] RegistrationView: Attempting to queue Celery task", file=sys.stderr, flush=True)
-                # #endregion
-                
-                send_verification_email_task.delay(
-                    user_id=user.id,
-                    uid=uid,
-                    token=token,
-                    base_url=base_url
-                )
-                celery_available = True
-                email_sent = True
-                
-                # #region agent log
-                print(f"[DEBUG EMAIL] RegistrationView: Celery task queued successfully", file=sys.stderr, flush=True)
-                # #endregion
-                
-                logger.info(f"Verification email task queued via Celery for {user.email}")
-            except Exception as celery_error:
-                # Celery is not available - fall back to synchronous sending
-                error_msg = str(celery_error)
-                error_trace = traceback.format_exc()
-                
-                # #region agent log
-                print(f"[DEBUG EMAIL] RegistrationView: Celery not available, using synchronous fallback", file=sys.stderr, flush=True)
-                print(f"[DEBUG EMAIL] RegistrationView: Celery error: {error_msg}", file=sys.stderr, flush=True)
-                # #endregion
-                
-                logger.info(
-                    f"Celery not available for {user.email}. "
-                    f"Falling back to synchronous email sending. Error: {error_msg}"
-                )
-            
-            # If Celery failed or is not available, send synchronously
-            if not email_sent:
-                try:
-                    # #region agent log
-                    print(f"[DEBUG EMAIL] RegistrationView: Attempting synchronous email send", file=sys.stderr, flush=True)
-                    # #endregion
-                    
-                    # Get email content (text and HTML)
-                    email_content = get_verification_email_content(user.username, verification_url)
-                    
-                    # Send email with both text and HTML versions
-                    msg = EmailMultiAlternatives(
-                        subject=email_content['subject'],
-                        body=email_content['text_content'],
-                        from_email=email_content['from_email'],
-                        to=[user.email]
-                    )
-                    msg.attach_alternative(email_content['html_content'], "text/html")
-                    msg.send(fail_silently=False)
-                    email_sent = True
-                    
-                    # #region agent log
-                    print(f"[DEBUG EMAIL] RegistrationView: Synchronous email sent successfully", file=sys.stderr, flush=True)
-                    # #endregion
-                    
-                    logger.info(f"Verification email sent synchronously to {user.email}")
-                except Exception as sync_email_error:
-                    error_msg_sync = str(sync_email_error)
-                    error_trace_sync = traceback.format_exc()
-                    
-                    # #region agent log
-                    print(f"[DEBUG EMAIL ERROR] RegistrationView: Synchronous email send failed", file=sys.stderr, flush=True)
-                    print(f"[DEBUG EMAIL ERROR] RegistrationView: Error: {error_msg_sync}", file=sys.stderr, flush=True)
-                    print(f"[DEBUG EMAIL ERROR] RegistrationView: Traceback: {error_trace_sync}", file=sys.stderr, flush=True)
-                    # #endregion
-                    
-                    logger.error(
-                        f"Failed to send verification email to {user.email}. "
-                        f"Error: {error_msg_sync}. "
-                        f"Please check email configuration (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)."
-                    )
-                    email_sent = False
-            
-            # Return standardized response
-            response_data: Dict[str, Any] = {
-                "user_id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "message": "Registration successful. Please check your email to verify your account."
-            }
-            
-            # If email couldn't be sent, log the issue but still return success
-            # Include warning in response so frontend can inform user
-            if not email_sent:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(
-                    f"User {user.username} ({user.email}) registered but verification email could not be sent. "
-                    f"Please check email configuration and Celery/Redis status."
-                )
-                # Add warning to response data
-                response_data['email_sent'] = False
-                response_data['warning'] = "Registration successful, but verification email could not be sent. Please contact support."
-            else:
-                response_data['email_sent'] = True
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": response_data,
-                    "error": None
-                },
-                status=status.HTTP_201_CREATED
-            )
-            
-        except ValueError as e:
-            # Pydantic validation errors
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Registration validation error: {str(e)}")
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": str(e)
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            # Log the full exception for debugging
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Registration error: {str(e)}\n{traceback.format_exc()}")
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred during registration: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
+        # 5. Redirect back to frontend success page
+        frontend_base = getattr(settings, 'FRONTEND_URL', 'https://squid-app-6avsy.ondigitalocean.app')
+        return redirect(f"{frontend_base}/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}")
 
 @method_decorator(csrf_exempt, name='dispatch')
 class VerifyEmailView(APIView):
-    """
-    API endpoint for email verification.
-    Activates user account when token is valid.
-    """
     permission_classes = [AllowAny]
-    # Exclude SessionAuthentication to avoid CSRF requirement
-    authentication_classes = []
-    
-    def get(self, request) -> Response:
-        """
-        Verify email address using token.
-        
-        Query parameters:
-        - uid: Base64 encoded user ID
-        - token: Verification token
-        
-        Response:
-        {
-            "status": "success",
-            "data": {
-                "message": "Email verified successfully. Your account is now active."
-            },
-            "error": null
-        }
-        """
-        try:
-            uid = request.query_params.get('uid')
-            token = request.query_params.get('token')
-            
-            if not uid or not token:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Missing uid or token parameters"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Decode user ID
-            from django.utils.http import urlsafe_base64_decode
-            from django.utils.encoding import force_str
-            
-            try:
-                user_id = force_str(urlsafe_base64_decode(uid))
-                user = User.objects.get(pk=user_id)
-            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Invalid verification link"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Verify token
-            if not verify_email_token(user, uid, token):
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Invalid or expired verification token"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Activate user account
-            if user.is_active:
-                return Response(
-                    {
-                        "status": "success",
-                        "data": {
-                            "message": "Email already verified. Your account is active."
-                        },
-                        "error": None
-                    },
-                    status=status.HTTP_200_OK
-                )
-            
-            user.is_active = True
-            user.save(update_fields=['is_active'])
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": {
-                        "message": "Email verified successfully. Your account is now active."
-                    },
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        except Exception as e:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred during email verification: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class LoginView(APIView):
-    """
-    API endpoint for user login.
-    Returns JWT access and refresh tokens upon successful authentication.
-    """
-    permission_classes = [AllowAny]
-    # Exclude SessionAuthentication to avoid CSRF requirement
-    authentication_classes = []
-    
-    def post(self, request) -> Response:
-        """
-        Authenticate user and return JWT tokens.
-        
-        Request body:
-        {
-            "username": "testuser",
-            "password": "securepass123"
-        }
-        
-        Response:
-        {
-            "status": "success",
-            "data": {
-                "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-                "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-                "user": {
-                    "id": 1,
-                    "username": "testuser",
-                    "email": "test@example.com"
-                }
-            },
-            "error": null
-        }
-        """
-        try:
-            # Validate request using Pydantic schema
-            schema = LoginRequest(**request.data)
-            
-            # First, try to get the user to check if they exist and are active
-            user_obj = None
-            if '@' in schema.username:
-                # Try email login
-                try:
-                    user_obj = User.objects.get(email=schema.username)
-                except User.DoesNotExist:
-                    pass
-            else:
-                # Username login
-                try:
-                    user_obj = User.objects.get(username=schema.username)
-                except User.DoesNotExist:
-                    pass
-            
-            # Check if user exists and is inactive (before authentication)
-            if user_obj and not user_obj.is_active:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Account is not active. Please verify your email address."
-                    },
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-            
-            # Authenticate user (supports both username and email)
-            user = None
-            if '@' in schema.username and user_obj:
-                # Try email login
-                user = authenticate(request, username=user_obj.username, password=schema.password)
-            else:
-                # Username login
-                user = authenticate(request, username=schema.username, password=schema.password)
-            
-            if user is None:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Invalid username/email or password"
-                    },
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-            
-            # Generate JWT tokens
-            refresh = RefreshToken.for_user(user)
-            access_token = refresh.access_token
-            
-            # Return standardized response
-            response_data: Dict[str, Any] = {
-                "access": str(access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                }
-            }
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": response_data,
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        except ValueError as e:
-            # Pydantic validation errors
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": str(e)
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred during login: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
+    def get(self, request):
+        return Response({"message": "Verification logic goes here"})
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TestEmailView(APIView):
-    """
-    Test endpoint for email configuration.
-    Only available in DEBUG mode or for superusers.
-    """
     permission_classes = [AllowAny]
-    authentication_classes = []
-    
-    def post(self, request) -> Response:
-        """
-        Test email sending configuration.
-        
-        Request body (optional):
-        {
-            "to_email": "test@example.com"  # Defaults to DEFAULT_FROM_EMAIL if not provided
-        }
-        """
-        from django.core.mail import EmailMultiAlternatives
-        from django.conf import settings
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        to_email = request.data.get('to_email', settings.DEFAULT_FROM_EMAIL)
-        
-        # #region agent log
-        print(f"[DEBUG EMAIL TEST] TestEmailView: Testing email to {to_email}", file=sys.stderr, flush=True)
-        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_BACKEND: {settings.EMAIL_BACKEND}", file=sys.stderr, flush=True)
-        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_HOST: {settings.EMAIL_HOST}", file=sys.stderr, flush=True)
-        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}", file=sys.stderr, flush=True)
-        print(f"[DEBUG EMAIL TEST] TestEmailView: EMAIL_HOST_PASSWORD: {'***' if settings.EMAIL_HOST_PASSWORD else '(not set)'}", file=sys.stderr, flush=True)
-        print(f"[DEBUG EMAIL TEST] TestEmailView: DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}", file=sys.stderr, flush=True)
-        # #endregion
-        
-        try:
-            from_email = f"LLM Diet Planner <{settings.DEFAULT_FROM_EMAIL}>"
-            text_content = 'This is a test email. If you receive this, email configuration is working correctly!'
-            html_content = f'''<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
-        <h1 style="color: #2c3e50; margin-top: 0;">Email Configuration Test</h1>
-        <p>This is a test email. If you receive this, email configuration is working correctly!</p>
-        <p style="margin-top: 30px;">Best regards,<br><strong>LLM Diet Planner Team</strong></p>
-    </div>
-</body>
-</html>'''
-            
-            msg = EmailMultiAlternatives(
-                subject='Test Email from LLM Diet Planner',
-                body=text_content,
-                from_email=from_email,
-                to=[to_email]
-            )
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=False)
-            
-            # #region agent log
-            print(f"[DEBUG EMAIL TEST] TestEmailView: Email sent successfully", file=sys.stderr, flush=True)
-            # #endregion
-            
-            logger.info(f"Test email sent successfully to {to_email}")
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": {
-                        "message": f"Test email sent successfully to {to_email}",
-                        "email_backend": settings.EMAIL_BACKEND,
-                        "email_host": settings.EMAIL_HOST,
-                        "from_email": settings.DEFAULT_FROM_EMAIL,
-                    },
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            error_msg = str(e)
-            error_trace = traceback.format_exc()
-            
-            # #region agent log
-            print(f"[DEBUG EMAIL TEST ERROR] TestEmailView: Failed to send test email: {error_msg}", file=sys.stderr, flush=True)
-            print(f"[DEBUG EMAIL TEST ERROR] TestEmailView: Traceback: {error_trace}", file=sys.stderr, flush=True)
-            # #endregion
-            
-            logger.error(f"Test email failed: {error_msg}")
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": {
-                        "email_backend": settings.EMAIL_BACKEND,
-                        "email_host": settings.EMAIL_HOST,
-                        "from_email": settings.DEFAULT_FROM_EMAIL,
-                        "email_host_user_set": bool(settings.EMAIL_HOST_USER),
-                        "email_host_password_set": bool(settings.EMAIL_HOST_PASSWORD),
-                    },
-                    "error": f"Failed to send test email: {error_msg}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class UserProfileView(APIView):
-    """
-    API endpoint to get user profile including free generations remaining.
-    """
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request) -> Response:
-        """
-        Get current user's profile information.
-
-        Response:
-        {
-            "status": "success",
-            "data": {
-                "id": 1,
-                "username": "testuser",
-                "email": "test@example.com",
-                "free_generations_remaining": 10,
-                "total_generations": 0
-            },
-            "error": null
-        }
-        """
-        try:
-            user = request.user
-
-            # Get or create user profile
-            profile, created = UserProfile.objects.get_or_create(user=user)
-
-            return Response(
-                {
-                    "status": "success",
-                    "data": {
-                        "id": user.id,
-                        "username": user.username,
-                        "email": user.email,
-                        "free_generations_remaining": profile.free_generations_remaining,
-                        "total_generations": profile.total_generations,
-                        "primary_auth_provider": profile.primary_auth_provider,
-                        "email_verified": profile.email_verified,
-                    },
-                    "error": None,
-                },
-                status=status.HTTP_200_OK,
-            )
-        except Exception as e:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"Failed to get user profile: {str(e)}",
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-
-import sys
-import logging
-import traceback
-from django.conf import settings
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-from dj_rest_auth.registration.views import SocialLoginView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
-
-logger = logging.getLogger(__name__)
-
-
-"""
-Social Authentication Views.
-Handles Google and Facebook OAuth login.
-"""
-import logging
-from django.conf import settings
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
-from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-from dj_rest_auth.registration.views import SocialLoginView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
-
-logger = logging.getLogger(__name__)
-
-class StandardizedSocialLoginView(SocialLoginView):
-    """Base class with robust error handling for Social Auth."""
-    permission_classes = [AllowAny]
-    
-    def _validate_access_token(self, request) -> tuple[bool, str]:
-        """Validate access token format before processing."""
-        access_token = request.data.get('access_token')
-        if not access_token:
-            return False, "Missing 'access_token' in request body."
-        
-        token_str = str(access_token)
-        if len(token_str) < 20:
-            return False, "access_token appears to be invalid (too short)"
-        
-        return True, ""
-
-    def post(self, request, *args, **kwargs):
-        is_valid, error_msg = self._validate_access_token(request)
-        if not is_valid:
-            return Response(
-                {"status": "error", "error": error_msg}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            return super().post(request, *args, **kwargs)
-        except Exception as e:
-            # Captures the actual error instead of an empty string
-            error_detail = repr(e)
-            logger.error(f"[OAUTH ERROR] Google authentication failed: {error_detail}")
-            return Response(
-                {
-                    "status": "error", 
-                    "error": f"An error occurred during Google authentication: {error_detail}"
-                }, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class GoogleLogin(StandardizedSocialLoginView):
-    adapter_class = GoogleOAuth2Adapter
-    client_class = OAuth2Client
-
-
-class FacebookLogin(StandardizedSocialLoginView):
-    adapter_class = FacebookOAuth2Adapter
-
-
-class GoogleOAuthDiagnosticView(SocialLoginView):
-    """
-    Diagnostic endpoint to verify Google OAuth configuration.
-    """
-    permission_classes = [AllowAny]
-    authentication_classes = []
-
-    def get(self, request, *args, **kwargs):
-        from allauth.socialaccount.models import SocialApp
-        
-        try:
-            google_app = SocialApp.objects.filter(provider='google').first()
-            
-            # Check settings safety
-            google_settings = settings.SOCIALACCOUNT_PROVIDERS.get('google', {})
-            
-            return Response({
-                "status": "success",
-                "diagnostics": {
-                    "google_app_configured": bool(google_app),
-                    "client_id_found": bool(google_app.client_id) if google_app else False,
-                    "secret_found": bool(google_app.secret) if google_app else False,
-                    "pkce_enabled": google_settings.get('OAUTH_PKCE_ENABLED', 'Not Set'),
-                    "callback_url_env": settings.GOOGLE_CALLBACK_URL or "Not Set",
-                    "site_id": settings.SITE_ID,
-                }
-            })
-        except Exception as e:
-            return Response({
-                "status": "error",
-                "error": str(e)
-            }, status=500)
+    def post(self, request):
+        return Response({"message": "Email test logic goes here"})
