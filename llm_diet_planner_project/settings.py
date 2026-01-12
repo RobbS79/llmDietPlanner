@@ -1,33 +1,20 @@
 """
 Django settings for llm_diet_planner_project project.
-Final refactor for production stability, styling, and Google OAuth.
+Updated for Vite integration and Google OAuth2.
 """
 
 from pathlib import Path
 from decouple import config, Csv
 import os
-import dj_database_url
+from datetime import timedelta
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-prod-key-for-initial-setup')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
-
-# Allow DigitalOcean domains and common local dev addresses
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS', 
-    default='localhost,127.0.0.1,0.0.0.0,.ondigitalocean.app', 
-    cast=Csv()
-)
-
-# --- GOOGLE OAUTH CONFIGURATION ---
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
-GOOGLE_REDIRECT_URI = config('GOOGLE_REDIRECT_URI', default='')
+# Security
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-fallback-key-change-in-prod')
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=Csv())
 
 # Application definition
 INSTALLED_APPS = [
@@ -37,35 +24,49 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",  # Required for allauth
+    
     # Third-party apps
     "rest_framework",
+    "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "encrypted_model_fields",
-    "whitenoise.runserver_nostatic",
+    "corsheaders",
+    
+    # Authentication (allauth + dj-rest-auth)
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    
     # Local apps
     "diet_planner",
     "login_app",
 ]
 
+SITE_ID = 1
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Required for serving assets
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 
-# FIX: Standard Templates configuration to resolve (admin.E403)
-# We use absolute paths to ensure the templates are found in Docker
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, "llm_diet_planner_project", "templates")],
+        "DIRS": [BASE_DIR / "llm_diet_planner_project" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -78,73 +79,71 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
-
-# Database Configuration
+# Database
+import dj_database_url
 DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{str(BASE_DIR / "db.sqlite3")}')
 DATABASES = {
     'default': dj_database_url.parse(DATABASE_URL)
 }
 
-# Static Files & WhiteNoise (Ensures the "dark blue" theme loads correctly)
-STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
-# React build directory integration
-REACT_APP_DIR = os.path.join(BASE_DIR, "frontend")
-REACT_BUILD_DIR = os.path.join(REACT_APP_DIR, "build")
-
-# Crucial: Tell Django where the built assets live before they are collected
-STATICFILES_DIRS = [
-    os.path.join(REACT_BUILD_DIR, "static"),
+# Auth Config
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Optimized serving for production
-if not DEBUG:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Static & Frontend Config
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# CSRF & Security Configuration
-CSRF_TRUSTED_ORIGINS = config(
-    'CSRF_TRUSTED_ORIGINS',
-    default='https://*.ondigitalocean.app',
-    cast=Csv()
-)
+# Point to Vite 'dist' folder
+REACT_APP_DIR = BASE_DIR / "frontend"
+REACT_BUILD_DIR = REACT_APP_DIR / "dist"
 
-if not DEBUG:
-    # Important for OAuth over HTTPS behind DigitalOcean's load balancer
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = False  # DigitalOcean handles SSL at the edge
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
+STATICFILES_DIRS = [
+    # Static files generated by Vite are in dist/assets or dist
+    os.path.join(REACT_BUILD_DIR),
+]
 
-# REST Framework Configuration
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
+    'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    ],
+    ),
 }
 
-# JWT Settings
-from datetime import timedelta
+# Google Auth Setup
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'VERIFIED_EMAIL': True,
+    }
+}
+
+# Simple JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Encryption Key for sensitive fields (GDPR)
-FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='key-for-migrations-only-replace-in-prod')
+# Email Config
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
 
-# Celery Configuration
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
-CELERY_TIMEZONE = "UTC"
+# Encryption
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='')
+
+# CORS
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:8000', cast=Csv())

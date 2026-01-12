@@ -1,36 +1,32 @@
-# Production Dockerfile
-# Build stage for React
-FROM node:18-alpine AS react-builder
+# --- STAGE 1: Build the React Frontend ---
+# Using Node 20 to support Vite 7/8 and modern esbuild features
+FROM node:20-alpine AS react-builder
 
 WORKDIR /app/frontend
 
-# Copy package files
-COPY frontend/package.json ./
+# Copy dependency files first for better caching
+COPY frontend/package.json frontend/package-lock.json ./
 
-# Install dependencies (need all for build)
-RUN npm install
+# Install dependencies including the specific engine requirements
+# --legacy-peer-deps handles potential conflicts in strict environments
+RUN npm install --legacy-peer-deps
 
-# Copy frontend source
-COPY frontend/ .
+# Copy the rest of the frontend source
+COPY frontend/ ./
 
-# Build arg for Google OAuth (passed during build time)
-ARG REACT_APP_GOOGLE_CLIENT_ID=""
-ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
-
-# Build React app
+# Build the production assets (this creates the 'dist' directory)
 RUN npm run build
 
-# Python/Django stage
+# --- STAGE 2: Build the Python/Django Backend ---
 FROM python:3.11-slim
 
-# Set environment variables
+# Prevent Python from writing .pyc files and buffer output
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Set work directory
 WORKDIR /app
 
-# Install system dependencies (including Redis for in-container Celery)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     redis-server \
@@ -40,19 +36,19 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Copy the entire project
 COPY . /app/
 
-# Copy React build from builder stage
-COPY --from=react-builder /app/frontend/build /app/frontend/build
+# CRITICAL INTEGRATION STEP:
+# Copy the built React assets from the builder stage into the Django project structure.
+# We map Vite's 'dist' folder to the location Django expects.
+COPY --from=react-builder /app/frontend/dist /app/frontend/dist
 
-# Copy and make startup script executable
-COPY start.sh /app/start.sh
+# Ensure startup script is executable
 RUN chmod +x /app/start.sh
 
-# Expose port
+# Expose Gunicorn port
 EXPOSE 8000
 
-# Use startup script that runs migrations and collectstatic before starting gunicorn
+# Execute the startup script (which handles migrations and starting Redis/Celery/Gunicorn)
 CMD ["bash", "/app/start.sh"]
-

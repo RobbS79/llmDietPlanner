@@ -1,179 +1,42 @@
-.App {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.App-header {
-  padding: 4rem 2rem;
-  text-align: center;
-  color: white;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.container {
-  max-width: 1200px;
+#root {
+  max-width: 1280px;
   margin: 0 auto;
-  width: 100%;
-  padding: 0 2rem;
-}
-
-.App-title {
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.App-subtitle {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  opacity: 0.95;
-  font-weight: 300;
-}
-
-.App-description {
-  font-size: 1.1rem;
-  max-width: 600px;
-  margin: 0 auto 2.5rem;
-  line-height: 1.6;
-  opacity: 0.9;
-}
-
-.App-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.btn {
-  padding: 0.875rem 2rem;
-  font-size: 1rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.btn-primary {
-  background: white;
-  color: #667eea;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-}
-
-.btn-secondary {
-  background: transparent;
-  color: white;
-  border: 2px solid white;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
-}
-
-.App-main {
-  background: white;
-  padding: 4rem 2rem;
-}
-
-.features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
-}
-
-.feature-card {
-  text-align: center;
   padding: 2rem;
-  border-radius: 12px;
-  background: #f8f9fa;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-}
-
-.feature-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.feature-card h3 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #333;
-}
-
-.feature-card p {
-  color: #666;
-  line-height: 1.6;
-}
-
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-}
-
-.auth-header {
   text-align: center;
-  margin-bottom: 2rem;
-  color: white;
 }
 
-.auth-header .App-title {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-.auth-header .App-subtitle {
-  font-size: 1.2rem;
-  opacity: 0.95;
-}
-
-@media (max-width: 768px) {
-  .App-title {
-    font-size: 2.5rem;
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
   }
-
-  .App-subtitle {
-    font-size: 1.2rem;
-  }
-
-  .App-description {
-    font-size: 1rem;
-  }
-
-  .btn {
-    padding: 0.75rem 1.5rem;
-    font-size: 0.9rem;
-  }
-
-  .auth-header .App-title {
-    font-size: 2rem;
-  }
-
-  .auth-header .App-subtitle {
-    font-size: 1rem;
+  to {
+    transform: rotate(360deg);
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}

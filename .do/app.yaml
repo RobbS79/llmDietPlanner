@@ -30,7 +30,7 @@ services:
         scope: RUN_AND_BUILD_TIME
         type: SECRET
       - key: GOOGLE_REDIRECT_URI
-        value: "https://your-app-name.ondigitalocean.app/api/auth/google/callback/"
+        value: "https://squid-app-6avsy.ondigitalocean.app/api/auth/google/callback/"
         scope: RUN_TIME
       - key: CELERY_BROKER_URL
         value: "redis://127.0.0.1:6379/0"
