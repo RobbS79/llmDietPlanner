@@ -3,63 +3,35 @@ set -e
 
 echo "=== Starting application ==="
 
-echo "Showing pending migrations..."
-python manage.py showmigrations --plan | grep -E "^\[ \]" || echo "No pending migrations"
+# 1. Verification of frontend build
+if [ ! -d "/app/frontend/build" ]; then
+    echo "ERROR: /app/frontend/build does not exist. CSS/JS colors will be broken."
+else
+    echo "Frontend build folder found."
+fi
+
+# 2. Database Migrations
+echo "Creating migrations for diet_planner app..."
+python manage.py makemigrations diet_planner --noinput || echo "makemigrations failed, continuing..."
 
 echo "Running database migrations..."
-python manage.py migrate --noinput -v 2
-echo "Migrations completed successfully!"
+python manage.py migrate --noinput
 
+# 3. Static Files (Crucial for dark blue styles)
 echo "Collecting static files..."
-if ! python manage.py collectstatic --noinput; then
-    echo "ERROR: collectstatic failed!"
-    echo "Checking if staticfiles directory exists..."
-    ls -la /app/staticfiles/ 2>/dev/null || echo "staticfiles directory does not exist"
-    echo "Checking frontend build..."
-    ls -la /app/frontend/build/static/ 2>/dev/null || echo "Frontend build not found"
-    exit 1
-fi
-echo "Static files collected successfully!"
+# We run this to move React build assets into the static_root for WhiteNoise
+python manage.py collectstatic --noinput --clear
 
-# Start Redis server in background (for in-container Celery)
+# 4. Infrastructure (Redis/Celery)
 echo "Starting Redis server..."
-redis-server --daemonize yes --port 6379 --bind 127.0.0.1 || echo "Redis already running or failed to start"
-sleep 2  # Give Redis time to start
+redis-server --daemonize yes --port 6379 --bind 127.0.0.1
+sleep 2
 
-# Verify Redis is running
-if redis-cli -p 6379 ping > /dev/null 2>&1; then
-    echo "Redis is running successfully"
-else
-    echo "Warning: Redis failed to start or is not accessible"
-fi
-
-# Start Celery worker in background using nohup (better for Docker than --detach)
-# Reduced concurrency to 2 to save memory (basic-xxs has limited RAM)
 echo "Starting Celery worker..."
-nohup celery -A llm_diet_planner_project worker --loglevel=info --concurrency=2 > /tmp/celery.log 2>&1 &
+nohup celery -A llm_diet_planner_project worker --loglevel=info > /tmp/celery.log 2>&1 &
 CELERY_PID=$!
 echo "Celery worker started with PID: $CELERY_PID"
-sleep 3  # Give Celery more time to start
 
-# Check Celery log for immediate errors
-if [ -f /tmp/celery.log ]; then
-    if grep -q "Error\|Traceback\|Exception" /tmp/celery.log; then
-        echo "ERROR: Celery worker failed to start. Check /tmp/celery.log:"
-        tail -20 /tmp/celery.log
-    fi
-fi
-
-# Verify Celery is running (check by process name, not PID, as Celery forks)
-if pgrep -f "celery.*worker" > /dev/null 2>&1; then
-    echo "Celery worker is running successfully"
-else
-    echo "WARNING: Celery worker may have failed to start (will use sync fallback)"
-    echo "Check /tmp/celery.log for details:"
-    tail -30 /tmp/celery.log 2>/dev/null || echo "No Celery log found"
-fi
-
-# Start Gunicorn in foreground (main process - container stays alive)
-# Reduced workers from 3 to 2 to save memory (basic-xxs has limited RAM)
+# 5. Launch Backend
 echo "Starting Gunicorn..."
-exec gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 llm_diet_planner_project.wsgi:application
-
+exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 llm_diet_planner_project.wsgi:application
