@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     
     "diet_planner",
     "login_app",
+    'rest_framework.authtoken'
 ]
 
 SITE_ID = 1
