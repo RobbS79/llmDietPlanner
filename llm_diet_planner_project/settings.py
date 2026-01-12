@@ -35,7 +35,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware", # Must be immediately after SecurityMiddleware
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -46,24 +46,38 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 
+# FIX: Configuration for Admin Application (Resolves admin.E403)
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [os.path.join(BASE_DIR, "llm_diet_planner_project", "templates")],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
 WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
 
 # Database
 DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{str(BASE_DIR / "db.sqlite3")}')
 DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 
-# Static Files & WhiteNoise (The Color Fix)
-STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+# Static Files & WhiteNoise (Fixes Colors)
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# Tell Django where to find the React assets BEFORE collecting
-REACT_BUILD_DIR = BASE_DIR / "frontend" / "build"
+REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend", "build")
 STATICFILES_DIRS = [
-    # Include the main build static folder (css, js, media)
     os.path.join(REACT_BUILD_DIR, "static"),
 ]
 
-# Use WhiteNoise for efficient storage and serving
 if not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
@@ -74,9 +88,7 @@ CSRF_TRUSTED_ORIGINS = config(
     cast=Csv()
 )
 
-# Email & Encryption Keys (Ensuring persistence)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='dummy-key-for-dev')
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='dummy-key-for-migrations')
 
 # Celery
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
