@@ -73,6 +73,10 @@ TEMPLATES = [
     },
 ]
 
+
+
+
+
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
 

@@ -3,20 +3,13 @@ set -e
 
 echo "=== Starting application ==="
 
-# Force collection of static files to ensure CSS updates are picked up
-echo "Collecting static files..."
-python manage.py collectstatic --noinput --clear
-
-echo "Running migrations..."
+# 1. Run migrations only (skip makemigrations in prod)
 python manage.py migrate --noinput
 
-# Infrastructure
-echo "Starting Redis..."
+# 2. Start services in the background
 redis-server --daemonize yes
-sleep 1
+celery -A llm_diet_planner_project worker --loglevel=info &
 
-echo "Starting Celery..."
-nohup celery -A llm_diet_planner_project worker --loglevel=info > /tmp/celery.log 2>&1 &
-
+# 3. Start Gunicorn immediately
 echo "Starting Gunicorn..."
 exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 llm_diet_planner_project.wsgi:application
