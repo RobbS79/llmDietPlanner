@@ -155,6 +155,7 @@ STATICFILES_DIRS = [
 ]
 
 # STORAGES configuration for Django 5.1+ (replaces deprecated STATICFILES_STORAGE)
+STATICFILES_STORAGE='whitenoise.storage.CompressedManifestStaticFilesStorage'
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -286,6 +287,9 @@ GOOGLE_CALLBACK_URL = config('GOOGLE_CALLBACK_URL', default='')
 FACEBOOK_CALLBACK_URL = config('FACEBOOK_CALLBACK_URL', default='')
 
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+
+
+FRONTEND_URL = config('FRONTEND_URL', default='https://squid-app-6avsy.ondigitalocean.app')
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
