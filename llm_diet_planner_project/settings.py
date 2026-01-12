@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     # Third-party
     "corsheaders",
     "rest_framework",
+    "rest_framework.authtoken",  # FIX: Required by dj-rest-auth for model initialization
     "rest_framework_simplejwt",
     "encrypted_model_fields",
     
@@ -91,11 +92,15 @@ STATICFILES_DIRS = [
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# --- MODERN AUTH SETTINGS (Fixed Deprecations) ---
+# --- MODERN AUTH SETTINGS (Fixed Allauth v65+ Deprecations) ---
 SITE_ID = 1
+
+# Modern Allauth configuration to silence warnings
 ACCOUNT_LOGIN_METHODS = {'email'} 
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+# Resolves the 'SIGNUP_FIELDS' deprecation warning
+ACCOUNT_SIGNUP_FIELDS = ['email', 'password1', 'password2']
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -114,7 +119,14 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
 }
-REST_USE_JWT = True
+
+# dj-rest-auth specific configuration
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'jwt-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'jwt-refresh-auth',
+    'JWT_AUTH_HTTPONLY': False, # Set to True in final production for security
+}
 
 # JWT Config
 SIMPLE_JWT = {
