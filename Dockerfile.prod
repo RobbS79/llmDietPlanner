@@ -1,54 +1,34 @@
-# --- STAGE 1: Build the React Frontend ---
-# Using Node 20 to support Vite 7/8 and modern esbuild features
-FROM node:20-alpine AS react-builder
-
-WORKDIR /app/frontend
-
-# Copy dependency files first for better caching
-COPY frontend/package.json frontend/package-lock.json ./
-
-# Install dependencies including the specific engine requirements
-# --legacy-peer-deps handles potential conflicts in strict environments
-RUN npm install --legacy-peer-deps
-
-# Copy the rest of the frontend source
-COPY frontend/ ./
-
-# Build the production assets (this creates the 'dist' directory)
-RUN npm run build
-
-# --- STAGE 2: Build the Python/Django Backend ---
-FROM python:3.11-slim
-
-# Prevent Python from writing .pyc files and buffer output
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    postgresql-client \
-    redis-server \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the entire project
-COPY . /app/
-
-# CRITICAL INTEGRATION STEP:
-# Copy the built React assets from the builder stage into the Django project structure.
-# We map Vite's 'dist' folder to the location Django expects.
-COPY --from=react-builder /app/frontend/dist /app/frontend/dist
-
-# Ensure startup script is executable
-RUN chmod +x /app/start.sh
-
-# Expose Gunicorn port
-EXPOSE 8000
-
-# Execute the startup script (which handles migrations and starting Redis/Celery/Gunicorn)
-CMD ["bash", "/app/start.sh"]
+# --- Stage 1: Build React (Vite) ---
+    FROM node:20-alpine AS builder
+    WORKDIR /app/frontend
+    COPY frontend/package*.json ./
+    # Use node 20 to support Vite 7/8
+    RUN npm install --legacy-peer-deps
+    COPY frontend/ ./
+    RUN npm run build # Creates /app/frontend/dist
+    
+    # --- Stage 2: Final Image ---
+    FROM python:3.11-slim
+    ENV PYTHONDONTWRITEBYTECODE=1
+    ENV PYTHONUNBUFFERED=1
+    
+    WORKDIR /app
+    
+    # System dependencies for database and task queue
+    RUN apt-get update && apt-get install -y \
+        postgresql-client \
+        redis-server \
+        && rm -rf /var/lib/apt/lists/*
+    
+    COPY requirements.txt ./
+    RUN pip install --no-cache-dir -r requirements.txt
+    
+    COPY . .
+    
+    # Copy only the built assets into the final image
+    COPY --from=builder /app/frontend/dist /app/frontend/dist
+    
+    RUN chmod +x start.sh
+    EXPOSE 8000
+    
+    CMD ["bash", "start.sh"]

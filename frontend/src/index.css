@@ -2,54 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-/**
- * BRAND THEME: Dark Blue
- * Background: #0a0f1e
- * Cards: #161d2f
- * Accents: #2563eb
- */
-
 @layer base {
-  html, body, #root {
-    @apply h-full w-full overflow-x-hidden;
-  }
-
   body {
     @apply bg-[#0a0f1e] text-white font-sans antialiased;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.05) 0px, transparent 50%);
+    background-image: radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%);
     background-attachment: fixed;
   }
 }
 
-@layer components {
-  /* Custom card styling for the dark theme */
-  .brand-card {
-    @apply bg-[#161d2f] border border-white/5 rounded-3xl shadow-2xl transition-all duration-300;
-  }
-
-  /* Interactive state for lists/items */
-  .interactive-item {
-    @apply hover:bg-white/5 active:scale-[0.99] transition-all cursor-pointer;
-  }
-}
-
-/* Custom Scrollbar integration for the Dark Blue Brand */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
 }
-
 ::-webkit-scrollbar-track {
   @apply bg-[#0a0f1e];
 }
-
 ::-webkit-scrollbar-thumb {
-  @apply bg-[#2d3748] rounded-full hover:bg-brand-accent transition-colors;
-}
-
-/* Selection color */
-::selection {
-  @apply bg-blue-600/30 text-white;
+  @apply bg-blue-600/20 rounded-full hover:bg-blue-600/40;
 }
