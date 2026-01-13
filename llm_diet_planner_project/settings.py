@@ -1,4 +1,4 @@
-# File: llm_diet_planner_project/settings.py
+# File: llm_diet_planner_project/settings.py | Route: llm_diet_planner_project/settings.py
 import os
 import sys
 from pathlib import Path
@@ -12,27 +12,21 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-prod-key-must-be-set-
 DEBUG = config('DEBUG', default=False, cast=bool)
 FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
 
-# --- 2. HOSTS & PROXY (Fixes 400 and Redirect Errors) ---
+# --- 2. HOSTS & PROXY ---
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='squid-app-6avsy.ondigitalocean.app,localhost,127.0.0.1', cast=Csv())
-# DigitalOcean load balancer terminates SSL, we must trust the header
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
-# --- 3. STATIC FILES & WHITENOISE (PHASE 2) ---
+# --- 3. STATIC FILES & WHITENOISE ---
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Folder where Vite 'npm run build' outputs files
 REACT_BUILD_DIR = BASE_DIR / "frontend" / "dist"
 
-# Tells Django where to look for assets to collect
 STATICFILES_DIRS = []
 if REACT_BUILD_DIR.exists():
     STATICFILES_DIRS.append(REACT_BUILD_DIR)
 
-# Use WhiteNoise to serve static files directly from Gunicorn
-# CompressedStaticFilesStorage is used because Vite already handles the hashing
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 WHITENOISE_INDEX_FILE = True
 
@@ -47,7 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "corsheaders",
     "rest_framework",
-    "rest_framework.authtoken",  # Added for compatibility with dj-rest-auth
+    "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "encrypted_model_fields",
     "allauth",
@@ -61,10 +55,10 @@ INSTALLED_APPS = [
     "shopifyin",
 ]
 
-# --- 5. MIDDLEWARE (PHASE 2) ---
+# --- 5. MIDDLEWARE ---
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware", # MUST be directly after Security
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware", 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -81,7 +75,7 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
             BASE_DIR / "llm_diet_planner_project" / "templates",
-            REACT_BUILD_DIR # Allows serving index.html as a template
+            REACT_BUILD_DIR
         ],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -97,7 +91,7 @@ TEMPLATES = [
 
 # --- 7. AUTH & DATABASE ---
 SITE_ID = 1
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=config('VITE_GOOGLE_CLIENT_ID', default=None))
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=None)
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default=None)
 DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'))}
 ROOT_URLCONF = "llm_diet_planner_project.urls"
@@ -117,3 +111,12 @@ SOCIALACCOUNT_PROVIDERS = {
         'APP': {'client_id': GOOGLE_CLIENT_ID, 'secret': GOOGLE_CLIENT_SECRET, 'key': ''}
     }
 }
+
+# --- 8. CELERY CONFIGURATION (CRITICAL FIX) ---
+# This ensures Celery uses Redis instead of defaulting to RabbitMQ (port 5672)
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'

@@ -7,19 +7,20 @@ import {
   Timer, Globe, MapPin, ChevronRight, Check, Trash2, 
   ChevronLeft, LayoutDashboard, LogOut, ArrowRight, CheckCircle2,
   RefreshCw, Info, CreditCard, BrainCircuit, Search, ListChecks,
-  Activity, Database, ServerCrash, Cpu, Terminal
+  Activity, Database, ServerCrash, Cpu
 } from 'lucide-react';
 import axios from 'axios';
 
 /**
- * INTEGRATION ARCHITECTURE:
- * 1. Global Navbar: Persistent across Workspace, Create, and Result views.
- * 2. Status Diagnostic: Breaks down "Pending" into DB Status vs Worker State.
+ * PRODUCTION FRONTEND - INTEGRATED
+ * 1. Navbar: Constant orientation across Workspace/Generator/Results.
+ * 2. status Data: Differentiates between DB Goal Status and Worker Task State.
  * 3. Stuck detection: Visual hints for Celery/Redis connection failures.
  */
 
 const getEnvVar = (key: string): string | undefined => {
   try {
+    // ES2015 safe access to prevent import.meta warnings
     // @ts-ignore
     return import.meta.env[key];
   } catch (e) {
@@ -110,32 +111,32 @@ const StatusTracker = ({ statusData }: { statusData: any }) => {
   const steps = [
     { 
       keys: ['pending', 'awaiting_payment', 'payment_pending'], 
-      label: 'Request Queued', 
-      desc: 'Synchronizing with compute workers', 
+      label: 'Network Queue', 
+      desc: 'Synchronizing request with logic workers', 
       icon: Cpu 
     },
     { 
       keys: ['payment_confirmed', 'processing'], 
-      label: 'Neural Startup', 
-      desc: 'Gemini Pro initializing models', 
+      label: 'AI Synthesis', 
+      desc: 'Gemini 2.0 initializing dietary models', 
       icon: BrainCircuit 
     },
     { 
       keys: ['processing_meal_plan'], 
-      label: 'Core Synthesis', 
-      desc: 'Mapping ingredients and recipes', 
+      label: 'Meal Mapping', 
+      desc: 'Structuring daily nutrition roadmaps', 
       icon: Utensils 
     },
     { 
       keys: ['processing_shopping_list'], 
-      label: 'Market Analysis', 
-      desc: 'Scanning local shop inventory', 
+      label: 'Supply Scrape', 
+      desc: 'Matching ingredients with real-time stock', 
       icon: Search 
     },
     { 
       keys: ['validating'], 
-      label: 'Quality Check', 
-      desc: 'Final protocol verification', 
+      label: 'Verification', 
+      desc: 'Validating output against local constraints', 
       icon: ListChecks 
     },
   ];
@@ -160,7 +161,7 @@ const StatusTracker = ({ statusData }: { statusData: any }) => {
               <p className={`text-[10px] font-black uppercase tracking-[0.15em] ${isCurrent ? 'text-blue-500' : isDone ? 'text-green-500' : 'text-gray-500'}`}>
                 {step.label} {isCurrent && '...'}
               </p>
-              <p className="text-[10px] text-gray-600 font-medium leading-tight lowercase italic">
+              <p className="text-[10px] text-gray-600 font-medium leading-tight">
                 {isCurrent ? step.desc : isDone ? 'Protocol Success' : 'Awaiting Stage'}
               </p>
             </div>
@@ -170,16 +171,16 @@ const StatusTracker = ({ statusData }: { statusData: any }) => {
 
       <div className="mt-12 p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4 shadow-3xl">
         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500">
-           <span>Infrastructure Check</span>
+           <span>Engine Handshake</span>
            <span className="text-blue-500 flex items-center gap-1.5 animate-pulse font-bold">
-             <Activity size={10} /> Active Handshake
+             <Activity size={10} /> Syncing
            </span>
         </div>
         
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-black/40 p-3 rounded-xl border border-white/5">
             <p className="text-[8px] font-black text-gray-700 uppercase mb-1">Worker State</p>
-            <p className={`text-[9px] font-bold tracking-tighter truncate ${statusData?.task_status === 'NOT_STARTED' || statusData?.task_status === 'UNAVAILABLE' ? 'text-red-500' : 'text-white'}`}>
+            <p className={`text-[9px] font-bold tracking-tighter truncate ${statusData?.task_status === 'NOT_STARTED' || statusData?.task_status === 'UNAVAILABLE' || statusData?.task_status === 'CELERY_UNAVAILABLE' ? 'text-red-500' : 'text-white'}`}>
               {statusData?.task_status || 'IDLE'}
             </p>
           </div>
@@ -189,14 +190,14 @@ const StatusTracker = ({ statusData }: { statusData: any }) => {
           </div>
         </div>
 
-        {(statusData?.task_status === 'NOT_STARTED' || statusData?.task_status === 'UNAVAILABLE') && (
+        {(statusData?.task_status === 'NOT_STARTED' || statusData?.task_status === 'CELERY_UNAVAILABLE') && (
           <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 space-y-2">
              <p className="text-[10px] text-red-500 font-black uppercase tracking-tight flex items-center gap-2">
                <ServerCrash size={14} className="flex-none" />
                Critical Engine Failure
              </p>
              <p className="text-[9px] text-gray-500 leading-relaxed italic">
-               Handshake failed. Redis or Celery might be offline in your container.
+               The task failed to trigger. Redis or Celery might be offline in your container. Check DO Console.
              </p>
           </div>
         )}
@@ -205,7 +206,7 @@ const StatusTracker = ({ statusData }: { statusData: any }) => {
           <div className="pt-4 border-t border-white/5">
              <p className="text-[9px] text-amber-500/60 font-medium leading-relaxed flex items-start gap-2">
                <Info size={14} className="flex-none mt-0.5" />
-               Note: If stuck in "pending" for over 2 minutes, check the 'web' component logs in DO console for "OperationalError".
+               Note: If stuck in "Network Queue" for {'>'} 2min, check for "OperationalError" in your DigitalOcean app logs.
              </p>
           </div>
         )}
@@ -224,7 +225,7 @@ const Dashboard = () => {
     queryFn: () => api.get('/goals/list/').then(res => res.data.data)
   });
 
-  if (isLoading) return <LoadingScreen message="Establishing Connection..." />;
+  if (isLoading) return <LoadingScreen message="Accessing Neural Database..." />;
 
   return (
     <div className="min-h-screen bg-[#0a0f1e]">
@@ -232,7 +233,7 @@ const Dashboard = () => {
       <main className="max-w-7xl mx-auto px-6 py-16">
         <div className="mb-16 flex flex-col md:flex-row md:justify-between md:items-end gap-8">
           <div className="space-y-2">
-            <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] mb-2 drop-shadow-lg shadow-blue-500/50">Authenticated Node Access</p>
+            <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] mb-2 drop-shadow-lg shadow-blue-500/50">Authenticated Access</p>
             <h1 className="text-6xl font-black text-white tracking-tighter leading-none">Workspace.</h1>
           </div>
           <button 
@@ -275,7 +276,7 @@ const Dashboard = () => {
 
                 <div className="space-y-2 mb-10 relative z-10">
                    <div className="flex items-center gap-2 text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                     <MapPin size={12} className="text-blue-500" /> {goal.country} Plan Hub
+                     <MapPin size={12} className="text-blue-500" /> {goal.country} Hub
                    </div>
                    <h3 className="text-2xl font-bold text-white line-clamp-2 leading-[1.1] tracking-tight group-hover:text-blue-400 transition-colors">{goal.prompt}</h3>
                 </div>
@@ -287,7 +288,7 @@ const Dashboard = () => {
                   <div className="flex items-center gap-2 text-gray-500 font-black text-[10px] uppercase tracking-[0.1em]">
                     <Globe size={16} className="text-gray-700" /> {goal.language_code.toUpperCase()}
                   </div>
-                  <div className="ml-auto w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all group-hover:translate-x-1 border border-white/5">
+                  <div className="ml-auto w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all group-hover:translate-x-1 border border-white/5 shadow-lg">
                     <ArrowRight size={20} />
                   </div>
                 </div>
@@ -339,7 +340,7 @@ const CreatePlanForm = () => {
         <header className="mb-20 text-center">
           <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.5em] mb-4">Neural Configurator</p>
           <h1 className="text-8xl font-black tracking-tighter mb-6 leading-none">Setup.</h1>
-          <p className="text-gray-400 text-2xl font-medium tracking-tight leading-relaxed mx-auto max-w-xl">AI-native synthesis. Analyzing real-time local supply availability.</p>
+          <p className="text-gray-400 text-2xl font-medium tracking-tight leading-relaxed mx-auto max-w-xl">Configure your requirements. AI will resolve the optimal supply roadmap.</p>
         </header>
 
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(formData); }} className="space-y-10">
@@ -445,7 +446,7 @@ const PlanView = () => {
     queryFn: () => api.get(`/goals/${id}/task-status/`).then(res => res.data.data),
     refetchInterval: (query: any) => {
       const currentStatus = query?.state?.data?.goal_status;
-      return currentStatus === 'completed' || currentStatus === 'failed' ? false : 2500;
+      return currentStatus === 'completed' || currentStatus === 'failed' ? false : 2000;
     }
   });
 
@@ -588,7 +589,7 @@ const PlanView = () => {
                     <span className="text-2xl font-black text-blue-500 tracking-tighter ml-1 mb-1">{plan.currency}</span>
                   </div>
                   <button className="w-full bg-white text-black py-7 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-all flex items-center justify-center gap-4 mt-8 shadow-2xl active:scale-[0.98]">
-                    Aquire via Retailer <ArrowRight size={20} strokeWidth={3} />
+                    Sync with Retailer <ArrowRight size={20} strokeWidth={3} />
                   </button>
                </div>
             </div>
@@ -625,18 +626,18 @@ const LoginView = () => {
           className="w-full bg-white hover:bg-gray-100 text-black py-8 rounded-[2.5rem] font-black transition-all flex items-center justify-center gap-5 text-xs uppercase tracking-[0.2em] shadow-3xl active:scale-[0.98]"
         >
           <svg className="w-7 h-7" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 12-4.53z"/></svg>
-          Sync with Google
+          Sync Protocol
         </button>
         
         <div className="mt-20 flex items-center justify-center gap-12 opacity-20">
            <div className="text-center">
-             <p className="text-[10px] font-black text-white uppercase tracking-widest mb-1">CEE Network</p>
+             <p className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Reach</p>
              <p className="text-[11px] font-bold text-gray-400 uppercase">CZ / SK</p>
            </div>
            <div className="w-px h-8 bg-white/10" />
            <div className="text-center">
              <p className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Secure TLS</p>
-             <p className="text-[11px] font-bold text-gray-400 uppercase">JWT Protocol</p>
+             <p className="text-[11px] font-bold text-gray-400 uppercase">JWT Auth</p>
            </div>
         </div>
       </div>
@@ -676,7 +677,7 @@ const LoginSuccess = () => {
     }
   }, [params, navigate]);
 
-  return <LoadingScreen message="Establishing Encrypted Protocol..." />;
+  return <LoadingScreen message="Establishing Encrypted Handshake..." />;
 };
 
 const ProtectedRoute = ({ children }: { children: any }) => {
