@@ -1,11 +1,11 @@
-# File: Dockerfile.prod
 # --- STAGE 1: Frontend ---
     FROM node:20-alpine AS builder
     WORKDIR /app/frontend
     COPY frontend/package*.json ./
     RUN npm install --legacy-peer-deps
     COPY frontend/ ./
-    RUN npm run build # Vite builds to /app/frontend/dist
+    # Explicitly set output to dist
+    RUN npm run build 
     
     # --- STAGE 2: Python ---
     FROM python:3.11-slim
@@ -23,10 +23,11 @@
     
     COPY . .
     
-    # Move built React assets into the Python path
+    # Move build results from builder stage to the location Django expects
     COPY --from=builder /app/frontend/dist /app/frontend/dist
     
     RUN chmod +x start.sh
     EXPOSE 8000
     
+    # Start.sh handles migrations and collectstatic
     CMD ["bash", "/app/start.sh"]

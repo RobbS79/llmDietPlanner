@@ -42,7 +42,7 @@ INSTALLED_APPS = [
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware", # Whitenoise MUST be after SecurityMiddleware
     "corsheaders.middleware.CorsMiddleware", 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -53,7 +53,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-# --- TEMPLATES (FIXES admin.E403) ---
+# --- TEMPLATES ---
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -77,26 +77,29 @@ WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
 DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{str(BASE_DIR / "db.sqlite3")}')
 DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 
-# --- STATIC & VITE PRODUCTION ---
+# --- STATIC & VITE PRODUCTION (REFACTORED) ---
 STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
-# Ensure Whitenoise finds the React build
-STATICFILES_DIRS = [
-    REACT_BUILD_DIR
-] if os.path.exists(REACT_BUILD_DIR) else []
+# This is where Vite builds the files in the Dockerfile
+REACT_DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
+if os.path.exists(REACT_DIST_DIR):
+    STATICFILES_DIRS = [REACT_DIST_DIR]
+else:
+    STATICFILES_DIRS = []
+
+# Whitenoise settings for SPA (React) support
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+WHITENOISE_INDEX_FILE = True
 
-# --- AUTH (Fixes W001 & Deprecation Warnings) ---
+# --- AUTH CONFIG (FIXED FOR ALLAUTH 0.65+) ---
 SITE_ID = 1
-# Modern allauth settings
+# This fixes the W001 conflict: methods must encompass the signup fields
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-# Unified signup fields to prevent conflict warnings
-ACCOUNT_SIGNUP_FIELDS = ['email'] 
+ACCOUNT_SIGNUP_FIELDS = ['email'] # Password is default
 
 ACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
@@ -124,4 +127,3 @@ if not DEBUG:
     CSRF_TRUSTED_ORIGINS = ['https://squid-app-6avsy.ondigitalocean.app']
 
 FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
-GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
