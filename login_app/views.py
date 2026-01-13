@@ -134,7 +134,50 @@ class LoginView(APIView):
         except Exception as e:
             return Response({"status": "error", "data": None, "error": str(e)}, status=500)
 
+
 class GoogleCallbackView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        code = request.GET.get('code')
+        if not code:
+            return redirect('/login?error=missing_code')
+
+        try:
+            # 1. Exchange code for Google Token
+            token_res = requests.post("https://oauth2.googleapis.com/token", data={
+                'code': code,
+                'client_id': settings.GOOGLE_CLIENT_ID,
+                'client_secret': settings.GOOGLE_CLIENT_SECRET,
+                'redirect_uri': request.build_absolute_uri('/api/auth/google/callback/'),
+                'grant_type': 'authorization_code',
+            })
+            
+            # 2. Get User Info
+            user_info = requests.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={'Authorization': f'Bearer {token_res.json().get("access_token")}'}
+            ).json()
+            
+            email = user_info.get('email')
+            
+            # 3. Robust User Match (Fix: Handle existing usernames)
+            user = User.objects.filter(email=email).first()
+            if not user:
+                user = User.objects.create_user(
+                    username=email.split('@')[0], 
+                    email=email, 
+                    is_active=True
+                )
+            
+            # 4. Issue JWT and Redirect to React Route
+            refresh = RefreshToken.for_user(user)
+            return redirect(f"/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}")
+
+        except Exception:
+            return redirect('/login?error=auth_failed')
+
+            
     """
     OAUTH EXCHANGE: Receives Google Code, verifies it, and logs the user in.
     """
