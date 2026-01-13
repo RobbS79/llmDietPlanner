@@ -20,20 +20,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "encrypted_model_fields",
-    
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "dj_rest_auth",
     "dj_rest_auth.registration",
-    
     "diet_planner",
     "login_app",
     "shopifyin",
@@ -42,7 +39,7 @@ INSTALLED_APPS = [
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware", # Whitenoise MUST be after SecurityMiddleware
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware", 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -77,29 +74,27 @@ WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
 DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{str(BASE_DIR / "db.sqlite3")}')
 DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 
-# --- STATIC & VITE PRODUCTION (REFACTORED) ---
+# --- STATIC & VITE PRODUCTION ---
 STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# This is where Vite builds the files in the Dockerfile
-REACT_DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
+# Standardized path name to match views.py
+REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
-if os.path.exists(REACT_DIST_DIR):
-    STATICFILES_DIRS = [REACT_DIST_DIR]
+if os.path.exists(REACT_BUILD_DIR):
+    STATICFILES_DIRS = [REACT_BUILD_DIR]
 else:
     STATICFILES_DIRS = []
 
-# Whitenoise settings for SPA (React) support
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 WHITENOISE_INDEX_FILE = True
 
 # --- AUTH CONFIG (FIXED FOR ALLAUTH 0.65+) ---
 SITE_ID = 1
-# This fixes the W001 conflict: methods must encompass the signup fields
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_SIGNUP_FIELDS = ['email'] # Password is default
+ACCOUNT_SIGNUP_FIELDS = ['email'] 
 
 ACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
@@ -118,7 +113,6 @@ REST_FRAMEWORK = {
 }
 REST_USE_JWT = True
 
-# --- PRODUCTION SECURITY ---
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
