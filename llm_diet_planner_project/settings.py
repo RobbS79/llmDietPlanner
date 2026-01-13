@@ -1,4 +1,4 @@
-# File: llm_diet_planner_project/settings.py | Route: llm_diet_planner_project/settings.py
+# File: llm_diet_planner_project/settings.py
 import os
 import sys
 from pathlib import Path
@@ -112,8 +112,7 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# --- 8. CELERY CONFIGURATION (CRITICAL PERMANENT FIX) ---
-# Hardcoded to use Redis internally to bridge the connection gap on DigitalOcean
+# --- 8. CELERY CONFIGURATION ---
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
@@ -121,6 +120,13 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-# Fallback vars for older Celery versions
 BROKER_URL = CELERY_BROKER_URL
 RESULT_BACKEND = CELERY_RESULT_BACKEND
+
+# --- 9. GEMINI AI CONFIGURATION ---
+# Using os.environ.get as a fallback to ensure Digital Ocean App Platform keys are caught
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', config('GEMINI_API_KEY', default=None))
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash-exp')
+
+if not GEMINI_API_KEY:
+    print("CRITICAL WARNING: GEMINI_API_KEY IS NOT SET!", file=sys.stderr)
