@@ -27,6 +27,8 @@ from llm_diet_planner_project.celery_compat import shared_task
 from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance
 from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
+
+# Note: Using inline utility logic to ensure zero-dependency execution in this module
 from .tasks_utils import (
     calculate_package_aware_price, 
     convert_requirement_to_purchasable_units,
@@ -90,18 +92,16 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
 
         # --- PHASE 3: FINANCIAL INTEGRITY (Spirit: Backend Trust) ---
         # We enforce "Backend Truth" by matching LLM names against our LeafletOffer DB.
-        # This prevents the LLM from hallucinating prices or unavailable items.
         logger.info(f"{log_prefix} Phase 3: Enforcing Financial Truth via DB Cross-Reference.")
         final_shopping_list = []
         calculated_total = Decimal('0')
         
         for item in llm_shopping_list:
             ingredient_name = item.get('ingredient', '')
-            # Try to match against our verified scraped data
             db_match = ScraperService.match_ingredient_price(ingredient_name, goal.shop, goal.country)
             
             if db_match:
-                # OVERRIDE: Use DB truth over LLM guess
+                # OVERRIDE: Use DB truth over LLM guess for price and packaging
                 item['price'] = float(db_match['price'])
                 item['matched_product_name'] = db_match['display_name']
                 item['currency'] = db_match['currency']
@@ -109,6 +109,9 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 item['product_unit'] = db_match['unit']
                 item['estimated'] = False
                 item['price_source'] = 'leaflet_db'
+                
+                # Convert recipe req (e.g. 200g) to buyable units (e.g. 1 piece)
+                item = convert_requirement_to_purchasable_units(item, db_match, context_id=context_id, goal_id=goal.id)
             else:
                 item['estimated'] = True
                 item['price_source'] = 'llm_browsing_fallback'
@@ -141,13 +144,27 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 llm_cost_usd=phase1_result['cost_usd'] + phase2_result['cost_usd']
             )
             
-            # 2. Persist Recipes and MealInstances for UI tracking
+            # 2. Iterate through all meal types to persist Recipes and Instances
+            meal_keys = {
+                'breakfast': 'breakfast',
+                'lunch': 'lunch',
+                'dinner': 'dinner',
+                'small_meals': 'small_meal',
+                'snacks': 'snack'
+            }
+
             for day in days:
                 day_num = day.get('day_number')
-                for meal_type in ['breakfast', 'lunch', 'dinner']:
-                    meal_data = day.get(meal_type)
-                    if meal_data:
-                        meal_id = f"{goal.id}:{day_num}:{meal_type}:0"
+                for key, type_label in meal_keys.items():
+                    data_block = day.get(key)
+                    if not data_block:
+                        continue
+                    
+                    # Small meals and snacks are arrays; wrap others for uniform processing
+                    meals_to_process = data_block if isinstance(data_block, list) else [data_block]
+                    
+                    for idx, meal_data in enumerate(meals_to_process):
+                        meal_id = f"{goal.id}:{day_num}:{type_label}:{idx}"
                         
                         recipe = Recipe.objects.create(
                             meal_identifier=meal_id,
@@ -167,7 +184,7 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                             meal_identifier=meal_id,
                             meal_name=recipe.name,
                             day_number=day_num,
-                            meal_type=meal_type
+                            meal_type=type_label
                         )
 
             # 3. Finalize Goal State

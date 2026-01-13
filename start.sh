@@ -1,13 +1,14 @@
-# File: start.sh
-# Modification: Added explicit Redis connectivity guard to stabilize Celery worker startup.
-
 #!/bin/bash
+# File: start.sh
+# Purpose: Production entrypoint for Digital Ocean App Platform.
+# Note: Ensure this file is saved with LF line endings.
+
 set -e
 
 echo "=== DIETPLANNER PRODUCTION STARTUP ==="
 
 # 1. Start Infrastructure Dependencies
-# Start local Redis if managed Redis is not configured
+# Start local Redis for the 'cheap' deployment model
 redis-server --daemonize yes
 
 # Wait for Redis to become responsive (Critical for Celery handshake)
