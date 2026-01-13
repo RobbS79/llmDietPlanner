@@ -1,23 +1,31 @@
-// File: frontend/src/App.tsx
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
-import { Utensils, Apple } from 'lucide-react';
+import { Utensils, Apple, Loader2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 
-/**
- * BRAND THEME: Dark Blue UI
- * This file contains the consolidated logic for the frontend.
- * Ensure your index.html script tag points to main.tsx which imports this.
- */
-
+// Standardized API client
 const api = axios.create({
   baseURL: '/api',
   withCredentials: true,
 });
 
+// Interceptor to add JWT
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 const Navbar = () => {
   const navigate = useNavigate();
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
+  };
+
   return (
     <nav className="bg-[#161d2f]/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
       <div className="flex items-center gap-2 font-bold text-xl cursor-pointer" onClick={() => navigate('/')}>
@@ -26,9 +34,9 @@ const Navbar = () => {
         </div>
         <span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">DietPlanner AI</span>
       </div>
-      <div className="flex gap-4">
+      <div className="flex gap-6 items-center">
         <button onClick={() => navigate('/create')} className="text-sm text-gray-400 hover:text-white transition-colors">New Goal</button>
-        <button onClick={() => navigate('/login')} className="text-sm bg-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-blue-500 transition-all">Logout</button>
+        <button onClick={handleLogout} className="text-sm bg-red-600/10 text-red-500 px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all">Logout</button>
       </div>
     </nav>
   );
@@ -36,7 +44,7 @@ const Navbar = () => {
 
 const LoginView = () => {
   const handleGoogleLogin = () => {
-    // Initiate the OAuth flow via Django Allauth
+    // Standard Redirect Flow
     window.location.href = '/api/auth/google/login/';
   };
 
@@ -51,7 +59,7 @@ const LoginView = () => {
         
         <button 
           onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-4 bg-white text-black font-bold py-4 rounded-2xl hover:bg-gray-100 transition-transform active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-4 bg-white text-black font-bold py-4 rounded-2xl hover:bg-gray-100 transition-all active:scale-[0.98]"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -66,27 +74,56 @@ const LoginView = () => {
   );
 };
 
+const Dashboard = () => {
+  return (
+    <div className="max-w-6xl mx-auto p-8">
+      <header className="mb-12">
+        <h1 className="text-4xl font-black text-white mb-2">My Meal Plans</h1>
+        <p className="text-gray-400">View and manage your AI-generated nutrition goals.</p>
+      </header>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Placeholder for Goals List */}
+        <div className="bg-[#161d2f] border border-white/5 p-8 rounded-3xl flex flex-col items-center justify-center text-center min-h-[300px]">
+          <div className="w-16 h-16 bg-blue-600/5 text-blue-500 rounded-2xl flex items-center justify-center mb-4">
+            <Apple size={32} />
+          </div>
+          <h3 className="text-white font-bold text-lg">No active plans</h3>
+          <p className="text-gray-500 text-sm mt-2 mb-6">Create your first goal to see AI magic.</p>
+          <button className="bg-blue-600 px-6 py-3 rounded-xl font-bold text-sm">Start Planning</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CreateGoal = () => {
   const [prompt, setPrompt] = useState('');
+  const navigate = useNavigate();
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/goals/', data),
+    onSuccess: () => navigate('/'),
   });
 
   return (
     <div className="max-w-2xl mx-auto p-8">
       <div className="bg-[#161d2f] border border-white/5 rounded-3xl p-10 shadow-2xl">
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 text-white"><Apple className="text-blue-500" /> New Dietary Goal</h2>
+        <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 text-white"><Apple className="text-blue-500" /> Define Your Goal</h2>
+        <p className="text-gray-400 text-sm mb-6">Be specific about calories, allergies, and your favorite local shops.</p>
+        
         <textarea 
-          className="w-full bg-[#0a0f1e] border border-white/10 rounded-2xl p-5 text-white h-40 focus:ring-2 focus:ring-blue-600 outline-none transition-all"
-          placeholder="E.g. I want a 1800kcal diet with high protein using local Lidl products..."
+          className="w-full bg-[#0a0f1e] border border-white/10 rounded-2xl p-5 text-white h-48 focus:ring-2 focus:ring-blue-600 outline-none transition-all resize-none"
+          placeholder="E.g. I want to lose weight with a 1900kcal diet. High protein, no dairy. Source ingredients from Lidl in Prague..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
+        
         <button 
-          onClick={() => mutation.mutate({ prompt, country: 'CZ', city: 'Prague' })}
-          className="w-full bg-blue-600 mt-6 py-4 rounded-xl font-bold text-white hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20"
+          onClick={() => mutation.mutate({ prompt, country: 'CZ', city: 'Prague', language_code: 'en' })}
+          disabled={mutation.isPending || prompt.length < 10}
+          className="w-full bg-blue-600 mt-8 py-4 rounded-xl font-bold text-white hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {mutation.isPending ? 'Analyzing Requirements...' : 'Generate AI Plan'}
+          {mutation.isPending ? <><Loader2 className="animate-spin" /> Analyzing Requirements...</> : 'Generate AI Plan'}
         </button>
       </div>
     </div>
@@ -101,7 +138,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginView />} />
-          <Route path="/" element={<><Navbar /><div className="max-w-6xl mx-auto p-8"><h1 className="text-3xl font-bold text-white">Dashboard</h1></div></>} />
+          <Route path="/" element={<><Navbar /><Dashboard /></>} />
           <Route path="/create" element={<><Navbar /><CreateGoal /></>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
