@@ -2,6 +2,7 @@
 import os
 import sys
 from pathlib import Path
+from datetime import timedelta
 from decouple import config, Csv
 import dj_database_url
 
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # Added for production rotation support
     "encrypted_model_fields",
     "allauth",
     "allauth.account",
@@ -96,7 +98,29 @@ GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default=None)
 DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'))}
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
-REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',)}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    )
+}
+
+# --- AUTHENTICATION HARDENING ---
+# Extended lifetimes to account for DigitalOcean latency and long LLM generation wait times
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 REST_USE_JWT = True
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_EMAIL_REQUIRED = True
@@ -112,19 +136,25 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# --- 8. CELERY CONFIGURATION ---
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+# --- 8. CELERY CONFIGURATION & REDIS STABILITY ---
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Performance Tuning for long-running LLM synthesis
+CELERY_TASK_SOFT_TIME_LIMIT = 300  # 5 minutes
+CELERY_TASK_TIME_LIMIT = 400
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1 # Prevent one worker from hoarding heavy synthesis tasks
+
+# Backward compatibility aliases
 BROKER_URL = CELERY_BROKER_URL
 RESULT_BACKEND = CELERY_RESULT_BACKEND
 
 # --- 9. GEMINI AI CONFIGURATION ---
-# Using os.environ.get as a fallback to ensure Digital Ocean App Platform keys are caught
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', config('GEMINI_API_KEY', default=None))
 GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash-exp')
 
