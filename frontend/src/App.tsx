@@ -1,8 +1,8 @@
 // File: frontend/src/App.tsx
 // Senior Refactor: Standardized Layout Shell, Stacking Context Fix, and SaaS Design Tokens.
-// Phase 4 Fix: Resolved duplicate component declaration error and finalized layout offsets.
+// Phase 5 Fix: Resolved TypeScript prop-type errors, removed duplicate declarations, and polished layout stability.
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, HTMLAttributes } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, useParams, Link, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
 import { 
@@ -98,15 +98,23 @@ const Navbar = () => {
 const MainLayout = ({ children }: { children: ReactNode }) => (
   <div className="min-h-screen bg-[#0a0f1e] text-slate-200 selection:bg-blue-500/30 flex flex-col">
     <Navbar />
-    {/* pt-16 accounts for the fixed 64px header. relative z-0 ensures children stay below navbar z-50. */}
-    <main className="pt-16 flex-1 flex flex-col relative z-0">
+    {/* pt-20 provides exact clearance for the fixed header + extra spacing to ensure top cards are fully visible. */}
+    <main className="pt-20 flex-1 flex flex-col relative z-0">
       {children}
     </main>
   </div>
 );
 
-const GlassCard = ({ children, className = "" }: { children: ReactNode, className?: string }) => (
-  <div className={`bg-white/[0.02] border border-white/[0.06] backdrop-blur-sm rounded-3xl shadow-xl ${className}`}>
+interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode;
+  className?: string;
+}
+
+const GlassCard = ({ children, className = "", ...props }: GlassCardProps) => (
+  <div 
+    className={`bg-white/[0.02] border border-white/[0.06] backdrop-blur-sm rounded-3xl shadow-xl ${className}`}
+    {...props}
+  >
     {children}
   </div>
 );
@@ -176,9 +184,9 @@ const Dashboard = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 w-full">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-          <div className="space-y-1">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div className="space-y-1 text-left">
             <h1 className="text-3xl font-bold tracking-tight text-white uppercase italic">Neural Hub<span className="text-blue-500 not-italic">.</span></h1>
             <p className="text-slate-500 text-sm">Monitor and manage your synthesized nutritional strategies.</p>
           </div>
@@ -196,7 +204,11 @@ const Dashboard = () => {
             </div>
           ) : (
             goals?.map((goal: any) => (
-              <GlassCard key={goal.id} className="p-6 hover:border-blue-500/30 transition-all cursor-pointer group" onClick={() => navigate(`/plan/${goal.id}`)}>
+              <GlassCard 
+                key={goal.id} 
+                className="p-6 hover:border-blue-500/30 transition-all cursor-pointer group text-left" 
+                onClick={() => navigate(`/plan/${goal.id}`)}
+              >
                 <div className="flex justify-between items-start mb-6">
                   <Badge variant={goal.status === 'completed' ? 'success' : goal.status === 'failed' ? 'error' : 'default'}>
                     {goal.status.replace(/_/g, ' ')}
@@ -256,21 +268,21 @@ const CreatePlanForm = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 w-full">
-        <header className="mb-10 text-center">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 w-full">
+        <header className="mb-8 text-center">
           <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.6em] mb-2">Protocol Initialisation</p>
           <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none">Genesis Phase<span className="text-blue-500 not-italic">.</span></h1>
         </header>
 
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(formData); }} className="space-y-6">
-          <GlassCard className="p-6 sm:p-8 space-y-6">
+          <GlassCard className="p-6 sm:p-8 space-y-6 text-left">
             <div className="space-y-3">
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
                 <BrainCircuit size={16} className="text-blue-500" /> Core Objectives
               </label>
               <textarea 
                 required 
-                className="w-full bg-black/40 border border-white/[0.08] rounded-2xl p-5 text-base font-medium text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 focus:border-blue-600/50 transition-all min-h-[160px] leading-relaxed"
+                className="w-full bg-black/40 border border-white/[0.08] rounded-2xl p-5 text-base font-medium text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 focus:border-blue-600/50 transition-all min-h-[140px] leading-relaxed"
                 placeholder="Target: Hypertrophy macro-cycle. Constraint: High protein, gluten-free, local ingredients..." 
                 value={formData.prompt} 
                 onChange={e => updateField('prompt', e.target.value)} 
@@ -300,7 +312,7 @@ const CreatePlanForm = () => {
             </div>
           </GlassCard>
 
-          <GlassCard className="p-6 sm:p-8 space-y-8">
+          <GlassCard className="p-6 sm:p-8 space-y-8 text-left">
             <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
                 <Utensils size={16} className="text-blue-500" /> Roadmap Logic
@@ -354,7 +366,7 @@ const CreatePlanForm = () => {
             </div>
           </GlassCard>
 
-          <GlassCard className="p-6 sm:p-8 space-y-5">
+          <GlassCard className="p-6 sm:p-8 space-y-5 text-left">
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
               <ShoppingCart size={16} className="text-blue-500" /> Catalog Mapping
             </label>
@@ -428,11 +440,11 @@ const PlanView = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 w-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 w-full">
         <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div className="space-y-4 text-left">
             <Badge variant="success">Protocol Verified</Badge>
-            <h1 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">Outcome<span className="text-blue-500 not-italic">.</span></h1>
+            <h1 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">Outcome<span className="text-blue-600 not-italic">.</span></h1>
             <div className="flex gap-3 text-left">
               <span className="flex items-center gap-1.5 bg-white/[0.03] px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest"><MapPin size={12} /> {goalDetail.city}</span>
               <span className="flex items-center gap-1.5 bg-white/[0.03] px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest"><Timer size={12} /> {goalDetail.num_days}D Cycle</span>
@@ -450,7 +462,7 @@ const PlanView = () => {
                 <div className="absolute -left-6 top-0 bottom-0 w-px bg-white/[0.05] hidden xl:block" />
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-black italic shadow-lg">{day.day_number}</div>
-                  <h2 className="text-2xl font-black uppercase tracking-tight">Cycle Phase</h2>
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-left">Cycle Phase</h2>
                 </div>
                 
                 <div className="grid gap-6">
@@ -485,7 +497,7 @@ const PlanView = () => {
               <div className="flex items-center gap-3">
                 <ShoppingCart size={24} className="text-blue-500" />
                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-tighter italic leading-none mb-1">Market List</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tighter italic leading-none mb-1 text-white">Market List</h2>
                   <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Live Procurement Inventory</p>
                 </div>
               </div>
