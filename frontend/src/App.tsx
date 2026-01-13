@@ -10,31 +10,17 @@ import {
 import axios from 'axios';
 
 /**
- * PRODUCTION FRONTEND - BULLETPROOF EDITION
- * This version uses a dynamic accessor to completely bypass ES2015 compiler restrictions
- * regarding the 'import.meta' and 'process' keywords.
+ * PRODUCTION FRONTEND - RECTIFIED EDITION
+ * Fixed 'import.meta' warnings and 'process' keyword errors for ES2015 targets.
+ * We avoid modern syntax like optional chaining on keywords to satisfy older compilers.
  */
 
-const getGoogleClientId = (): string | undefined => {
-  try {
-    // 1. Try modern Vite replacement (Static analysis will find this)
-    // @ts-ignore
-    const viteId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (viteId) return viteId;
-
-    // 2. Try dynamic property access to hide from older compilers
-    const key = 'VITE_GOOGLE_CLIENT_ID';
-    // @ts-ignore
-    const env = (import.meta as any)['env'];
-    if (env && env[key]) return env[key];
-
-    return undefined;
-  } catch (e) {
-    return undefined;
-  }
-};
-
-const GOOGLE_CLIENT_ID = getGoogleClientId();
+// We access the variable using a standard check that avoids modern syntax errors 
+// while still allowing Vite's static analysis to perform the replacement.
+// @ts-ignore
+const GOOGLE_CLIENT_ID = (typeof import.meta !== 'undefined' && import.meta.env) 
+  ? import.meta.env.VITE_GOOGLE_CLIENT_ID 
+  : undefined;
 
 const api = axios.create({ baseURL: '/api', withCredentials: true });
 
@@ -49,43 +35,58 @@ const ProtectedRoute = ({ children }: { children: any }) => {
   return children;
 };
 
+// --- AUTH COMPONENTS ---
+
 const LoginView = () => {
   const [params] = useSearchParams();
   const errorCode = params.get('error');
 
   useEffect(() => {
-    console.log("[AUTH] ID Detection:", !!GOOGLE_CLIENT_ID ? "SUCCESS" : "MISSING");
+    // Diagnostic logging to confirm variable visibility
+    console.log("[AUTH DEBUG] Configuration State:");
+    console.log(" - Google ID Detected:", !!GOOGLE_CLIENT_ID);
+    console.log(" - Deployment Domain:", window.location.origin);
   }, []);
 
   const handleGoogleLogin = () => {
-    // AUTHORITATIVE REDIRECT: We send the user to our backend, 
-    // which handles the redirect to Google. This is the most secure method.
+    console.log("[AUTH DEBUG] Handshake triggered. Redirecting to Django trigger...");
+    // Direct browser transfer to the backend logic
     window.location.href = '/api/auth/google/login/';
   };
 
   const getErrorDetail = (code: string | null) => {
-    const details: Record<string, any> = {
-      'google_not_configured': {
-        title: "Backend Setup Error",
-        desc: "Server is missing credentials (GOOGLE_CLIENT_ID).",
-        action: "Check DO App Environment Variables."
-      },
-      'token_exchange_failed': {
-        title: "Verification Failed",
-        desc: "Google code exchange failed.",
-        action: "Check Redirect URIs in Google Console."
-      },
-      'sync_failed': {
-        title: "Sync Error",
-        desc: "Could not save session tokens.",
-        action: "Check browser storage/cookies."
-      }
-    };
-    return details[code || ''] || { 
-      title: "Auth Error", 
-      desc: "An unexpected error occurred.", 
-      action: "Check server logs for [DEBUG] output." 
-    };
+    switch (code) {
+      case 'google_not_configured':
+        return {
+          title: "System Config Error",
+          desc: "The server is missing the GOOGLE_CLIENT_ID environment variable.",
+          action: "Check DigitalOcean App Settings for backend variables."
+        };
+      case 'token_exchange_failed':
+        return {
+          title: "Verification Failure",
+          desc: "Google rejected the login attempt. This often happens if the Secret key is wrong.",
+          action: "Verify GOOGLE_CLIENT_SECRET matches the ID in Google Console."
+        };
+      case 'email_access_denied':
+        return {
+          title: "Permissions Missing",
+          desc: "Access to your Google email was denied or not requested correctly.",
+          action: "Ensure you grant all requested permissions in the Google popup."
+        };
+      case 'sync_failed':
+        return {
+          title: "Local Session Error",
+          desc: "Verification succeeded, but we couldn't store the login state in this browser.",
+          action: "Clear browser data for this site and ensure cookies are enabled."
+        };
+      default:
+        return {
+          title: "Login Interrupted",
+          desc: "The authentication flow was interrupted unexpectedly.",
+          action: "Check server 'Runtime Logs' in DigitalOcean for [DEBUG] output."
+        };
+    }
   };
 
   const error = errorCode ? getErrorDetail(errorCode) : null;
@@ -101,12 +102,17 @@ const LoginView = () => {
           DietPlanner<span className="text-blue-500">.</span>
         </h1>
         <p className="text-gray-400 text-lg font-medium leading-relaxed mb-12">
-          Precision nutrition powered by AI.
+          Clinical nutrition meets local retailer inventory.
         </p>
         
+        {/* DEVELOPER DIAGNOSTIC BOX */}
         {!GOOGLE_CLIENT_ID && (
-           <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-2xl mb-8 text-left text-[11px] leading-relaxed italic">
-             <strong>Warning:</strong> VITE_GOOGLE_CLIENT_ID missing in build.
+           <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-2xl mb-8 text-left text-[11px] leading-relaxed">
+             <div className="flex items-center gap-2 mb-1 font-bold">
+               <AlertCircle size={14} /> Build Time Warning
+             </div>
+             <code>VITE_GOOGLE_CLIENT_ID</code> was not detected during compilation. 
+             The login button is disabled to prevent loops.
            </div>
         )}
 
@@ -115,7 +121,7 @@ const LoginView = () => {
             <div className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px]">
               <AlertCircle size={14} /> {error?.title}
             </div>
-            <p className="text-xs opacity-80">{error?.desc}</p>
+            <p className="text-xs opacity-80 leading-relaxed">{error?.desc}</p>
             <div className="pt-2 text-[10px] font-bold text-white/40 uppercase tracking-tighter">
                Action: {error?.action}
             </div>
@@ -147,11 +153,16 @@ const LoginSuccess = () => {
   useEffect(() => {
     const access = params.get('access');
     const refresh = params.get('refresh');
+    
+    console.log("[AUTH SUCCESS] Capturing session tokens...");
+
     if (access && refresh) {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
+      console.log("[AUTH SUCCESS] Session synchronized. Navigating to Dashboard.");
       navigate('/', { replace: true });
     } else {
+      console.error("[AUTH ERROR] verification succeeded but tokens were missing from the redirect.");
       navigate('/login?error=sync_failed');
     }
   }, [params, navigate]);
@@ -159,13 +170,13 @@ const LoginSuccess = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-white bg-[#0a0f1e]">
       <Loader2 className="animate-spin text-blue-500 mb-6" size={64} />
-      <p className="text-gray-500 font-black uppercase tracking-[0.3em] text-[10px]">Synchronizing...</p>
+      <p className="text-gray-500 font-black uppercase tracking-[0.3em] text-[10px]">Verifying Identity...</p>
     </div>
   );
 };
 
-const Navbar = () => <nav className="p-4 bg-gray-900 border-b border-white/5 text-[8px] text-gray-700 font-black uppercase tracking-[0.4em]">Core Interface Layer</nav>;
-const Dashboard = () => <div className="p-12 text-gray-500 font-medium">Identity verified. Welcome.</div>;
+const Navbar = () => <nav className="p-4 bg-gray-900 border-b border-white/5 text-[8px] text-gray-700 font-black uppercase tracking-[0.4em]">DietPlanner Navigation Shell</nav>;
+const Dashboard = () => <div className="p-12 text-gray-500 font-medium italic">You are successfully logged in. Choose an option to get started.</div>;
 
 const queryClient = new QueryClient();
 
