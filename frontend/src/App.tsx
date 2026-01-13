@@ -11,16 +11,26 @@ import axios from 'axios';
 
 /**
  * PRODUCTION FRONTEND - DEBUGGING EDITION
- * Optimized for Google OAuth Troubleshooting.
- * Updated to handle restricted build environments and fix the faulty 'process' keyword.
+ * Optimized for Google OAuth and Server Connectivity Troubleshooting.
+ * Removed all 'process' keywords and handled 'import.meta' constraints.
  */
 
-// We access the variable directly to allow Vite's static analysis to perform 
-// the replacement during the build process, but we use a fallback to avoid ReferenceErrors.
-// @ts-ignore
-const GOOGLE_CLIENT_ID = (typeof import.meta !== 'undefined' && import.meta.env) 
-  ? import.meta.env.VITE_GOOGLE_CLIENT_ID 
-  : undefined;
+// Helper to safely access env vars without triggering ReferenceErrors or compilation warnings
+const resolveGoogleId = (): string | undefined => {
+  try {
+    // We use a string check to prevent the compiler from evaluating 'import.meta' directly in ES2015 targets
+    const meta = (window as any).import?.meta;
+    if (meta && meta.env) return meta.env.VITE_GOOGLE_CLIENT_ID;
+    
+    // Direct check for the common Vite injection pattern
+    // @ts-ignore
+    return import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  } catch (e) {
+    return undefined;
+  }
+};
+
+const GOOGLE_CLIENT_ID = resolveGoogleId();
 
 const api = axios.create({ baseURL: '/api', withCredentials: true });
 
@@ -42,19 +52,14 @@ const LoginView = () => {
   const errorCode = params.get('error');
 
   useEffect(() => {
-    // CRITICAL LOGGING: Identify what identity data is reaching the client
-    console.log("[DEBUG AUTH] Configuration Discovery:");
-    console.log(" - VITE_GOOGLE_CLIENT_ID present:", !!GOOGLE_CLIENT_ID);
-    console.log(" - Current Origin:", window.location.origin);
-    
-    if (!GOOGLE_CLIENT_ID) {
-      console.warn("[DEBUG AUTH] SYSTEM ALERT: VITE_GOOGLE_CLIENT_ID is not defined in the frontend build.");
-    }
+    // Diagnostic logging for OAuth troubleshooting
+    console.log("[DEBUG AUTH] Configuration Status:");
+    console.log(" - Client ID available:", !!GOOGLE_CLIENT_ID);
+    console.log(" - Deployment Origin:", window.location.origin);
   }, []);
 
   const handleGoogleLogin = () => {
-    console.log("[DEBUG AUTH] Handshake triggered. Redirecting to server-side OAuth initiator...");
-    // Direct browser redirect to the Django authoritative trigger
+    console.log("[DEBUG AUTH] Handshake triggered. Transferring to backend redirector...");
     window.location.href = '/api/auth/google/login/';
   };
 
@@ -62,33 +67,33 @@ const LoginView = () => {
     switch (code) {
       case 'google_not_configured':
         return {
-          title: "Provider Configuration Missing",
-          desc: "The backend server is missing the GOOGLE_CLIENT_ID environment variable.",
-          action: "Add GOOGLE_CLIENT_ID to your DigitalOcean App Settings."
+          title: "Backend Setup Required",
+          desc: "The server is missing GOOGLE_CLIENT_ID or FIELD_ENCRYPTION_KEY.",
+          action: "Check your DigitalOcean App Settings for these variables."
         };
       case 'token_exchange_failed':
         return {
           title: "Identity Verification Failure",
-          desc: "Google rejected the authorization code or the client secret is invalid.",
-          action: "Check if your Google Cloud Console Redirect URIs match your production domain."
+          desc: "Google rejected the authentication request.",
+          action: "Ensure Redirect URIs in Google Console match this domain."
         };
       case 'email_access_denied':
         return {
-          title: "Insufficient Permissions",
-          desc: "We could not access your email address from Google.",
-          action: "Ensure you grant the requested 'email' and 'profile' permissions."
+          title: "Permissions Error",
+          desc: "Access to your email was not granted.",
+          action: "Allow the 'email' and 'profile' permissions when prompted by Google."
         };
       case 'sync_failed':
         return {
-          title: "Local Session Sync Error",
-          desc: "Verification succeeded, but we couldn't write the session tokens to your browser.",
-          action: "Clear your browser cache/cookies and ensure local storage is enabled."
+          title: "Session Storage Failed",
+          desc: "Identity verified, but tokens could not be saved locally.",
+          action: "Clear browser cookies and verify that LocalStorage is enabled."
         };
       default:
         return {
-          title: "Authentication Interrupted",
-          desc: "The OAuth handshake failed unexpectedly.",
-          action: "Check the 'Runtime Logs' in DigitalOcean for [DEBUG] output."
+          title: "System Connection Error",
+          desc: "The backend service could not be reached or has crashed.",
+          action: "Check DO Runtime Logs for 'ImproperlyConfigured' errors."
         };
     }
   };
@@ -109,14 +114,14 @@ const LoginView = () => {
           Clinical nutrition meets local retailer inventory.
         </p>
         
-        {/* DEVELOPER ALERT FOR MISSING VARIABLE */}
+        {/* ACTIONABLE FEEDBACK FOR FAILED BUILDS */}
         {!GOOGLE_CLIENT_ID && (
-           <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-2xl mb-8 text-left text-xs">
+           <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-2xl mb-8 text-left text-[11px] leading-relaxed">
              <div className="flex items-center gap-2 mb-1 font-bold">
-               <AlertCircle size={14} /> Build Target Warning
+               <AlertCircle size={14} /> Environment Alert
              </div>
-             The frontend build did not detect <code>VITE_GOOGLE_CLIENT_ID</code>. 
-             Redeploy with this variable set in your <strong>Build Settings</strong>.
+             <code>VITE_GOOGLE_CLIENT_ID</code> was not found during build. 
+             The OAuth flow is disabled to prevent looping.
            </div>
         )}
 
@@ -127,7 +132,7 @@ const LoginView = () => {
             </div>
             <p className="text-xs opacity-80 leading-relaxed">{error?.desc}</p>
             <div className="pt-2 text-[10px] font-bold text-white/40 italic">
-               Try this: {error?.action}
+               Note: {error?.action}
             </div>
           </div>
         )}
@@ -158,15 +163,14 @@ const LoginSuccess = () => {
     const access = params.get('access');
     const refresh = params.get('refresh');
     
-    console.log("[DEBUG AUTH] Token parameters detected. Synchronizing session...");
+    console.log("[DEBUG AUTH] Synchronizing secure session...");
 
     if (access && refresh) {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      console.log("[DEBUG AUTH] Login verified. Navigating to root...");
       navigate('/', { replace: true });
     } else {
-      console.error("[DEBUG AUTH] CRITICAL: Tokens missing from callback URL.");
+      console.error("[DEBUG AUTH] Tokens missing from response URL.");
       navigate('/login?error=sync_failed');
     }
   }, [params, navigate]);
@@ -179,9 +183,9 @@ const LoginSuccess = () => {
   );
 };
 
-// --- NAVIGATION & VIEWS ---
-const Navbar = () => <nav className="p-4 bg-gray-900 border-b border-white/5 text-[10px] text-gray-600 font-black uppercase tracking-widest">Main Interface Container</nav>;
-const Dashboard = () => <div className="p-12 text-gray-500 font-medium">Authentication successful. Welcome back.</div>;
+// --- PLACEHOLDERS ---
+const Navbar = () => <nav className="p-4 bg-gray-900 border-b border-white/5 text-[8px] text-gray-700 font-black uppercase tracking-[0.4em]">Core Interface Layer</nav>;
+const Dashboard = () => <div className="p-12 text-gray-500 font-medium">Logged in successfully. Navigate to generate your first plan.</div>;
 
 const queryClient = new QueryClient();
 

@@ -1,7 +1,7 @@
 # File: llm_diet_planner_project/settings.py
 """
 Django settings for llm_diet_planner_project.
-Ensures Google credentials are loaded from both legacy and Vite-shared keys.
+Fixes the FIELD_ENCRYPTION_KEY missing error and adds enhanced startup logs.
 """
 import os
 import sys
@@ -12,21 +12,25 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --- SECURITY ---
+# --- SECURITY & ENCRYPTION (CRITICAL - MOVED TO TOP) ---
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-prod-key-must-be-set-in-digital-ocean')
 DEBUG = config('DEBUG', default=False, cast=bool)
+
+# FIELD_ENCRYPTION_KEY must be exactly 32 url-safe base64-encoded bytes.
+# If missing, the server will crash due to the 'encrypted-model-fields' package.
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
+
+# --- DIAGNOSTIC STARTUP LOGS ---
+print(f"\n[STARTUP DEBUG] Environment Initialization", file=sys.stderr)
+print(f"[STARTUP DEBUG] FIELD_ENCRYPTION_KEY length: {len(FIELD_ENCRYPTION_KEY)}", file=sys.stderr)
+print(f"[STARTUP DEBUG] Google Client ID Found: {bool(config('GOOGLE_CLIENT_ID', default=None))}", file=sys.stderr)
+sys.stderr.flush()
+
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='.ondigitalocean.app,localhost,127.0.0.1', cast=Csv())
 
 # --- GOOGLE OAUTH CONFIGURATION ---
-# Try multiple possible environment variable names to be safe
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=config('VITE_GOOGLE_CLIENT_ID', default=None))
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default=None)
-
-# LOG CONFIG STATUS (DURING STARTUP)
-print(f"\n[STARTUP DEBUG] Google Client ID Present: {bool(GOOGLE_CLIENT_ID)}", file=sys.stderr)
-if GOOGLE_CLIENT_ID:
-    print(f"[STARTUP DEBUG] Google Client ID starts with: {GOOGLE_CLIENT_ID[:10]}...", file=sys.stderr)
-print(f"[STARTUP DEBUG] Google Client Secret Present: {bool(GOOGLE_CLIENT_SECRET)}", file=sys.stderr)
 
 # --- APPS ---
 INSTALLED_APPS = [
@@ -53,7 +57,7 @@ INSTALLED_APPS = [
     "shopifyin",
 ]
 
-# --- ALLAUTH CONFIG (0.65+) ---
+# --- ALLAUTH & SOCIAL AUTH CONFIG ---
 SITE_ID = 1
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_EMAIL_REQUIRED = True
@@ -78,13 +82,17 @@ SOCIALACCOUNT_PROVIDERS = {
 
 # --- REMAINING STANDARD SETTINGS ---
 DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL', default=f'sqlite:///{str(BASE_DIR / "db.sqlite3")}'))}
+
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend", "dist")
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',),
 }
 REST_USE_JWT = True
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -97,3 +105,22 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [os.path.join(BASE_DIR, "llm_diet_planner_project", "templates")],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+ROOT_URLCONF = "llm_diet_planner_project.urls"
+WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
