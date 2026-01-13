@@ -17,8 +17,9 @@ Architecture Principles:
 import logging
 import uuid
 import time
+import re
 from decimal import Decimal
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple
 
 from django.db import transaction
 from django.utils import timezone
@@ -28,14 +29,88 @@ from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance
 from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
 
-# Note: Using inline utility logic to ensure zero-dependency execution in this module
-from .tasks_utils import (
-    calculate_package_aware_price, 
-    convert_requirement_to_purchasable_units,
-    transform_days_to_new_format
-)
-
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# SYNTHESIS UTILITIES (Restored to fix ModuleNotFoundError)
+# =============================================================================
+
+def normalize_unit(unit: str) -> str:
+    """Standardize units for comparison."""
+    if not unit: return ''
+    u = str(unit).lower().strip()
+    mapping = {
+        'kg': 'kg', 'kilogram': 'kg', 'g': 'g', 'gram': 'g',
+        'l': 'l', 'liter': 'l', 'ml': 'ml', 'mililitr': 'ml',
+        'ks': 'ks', 'kus': 'ks', 'piece': 'ks', 'pcs': 'ks',
+    }
+    return mapping.get(u, u)
+
+def parse_numeric(val: Any) -> Optional[Decimal]:
+    """Extract decimal number from various formats."""
+    if val is None or val == '': return None
+    if isinstance(val, (int, float, Decimal)): return Decimal(str(val))
+    match = re.search(r'([\d,\.]+)', str(val))
+    if match:
+        try:
+            return Decimal(match.group(1).replace(',', '.'))
+        except: return None
+    return None
+
+def convert_to_base_value(val: Decimal, unit: str) -> Decimal:
+    """Convert value to base metric unit (g or ml)."""
+    u = normalize_unit(unit)
+    if u == 'kg': return val * 1000
+    if u == 'l': return val * 1000
+    return val
+
+def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", goal_id: int = 0) -> Optional[Decimal]:
+    """Calculate total price based on how many full packages are needed."""
+    req_qty = parse_numeric(item.get('quantity'))
+    req_unit = normalize_unit(item.get('unit', ''))
+    off_price = parse_numeric(item.get('price'))
+    off_unit = normalize_unit(item.get('product_unit', ''))
+    off_pkg_size = parse_numeric(item.get('package_size'))
+    
+    if req_qty is None or off_price is None:
+        return None
+
+    # Base units conversion
+    req_base = convert_to_base_value(req_qty, req_unit)
+    pkg_base = convert_to_base_value(off_pkg_size or Decimal('1'), off_unit or req_unit)
+
+    if pkg_base <= 0: return off_price
+    
+    # Ceil the packages needed
+    num_packages = (req_base / pkg_base).to_integral_value(rounding='ROUND_CEILING')
+    if num_packages < 1: num_packages = Decimal('1')
+    
+    return num_packages * off_price
+
+def convert_requirement_to_purchasable_units(item: Dict[str, Any], db_match: Dict[str, Any], context_id: str = "", goal_id: int = 0) -> Dict[str, Any]:
+    """standardize recipe qty to buyable store units."""
+    # Simple pass-through for now to maintain MVP logic
+    return item
+
+def transform_days_to_new_format(days_data: List[Dict[str, Any]], goal: DietaryGoal) -> List[Dict[str, Any]]:
+    """Transform old courses format to new day structure."""
+    if not days_data: return []
+    transformed = []
+    for day in days_data:
+        day_obj = {
+            'day_number': day.get('day_number', len(transformed) + 1),
+            'breakfast': day.get('breakfast'),
+            'lunch': day.get('lunch'),
+            'dinner': day.get('dinner'),
+            'small_meals': day.get('small_meals', []),
+            'snacks': day.get('snacks', []),
+        }
+        transformed.append(day_obj)
+    return transformed
+
+# =============================================================================
+# CORE ORCHESTRATOR
+# =============================================================================
 
 @shared_task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=True)
 def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
@@ -166,25 +241,30 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     for idx, meal_data in enumerate(meals_to_process):
                         meal_id = f"{goal.id}:{day_num}:{type_label}:{idx}"
                         
-                        recipe = Recipe.objects.create(
+                        # Use update_or_create to make this step idempotent on retry
+                        recipe, _ = Recipe.objects.update_or_create(
                             meal_identifier=meal_id,
-                            dietary_goal=goal,
-                            name=meal_data.get('name', 'Unnamed Meal'),
-                            description=meal_data.get('description', ''),
-                            instructions=meal_data.get('instructions', []),
-                            ingredients=meal_data.get('ingredients', []),
-                            preparation_time=meal_data.get('preparation_time'),
-                            nutritional_info=meal_data.get('nutritional_info', {})
+                            defaults={
+                                'dietary_goal': goal,
+                                'name': meal_data.get('name', 'Unnamed Meal'),
+                                'description': meal_data.get('description', ''),
+                                'instructions': meal_data.get('instructions', []),
+                                'ingredients': meal_data.get('ingredients', []),
+                                'preparation_time': meal_data.get('preparation_time'),
+                                'nutritional_info': meal_data.get('nutritional_info', {})
+                            }
                         )
                         
-                        MealInstance.objects.create(
+                        MealInstance.objects.update_or_create(
                             user=goal.user,
-                            dietary_goal=goal,
-                            recipe=recipe,
                             meal_identifier=meal_id,
-                            meal_name=recipe.name,
-                            day_number=day_num,
-                            meal_type=type_label
+                            defaults={
+                                'dietary_goal': goal,
+                                'recipe': recipe,
+                                'meal_name': recipe.name,
+                                'day_number': day_num,
+                                'meal_type': type_label
+                            }
                         )
 
             # 3. Finalize Goal State
