@@ -53,6 +53,23 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
+# --- TEMPLATES (FIXES admin.E403) ---
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [os.path.join(BASE_DIR, "llm_diet_planner_project", "templates")],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
 
@@ -62,22 +79,24 @@ DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 
 # --- STATIC & VITE PRODUCTION ---
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-REACT_BUILD_DIR = BASE_DIR / "frontend" / "dist"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
 # Ensure Whitenoise finds the React build
 STATICFILES_DIRS = [
-    os.path.join(REACT_BUILD_DIR)
+    REACT_BUILD_DIR
 ] if os.path.exists(REACT_BUILD_DIR) else []
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # --- AUTH (Fixes W001 & Deprecation Warnings) ---
 SITE_ID = 1
-ACCOUNT_LOGIN_METHODS = {'email'}
+# Modern allauth settings
+ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_SIGNUP_FIELDS = ['email', 'password1', 'password2']
+# Unified signup fields to prevent conflict warnings
+ACCOUNT_SIGNUP_FIELDS = ['email'] 
 
 ACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
@@ -105,3 +124,4 @@ if not DEBUG:
     CSRF_TRUSTED_ORIGINS = ['https://squid-app-6avsy.ondigitalocean.app']
 
 FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
