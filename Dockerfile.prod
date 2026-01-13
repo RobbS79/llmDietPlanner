@@ -1,19 +1,19 @@
 # PHASE 3: Production Build Pipeline
 
-# --- STAGE 1: Frontend Build ---
+# --- STAGE 1: Frontend Build (Vite) ---
     FROM node:20-alpine AS builder
     WORKDIR /app/frontend
     
-    # Install dependencies separately to leverage cache
+    # Copy package files first to optimize layer caching
     COPY frontend/package*.json ./
     RUN npm install --legacy-peer-deps
     
-    # Copy source and build
+    # Copy frontend source and run build
     COPY frontend/ ./
-    # This creates the /app/frontend/dist folder
+    # This command MUST succeed for the next stage to proceed
     RUN npm run build 
     
-    # --- STAGE 2: Python/Django ---
+    # --- STAGE 2: Python / Django ---
     FROM python:3.11-slim
     ENV PYTHONDONTWRITEBYTECODE=1
     ENV PYTHONUNBUFFERED=1
@@ -29,14 +29,14 @@
     COPY requirements.txt ./
     RUN pip install --no-cache-dir -r requirements.txt
     
-    # Copy backend source
+    # Copy all backend source code
     COPY . .
     
-    # Move build results from builder stage to the location settings.py expects
+    # Copy the Vite build results from Stage 1 into the folder Django expects
     COPY --from=builder /app/frontend/dist /app/frontend/dist
     
     RUN chmod +x start.sh
     EXPOSE 8000
     
-    # Start.sh handles migrations and collectstatic at runtime
+    # Start.sh runs 'collectstatic' at runtime, picking up the copied /frontend/dist files
     CMD ["bash", "/app/start.sh"]

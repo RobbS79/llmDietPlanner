@@ -8,25 +8,25 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 def health_check(request):
-    """Health check endpoint for DigitalOcean."""
+    """Basic health check for DigitalOcean."""
     return HttpResponse("OK", status=200)
 
 def react_app_view(request):
     """
-    Main entry point for the React Single Page Application.
+    Catch-all view that serves the React Single Page Application.
     
-    PHASE 2 FIX: Includes a MIME guard to prevent returning HTML for missing assets.
+    PHASE 2 FIX: Prevents returning HTML for missing static assets.
+    If the path has a dot (e.g. .css) and it reached this view, it means WhiteNoise 
+    didn't find the file. We must return 404 to avoid MIME errors.
     """
     path_str = request.path.lstrip('/')
     
-    # MIME TYPE GUARD:
-    # If the path has a dot (e.g. .css, .js) and it reached this view, it means
-    # WhiteNoise failed to find it. Returning index.html would cause a MIME error.
+    # MIME TYPE GUARD
     if path_str and '.' in path_str and not path_str.endswith('.html'):
-        logger.warning(f"Static asset 404 intercepted by React catch-all: {path_str}")
+        logger.warning(f"Static asset 404 intercepted by catch-all: {path_str}")
         raise Http404(f"Asset '{path_str}' not found in static storage.")
 
-    # Serve index.html from staticfiles (where collectstatic put it) or dist folder
+    # In production, look in STATIC_ROOT first (where collectstatic put it)
     index_locations = [
         settings.STATIC_ROOT / "index.html",
         settings.REACT_BUILD_DIR / "index.html"
@@ -40,9 +40,8 @@ def react_app_view(request):
             except Exception as e:
                 logger.error(f"Error reading index.html at {index_path}: {e}")
 
-    # Fallback error if index.html is missing everywhere
     return HttpResponse(
-        "<h1>Deployment Error</h1><p>Frontend assets (index.html) not found. Check build logs.</p>",
+        "<h1>Deployment Error</h1><p>index.html not found. Check build logs for npm run build errors.</p>",
         status=200
     )
 
