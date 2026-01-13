@@ -1,32 +1,7 @@
+# File: login_app/social_views.py
 """
 Social authentication views for Google and Facebook OAuth.
-
-Uses dj-rest-auth's SocialLoginView with JWT support.
-These views accept OAuth access tokens or authorization codes from the frontend
-and return JWT tokens for authenticated API access.
-
-Usage:
-    POST /api/auth/google/
-    Body: { "access_token": "..." } or { "code": "...", "redirect_uri": "..." }
-
-    POST /api/auth/facebook/
-    Body: { "access_token": "..." } or { "code": "...", "redirect_uri": "..." }
-
-Response (standardized format):
-    {
-        "status": "success",
-        "data": {
-            "access": "jwt_access_token",
-            "refresh": "jwt_refresh_token",
-            "user": {
-                "pk": 1,
-                "username": "john",
-                "email": "john@example.com",
-                ...
-            }
-        },
-        "error": null
-    }
+Updated with enhanced logging to debug credential mismatches.
 """
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
@@ -40,45 +15,45 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 import logging
+import sys
+import json
 
 logger = logging.getLogger(__name__)
-
 
 class StandardizedSocialLoginView(SocialLoginView):
     """
     Base class for social login views with standardized response format.
-    
-    Wraps dj-rest-auth's SocialLoginView to return responses in our standard format:
-    { "status": "success", "data": {...}, "error": null }
+    Wraps dj-rest-auth's SocialLoginView with deep debug logging.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
     
-    def dispatch(self, request, *args, **kwargs):
-        """Override to add CSRF exemption for OAuth callbacks."""
-        return super().dispatch(request, *args, **kwargs)
-    
     def post(self, request, *args, **kwargs):
-        """
-        Handle social authentication POST request.
-        """
-        # Check if OAuth credentials are configured
+        # --- DEBUG LOGGING ---
+        print(f"\n[DEBUG OAUTH] Incoming {self.provider_name} Login Request", file=sys.stderr)
+        print(f"[DEBUG OAUTH] Request Data: {json.dumps(request.data)}", file=sys.stderr)
+        
+        # Check if OAuth credentials are configured in Django settings
         if not self._check_credentials_configured():
+            error_msg = f"{self.provider_name} credentials missing in BACKEND settings (settings.py/env vars)."
+            print(f"[DEBUG OAUTH] ERROR: {error_msg}", file=sys.stderr)
             return Response(
                 {
                     "status": "error",
                     "data": None,
-                    "error": f"{self.provider_name} OAuth credentials are not configured. Please set environment variables."
+                    "error": error_msg,
+                    "debug_info": "Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on server."
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
         
         try:
-            # Call parent's post method to handle OAuth authentication
+            # Call parent's post method (dj-rest-auth) to handle actual token exchange
+            print(f"[DEBUG OAUTH] Proceeding to provider handshake...", file=sys.stderr)
             response = super().post(request, *args, **kwargs)
             
-            # If authentication was successful, standardize the response
             if response.status_code == status.HTTP_200_OK:
+                print(f"[DEBUG OAUTH] SUCCESS: User authenticated via {self.provider_name}", file=sys.stderr)
                 return Response(
                     {
                         "status": "success",
@@ -88,92 +63,67 @@ class StandardizedSocialLoginView(SocialLoginView):
                     status=status.HTTP_200_OK
                 )
             else:
-                # Handle error responses from parent
-                error_message = "Authentication failed"
+                # Provide much more detail for failures
+                print(f"[DEBUG OAUTH] FAILURE: Provider returned status {response.status_code}", file=sys.stderr)
+                print(f"[DEBUG OAUTH] Provider Error Data: {response.data}", file=sys.stderr)
+                
+                error_message = "Social authentication failed."
                 if isinstance(response.data, dict):
-                    error_detail = response.data.get('non_field_errors', [])
-                    if not error_detail:
-                        error_detail = response.data.get('error', [])
+                    error_detail = response.data.get('non_field_errors', []) or response.data.get('error', [])
                     if error_detail:
                         error_message = error_detail[0] if isinstance(error_detail, list) else str(error_detail)
-                    elif 'access_token' in response.data or 'code' in response.data:
-                        error_message = "Invalid access token or authorization code"
+                    elif 'access_token' in response.data:
+                        error_message = "The access token provided was rejected by Google/Facebook."
                 
                 return Response(
                     {
                         "status": "error",
                         "data": None,
-                        "error": error_message
+                        "error": error_message,
+                        "raw_provider_response": response.data
                     },
                     status=response.status_code
                 )
                 
         except Exception as e:
-            logger.exception(f"Error during {self.provider_name} authentication")
+            print(f"[DEBUG OAUTH] EXCEPTION: {str(e)}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             return Response(
                 {
                     "status": "error",
                     "data": None,
-                    "error": f"An error occurred during {self.provider_name} authentication: {str(e)}"
+                    "error": f"Internal auth failure: {str(e)}"
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def _check_credentials_configured(self) -> bool:
-        """Check if OAuth credentials are properly configured."""
         return True
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class GoogleLogin(StandardizedSocialLoginView):
-    """
-    Google OAuth2 login endpoint.
-    """
     adapter_class = GoogleOAuth2Adapter
     client_class = OAuth2Client
     provider_name = "Google"
-    credential_env_vars = "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET"
-    # Prioritize settings but fallback to the production URL for this DigitalOcean environment
-    callback_url = getattr(settings, 'GOOGLE_CALLBACK_URL', "https://squid-app-6avsy.ondigitalocean.app/")
-
+    
     def _check_credentials_configured(self) -> bool:
-        google_provider = settings.SOCIALACCOUNT_PROVIDERS.get('google', {})
-        app_config = google_provider.get('APP', {})
-        return bool(app_config.get('client_id') and app_config.get('secret'))
-
+        # Verify both ID and Secret are present
+        google_id = getattr(settings, 'GOOGLE_CLIENT_ID', None)
+        google_secret = getattr(settings, 'GOOGLE_CLIENT_SECRET', None)
+        
+        print(f"[DEBUG CONFIG] Google Client ID Present: {bool(google_id)}", file=sys.stderr)
+        print(f"[DEBUG CONFIG] Google Client Secret Present: {bool(google_secret)}", file=sys.stderr)
+        
+        return bool(google_id and google_secret)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class FacebookLogin(StandardizedSocialLoginView):
-    """
-    Facebook OAuth2 login endpoint.
-    """
     adapter_class = FacebookOAuth2Adapter
     client_class = OAuth2Client
     provider_name = "Facebook"
-    credential_env_vars = "FACEBOOK_APP_ID, FACEBOOK_APP_SECRET"
-    callback_url = getattr(settings, 'FACEBOOK_CALLBACK_URL', None)
     
     def _check_credentials_configured(self) -> bool:
-        facebook_provider = settings.SOCIALACCOUNT_PROVIDERS.get('facebook', {})
-        app_config = facebook_provider.get('APP', {})
-        return bool(app_config.get('client_id') and app_config.get('secret'))
-
-
-class GoogleOAuthDiagnosticView(APIView):
-    """
-    Diagnostic endpoint to verify social auth configuration.
-    Endpoint: /api/auth/google/diagnostic/
-    """
-    permission_classes = [AllowAny]
-    
-    def get(self, request):
-        from allauth.socialaccount.models import SocialApp
-        google_app = SocialApp.objects.filter(provider='google').first()
-        
-        return Response({
-            "status": "success",
-            "google_app_configured": google_app is not None,
-            "client_id_found": google_app.client_id[:10] + "..." if google_app else None,
-            "configured_callback": getattr(settings, 'GOOGLE_CALLBACK_URL', "Not Set"),
-            "message": "Social authentication backend is reachable."
-        })
+        facebook_id = getattr(settings, 'FACEBOOK_APP_ID', None)
+        facebook_secret = getattr(settings, 'FACEBOOK_APP_SECRET', None)
+        return bool(facebook_id and facebook_secret)
