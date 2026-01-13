@@ -13,7 +13,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
 
 # --- 2. HOSTS & PROXY ---
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='squid-app-6avsy.ondigitalocean.app,localhost,127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='llmdietplanner-prod.ondigitalocean.app,localhost,127.0.0.1', cast=Csv())
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
@@ -113,13 +113,14 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 # --- 8. CELERY CONFIGURATION (CRITICAL FIX) ---
-# We force the broker URL to use Redis. If DO env vars are missing, it defaults to local Redis.
+# Forced configuration to stop Celery from using RabbitMQ (port 5672)
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-# This ensures that Celery settings are picked up even if the namespace is slightly different
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# Backward compatibility variables
 BROKER_URL = CELERY_BROKER_URL
 RESULT_BACKEND = CELERY_RESULT_BACKEND
