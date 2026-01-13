@@ -1,5 +1,6 @@
 // File: frontend/src/App.tsx
 // Senior Refactor: Standardized Layout, Z-Index sanitization, and UI scaling fixes.
+// Phase 2 Fix: Enforced strict margin-top offsets to prevent Navbar overlaps.
 
 import { useState, useEffect, ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, useParams, Link, useLocation } from 'react-router-dom';
@@ -94,9 +95,12 @@ const Navbar = () => {
 };
 
 const MainLayout = ({ children }: { children: ReactNode }) => (
-  <div className="min-h-screen bg-[#0a0f1e] pt-20">
+  <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
     <Navbar />
-    {children}
+    {/* Explicit Margin-Top ensures content respects the fixed 80px Navbar */}
+    <div className="mt-20 flex-1 flex flex-col">
+      {children}
+    </div>
   </div>
 );
 
@@ -147,7 +151,7 @@ const Dashboard = () => {
 
   return (
     <MainLayout>
-      <main className="max-w-7xl mx-auto px-6 py-16">
+      <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 bg-blue-600/10 text-blue-400 px-4 py-1.5 rounded-full border border-blue-500/20 shadow-inner">
@@ -242,11 +246,11 @@ const CreatePlanForm = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto px-6 py-20">
-        <header className="mb-16 text-center space-y-4">
+      <div className="max-w-4xl mx-auto px-6 pt-10 pb-20">
+        <header className="mb-12 text-center space-y-3">
           <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.8em]">Neural Input Phase</p>
           <h1 className="text-6xl font-black tracking-tighter uppercase italic">Genesis<span className="text-blue-600 not-italic">.</span></h1>
-          <p className="text-gray-500 text-xl font-medium tracking-tight mx-auto max-w-xl">Configure parameters for roadmap synthesis.</p>
+          <p className="text-gray-500 text-lg font-medium tracking-tight mx-auto max-w-xl">Configure parameters for roadmap synthesis.</p>
         </header>
 
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(formData); }} className="space-y-10">
@@ -429,7 +433,7 @@ const PlanView = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-6 py-20">
+      <div className="max-w-7xl mx-auto px-6 py-16">
         <header className="flex flex-col lg:flex-row lg:items-end justify-between mb-24 gap-12">
           <div className="space-y-6 text-left">
             <h1 className="text-8xl font-black tracking-tighter uppercase leading-none italic">Outcome<span className="text-blue-600 not-italic">.</span></h1>
