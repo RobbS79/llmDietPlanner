@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // CRITICAL: Tells Vite that assets will be served from Django's /static/ path
+  // CRITICAL: Must be /static/ to match Django's STATIC_URL. 
+  // This ensures index.html points to /static/assets/...
   base: '/static/', 
   server: {
     proxy: {
@@ -18,5 +19,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     assetsDir: 'assets',
+    // Ensure manifest is generated for production asset management
+    manifest: true,
   }
 })
