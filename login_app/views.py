@@ -1,35 +1,56 @@
 # File: login_app/views.py
+"""
+Professional implementation of Authentication and Social OAuth2 views.
+Includes standard Registration, Login, and secure Google OAuth handshake.
+Follows strict API standardization: { "status": "success", "data": {}, "error": null }
+"""
 import requests
 import sys
 import uuid
 import logging
+import traceback
 from django.shortcuts import redirect
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
 from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from .models import UserProfile
+from .schemas import RegistrationRequest, LoginRequest
+from .utils import generate_email_verification_token
+from .tasks import send_verification_email_task
 
 logger = logging.getLogger(__name__)
 
 class GoogleLoginRedirectView(APIView):
+    """
+    AUTHORITATIVE REDIRECT: Entry point for Google OAuth.
+    Routes the browser to the Google Consent screen with forced HTTPS in production.
+    """
     permission_classes = [AllowAny]
 
     def get(self, request):
         client_id = getattr(settings, 'GOOGLE_CLIENT_ID', None)
         
-        # Determine redirect URI and force HTTPS in production
+        # Determine redirect URI and force HTTPS in production to match Google Console
         redirect_uri = request.build_absolute_uri('/api/auth/google/callback/')
         if not settings.DEBUG:
             redirect_uri = redirect_uri.replace('http://', 'https://')
             
         print(f"\n[DEBUG OAUTH] Redirecting to Google", file=sys.stderr)
-        print(f"[DEBUG OAUTH] Client ID: {client_id[:10] if client_id else 'None'}...", file=sys.stderr)
-        print(f"[DEBUG OAUTH] Redirect URI: {redirect_uri}", file=sys.stderr)
+        print(f"[DEBUG OAUTH] Client ID Loaded: {bool(client_id)}", file=sys.stderr)
+        print(f"[DEBUG OAUTH] Target Redirect URI: {redirect_uri}", file=sys.stderr)
 
         if not client_id:
+            logger.critical("OAuth Configuration Error: GOOGLE_CLIENT_ID is missing.")
             return redirect('/login?error=google_not_configured')
 
         auth_url = (
@@ -40,24 +61,29 @@ class GoogleLoginRedirectView(APIView):
         return redirect(auth_url)
 
 class GoogleCallbackView(APIView):
+    """
+    RECEIVER: Handles the auth code sent back from Google.
+    Exchanges the code for tokens and manages user creation/linking.
+    """
     permission_classes = [AllowAny]
 
     def get(self, request):
         code = request.GET.get('code')
         
-        # Reconstruct the EXACT same redirect_uri used in the first step
+        # Reconstruct the EXACT same redirect_uri used in the first step (including protocol)
         redirect_uri = request.build_absolute_uri('/api/auth/google/callback/')
         if not settings.DEBUG:
             redirect_uri = redirect_uri.replace('http://', 'https://')
             
-        print(f"\n[DEBUG OAUTH] Callback Received", file=sys.stderr)
-        print(f"[DEBUG OAUTH] Code present: {bool(code)}", file=sys.stderr)
+        print(f"\n[DEBUG OAUTH] Callback Received from Google", file=sys.stderr)
+        print(f"[DEBUG OAUTH] Auth Code Present: {bool(code)}", file=sys.stderr)
 
         if not code:
             return redirect('/login?error=missing_code')
 
         try:
             # 1. Exchange code for Google Access Token
+            print(f"[DEBUG OAUTH] Exchanging code for tokens...", file=sys.stderr)
             token_res = requests.post("https://oauth2.googleapis.com/token", data={
                 'code': code,
                 'client_id': settings.GOOGLE_CLIENT_ID,
@@ -67,13 +93,13 @@ class GoogleCallbackView(APIView):
             }, timeout=10)
             
             if token_res.status_code != 200:
-                print(f"[DEBUG OAUTH] Token exchange 400/error: {token_res.text}", file=sys.stderr)
+                print(f"[DEBUG OAUTH] Token exchange failed: {token_res.text}", file=sys.stderr)
                 return redirect('/login?error=token_exchange_failed')
             
             token_data = token_res.json()
             access_token = token_data.get('access_token')
 
-            # 2. Get User Profile
+            # 2. Get User Profile from Google Identity API
             user_info = requests.get(
                 "https://www.googleapis.com/oauth2/v3/userinfo",
                 headers={'Authorization': f'Bearer {access_token}'},
@@ -82,16 +108,19 @@ class GoogleCallbackView(APIView):
             
             email = user_info.get('email')
             if not email:
+                print(f"[DEBUG OAUTH] Failure: Email not provided by Google", file=sys.stderr)
                 return redirect('/login?error=email_access_denied')
 
-            # 3. User Management
+            # 3. User Management (Atomic Transaction)
             with transaction.atomic():
                 user = User.objects.filter(email=email).first()
                 if not user:
+                    print(f"[DEBUG OAUTH] Creating new user for email: {email}", file=sys.stderr)
                     username = email.split('@')[0]
-                    # Ensure uniqueness
+                    # Ensure username uniqueness
+                    base_username = username
                     while User.objects.filter(username=username).exists():
-                        username = f"{username}_{uuid.uuid4().hex[:4]}"
+                        username = f"{base_username}_{uuid.uuid4().hex[:4]}"
                     user = User.objects.create_user(username=username, email=email, is_active=True)
                 
                 profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -99,10 +128,86 @@ class GoogleCallbackView(APIView):
                 profile.email_verified = True
                 profile.save()
 
-            # 4. Issue Tokens
+            # 4. Issue JWT tokens and redirect back to the React success handler
             refresh = RefreshToken.for_user(user)
+            print(f"[DEBUG OAUTH] Authentication successful for: {user.username}", file=sys.stderr)
             return redirect(f"/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}")
 
         except Exception as e:
-            print(f"[DEBUG OAUTH] CRITICAL: {str(e)}", file=sys.stderr)
+            print(f"[DEBUG OAUTH] CRITICAL ERROR during callback: {str(e)}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             return redirect('/login?error=auth_failed')
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RegistrationView(APIView):
+    """
+    SECURE REGISTRATION: Handles new user creation and triggers email verification.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    
+    def post(self, request) -> Response:
+        try:
+            # Pydantic Schema Validation for strict typing
+            schema = RegistrationRequest(**request.data)
+            
+            if User.objects.filter(username=schema.username).exists():
+                return Response({"status": "error", "data": None, "error": "Username already taken"}, status=400)
+            
+            if User.objects.filter(email=schema.email).exists():
+                return Response({"status": "error", "data": None, "error": "Email already registered"}, status=400)
+            
+            user = User.objects.create_user(
+                username=schema.username,
+                email=schema.email,
+                password=schema.password,
+                is_active=False # Account disabled until email verification is complete
+            )
+            
+            # Generate verification artifacts
+            uid, token = generate_email_verification_token(user)
+            
+            # Offload email sending to Celery to maintain high response speed
+            send_verification_email_task.delay(user.id, uid, token, request.build_absolute_uri('/'))
+            
+            return Response({
+                "status": "success", 
+                "data": {"username": user.username, "email": user.email},
+                "error": None
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Registration Exception: {str(e)}")
+            return Response({"status": "error", "data": None, "error": "Internal registration error"}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(APIView):
+    """
+    JWT ISSUER: Authenticates standard users and returns Bearer tokens.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    
+    def post(self, request) -> Response:
+        try:
+            schema = LoginRequest(**request.data)
+            user = authenticate(username=schema.username, password=schema.password)
+            
+            if not user:
+                return Response({"status": "error", "data": None, "error": "Invalid credentials"}, status=401)
+                
+            if not user.is_active:
+                return Response({"status": "error", "data": None, "error": "Account pending verification"}, status=403)
+                
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "status": "success",
+                "data": {
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                    "user": {"id": user.id, "username": user.username, "email": user.email}
+                },
+                "error": None
+            })
+        except Exception as e:
+            return Response({"status": "error", "data": None, "error": str(e)}, status=500)
