@@ -112,8 +112,8 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# --- 8. CELERY CONFIGURATION (CRITICAL FIX) ---
-# Forced configuration to stop Celery from using RabbitMQ (port 5672)
+# --- 8. CELERY CONFIGURATION (CRITICAL PERMANENT FIX) ---
+# Hardcoded to use Redis internally to bridge the connection gap on DigitalOcean
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
@@ -121,6 +121,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-# Backward compatibility variables
+# Fallback vars for older Celery versions
 BROKER_URL = CELERY_BROKER_URL
 RESULT_BACKEND = CELERY_RESULT_BACKEND
