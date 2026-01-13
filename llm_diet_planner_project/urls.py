@@ -1,23 +1,33 @@
-from django.urls import path, include
-from rest_framework_simplejwt.views import TokenRefreshView
+from django.contrib import admin
+from django.urls import path, re_path, include
 from . import views
-from .social_views import GoogleLogin
 
-app_name = 'login_app'
+"""
+ROOT URL CONFIGURATION
+======================
+Strict separation of concerns:
+1. /health/ -> Platform health checks
+2. /admin/  -> Django Administrative interface
+3. /api/    -> All backend logic (Login, Diet Planning, Shopify)
+4. Catch-all -> Serves the React SPA
+"""
 
 urlpatterns = [
-    # 1. The DOOR the frontend clicks: REDIRECTS to Google
-    path('google/login/', views.GoogleLoginRedirectView.as_view(), name='google_redirect'),
+    # 1. Health check for DigitalOcean (Returns 200)
+    path("health/", views.health_check, name="health-check"),
     
-    # 2. The CALLBACK: Handles the token exchange after Google is done
-    path('google/', GoogleLogin.as_view(), name='google_login'),
-    path('google/callback/', views.GoogleCallbackView.as_view(), name='google_callback'),
+    # 2. Django Admin
+    path("admin/", admin.site.urls),
     
-    # 3. Standard Auth
-    path('register/', views.RegistrationView.as_view(), name='register'),
-    path('login/', views.LoginView.as_view(), name='login'),
-    path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    # 3. API Namespace (Strictly separated from frontend routes)
+    path("api/auth/", include("login_app.urls")),
+    path("api/", include("diet_planner.urls")),
     
-    # Optional dj-rest-auth paths
-    path('', include('dj_rest_auth.urls')),
+    # 4. Debug & Test tools
+    path("debug-prompt/", views.debug_prompt_view, name="debug-prompt"),
+    path("test-ui/", views.test_ui_view, name="test-ui"),
+    
+    # 5. CATCH-ALL: Serve React App (Must be last)
+    # This view is now guarded against asset requests to prevent MIME errors.
+    re_path(r'^.*$', views.react_app_view, name="react-app"),
 ]
