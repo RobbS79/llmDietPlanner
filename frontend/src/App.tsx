@@ -5,13 +5,14 @@ import {
   Utensils, Apple, Loader2, LogOut, PlusCircle, 
   ChevronRight, Calendar, ShoppingCart, CheckCircle2, 
   AlertCircle, ArrowLeft, Clock, Zap, Target, 
-  TrendingUp, Leaf, Info, ChefHat
+  TrendingUp, Leaf, Info, ChefHat, Settings
 } from 'lucide-react';
 import axios from 'axios';
 
 /**
  * PRODUCTION FRONTEND - SENIOR ENGINEER EDITION
  * Optimized for DigitalOcean deployment and high-end UX.
+ * Handles specialized OAuth error codes.
  */
 
 // --- API Client ---
@@ -32,12 +33,37 @@ const ProtectedRoute = ({ children }: { children: any }) => {
 
 const LoginView = () => {
   const [params] = useSearchParams();
-  const error = params.get('error');
+  const errorCode = params.get('error');
 
   const handleGoogleLogin = () => {
     // Triggers the authoritative backend redirect flow
     window.location.href = '/api/auth/google/login/';
   };
+
+  const getErrorMessage = (code: string | null) => {
+    switch (code) {
+      case 'google_not_configured':
+        return {
+          title: "System Configuration Required",
+          desc: "GOOGLE_CLIENT_ID is missing in the production environment settings.",
+          action: "Set GOOGLE_CLIENT_ID in DigitalOcean App settings."
+        };
+      case 'google_handshake_failed':
+        return {
+          title: "Exchange Failed",
+          desc: "The connection to Google's authentication servers timed out.",
+          action: "Please try again in a moment."
+        };
+      default:
+        return {
+          title: "Authentication Error",
+          desc: "We couldn't log you in using Google at this time.",
+          action: "Check your internet connection or try another account."
+        };
+    }
+  };
+
+  const errorDetail = errorCode ? getErrorMessage(errorCode) : null;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative">
@@ -53,9 +79,15 @@ const LoginView = () => {
           Clinical nutrition meets local store offers. Automated by AI.
         </p>
         
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-5 rounded-2xl mb-10 text-sm font-bold flex items-center gap-3 animate-shake">
-            <AlertCircle size={20} /> Authentication error. Please try again.
+        {errorCode && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-6 rounded-3xl mb-10 text-left space-y-2 animate-shake">
+            <div className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px]">
+              <AlertCircle size={14} /> {errorDetail?.title}
+            </div>
+            <p className="text-xs opacity-80 leading-relaxed">{errorDetail?.desc}</p>
+            <div className="pt-2 text-[10px] font-bold text-white/40 italic">
+               Note: {errorDetail?.action}
+            </div>
           </div>
         )}
 
