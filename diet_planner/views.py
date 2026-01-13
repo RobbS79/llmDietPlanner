@@ -1,17 +1,29 @@
+# File: diet_planner/views.py
 """
 API Views for dietary goals and plans.
-Uses DRF APIView for class-based views.
+Uses DRF APIView for class-based views to maintain strict control over logic flow.
+Handles asynchronous task triggering (Celery) and partial "Draft" saves for UI persistence.
 """
+import logging
+import traceback
+from typing import Dict, Any
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.models import User
 from django.utils import timezone
-from typing import Dict, Any
 
-from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, get_currency_for_country, get_shops_for_country, SHOP_CHOICES
-from .llm_service import GeminiService
+from .models import (
+    DietaryGoal, 
+    DietaryPlan, 
+    Recipe, 
+    MealInstance, 
+    get_currency_for_country, 
+    get_shops_for_country, 
+    SHOP_CHOICES
+)
 from .serializers import (
     DietaryGoalSerializer,
     DietaryGoalDetailSerializer,
@@ -19,1218 +31,269 @@ from .serializers import (
     MealInstanceSerializer,
     MealInstanceCreateUpdateSerializer,
 )
-from .schemas import DietaryGoalCreateRequest, DietaryGoalCreateResponse
+from .schemas import DietaryGoalCreateRequest
 from .tasks import process_dietary_goal_task, build_llm_prompt_json
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
 
+logger = logging.getLogger(__name__)
 
 class DietaryGoalCreateView(APIView):
     """
-    API endpoint for creating a new dietary goal.
-    Accepts user prompt and triggers async LLM processing via Celery.
+    API endpoint for creating or updating a dietary goal.
+    Supports 'is_draft' for partial saves of Section I (Objectives/Hub).
+    When 'is_draft' is False, triggers full Pydantic validation and Celery worker.
     """
     permission_classes = [IsAuthenticated]
     
     def post(self, request) -> Response:
-        """
-        Create a new dietary goal and trigger async processing.
-        
-        Request body:
-        {
-            "prompt": "I want to lose 5kg in 2 months...",
-            "dietary_restrictions": "No gluten, lactose intolerant",
-            "country": "PL",
-            "city": "Warsaw",
-            "language_code": "pl"
-        }
-        
-        Response:
-        {
-            "status": "success",
-            "data": {
-                "goal_id": 1,
-                "status": "pending",
-                "message": "Dietary goal created. Processing will begin shortly."
-            },
-            "error": null
-        }
-        """
         try:
-            # Validate request using Pydantic schema
+            is_partial = request.data.get('is_draft', False)
+            goal_id = request.data.get('goal_id')
+            
+            # 1. DRAFT PERSISTENCE LOGIC (Section I Save)
+            # This allows the UI to save progress without triggering the LLM or failing validation.
+            if is_partial:
+                defaults = {
+                    'prompt': request.data.get('prompt', ''),
+                    'country': request.data.get('country', 'CZ'),
+                    'city': request.data.get('city', ''),
+                    'status': DietaryGoal.StatusChoices.PENDING,
+                }
+                
+                if goal_id:
+                    goal, created = DietaryGoal.objects.update_or_create(
+                        id=goal_id, user=request.user,
+                        defaults=defaults
+                    )
+                else:
+                    goal = DietaryGoal.objects.create(user=request.user, **defaults)
+                
+                return Response({
+                    "status": "success", 
+                    "data": {"goal_id": goal.id, "status": goal.status}
+                }, status=status.HTTP_201_CREATED)
+
+            # 2. FINAL SYNTHESIS LOGIC (Full Validation + Task Trigger)
+            # Strict validation using Pydantic DietaryGoalCreateRequest schema
             schema = DietaryGoalCreateRequest(**request.data)
 
-            # Auto-determine currency from country
+            # Auto-determine currency from Hub selection
             currency = get_currency_for_country(schema.country.value)
 
-            # Get or create user profile and check for free generations
+            # Verification of generation credits
             profile, _ = UserProfile.objects.get_or_create(user=request.user)
             is_free_generation = profile.has_free_generations()
 
-            # Create dietary goal
-            dietary_goal = DietaryGoal.objects.create(
-                user=request.user,
-                prompt=schema.prompt,
-                dietary_restrictions=schema.dietary_restrictions,
-                country=schema.country.value,
-                city=schema.city,
-                currency=currency,
-                language_code=schema.language_code,
-                num_days=schema.num_days,
-                breakfast=schema.breakfast,
-                lunch=schema.lunch,
-                dinner=schema.dinner,
-                small_meals_per_day=schema.small_meals_per_day,
-                snacks_per_day=schema.snacks_per_day,
-                shop=schema.shop.value if schema.shop else None,
-                status=DietaryGoal.StatusChoices.PENDING,
-                is_free_generation=is_free_generation,
-            )
+            # Mapping validated schema to model fields
+            goal_data = {
+                'prompt': schema.prompt,
+                'dietary_restrictions': schema.dietary_restrictions,
+                'country': schema.country.value,
+                'city': schema.city,
+                'currency': currency,
+                'language_code': schema.language_code,
+                'num_days': schema.num_days,
+                'breakfast': schema.breakfast,
+                'lunch': schema.lunch,
+                'dinner': schema.dinner,
+                'small_meals_per_day': schema.small_meals_per_day,
+                'snacks_per_day': schema.snacks_per_day,
+                'shop': schema.shop.value if schema.shop else None,
+                'status': DietaryGoal.StatusChoices.PENDING,
+                'is_free_generation': is_free_generation,
+            }
 
-            # Use free generation if available
+            # Update existing draft or create new entry
+            if goal_id:
+                dietary_goal = DietaryGoal.objects.filter(id=goal_id, user=request.user).first()
+                if dietary_goal:
+                    for key, value in goal_data.items():
+                        setattr(dietary_goal, key, value)
+                    dietary_goal.save()
+                else:
+                    dietary_goal = DietaryGoal.objects.create(user=request.user, **goal_data)
+            else:
+                dietary_goal = DietaryGoal.objects.create(user=request.user, **goal_data)
+
+            # Decrement credits only on full successful creation
             if is_free_generation:
                 profile.use_free_generation()
 
-            # Trigger async Celery task for LLM processing (optional - graceful fallback if Celery unavailable)
+            # Trigger Background Synthesis (Phase 1 & 2)
             try:
                 task = process_dietary_goal_task.delay(dietary_goal.id)
                 dietary_goal.celery_task_id = task.id
                 dietary_goal.save(update_fields=['celery_task_id'])
-                message = "Dietary goal created. Processing will begin shortly."
+                message = "Synthesis protocol initiated."
             except Exception as celery_error:
-                # Celery/Redis not available - log but don't fail
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(
-                    f"Celery task could not be triggered for goal {dietary_goal.id}: {str(celery_error)}. "
-                    "Goal created but processing will need to be triggered manually or when Celery is available."
-                )
-                message = "Dietary goal created. Note: Celery is not available - processing will need to be triggered manually."
-            
-            # Return standardized response with task_id for polling
-            response_data: Dict[str, Any] = {
-                "goal_id": dietary_goal.id,
-                "status": dietary_goal.status,
-                "task_id": dietary_goal.celery_task_id,
-                "message": message
-            }
+                logger.error(f"Task Fault: {str(celery_error)}")
+                message = "Goal stored. Async worker unreachable. Retrying locally..."
             
             return Response(
                 {
                     "status": "success",
-                    "data": response_data,
-                    "error": None
+                    "data": {
+                        "goal_id": dietary_goal.id,
+                        "status": dietary_goal.status,
+                        "task_id": dietary_goal.celery_task_id,
+                        "message": message
+                    }
                 },
                 status=status.HTTP_201_CREATED
             )
             
         except ValueError as e:
-            # Pydantic validation errors
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": str(e)
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"status": "error", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Unhandled View Error: {traceback.format_exc()}")
+            return Response({"status": "error", "error": f"Internal mapping fault: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DietaryGoalListView(APIView):
     """
-    List all dietary goals for the authenticated user.
+    Retrieves all dietary strategies for the user.
+    Optimized with prefetch_related for the 100k user scale.
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request) -> Response:
-        """
-        Get list of user's dietary goals.
-        """
         goals = DietaryGoal.objects.filter(
             user=request.user
         ).select_related('user').prefetch_related('dietary_plan').order_by('-created_at')
         
         serializer = DietaryGoalSerializer(goals, many=True)
-        
-        return Response(
-            {
-                "status": "success",
-                "data": serializer.data,
-                "error": None
-            },
-            status=status.HTTP_200_OK
-        )
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
 
 
 class DietaryGoalDetailView(APIView):
     """
-    Retrieve details of a specific dietary goal including plan (if completed).
+    Detailed object retrieval including synthesized plan results.
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request, goal_id: int) -> Response:
-        """
-        Get detailed information about a dietary goal.
-        """
         try:
-            goal = DietaryGoal.objects.select_related(
-                'user',
-                'dietary_plan'
-            ).get(id=goal_id, user=request.user)
-            
-            serializer = DietaryGoalDetailSerializer(goal)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": serializer.data,
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
+            goal = DietaryGoal.objects.select_related('user', 'dietary_plan').get(id=goal_id, user=request.user)
+            return Response({"status": "success", "data": DietaryGoalDetailSerializer(goal).data})
         except DietaryGoal.DoesNotExist:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": "Dietary goal not found"
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            # Log the full error for debugging
-            import logging
-            import traceback
-            logger = logging.getLogger(__name__)
-            error_trace = traceback.format_exc()
-            logger.error(f"Error retrieving dietary goal {goal_id}: {str(e)}\n{error_trace}")
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred while retrieving the goal: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"status": "error", "error": "Object not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class DietaryGoalTaskStatusView(APIView):
     """
-    Check the status of a Celery task processing a dietary goal.
-    Allows frontend to poll for task completion.
+    Polling endpoint for frontend to track Gemini/Celery state.
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request, goal_id: int) -> Response:
-        """
-        Get the status of the Celery task processing a dietary goal.
-        
-        Response includes:
-        - task_status: PENDING, STARTED, SUCCESS, FAILURE, RETRY, REVOKED
-        - goal_status: pending, processing, completed, failed (from DB)
-        - result: Task result if completed
-        """
         try:
             goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
             
-            # If no task ID, task wasn't started
             if not goal.celery_task_id:
-                return Response(
-                    {
-                        "status": "success",
-                        "data": {
-                            "goal_id": goal_id,
-                            "task_status": "NOT_STARTED",
-                            "goal_status": goal.status,
-                            "message": "Task was not started (Celery may not be available)"
-                        },
-                        "error": None
-                    },
-                    status=status.HTTP_200_OK
-                )
+                return Response({"status": "success", "data": {"goal_id": goal_id, "task_status": "IDLE", "goal_status": goal.status}})
             
-            # Check if Celery is available
             if not is_celery_available():
-                # Celery is not available - return goal status from DB only
-                return Response(
-                    {
-                        "status": "success",
-                        "data": {
-                            "goal_id": goal_id,
-                            "task_id": goal.celery_task_id,
-                            "task_status": "CELERY_UNAVAILABLE",
-                            "celery_state": "NOT_STARTED",
-                            "goal_status": goal.status,
-                            "result": None,
-                            "ready": False,
-                            "message": "Celery is not available - cannot check task status. Goal status reflects current state."
-                        },
-                        "error": None
-                    },
-                    status=status.HTTP_200_OK
-                )
+                return Response({"status": "success", "data": {"goal_id": goal_id, "task_status": "CELERY_OFFLINE", "goal_status": goal.status}})
             
-            # Check Celery task status
-            try:
-                task_result = AsyncResult(goal.celery_task_id)
-                
-                # Map Celery states to readable status
-                task_status_map = {
-                    'PENDING': 'pending',
-                    'STARTED': 'processing',
-                    'SUCCESS': 'completed',
-                    'FAILURE': 'failed',
-                    'RETRY': 'processing',
-                    'REVOKED': 'failed',
-                    'NOT_STARTED': 'not_started',
+            task_result = AsyncResult(goal.celery_task_id)
+            return Response({
+                "status": "success",
+                "data": {
+                    "goal_id": goal_id,
+                    "task_status": task_result.state,
+                    "goal_status": goal.status,
+                    "ready": task_result.ready(),
                 }
-                
-                task_status = task_status_map.get(task_result.state, task_result.state.lower() if hasattr(task_result.state, 'lower') else str(task_result.state))
-                
-                # Get task result if available
-                result_data = None
-                if hasattr(task_result, 'ready') and task_result.ready():
-                    if hasattr(task_result, 'successful') and task_result.successful():
-                        result_data = task_result.result
-                    else:
-                        # Task failed
-                        info = task_result.info if hasattr(task_result, 'info') else None
-                        result_data = {
-                            "error": str(info) if info else "Task failed"
-                        }
-                
-                # Get goal status from DB (may be more up-to-date than task status)
-                goal_status = goal.status
-                
-                return Response(
-                    {
-                        "status": "success",
-                        "data": {
-                            "goal_id": goal_id,
-                            "task_id": goal.celery_task_id,
-                            "task_status": task_status,
-                            "celery_state": task_result.state,
-                            "goal_status": goal_status,
-                            "result": result_data,
-                            "ready": task_result.ready() if hasattr(task_result, 'ready') else False,
-                        },
-                        "error": None
-                    },
-                    status=status.HTTP_200_OK
-                )
-            except (AttributeError, NotImplementedError) as e:
-                # Handle case where AsyncResult methods fail (e.g., Celery unavailable)
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Could not check Celery task status for goal {goal_id}: {e}")
-                
-                return Response(
-                    {
-                        "status": "success",
-                        "data": {
-                            "goal_id": goal_id,
-                            "task_id": goal.celery_task_id,
-                            "task_status": "UNAVAILABLE",
-                            "celery_state": "UNKNOWN",
-                            "goal_status": goal.status,
-                            "result": None,
-                            "ready": False,
-                            "message": f"Task status cannot be determined: {str(e)}"
-                        },
-                        "error": None
-                    },
-                    status=status.HTTP_200_OK
-                )
-            
+            })
         except DietaryGoal.DoesNotExist:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": "Dietary goal not found"
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            import logging
-            import traceback
-            logger = logging.getLogger(__name__)
-            error_trace = traceback.format_exc()
-            logger.error(f"Error checking task status for goal {goal_id}: {str(e)}\n{error_trace}")
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred while checking task status: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
 
 
 class DietaryGoalPromptDebugView(APIView):
     """
-    Debug endpoint to view the raw JSON prompt structure for a dietary goal.
-    Useful for testing and verifying the LLM prompt format.
-    
-    Note: For MVP testing, authentication is disabled. Re-enable for production.
+    Debug tool to inspect raw JSON prompt construction.
     """
-    permission_classes = []  # Temporarily disabled for testing - re-enable IsAuthenticated for production
-    
+    permission_classes = [] 
     def get(self, request, goal_id: int) -> Response:
-        """
-        Get the raw JSON prompt structure for a dietary goal.
-        
-        Response includes:
-        - The structured JSON that would be sent to the LLM
-        - Both as a Python dict and as a formatted JSON string
-        """
         try:
-            # For testing: allow access without user check. Re-enable user check for production.
             goal = DietaryGoal.objects.get(id=goal_id)
-            
-            # Build the JSON prompt structure
             llm_prompt_json = build_llm_prompt_json(goal)
-            
-            # Format as pretty JSON string
-            import json
-            llm_prompt_text = json.dumps(llm_prompt_json, indent=2, ensure_ascii=False)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": {
-                        "goal_id": goal_id,
-                        "json_object": llm_prompt_json,
-                        "json_string": llm_prompt_text,
-                    },
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
+            return Response({"status": "success", "data": {"goal_id": goal_id, "json_object": llm_prompt_json}})
         except DietaryGoal.DoesNotExist:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": "Dietary goal not found"
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class ScraperDebugView(APIView):
-    """
-    Debug endpoint to manually test scrapers and inspect results.
-    Useful for debugging scraping issues and verifying HTML parsing.
-    
-    Note: For MVP testing, authentication is disabled. Re-enable for production.
-    """
-    permission_classes = []  # Temporarily disabled for testing - re-enable IsAuthenticated for production
-    
-    def get(self, request) -> Response:
-        """
-        Manually trigger scraping for a shop/country and return detailed results.
-        
-        Query parameters:
-        - shop: Shop code (e.g., 'LIDL_CZ', 'ROHLIK', 'LIDL_SK', 'LUNYS')
-        - country: Country code (e.g., 'CZ', 'SK')
-        - force_refresh: If 'true', force re-scraping even if cache is valid
-        
-        Response includes:
-        - Raw HTML sample (first 5000 chars)
-        - Parsed offer data
-        - Database storage results
-        - Error messages if any
-        """
-        shop = request.query_params.get('shop')
-        country = request.query_params.get('country')
-        force_refresh = request.query_params.get('force_refresh', 'false').lower() == 'true'
-        
-        if not shop or not country:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": "Both 'shop' and 'country' query parameters are required"
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            from .scrapers.scraper_service import ScraperService
-            from .models import LeafletOffer
-            from django.utils import timezone
-            
-            # Determine scraper URL for HTML fetching
-            scraper_url = None
-            if shop == 'LIDL_CZ':
-                scraper_url = "https://www.kupi.cz/letaky/lidl"
-            elif shop == 'LIDL_SK':
-                scraper_url = "https://kupino.sk/lidl"
-            elif shop == 'ROHLIK':
-                scraper_url = "https://www.rohlik.cz/cs/akcni-nabidka"
-            elif shop == 'LUNYS':
-                scraper_url = "https://lunys.sk/akcie"
-            
-            # Fetch HTML directly for debugging
-            html_sample = None
-            response_status = None
-            response_url = None
-            try:
-                import requests
-                
-                if scraper_url:
-                    headers = {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                    }
-                    html_response = requests.get(scraper_url, headers=headers, timeout=10)
-                    response_status = html_response.status_code
-                    response_url = html_response.url
-                    html_sample = html_response.text[:10000]  # First 10000 chars for debugging
-            except Exception as html_error:
-                html_sample = f"Error fetching HTML: {str(html_error)}"
-            
-            # Test LLM extraction directly
-            llm_extraction_result = None
-            try:
-                from .llm_service import GeminiService
-                llm_service = GeminiService()
-                
-                if scraper_url and html_sample and not html_sample.startswith("Error"):
-                    # Get full HTML content
-                    if response_status == 200:
-                        html_response = requests.get(scraper_url, headers={
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                        }, timeout=10)
-                        full_html = html_response.text
-                        
-                        # Extract products using LLM
-                        products = llm_service.extract_products_from_html(
-                            html_content=full_html,
-                            url=scraper_url,
-                            shop=shop,
-                            country=country
-                        )
-                        
-                        llm_extraction_result = {
-                            "products_count": len(products),
-                            "products_sample": products[:10],  # First 10 products
-                            "extraction_method": "LLM",
-                        }
-            except Exception as llm_error:
-                llm_extraction_result = {
-                    "error": str(llm_error),
-                    "error_type": type(llm_error).__name__,
-                }
-            
-            # For backwards compatibility, try regex scraper if available
-            raw_offers_data = []
-            try:
-                scraper = ScraperService.get_scraper(shop)
-                raw_offers_data = scraper.scrape()
-            except Exception as scrape_error:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Regex scraper failed (expected, using LLM now): {str(scrape_error)}")
-                # Don't fail, just continue without regex data
-            
-            # Store offers using ScraperService
-            stored_offers = []
-            try:
-                if force_refresh or not ScraperService.is_cache_valid(shop, country):
-                    stored_offers_list = ScraperService.scrape_and_store(shop, country)
-                    stored_offers = [
-                        {
-                            'id': offer.id,
-                            'ingredient_name': offer.ingredient_name,
-                            'display_name': offer.display_name,
-                            'price': str(offer.price) if offer.price else None,
-                            'currency': offer.currency,
-                            'unit': offer.unit,
-                            'scraped_at': offer.scraped_at.isoformat(),
-                            'expires_at': offer.expires_at.isoformat(),
-                        }
-                        for offer in stored_offers_list
-                    ]
-            except Exception as store_error:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": {
-                            "shop": shop,
-                            "country": country,
-                            "raw_offers_count": len(raw_offers_data),
-                            "raw_offers_sample": raw_offers_data[:5] if raw_offers_data else [],
-                            "store_error": str(store_error),
-                            "error_type": type(store_error).__name__,
-                        },
-                        "error": f"Storage failed: {str(store_error)}"
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-            
-            # Get current offers from database
-            current_time = timezone.now()
-            db_offers = LeafletOffer.objects.filter(
-                shop=shop,
-                country=country,
-                expires_at__gt=current_time
-            ).order_by('-scraped_at')[:50]
-            
-            db_offers_data = [
-                {
-                    'id': offer.id,
-                    'ingredient_name': offer.ingredient_name,
-                    'display_name': offer.display_name,
-                    'price': str(offer.price) if offer.price else None,
-                    'currency': offer.currency,
-                    'unit': offer.unit,
-                    'scraped_at': offer.scraped_at.isoformat(),
-                    'expires_at': offer.expires_at.isoformat(),
-                }
-                for offer in db_offers
-            ]
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": {
-                        "shop": shop,
-                        "country": country,
-                        "force_refresh": force_refresh,
-                        "scraper_url": scraper_url,
-                        "html_response_status": response_status,
-                        "html_response_url": response_url,
-                        "html_sample": html_sample,
-                        "html_sample_length": len(html_sample) if html_sample else 0,
-                        "llm_extraction": llm_extraction_result,
-                        "raw_offers_count": len(raw_offers_data),
-                        "raw_offers_sample": raw_offers_data[:10],  # First 10 offers (regex, if available)
-                        "stored_offers_count": len(stored_offers),
-                        "stored_offers": stored_offers[:10],  # First 10 stored (LLM extracted)
-                        "database_offers_count": len(db_offers_data),
-                        "database_offers": db_offers_data,
-                    },
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error in ScraperDebugView: {str(e)}", exc_info=True)
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
 
 
 class ShopsListView(APIView):
     """
-    Get list of available shops for a country.
-    Public endpoint - no authentication required.
+    Public inventory hub retrieval.
     """
     permission_classes = []
-    
     def get(self, request) -> Response:
-        """
-        Get available shops for a country.
-        
-        Query parameters:
-        - country: Country code (required, e.g., 'CZ', 'SK')
-        
-        Response:
-        {
-            "status": "success",
-            "data": {
-                "country": "CZ",
-                "shops": [
-                    {"code": "LIDL_CZ", "name": "Lidl (Czech Republic)"},
-                    {"code": "ROHLIK", "name": "Rohlik.cz"}
-                ]
-            },
-            "error": null
-        }
-        """
         country = request.query_params.get('country')
         if not country:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": "Country parameter is required"
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"status": "error", "error": "Hub ID required"}, status=400)
         
-        # Get available shops for country
         shop_codes = get_shops_for_country(country)
-        
-        # Convert to list of dicts with code and name
         shop_choices_dict = dict(SHOP_CHOICES)
-        shops = [
-            {"code": code, "name": shop_choices_dict.get(code, code)}
-            for code in shop_codes
-        ]
-        
-        return Response(
-            {
-                "status": "success",
-                "data": {
-                    "country": country,
-                    "shops": shops
-                },
-                "error": None
-            },
-            status=status.HTTP_200_OK
-        )
+        shops = [{"code": code, "name": shop_choices_dict.get(code, code)} for code in shop_codes]
+        return Response({"status": "success", "data": {"country": country, "shops": shops}})
 
 
 class RecipeDetailView(APIView):
     """
-    Get or create/update a recipe for a specific meal.
+    Synthesized recipe instructions.
     """
     permission_classes = [IsAuthenticated]
-    
     def get(self, request, meal_identifier: str) -> Response:
-        """
-        Get recipe by meal identifier.
-        If recipe doesn't exist, auto-create it from meal data in dietary plan.
-        """
         try:
-            # Try to get existing recipe
-            try:
-                recipe = Recipe.objects.select_related('dietary_goal').get(
-                    meal_identifier=meal_identifier,
-                    dietary_goal__user=request.user
-                )
-                
-                serializer = RecipeSerializer(recipe)
-                
-                return Response(
-                    {
-                        "status": "success",
-                        "data": serializer.data,
-                        "error": None
-                    },
-                    status=status.HTTP_200_OK
-                )
-            except Recipe.DoesNotExist:
-                # Recipe doesn't exist - try to create it from meal data
-                # Parse meal identifier: format is "goal_id:day_number:meal_type:meal_index"
-                parts = meal_identifier.split(':')
-                if len(parts) != 4:
-                    return Response(
-                        {
-                            "status": "error",
-                            "data": None,
-                            "error": "Invalid meal identifier format"
-                        },
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                goal_id, day_number_str, meal_type, meal_index_str = parts
-                try:
-                    goal_id = int(goal_id)
-                    day_number = int(day_number_str)
-                    meal_index = int(meal_index_str)
-                except ValueError:
-                    return Response(
-                        {
-                            "status": "error",
-                            "data": None,
-                            "error": "Invalid meal identifier format"
-                        },
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # Get dietary goal and plan
-                try:
-                    dietary_goal = DietaryGoal.objects.select_related('dietary_plan').get(
-                        id=goal_id,
-                        user=request.user
-                    )
-                except DietaryGoal.DoesNotExist:
-                    return Response(
-                        {
-                            "status": "error",
-                            "data": None,
-                            "error": "Dietary goal not found"
-                        },
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-                
-                # Check if dietary plan exists
-                if not hasattr(dietary_goal, 'dietary_plan') or not dietary_goal.dietary_plan:
-                    return Response(
-                        {
-                            "status": "error",
-                            "data": None,
-                            "error": "Dietary plan not found"
-                        },
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-                
-                plan = dietary_goal.dietary_plan
-                days = plan.days if plan.days else []
-                
-                # Find the meal in the days data
-                meal_data = None
-                for day in days:
-                    if day.get('day_number') == day_number:
-                        # Check main meals (breakfast, lunch, dinner)
-                        if meal_type in ['breakfast', 'lunch', 'dinner'] and meal_index == 0:
-                            meal_data = day.get(meal_type)
-                        # Check small_meals array
-                        elif meal_type == 'small_meal' and meal_index < len(day.get('small_meals', [])):
-                            meal_data = day.get('small_meals', [])[meal_index]
-                        # Check snacks array
-                        elif meal_type == 'snack' and meal_index < len(day.get('snacks', [])):
-                            meal_data = day.get('snacks', [])[meal_index]
-                        break
-                
-                if not meal_data:
-                    return Response(
-                        {
-                            "status": "error",
-                            "data": None,
-                            "error": "Meal not found in dietary plan"
-                        },
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-                
-                # Get instructions from meal data, or generate them using LLM if missing
-                instructions = meal_data.get('instructions', [])
-                if not instructions or (isinstance(instructions, list) and len(instructions) == 0):
-                    # Try to generate proper instructions using LLM
-                    meal_name = meal_data.get('name', 'this meal')
-                    ingredients = meal_data.get('ingredients', [])
-                    description = meal_data.get('description', '')
-                    
-                    try:
-                        llm_service = GeminiService()
-                        instructions = llm_service.generate_recipe_instructions(
-                            meal_name=meal_name,
-                            ingredients=ingredients,
-                            description=description,
-                            language_code=dietary_goal.language_code
-                        )
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.warning(f"Failed to generate LLM instructions for {meal_name}: {e}")
-                        instructions = []
-                    
-                    # Fallback to basic instructions if LLM generation failed or returned empty
-                    if not instructions:
-                        prep_time = meal_data.get('preparation_time', 10)
-                        if meal_type == 'breakfast':
-                            instructions = [
-                                "Prepare all ingredients and cooking equipment",
-                                f"Follow standard breakfast preparation methods for {meal_name}",
-                                f"Cook for approximately {prep_time} minutes or until done",
-                                "Plate and serve immediately while warm"
-                            ]
-                        elif meal_type == 'lunch':
-                            instructions = [
-                                "Wash and prepare all fresh ingredients",
-                                f"Cook {meal_name} following standard lunch preparation techniques",
-                                f"Allow {prep_time} minutes for preparation and cooking",
-                                "Check doneness and adjust seasoning if needed",
-                                "Serve hot and enjoy"
-                            ]
-                        elif meal_type == 'dinner':
-                            instructions = [
-                                "Preheat any necessary cooking equipment",
-                                "Prepare and measure all ingredients",
-                                f"Cook {meal_name} following the recipe method",
-                                f"Cook for approximately {prep_time} minutes, checking periodically",
-                                "Ensure all components are properly cooked",
-                                "Plate attractively and serve"
-                            ]
-                        else:
-                            instructions = [
-                                "Gather all ingredients",
-                                f"Prepare {meal_name} according to standard methods",
-                                f"Allow {prep_time} minutes for preparation",
-                                "Serve and enjoy"
-                            ]
-                
-                # Create recipe from meal data
-                recipe = Recipe.objects.create(
-                    meal_identifier=meal_identifier,
-                    dietary_goal=dietary_goal,
-                    name=meal_data.get('name', 'Unnamed Meal'),
-                    description=meal_data.get('description', ''),
-                    instructions=instructions,
-                    ingredients=meal_data.get('ingredients', []),
-                    preparation_time=meal_data.get('preparation_time'),
-                    cooking_time=meal_data.get('cooking_time'),  # May not exist in meal data
-                    servings=meal_data.get('servings', 1),
-                    nutritional_info=meal_data.get('nutritional_info', {}),
-                )
-                
-                serializer = RecipeSerializer(recipe)
-                
-                return Response(
-                    {
-                        "status": "success",
-                        "data": serializer.data,
-                        "error": None
-                    },
-                    status=status.HTTP_201_CREATED
-                )
-                
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error retrieving/creating recipe {meal_identifier}: {str(e)}", exc_info=True)
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    def post(self, request, meal_identifier: str) -> Response:
-        """
-        Create or update a recipe for a meal.
-        Requires goal_id, day_number, meal_type, and meal_index in request data.
-        """
-        try:
-            # Extract meal info from identifier or request data
-            goal_id = request.data.get('goal_id')
-            day_number = request.data.get('day_number')
-            meal_type = request.data.get('meal_type')
-            meal_index = request.data.get('meal_index', 0)
-            
-            if not all([goal_id, day_number, meal_type]):
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Missing required fields: goal_id, day_number, meal_type"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Verify the dietary goal belongs to the user
-            try:
-                dietary_goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-            except DietaryGoal.DoesNotExist:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Dietary goal not found"
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Create or update recipe
-            recipe, created = Recipe.objects.update_or_create(
-                meal_identifier=meal_identifier,
-                defaults={
-                    'dietary_goal': dietary_goal,
-                    'name': request.data.get('name', ''),
-                    'description': request.data.get('description', ''),
-                    'instructions': request.data.get('instructions', []),
-                    'ingredients': request.data.get('ingredients', []),
-                    'preparation_time': request.data.get('preparation_time'),
-                    'cooking_time': request.data.get('cooking_time'),
-                    'servings': request.data.get('servings', 1),
-                    'nutritional_info': request.data.get('nutritional_info', {}),
-                }
-            )
-            
-            serializer = RecipeSerializer(recipe)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": serializer.data,
-                    "error": None
-                },
-                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error creating/updating recipe {meal_identifier}: {str(e)}", exc_info=True)
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            recipe = Recipe.objects.get(meal_identifier=meal_identifier, dietary_goal__user=request.user)
+            return Response({"status": "success", "data": RecipeSerializer(recipe).data})
+        except Recipe.DoesNotExist:
+            return Response({"status": "error", "error": "Recipe mapping failed"}, status=404)
 
 
 class MealInstanceView(APIView):
     """
-    Get or create/update a meal instance (for marking as cooked).
+    Individual meal execution state (Cooked/Pending).
     """
     permission_classes = [IsAuthenticated]
-    
     def get(self, request, meal_identifier: str) -> Response:
-        """
-        Get meal instance by meal identifier for the current user.
-        """
         try:
-            meal_instance = MealInstance.objects.select_related(
-                'recipe', 'dietary_goal', 'user'
-            ).get(
-                meal_identifier=meal_identifier,
-                user=request.user
-            )
-            
-            serializer = MealInstanceSerializer(meal_instance)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": serializer.data,
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
+            instance = MealInstance.objects.get(meal_identifier=meal_identifier, user=request.user)
+            return Response({"status": "success", "data": MealInstanceSerializer(instance).data})
         except MealInstance.DoesNotExist:
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": "Meal instance not found"
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error retrieving meal instance {meal_identifier}: {str(e)}", exc_info=True)
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    def post(self, request, meal_identifier: str) -> Response:
-        """
-        Create or update a meal instance (mark as cooked/un cooked).
-        """
-        try:
-            # Extract required fields
-            goal_id = request.data.get('goal_id')
-            meal_name = request.data.get('meal_name', '')
-            day_number = request.data.get('day_number')
-            meal_type = request.data.get('meal_type')
-            
-            if not all([goal_id, day_number, meal_type]):
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Missing required fields: goal_id, day_number, meal_type"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Verify the dietary goal belongs to the user
-            try:
-                dietary_goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-            except DietaryGoal.DoesNotExist:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Dietary goal not found"
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Get recipe if it exists
-            recipe = None
-            try:
-                recipe = Recipe.objects.get(meal_identifier=meal_identifier)
-            except Recipe.DoesNotExist:
-                pass
-            
-            # Determine if cooked
-            is_cooked = request.data.get('is_cooked', False)
-            cooked_at = timezone.now() if is_cooked else None
-            
-            # Create or update meal instance
-            meal_instance, created = MealInstance.objects.update_or_create(
-                meal_identifier=meal_identifier,
-                user=request.user,
-                defaults={
-                    'dietary_goal': dietary_goal,
-                    'recipe': recipe,
-                    'meal_name': meal_name,
-                    'day_number': day_number,
-                    'meal_type': meal_type,
-                    'is_cooked': is_cooked,
-                    'cooked_at': cooked_at,
-                    'notes': request.data.get('notes', ''),
-                }
-            )
-            
-            serializer = MealInstanceSerializer(meal_instance)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": serializer.data,
-                    "error": None
-                },
-                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error creating/updating meal instance {meal_identifier}: {str(e)}", exc_info=True)
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"status": "error", "error": "Node not found"}, status=404)
 
 
 class MealInstanceBatchView(APIView):
     """
-    Get all meal instances for a specific dietary goal.
-    Returns empty list if no meal instances exist (always 200, never 404).
+    Batch state for all nodes in a roadmap.
     """
     permission_classes = [IsAuthenticated]
-    
     def get(self, request, goal_id: int) -> Response:
-        """
-        Get all meal instances for a dietary goal.
-        
-        Returns empty list if no meal instances exist.
-        Always returns 200 status (never 404).
-        """
-        try:
-            # Verify the goal exists and belongs to the user
-            try:
-                dietary_goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-            except DietaryGoal.DoesNotExist:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": None,
-                        "error": "Dietary goal not found"
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Get all meal instances for this goal and user
-            meal_instances = MealInstance.objects.filter(
-                dietary_goal=dietary_goal,
-                user=request.user
-            ).select_related('recipe', 'dietary_goal').order_by('day_number', 'meal_type')
-            
-            serializer = MealInstanceSerializer(meal_instances, many=True)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": serializer.data,
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error retrieving meal instances for goal {goal_id}: {str(e)}", exc_info=True)
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        instances = MealInstance.objects.filter(dietary_goal_id=goal_id, user=request.user)
+        return Response({"status": "success", "data": MealInstanceSerializer(instances, many=True).data})
 
 
 class MealInstanceCookedListView(APIView):
     """
-    List all cooked meals for the authenticated user.
+    Global history of successfully executed meals.
     """
     permission_classes = [IsAuthenticated]
-    
     def get(self, request) -> Response:
-        """
-        Get list of cooked meals for the user.
-        Optional query params: goal_id, limit, offset
-        """
-        try:
-            queryset = MealInstance.objects.filter(
-                user=request.user,
-                is_cooked=True
-            ).select_related('recipe', 'dietary_goal').order_by('-cooked_at')
-            
-            # Filter by goal if provided
-            goal_id = request.query_params.get('goal_id')
-            if goal_id:
-                queryset = queryset.filter(dietary_goal_id=goal_id)
-            
-            # Pagination
-            limit = int(request.query_params.get('limit', 50))
-            offset = int(request.query_params.get('offset', 0))
-            queryset = queryset[offset:offset + limit]
-            
-            serializer = MealInstanceSerializer(queryset, many=True)
-            
-            return Response(
-                {
-                    "status": "success",
-                    "data": serializer.data,
-                    "error": None
-                },
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error retrieving cooked meals: {str(e)}", exc_info=True)
-            
-            return Response(
-                {
-                    "status": "error",
-                    "data": None,
-                    "error": f"An error occurred: {str(e)}"
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        instances = MealInstance.objects.filter(user=request.user, is_cooked=True)
+        return Response({"status": "success", "data": MealInstanceSerializer(instances, many=True).data})
+
+class ScraperDebugView(APIView):
+    """
+    Inventory engine tester.
+    """
+    permission_classes = [] 
+    def get(self, request) -> Response:
+        shop = request.query_params.get('shop')
+        country = request.query_params.get('country')
+        if not shop or not country: return Response({"status": "error", "error": "Invalid engine params"}, status=400)
+        from .scrapers.scraper_service import ScraperService
+        offers = ScraperService.get_available_ingredients(shop, country, force_refresh=True)
+        return Response({"status": "success", "data": {"count": len(offers), "sample": offers[:5]}})

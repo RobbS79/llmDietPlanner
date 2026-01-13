@@ -1,4 +1,6 @@
-// File: frontend/src/App.tsx | Route: / (and sub-routes)
+// File: frontend/src/App.tsx
+// Modification: Added Axios interceptor for 401 refresh logic and fixed UI scaling.
+
 import { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, useParams, Link, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,31 +14,48 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-/**
- * RECTIFIED PRODUCTION FRONTEND
- * 1. Scaling: Reduced font sizes (9xl -> 5xl) to fix overlapping issues.
- * 2. Form Restoration: Restored Breakfast/Lunch/Dinner, Small Meals, and Snacks sliders.
- * 3. Shop Sourcing: Fixed logic to select and highlight sourcing engine.
- * 4. Auth stability: Clean logic for token handling.
- */
-
-const getEnvVar = (key: string): string | undefined => {
-  try {
-    // ES2015 safe access for Vite
-    // @ts-ignore
-    return import.meta.env[key];
-  } catch (e) {
-    return undefined;
-  }
-};
-
 const api = axios.create({ baseURL: '/api', withCredentials: true });
 
+// Request Interceptor: Attach Token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// Response Interceptor: Handle 401 Expiration
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    // If error is 401 and we haven't retried yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      if (refreshToken) {
+        try {
+          // Attempt to get new access token
+          const res = await axios.post('/api/auth/refresh/', { refresh: refreshToken });
+          const { access } = res.data;
+          
+          localStorage.setItem('access_token', access);
+          api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+          originalRequest.headers['Authorization'] = `Bearer ${access}`;
+          
+          return api(originalRequest);
+        } catch (refreshError) {
+          // Refresh token also expired or invalid
+          localStorage.clear();
+          window.location.href = '/login';
+        }
+      } else {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 const queryClient = new QueryClient();
 
@@ -214,7 +233,8 @@ const CreatePlanForm = () => {
     dinner: true,
     small_meals_per_day: 2,
     snacks_per_day: 1,
-    shop: 'ROHLIK'
+    shop: 'ROHLIK',
+    goal_id: null as number | null // For draft persistence
   });
 
   const { data: shopsData } = useQuery({
@@ -232,6 +252,22 @@ const CreatePlanForm = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Logic to save draft after Section I is filled
+  useEffect(() => {
+    const saveDraft = async () => {
+        if (formData.prompt.length > 10 && formData.city && !formData.goal_id) {
+            try {
+                const res = await api.post('/goals/', { ...formData, is_draft: true });
+                updateField('goal_id', res.data.data.goal_id);
+            } catch (e) {
+                console.error("Failed to persist draft stage", e);
+            }
+        }
+    };
+    const timer = setTimeout(saveDraft, 2000);
+    return () => clearTimeout(timer);
+  }, [formData.prompt, formData.city]);
+
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
       <Navbar />
@@ -244,7 +280,7 @@ const CreatePlanForm = () => {
 
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(formData); }} className="space-y-6">
           {/* I. Objective */}
-          <div className="glass-card p-10 rounded-[2.5rem] space-y-10 border border-white/5 relative overflow-hidden">
+          <div className="glass-card p-10 rounded-[2.5rem] space-y-10 border border-white/5 relative overflow-visible z-20">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
             <section className="space-y-4 text-left">
               <label className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 flex items-center gap-2"><BrainCircuit size={16} /> I. Objectives</label>
@@ -282,7 +318,7 @@ const CreatePlanForm = () => {
           </div>
 
           {/* II. Meal structure */}
-          <div className="glass-card p-10 rounded-[2.5rem] space-y-10 border border-white/5 text-left">
+          <div className="glass-card p-10 rounded-[2.5rem] space-y-10 border border-white/5 text-left relative z-10">
             <section className="space-y-8">
               <label className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 flex items-center gap-2"><Utensils size={16} /> II. Meal Mapping</label>
               
