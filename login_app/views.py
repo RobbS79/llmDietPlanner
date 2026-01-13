@@ -23,6 +23,46 @@ from .schemas import RegistrationRequest, LoginRequest
 from .utils import generate_email_verification_token, get_verification_email_content
 from .tasks import send_verification_email_task
 
+
+import requests
+from django.shortcuts import redirect
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .schemas import RegistrationRequest, LoginRequest
+from .utils import generate_email_verification_token
+from .tasks import send_verification_email_task
+
+class GoogleLoginRedirectView(APIView):
+    """
+    Handles the GET request from the frontend 'Continue with Google' button.
+    Constructs the Google OAuth2 URL and redirects the browser.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        client_id = settings.GOOGLE_CLIENT_ID
+        # This MUST match the 'google/callback/' path in your URLs
+        redirect_uri = request.build_absolute_uri('/api/auth/google/callback/')
+        scope = "openid email profile"
+        
+        auth_url = (
+            f"https://accounts.google.com/o/oauth2/v2/auth?"
+            f"response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&"
+            f"scope={scope}&access_type=offline&prompt=select_account"
+        )
+        return redirect(auth_url)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class RegistrationView(APIView):
     permission_classes = [AllowAny]
