@@ -9,7 +9,6 @@ import sys
 import uuid
 import logging
 import traceback
-import json
 from django.shortcuts import redirect
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -54,7 +53,6 @@ class GoogleLoginRedirectView(APIView):
             logger.critical("OAuth Configuration Error: GOOGLE_CLIENT_ID is missing from environment.")
             return redirect('/login?error=google_not_configured')
 
-        # Scope: openid (identity), email, profile
         auth_url = (
             f"https://accounts.google.com/o/oauth2/v2/auth?"
             f"response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&"
@@ -96,13 +94,7 @@ class GoogleCallbackView(APIView):
             
             if token_res.status_code != 200:
                 print(f"[DEBUG OAUTH] Token exchange failed: {token_res.text}", file=sys.stderr)
-                # Provide a descriptive error detail to the frontend
-                try:
-                    error_data = token_res.json()
-                    error_msg = error_data.get('error_description', error_data.get('error', 'token_exchange_failed'))
-                except:
-                    error_msg = "bad_gateway_response"
-                return redirect(f'/login?error=token_exchange_failed&detail={error_msg}')
+                return redirect('/login?error=token_exchange_failed')
             
             token_data = token_res.json()
             access_token = token_data.get('access_token')
@@ -116,7 +108,7 @@ class GoogleCallbackView(APIView):
             
             email = user_info.get('email')
             if not email:
-                print(f"[DEBUG OAUTH] Failure: Email not provided by Google permissions.", file=sys.stderr)
+                print(f"[DEBUG OAUTH] Failure: Email not provided by Google", file=sys.stderr)
                 return redirect('/login?error=email_access_denied')
 
             # 3. User Management (Atomic Transaction)
@@ -125,7 +117,7 @@ class GoogleCallbackView(APIView):
                 if not user:
                     print(f"[DEBUG OAUTH] Creating new user for email: {email}", file=sys.stderr)
                     username = email.split('@')[0]
-                    # Ensure username uniqueness if base email prefix is taken
+                    # Ensure username uniqueness
                     base_username = username
                     while User.objects.filter(username=username).exists():
                         username = f"{base_username}_{uuid.uuid4().hex[:4]}"

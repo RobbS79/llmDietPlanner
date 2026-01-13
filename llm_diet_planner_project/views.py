@@ -1,5 +1,4 @@
 # File: llm_diet_planner_project/views.py
-import os
 import logging
 from django.http import HttpResponse, Http404
 from django.shortcuts import render
@@ -9,39 +8,43 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 def health_check(request):
+    """Health check endpoint for DigitalOcean."""
     return HttpResponse("OK", status=200)
 
 def react_app_view(request):
     """
-    Single Entry Point for React Application.
-    Prevents serving HTML for missing static assets to avoid MIME errors.
+    Main entry point for the React Single Page Application.
+    
+    PHASE 2 FIX: Includes a MIME guard to prevent returning HTML for missing assets.
     """
     path_str = request.path.lstrip('/')
     
-    # --- MIME PROTECTION ---
-    # If the requested path has a dot (extension) and reached this catch-all view,
-    # it means the file is not in static storage. Return 404 instead of index.html
-    # so the browser doesn't try to parse HTML as CSS or JavaScript.
+    # MIME TYPE GUARD:
+    # If the path has a dot (e.g. .css, .js) and it reached this view, it means
+    # WhiteNoise failed to find it. Returning index.html would cause a MIME error.
     if path_str and '.' in path_str and not path_str.endswith('.html'):
-        logger.warning(f"Static file not found (intercepted by catch-all): {path_str}")
-        raise Http404(f"Asset '{path_str}' not found.")
+        logger.warning(f"Static asset 404 intercepted by React catch-all: {path_str}")
+        raise Http404(f"Asset '{path_str}' not found in static storage.")
 
-    index_path = Path(settings.REACT_BUILD_DIR) / 'index.html'
-    if not index_path.exists():
-        index_path = Path(settings.STATIC_ROOT) / 'index.html'
+    # Serve index.html from staticfiles (where collectstatic put it) or dist folder
+    index_locations = [
+        settings.STATIC_ROOT / "index.html",
+        settings.REACT_BUILD_DIR / "index.html"
+    ]
+    
+    for index_path in index_locations:
+        if index_path.exists():
+            try:
+                with open(index_path, 'r', encoding='utf-8') as f:
+                    return HttpResponse(f.read(), content_type="text/html")
+            except Exception as e:
+                logger.error(f"Error reading index.html at {index_path}: {e}")
 
-    if not index_path.exists():
-        return HttpResponse(
-            f"<h1>Deployment Configuration Error</h1><p>index.html not found.</p>",
-            status=200
-        )
-
-    try:
-        with open(index_path, 'r', encoding='utf-8') as f:
-            return HttpResponse(f.read(), content_type="text/html")
-    except Exception as e:
-        logger.error(f"Error serving index.html: {e}")
-        return HttpResponse("Internal Server Error", status=500)
+    # Fallback error if index.html is missing everywhere
+    return HttpResponse(
+        "<h1>Deployment Error</h1><p>Frontend assets (index.html) not found. Check build logs.</p>",
+        status=200
+    )
 
 def debug_prompt_view(request):
     return render(request, 'debug_prompt.html')

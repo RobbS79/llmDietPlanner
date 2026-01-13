@@ -2,36 +2,30 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+/**
+ * PHASE 1: Sync Frontend Build
+ * This configuration ensures Vite prefixes all assets with /static/ 
+ * so they align with Django's static file serving logic.
+ */
 export default defineConfig({
   plugins: [react()],
-  // CRITICAL: Tells Vite assets are served via Django's /static/ path.
-  // This ensures that all generated <script> and <link> tags in index.html
-  // point to the correct location in the Django static files system.
+  // Ensures index.html uses <script src="/static/assets/...">
   base: '/static/', 
   build: {
+    // Output directory that Django will target
     outDir: 'dist',
     emptyOutDir: true,
     assetsDir: 'assets',
-    // We set the target to es2020 to ensure modern features like 
-    // import.meta are handled correctly by the browser and the bundler.
+    // Support for modern JS features used in our Auth logic
     target: 'es2020',
-    // Minify with esbuild for production performance
-    minify: 'esbuild',
-    // Ensure sourcemaps are disabled in production to protect logic
     sourcemap: false,
     rollupOptions: {
       output: {
-        // Ensure consistent naming for long-term caching
+        // Prevent naming collisions and ensure clean hashing
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     }
-  },
-  server: {
-    // Port 3000 for local development convenience
-    port: 3000,
-    strictPort: true,
   }
 })
