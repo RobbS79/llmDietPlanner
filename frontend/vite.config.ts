@@ -4,8 +4,10 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // CRITICAL: Must be /static/ to match Django's STATIC_URL. 
-  // This ensures index.html points to /static/assets/...
+  /** * CRITICAL FIX: 
+   * This ensures that index.html requests assets from /static/assets/ 
+   * instead of /assets/. This allows WhiteNoise to serve them correctly.
+   */
   base: '/static/', 
   server: {
     proxy: {
@@ -19,7 +21,5 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     assetsDir: 'assets',
-    // Ensure manifest is generated for production asset management
-    manifest: true,
   }
 })

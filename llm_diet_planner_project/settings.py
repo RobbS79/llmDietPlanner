@@ -39,7 +39,7 @@ INSTALLED_APPS = [
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware", # Handles serving assets from /static/
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware", 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -75,27 +75,46 @@ DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{str(BASE_DIR / "db.sq
 DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 
 # --- STATIC & VITE PRODUCTION ---
-# Using absolute leading and trailing slashes for production stability
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
-# This is the directory where 'npm run build' outputs files in STAGE 1 of Dockerfile
 REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
-# We include the build dir in STATICFILES_DIRS so 'collectstatic' can find the assets
 STATICFILES_DIRS = []
 if os.path.exists(REACT_BUILD_DIR):
     STATICFILES_DIRS.append(REACT_BUILD_DIR)
 
-# Whitenoise handles the MIME types and caching headers
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 WHITENOISE_INDEX_FILE = True
 
-# --- AUTH CONFIG ---
+# --- AUTH CONFIG (FIXED FOR ALLAUTH 0.65+) ---
 SITE_ID = 1
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_SIGNUP_FIELDS = ['email'] 
+
+ACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',),
+}
+REST_USE_JWT = True
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CORS_ALLOWED_ORIGINS = ['https://squid-app-6avsy.ondigitalocean.app']
+    CSRF_TRUSTED_ORIGINS = ['https://squid-app-6avsy.ondigitalocean.app']
 
 FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
