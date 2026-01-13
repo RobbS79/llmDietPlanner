@@ -135,6 +135,7 @@ class LoginView(APIView):
             return Response({"status": "error", "data": None, "error": str(e)}, status=500)
 
 
+
 class GoogleCallbackView(APIView):
     permission_classes = [AllowAny]
 
@@ -176,66 +177,3 @@ class GoogleCallbackView(APIView):
 
         except Exception:
             return redirect('/login?error=auth_failed')
-
-            
-    """
-    OAUTH EXCHANGE: Receives Google Code, verifies it, and logs the user in.
-    """
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        # Google sends a 'code' parameter in the URL
-        code = request.GET.get('code')
-        if not code:
-            logger.warning("Google Callback hit without authorization code.")
-            return redirect('/login?error=missing_code')
-
-        try:
-            # 1. Exchange authorization code for an actual Access Token
-            token_res = requests.post("https://oauth2.googleapis.com/token", data={
-                'code': code,
-                'client_id': settings.GOOGLE_CLIENT_ID,
-                'client_secret': settings.GOOGLE_CLIENT_SECRET,
-                'redirect_uri': request.build_absolute_uri('/api/auth/google/callback/'),
-                'grant_type': 'authorization_code',
-            })
-            token_data = token_res.json()
-            access_token = token_data.get('access_token')
-
-            if not access_token:
-                logger.error(f"Google Token Exchange Failed: {token_data}")
-                return redirect('/login?error=token_exchange_failed')
-
-            # 2. Use the token to fetch the User's Profile from Google
-            user_info = requests.get(
-                "https://www.googleapis.com/oauth2/v3/userinfo",
-                headers={'Authorization': f'Bearer {access_token}'}
-            ).json()
-            
-            email = user_info.get('email')
-            if not email:
-                return redirect('/login?error=email_not_provided')
-
-            # 3. Synchronize with Django User Database
-            # We trust Google's verification, so we mark user as is_active=True
-            user, created = User.objects.get_or_create(
-                email=email, 
-                defaults={
-                    'username': email.split('@')[0], 
-                    'is_active': True
-                }
-            )
-            
-            # 4. Generate local JWT for the SPA to use
-            refresh = RefreshToken.for_user(user)
-            
-            # 5. FINAL REDIRECT: Hand the tokens to the frontend
-            # We pass tokens in the query string so the React 'LoginSuccess' component can grab them
-            success_url = f"/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}"
-            logger.info(f"OAuth successful for {email}. Redirecting to SPA.")
-            return redirect(success_url)
-
-        except Exception as e:
-            logger.error(f"Internal OAuth error: {str(e)}")
-            traceback.print_exc()
-            return redirect('/login?error=internal_auth_failure')
