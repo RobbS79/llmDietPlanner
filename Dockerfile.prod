@@ -4,14 +4,20 @@
     FROM node:20-alpine AS builder
     WORKDIR /app/frontend
     
+    # Define Build Arguments
+    # DigitalOcean passes "Build and Run Time" env vars as build arguments
+    ARG VITE_GOOGLE_CLIENT_ID
+    
     # Copy package files first to optimize layer caching
     COPY frontend/package*.json ./
     RUN npm install --legacy-peer-deps
     
-    # Copy frontend source and run build
+    # Copy frontend source
     COPY frontend/ ./
-    # This command MUST succeed for the next stage to proceed
-    RUN npm run build 
+    
+    # The VITE_ prefix tells Vite to include this variable in the client bundle.
+    # We ensure it's available in the environment for the build command.
+    RUN VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID npm run build 
     
     # --- STAGE 2: Python / Django ---
     FROM python:3.11-slim
