@@ -91,7 +91,7 @@ TEMPLATES = [
 
 # --- 7. AUTH & DATABASE ---
 SITE_ID = 1
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=None)
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=config('VITE_GOOGLE_CLIENT_ID', default=None))
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default=None)
 DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'))}
 ROOT_URLCONF = "llm_diet_planner_project.urls"
@@ -113,10 +113,13 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 # --- 8. CELERY CONFIGURATION (CRITICAL FIX) ---
-# This ensures Celery uses Redis instead of defaulting to RabbitMQ (port 5672)
+# We force the broker URL to use Redis. If DO env vars are missing, it defaults to local Redis.
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+# This ensures that Celery settings are picked up even if the namespace is slightly different
+BROKER_URL = CELERY_BROKER_URL
+RESULT_BACKEND = CELERY_RESULT_BACKEND
