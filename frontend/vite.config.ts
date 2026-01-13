@@ -1,3 +1,4 @@
+// File: frontend/vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -10,5 +11,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     assetsDir: 'assets',
+    // Set target to es2020 to support import.meta and modern browser features
+    target: 'es2020'
   }
 })
