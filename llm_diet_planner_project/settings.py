@@ -75,7 +75,7 @@ DATABASE_URL = config('DATABASE_URL', default=f'sqlite:///{str(BASE_DIR / "db.sq
 DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 
 # --- STATIC & VITE PRODUCTION ---
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Standardized path name to match views.py

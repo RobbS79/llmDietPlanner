@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // CRITICAL: Tells Vite that assets will be served from Django's /static/ path
+  base: '/static/', 
   server: {
     proxy: {
       '/api': {
@@ -15,5 +17,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    assetsDir: 'assets',
   }
 })
