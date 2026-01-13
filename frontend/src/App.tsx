@@ -11,12 +11,11 @@ import axios from 'axios';
 
 /**
  * PRODUCTION FRONTEND - RECTIFIED EDITION
- * Fixed 'import.meta' warnings and 'process' keyword errors for ES2015 targets.
- * We avoid modern syntax like optional chaining on keywords to satisfy older compilers.
+ * Optimized for deployment where ES2015 target is used.
+ * Accesses Vite environment variables safely to prevent compilation warnings.
  */
 
-// We access the variable using a standard check that avoids modern syntax errors 
-// while still allowing Vite's static analysis to perform the replacement.
+// Safe accessor for VITE_ environment variables
 // @ts-ignore
 const GOOGLE_CLIENT_ID = (typeof import.meta !== 'undefined' && import.meta.env) 
   ? import.meta.env.VITE_GOOGLE_CLIENT_ID 
@@ -42,15 +41,13 @@ const LoginView = () => {
   const errorCode = params.get('error');
 
   useEffect(() => {
-    // Diagnostic logging to confirm variable visibility
-    console.log("[AUTH DEBUG] Configuration State:");
-    console.log(" - Google ID Detected:", !!GOOGLE_CLIENT_ID);
-    console.log(" - Deployment Domain:", window.location.origin);
+    // Console debugging to verify build-time variable injection
+    console.log("[AUTH DEBUG] VITE_GOOGLE_CLIENT_ID status:", !!GOOGLE_CLIENT_ID);
   }, []);
 
   const handleGoogleLogin = () => {
-    console.log("[AUTH DEBUG] Handshake triggered. Redirecting to Django trigger...");
-    // Direct browser transfer to the backend logic
+    console.log("[AUTH DEBUG] Redirecting to backend OAuth initiator...");
+    // Transfer control to the server-side redirector
     window.location.href = '/api/auth/google/login/';
   };
 
@@ -58,33 +55,33 @@ const LoginView = () => {
     switch (code) {
       case 'google_not_configured':
         return {
-          title: "System Config Error",
-          desc: "The server is missing the GOOGLE_CLIENT_ID environment variable.",
-          action: "Check DigitalOcean App Settings for backend variables."
+          title: "Provider Configuration Missing",
+          desc: "The server is missing necessary Google OAuth environment variables.",
+          action: "Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server."
         };
       case 'token_exchange_failed':
         return {
-          title: "Verification Failure",
-          desc: "Google rejected the login attempt. This often happens if the Secret key is wrong.",
-          action: "Verify GOOGLE_CLIENT_SECRET matches the ID in Google Console."
+          title: "Identity Verification Failure",
+          desc: "Google rejected the authentication attempt.",
+          action: "Verify that your Redirect URIs in Google Cloud Console match this domain."
         };
       case 'email_access_denied':
         return {
-          title: "Permissions Missing",
-          desc: "Access to your Google email was denied or not requested correctly.",
-          action: "Ensure you grant all requested permissions in the Google popup."
+          title: "Permissions Denied",
+          desc: "We couldn't retrieve your email from Google.",
+          action: "Please try again and approve the email access request."
         };
       case 'sync_failed':
         return {
           title: "Local Session Error",
-          desc: "Verification succeeded, but we couldn't store the login state in this browser.",
-          action: "Clear browser data for this site and ensure cookies are enabled."
+          desc: "Verified successfully, but tokens couldn't be stored locally.",
+          action: "Ensure cookies and local storage are enabled in your browser."
         };
       default:
         return {
-          title: "Login Interrupted",
-          desc: "The authentication flow was interrupted unexpectedly.",
-          action: "Check server 'Runtime Logs' in DigitalOcean for [DEBUG] output."
+          title: "Authentication Interrupted",
+          desc: "The login process encountered an unexpected error.",
+          action: "Check server logs for specific [DEBUG] output."
         };
     }
   };
@@ -105,14 +102,10 @@ const LoginView = () => {
           Clinical nutrition meets local retailer inventory.
         </p>
         
-        {/* DEVELOPER DIAGNOSTIC BOX */}
+        {/* DEVELOPER DIAGNOSTIC INFO */}
         {!GOOGLE_CLIENT_ID && (
-           <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-2xl mb-8 text-left text-[11px] leading-relaxed">
-             <div className="flex items-center gap-2 mb-1 font-bold">
-               <AlertCircle size={14} /> Build Time Warning
-             </div>
-             <code>VITE_GOOGLE_CLIENT_ID</code> was not detected during compilation. 
-             The login button is disabled to prevent loops.
+           <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-2xl mb-8 text-left text-xs leading-relaxed italic">
+             <strong>Warning:</strong> VITE_GOOGLE_CLIENT_ID was not detected during build.
            </div>
         )}
 
@@ -123,7 +116,7 @@ const LoginView = () => {
             </div>
             <p className="text-xs opacity-80 leading-relaxed">{error?.desc}</p>
             <div className="pt-2 text-[10px] font-bold text-white/40 uppercase tracking-tighter">
-               Action: {error?.action}
+               Fix: {error?.action}
             </div>
           </div>
         )}
@@ -154,15 +147,15 @@ const LoginSuccess = () => {
     const access = params.get('access');
     const refresh = params.get('refresh');
     
-    console.log("[AUTH SUCCESS] Capturing session tokens...");
+    console.log("[AUTH SUCCESS] Tokens found, syncing session...");
 
     if (access && refresh) {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      console.log("[AUTH SUCCESS] Session synchronized. Navigating to Dashboard.");
+      console.log("[AUTH SUCCESS] Session verified. Redirecting to Root.");
       navigate('/', { replace: true });
     } else {
-      console.error("[AUTH ERROR] verification succeeded but tokens were missing from the redirect.");
+      console.error("[AUTH ERROR] verification flow returned without tokens.");
       navigate('/login?error=sync_failed');
     }
   }, [params, navigate]);
