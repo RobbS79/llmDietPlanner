@@ -63,21 +63,25 @@ DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 # --- STATIC & VITE PRODUCTION ---
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# Ensure this matches the Dockerfile output path
 REACT_BUILD_DIR = BASE_DIR / "frontend" / "dist"
 
+# Ensure Whitenoise finds the React build
 STATICFILES_DIRS = [
-    os.path.join(REACT_BUILD_DIR) if os.path.exists(REACT_BUILD_DIR) else None
-]
-STATICFILES_DIRS = [d for d in STATICFILES_DIRS if d is not None]
+    os.path.join(REACT_BUILD_DIR)
+] if os.path.exists(REACT_BUILD_DIR) else []
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# --- AUTH ---
+# --- AUTH (Fixes W001 & Deprecation Warnings) ---
 SITE_ID = 1
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_SIGNUP_FIELDS = ['email', 'password1', 'password2']
+
+ACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
@@ -101,6 +105,3 @@ if not DEBUG:
     CSRF_TRUSTED_ORIGINS = ['https://squid-app-6avsy.ondigitalocean.app']
 
 FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
-GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
