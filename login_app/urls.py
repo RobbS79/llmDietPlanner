@@ -7,7 +7,8 @@ from .social_views import GoogleLogin
 LOGIN_APP URL CONFIGURATION
 ===========================
 Mounted at /api/auth/ in the root urls.py.
-Final URLs look like: /api/auth/google/login/
+All these endpoints return JSON data or perform redirects.
+They do NOT serve HTML pages (React handles the UI).
 """
 
 app_name = 'login_app'
@@ -15,20 +16,23 @@ app_name = 'login_app'
 urlpatterns = [
     # --- GOOGLE OAUTH FLOW ---
     
-    # Step 1: The 'Door' (Frontend clicks this)
+    # Step 1: The 'Trigger'
     # URL: /api/auth/google/login/
+    # Frontend redirects the browser here to start the Google handshake.
     path('google/login/', views.GoogleLoginRedirectView.as_view(), name='google_redirect'),
     
-    # Step 2: The Callback (Google returns here with a code)
+    # Step 2: The 'Receiver'
     # URL: /api/auth/google/callback/
+    # Google sends the user back here with an auth code.
     path('google/callback/', views.GoogleCallbackView.as_view(), name='google_callback'),
     
-    # Step 3: The JWT Issuer (Callback uses this internally or for mobile token exchange)
+    # Step 3: The 'Token Exchange'
     # URL: /api/auth/google/
+    # Used for direct token exchange (e.g. mobile or frontend-only flows).
     path('google/', GoogleLogin.as_view(), name='google_login'),
     
     
-    # --- STANDARD AUTHENTICATION ---
+    # --- STANDARD AUTHENTICATION (JSON API) ---
     
     # URL: /api/auth/register/
     path('register/', views.RegistrationView.as_view(), name='register'),
@@ -39,6 +43,6 @@ urlpatterns = [
     # URL: /api/auth/refresh/
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     
-    # Optional dj-rest-auth paths for profile management
+    # Optional dj-rest-auth paths for profile/user management
     path('', include('dj_rest_auth.urls')),
 ]
