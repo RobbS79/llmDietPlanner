@@ -1,5 +1,7 @@
+# diet_planner/models.py
 """
 Diet Planner Models - Handles user dietary goals and plans with GDPR compliance.
+Updated to support Historic Nutrition Context integration via the Genesis Sequence.
 """
 from django.db import models
 from django.contrib.auth.models import User
@@ -117,12 +119,19 @@ class DietaryGoal(models.Model):
     
     # Encrypted fields for GDPR compliance (health/diet PII)
     prompt = EncryptedTextField(
-        help_text="User's dietary prompt with goals/requirements (encrypted)"
+        help_text="User's dietary prompt, instructions, or main historic plan (encrypted)"
     )
     dietary_restrictions = EncryptedTextField(
         blank=True,
         null=True,
         help_text="Dietary restrictions or allergies (encrypted)"
+    )
+
+    # NEW FIELD: Authoritative Historic Plan context
+    historic_plan_context = EncryptedTextField(
+        blank=True, 
+        null=True, 
+        help_text="Full baseline nutrition history provided by the user for AI analysis (encrypted)"
     )
     
     # Non-sensitive metadata
@@ -193,7 +202,7 @@ class DietaryGoal(models.Model):
     )
     currency = models.CharField(
         max_length=3,
-        default='PLN',
+        default='CZK',
         choices=[
             ('PLN', 'Polish Złoty'),
             ('CZK', 'Czech Koruna'),
@@ -206,7 +215,7 @@ class DietaryGoal(models.Model):
     )
     language_code = models.CharField(
         max_length=5,
-        default='pl',
+        default='cs',
         help_text="Language code (ISO 639-1) for i18n support"
     )
     
@@ -283,10 +292,7 @@ class DietaryGoal(models.Model):
     
     def save(self, *args, **kwargs):
         """Auto-set currency based on country before saving."""
-        if self.country and not self.currency:
-            self.currency = get_currency_for_country(self.country)
-        elif self.country:
-            # Always update currency to match country
+        if self.country:
             self.currency = get_currency_for_country(self.country)
         super().save(*args, **kwargs)
     
@@ -301,144 +307,50 @@ class DietaryGoal(models.Model):
     def delete(self, *args, **kwargs):
         """
         Override delete to handle encrypted fields gracefully.
-        This prevents errors when deleting users with encrypted dietary goals.
         """
-        # #region agent log
         _debug_log("B", "models.py:DietaryGoal.delete", "Delete method entry", {
             "goal_id": self.id,
             "user_id": self.user_id
         })
-        # #endregion
         
         try:
-            # #region agent log
-            _debug_log("B", "models.py:DietaryGoal.delete", "Checking for related DietaryPlan")
-            # #endregion
-            
-            # Delete related DietaryPlan first to avoid constraint issues
             if hasattr(self, 'dietary_plan'):
-                # #region agent log
-                _debug_log("B", "models.py:DietaryGoal.delete", "DietaryPlan exists, deleting it")
-                # #endregion
-                
                 try:
                     self.dietary_plan.delete()
-                    # #region agent log
-                    _debug_log("B", "models.py:DietaryGoal.delete", "DietaryPlan deleted successfully")
-                    # #endregion
                 except Exception as e:
-                    error_msg = str(e)
-                    error_trace = traceback.format_exc()
-                    
-                    # #region agent log
-                    _debug_log("B", "models.py:DietaryGoal.delete", "Error deleting DietaryPlan", {
-                        "error": error_msg,
-                        "traceback": error_trace
-                    })
-                    # #endregion
-                    
-                    logger.warning(
-                        f"Error deleting related DietaryPlan for DietaryGoal {self.id}: {error_msg}"
-                    )
-            else:
-                # #region agent log
-                _debug_log("B", "models.py:DietaryGoal.delete", "No DietaryPlan to delete")
-                # #endregion
+                    logger.warning(f"Error deleting related DietaryPlan: {str(e)}")
         except Exception as e:
-            error_msg = str(e)
-            error_trace = traceback.format_exc()
-            
-            # #region agent log
-            _debug_log("B", "models.py:DietaryGoal.delete", "Error checking for DietaryPlan", {
-                "error": error_msg,
-                "traceback": error_trace
-            })
-            # #endregion
-            
-            logger.warning(
-                f"Error checking for related DietaryPlan for DietaryGoal {self.id}: {error_msg}"
-            )
+            logger.warning(f"Error checking for related DietaryPlan: {str(e)}")
         
-        # Try to access encrypted fields before deletion to catch any decryption errors
-        # This ensures we fail early if there's an encryption key issue
-        # #region agent log
-        _debug_log("C", "models.py:DietaryGoal.delete", "Before accessing encrypted fields")
-        # #endregion
-        
+        # Access check for encryption sanity
         try:
             _ = self.prompt
-            # #region agent log
-            _debug_log("C", "models.py:DietaryGoal.delete", "Successfully accessed prompt field")
-            # #endregion
-            
             if self.dietary_restrictions:
                 _ = self.dietary_restrictions
-                # #region agent log
-                _debug_log("C", "models.py:DietaryGoal.delete", "Successfully accessed dietary_restrictions field")
-                # #endregion
+            if self.historic_plan_context:
+                _ = self.historic_plan_context
         except Exception as e:
-            error_msg = str(e)
-            error_trace = traceback.format_exc()
-            
-            # #region agent log
-            _debug_log("C", "models.py:DietaryGoal.delete", "Error accessing encrypted fields", {
-                "error": error_msg,
-                "traceback": error_trace
-            })
-            # #endregion
-            
-            # Log the error but continue with deletion
-            # This handles cases where encryption key might be missing or corrupted
-            logger.warning(
-                f"Error accessing encrypted fields for DietaryGoal {self.id} during deletion: {error_msg}. "
-                "Continuing with deletion anyway."
-            )
+            logger.warning(f"Decryption error during deletion for Goal {self.id}: {str(e)}")
         
-        # #region agent log
-        _debug_log("B", "models.py:DietaryGoal.delete", "Before calling super().delete()")
-        # #endregion
-        
-        # Proceed with normal deletion
-        try:
-            super().delete(*args, **kwargs)
-            # #region agent log
-            _debug_log("B", "models.py:DietaryGoal.delete", "super().delete() completed successfully")
-            # #endregion
-        except Exception as e:
-            error_msg = str(e)
-            error_trace = traceback.format_exc()
-            
-            # #region agent log
-            _debug_log("B", "models.py:DietaryGoal.delete", "Error in super().delete()", {
-                "error": error_msg,
-                "traceback": error_trace
-            })
-            # #endregion
-            
-            raise  # Re-raise to see the actual error
+        super().delete(*args, **kwargs)
 
 
 @receiver(pre_delete, sender=DietaryGoal)
 def handle_dietary_goal_deletion(sender, instance, **kwargs):
     """
-    Signal handler to gracefully handle DietaryGoal deletion.
-    Ensures related DietaryPlan is deleted first to avoid constraint issues.
+    Signal handler to ensure OneToOne relation cleanup.
     """
     try:
-        # Delete related DietaryPlan if it exists (OneToOne relationship)
         if hasattr(instance, 'dietary_plan'):
             instance.dietary_plan.delete()
     except Exception as e:
-        logger.warning(
-            f"Error deleting related DietaryPlan for DietaryGoal {instance.id}: {str(e)}"
-        )
+        logger.warning(f"Signal cleanup error for Goal {instance.id}: {str(e)}")
 
 
 class DietaryPlan(models.Model):
     """
     Generated dietary plan linked to a dietary goal.
     Contains meal ideas and shopping list (generated by LLM).
-    Prices are matched by LLM from available_ingredients. Shopping list includes matched product details.
     """
     dietary_goal = models.OneToOneField(
         DietaryGoal,
@@ -637,7 +549,6 @@ class Recipe(models.Model):
     Recipes are linked to meals via a unique meal identifier.
     """
     # Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)
-    # Example: "19:1:breakfast:0" or "19:1:lunch:0"
     meal_identifier = models.CharField(
         max_length=255,
         unique=True,
@@ -813,3 +724,43 @@ class MealInstance(models.Model):
     def __str__(self) -> str:
         cooked_status = "✓ Cooked" if self.is_cooked else "Not cooked"
         return f"{self.meal_name} - {cooked_status} (User: {self.user.username})"
+
+
+@receiver(pre_delete, sender=User)
+def handle_user_deletion(sender, instance, **kwargs):
+    """
+    Handle User deletion gracefully.
+    Pre-deletes related DietaryGoal objects to avoid cascade issues with encrypted fields.
+    """
+    _debug_log("A", "signals.py:handle_user_deletion", "Signal handler entry", {
+        "user_id": instance.id,
+        "username": instance.username
+    })
+    
+    try:
+        # Get all dietary goals for this user
+        dietary_goals = DietaryGoal.objects.filter(user=instance)
+        goal_count = dietary_goals.count()
+        
+        if goal_count > 0:
+            logger.info(
+                f"Deleting {goal_count} dietary goal(s) for user {instance.username} (ID: {instance.id})"
+            )
+            
+            # Delete each goal individually to handle encrypted fields gracefully
+            for goal in dietary_goals:
+                try:
+                    goal.delete()
+                except Exception as e:
+                    logger.error(
+                        f"Error deleting DietaryGoal {goal.id} for user {instance.username}: {str(e)}"
+                    )
+                    continue
+            
+            logger.info(
+                f"Successfully handled deletion of dietary goals for user {instance.username}"
+            )
+    except Exception as e:
+        logger.error(
+            f"Error in handle_user_deletion signal for user {instance.username}: {str(e)}"
+        )
