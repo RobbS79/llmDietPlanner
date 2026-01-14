@@ -1,7 +1,7 @@
 # diet_planner/models.py
 """
 Diet Planner Models - Handles user dietary goals and plans with GDPR compliance.
-Updated to support Historic Nutrition Context integration via the Genesis Sequence.
+Updated to support a library of Historic Nutrition Plans for selection in the UI.
 """
 from django.db import models
 from django.contrib.auth.models import User
@@ -91,6 +91,37 @@ def get_shops_for_country(country_code: str) -> list:
     return COUNTRY_TO_SHOPS.get(country_code, [])
 
 
+class HistoricNutritionPlan(models.Model):
+    """
+    A library of nutrition plans uploaded by the user.
+    Allows selection and reuse across different goals.
+    GDPR compliant with encrypted content.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='historic_plans',
+        help_text="User who owns this historic plan record"
+    )
+    name = models.CharField(
+        max_length=255,
+        help_text="A friendly name for this plan (e.g., 'Winter 2024 Clinical Diet')"
+    )
+    content = EncryptedTextField(
+        help_text="The actual clinical document or past plan text (encrypted)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Historic Nutrition Plan"
+        verbose_name_plural = "Historic Nutrition Plans"
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"
+
+
 class DietaryGoal(models.Model):
     """
     Stores user dietary goals with encrypted PII data.
@@ -119,7 +150,7 @@ class DietaryGoal(models.Model):
     
     # Encrypted fields for GDPR compliance (health/diet PII)
     prompt = EncryptedTextField(
-        help_text="User's dietary prompt, instructions, or main historic plan (encrypted)"
+        help_text="User's dietary prompt with goals/requirements (encrypted)"
     )
     dietary_restrictions = EncryptedTextField(
         blank=True,
@@ -127,11 +158,14 @@ class DietaryGoal(models.Model):
         help_text="Dietary restrictions or allergies (encrypted)"
     )
 
-    # NEW FIELD: Authoritative Historic Plan context
-    historic_plan_context = EncryptedTextField(
-        blank=True, 
-        null=True, 
-        help_text="Full baseline nutrition history provided by the user for AI analysis (encrypted)"
+    # NEW: Reference to a specific historic plan from the user's library
+    historic_plan_reference = models.ForeignKey(
+        HistoricNutritionPlan,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='referenced_goals',
+        help_text="The historic plan to be used as a baseline for this new goal"
     )
     
     # Non-sensitive metadata
@@ -307,30 +341,35 @@ class DietaryGoal(models.Model):
     def delete(self, *args, **kwargs):
         """
         Override delete to handle encrypted fields gracefully.
+        This prevents errors when deleting users with encrypted dietary goals.
         """
+        # #region agent log
         _debug_log("B", "models.py:DietaryGoal.delete", "Delete method entry", {
             "goal_id": self.id,
             "user_id": self.user_id
         })
+        # #endregion
         
         try:
+            # Delete related DietaryPlan first to avoid constraint issues
             if hasattr(self, 'dietary_plan'):
                 try:
                     self.dietary_plan.delete()
                 except Exception as e:
-                    logger.warning(f"Error deleting related DietaryPlan: {str(e)}")
+                    logger.warning(f"Error deleting related DietaryPlan for DietaryGoal {self.id}: {str(e)}")
         except Exception as e:
-            logger.warning(f"Error checking for related DietaryPlan: {str(e)}")
+            logger.warning(f"Error checking for related DietaryPlan for DietaryGoal {self.id}: {str(e)}")
         
-        # Access check for encryption sanity
+        # Try to access encrypted fields before deletion to catch any decryption errors
         try:
             _ = self.prompt
             if self.dietary_restrictions:
                 _ = self.dietary_restrictions
-            if self.historic_plan_context:
-                _ = self.historic_plan_context
         except Exception as e:
-            logger.warning(f"Decryption error during deletion for Goal {self.id}: {str(e)}")
+            logger.warning(
+                f"Error accessing encrypted fields for DietaryGoal {self.id} during deletion: {str(e)}. "
+                "Continuing with deletion anyway."
+            )
         
         super().delete(*args, **kwargs)
 
@@ -338,19 +377,23 @@ class DietaryGoal(models.Model):
 @receiver(pre_delete, sender=DietaryGoal)
 def handle_dietary_goal_deletion(sender, instance, **kwargs):
     """
-    Signal handler to ensure OneToOne relation cleanup.
+    Signal handler to gracefully handle DietaryGoal deletion.
+    Ensures related DietaryPlan is deleted first to avoid constraint issues.
     """
     try:
         if hasattr(instance, 'dietary_plan'):
             instance.dietary_plan.delete()
     except Exception as e:
-        logger.warning(f"Signal cleanup error for Goal {instance.id}: {str(e)}")
+        logger.warning(
+            f"Error deleting related DietaryPlan for DietaryGoal {instance.id}: {str(e)}"
+        )
 
 
 class DietaryPlan(models.Model):
     """
     Generated dietary plan linked to a dietary goal.
     Contains meal ideas and shopping list (generated by LLM).
+    Prices are matched by LLM from available_ingredients. Shopping list includes matched product details.
     """
     dietary_goal = models.OneToOneField(
         DietaryGoal,
