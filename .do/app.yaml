@@ -39,6 +39,9 @@ services:
       - key: GOOGLE_REDIRECT_URI
         value: "https://squid-app-6avsy.ondigitalocean.app/api/auth/google/callback/"
         scope: RUN_TIME
+      - key: GEMINI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
       - key: EMAIL_BACKEND
         value: "django.core.mail.backends.smtp.EmailBackend"
       - key: EMAIL_HOST
