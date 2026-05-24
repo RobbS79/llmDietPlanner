@@ -11,7 +11,7 @@ from typing import Dict, Any
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -144,10 +144,11 @@ class DietaryGoalCreateView(APIView):
             )
             
         except ValueError as e:
-            return Response({"status": "error", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(f"Validation error: {e}")
+            return Response({"status": "error", "error": "Invalid input parameters"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Unhandled View Error: {traceback.format_exc()}")
-            return Response({"status": "error", "error": f"Internal mapping fault: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"status": "error", "error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DietaryGoalListView(APIView):
@@ -213,8 +214,10 @@ class DietaryGoalTaskStatusView(APIView):
 class DietaryGoalPromptDebugView(APIView):
     """
     Debug tool to inspect raw JSON prompt construction.
+    Restricted to admin users only.
     """
-    permission_classes = [] 
+    permission_classes = [IsAdminUser]
+
     def get(self, request, goal_id: int) -> Response:
         try:
             goal = DietaryGoal.objects.get(id=goal_id)
@@ -287,13 +290,15 @@ class MealInstanceCookedListView(APIView):
 
 class ScraperDebugView(APIView):
     """
-    Inventory engine tester.
+    Inventory engine tester. Restricted to admin users only.
     """
-    permission_classes = [] 
+    permission_classes = [IsAdminUser]
+
     def get(self, request) -> Response:
         shop = request.query_params.get('shop')
         country = request.query_params.get('country')
-        if not shop or not country: return Response({"status": "error", "error": "Invalid engine params"}, status=400)
+        if not shop or not country:
+            return Response({"status": "error", "error": "Invalid engine params"}, status=400)
         from .scrapers.scraper_service import ScraperService
         offers = ScraperService.get_available_ingredients(shop, country, force_refresh=True)
         return Response({"status": "success", "data": {"count": len(offers), "sample": offers[:5]}})

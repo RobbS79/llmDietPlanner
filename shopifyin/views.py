@@ -2,16 +2,15 @@
 API Views for Shopify integration.
 Uses DRF APIView for class-based views.
 """
+from decimal import Decimal
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.contrib.auth.models import User
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.utils import timezone
-from django.db import connection
 from typing import Dict, Any, List
 import logging
-import traceback
 
 from .models import ShopifyStore, ShopifyCheckout, ShopifyProduct
 from .shopify_service import ShopifyService
@@ -180,7 +179,7 @@ class ShopifyCheckoutCreateView(APIView):
                 {
                     "status": "error",
                     "data": None,
-                    "error": f"Failed to create checkout: {str(e)}",
+                    "error": "Failed to create checkout",
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -270,7 +269,7 @@ class ShopifyCheckoutStatusView(APIView):
                 {
                     "status": "error",
                     "data": None,
-                    "error": f"An error occurred: {str(e)}",
+                    "error": "An error occurred",
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -323,7 +322,7 @@ class ShopifyCheckoutListView(APIView):
                 {
                     "status": "error",
                     "data": None,
-                    "error": f"An error occurred: {str(e)}",
+                    "error": "An error occurred",
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -332,8 +331,9 @@ class ShopifyCheckoutListView(APIView):
 class ShopifyTestConnectionView(APIView):
     """
     Test Shopify API connection and configuration.
+    Restricted to admin users.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
 
     def get(self, request) -> Response:
         """Test the Shopify connection and meal plan product setup."""
@@ -490,7 +490,7 @@ class ShopifyProductListView(APIView):
                 {
                     "status": "error",
                     "data": None,
-                    "error": f"An error occurred: {str(e)}",
+                    "error": "An error occurred",
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -499,31 +499,17 @@ class ShopifyProductListView(APIView):
 class ShopifyDebugView(APIView):
     """
     Debug endpoint to check shopifyin database status.
-    Remove in production after debugging!
+    Restricted to admin users.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
 
     def get(self, request) -> Response:
         """Check if shopifyin tables exist and are accessible."""
         results = {
-            "tables_exist": [],
             "model_counts": {},
             "errors": [],
         }
 
-        # Check if tables exist
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT table_name FROM information_schema.tables
-                    WHERE table_schema = 'public' AND table_name LIKE 'shopifyin%%'
-                """)
-                tables = [row[0] for row in cursor.fetchall()]
-                results["tables_exist"] = tables
-        except Exception as e:
-            results["errors"].append(f"Table check error: {str(e)}")
-
-        # Try to access each model
         for model_name, model_class in [
             ("ShopifyStore", ShopifyStore),
             ("ShopifyCheckout", ShopifyCheckout),
@@ -533,6 +519,7 @@ class ShopifyDebugView(APIView):
                 count = model_class.objects.count()
                 results["model_counts"][model_name] = count
             except Exception as e:
-                results["errors"].append(f"{model_name} error: {str(e)}\n{traceback.format_exc()}")
+                logger.error(f"ShopifyDebug {model_name} error: {e}", exc_info=True)
+                results["errors"].append(f"{model_name}: inaccessible")
 
         return Response(results)

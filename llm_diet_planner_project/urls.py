@@ -23,11 +23,7 @@ urlpatterns = [
     path("api/auth/", include("login_app.urls")),
     path("api/", include("diet_planner.urls")),
     
-    # 4. Debug & Test tools
-    path("debug-prompt/", views.debug_prompt_view, name="debug-prompt"),
-    path("test-ui/", views.test_ui_view, name="test-ui"),
-    
-    # 5. CATCH-ALL: Serve React App (Must be last)
+    # 4. CATCH-ALL: Serve React App (Must be last)
     # This view is now guarded against asset requests to prevent MIME errors.
     re_path(r'^.*$', views.react_app_view, name="react-app"),
 ]

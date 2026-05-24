@@ -5,10 +5,8 @@ Includes standard Registration, Login, and secure Google OAuth handshake.
 Follows strict API standardization: { "status": "success", "data": {}, "error": null }
 """
 import requests
-import sys
 import uuid
 import logging
-import traceback
 from django.shortcuts import redirect
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -45,9 +43,7 @@ class GoogleLoginRedirectView(APIView):
         if not settings.DEBUG:
             redirect_uri = redirect_uri.replace('http://', 'https://')
             
-        print(f"\n[DEBUG OAUTH] Redirecting to Google", file=sys.stderr)
-        print(f"[DEBUG OAUTH] Client ID Loaded: {bool(client_id)}", file=sys.stderr)
-        print(f"[DEBUG OAUTH] Target Redirect URI: {redirect_uri}", file=sys.stderr)
+        logger.debug("OAuth redirect: client_id_present=%s redirect_uri=%s", bool(client_id), redirect_uri)
 
         if not client_id:
             logger.critical("OAuth Configuration Error: GOOGLE_CLIENT_ID is missing from environment.")
@@ -75,15 +71,13 @@ class GoogleCallbackView(APIView):
         if not settings.DEBUG:
             redirect_uri = redirect_uri.replace('http://', 'https://')
             
-        print(f"\n[DEBUG OAUTH] Callback Received from Google", file=sys.stderr)
-        print(f"[DEBUG OAUTH] Auth Code Present: {bool(code)}", file=sys.stderr)
+        logger.debug("OAuth callback: code_present=%s", bool(code))
 
         if not code:
             return redirect('/login?error=missing_code')
 
         try:
             # 1. Exchange code for Google Access Token
-            print(f"[DEBUG OAUTH] Exchanging code for tokens...", file=sys.stderr)
             token_res = requests.post("https://oauth2.googleapis.com/token", data={
                 'code': code,
                 'client_id': settings.GOOGLE_CLIENT_ID,
@@ -93,7 +87,7 @@ class GoogleCallbackView(APIView):
             }, timeout=10)
             
             if token_res.status_code != 200:
-                print(f"[DEBUG OAUTH] Token exchange failed: {token_res.text}", file=sys.stderr)
+                logger.error("OAuth token exchange failed: status=%s", token_res.status_code)
                 return redirect('/login?error=token_exchange_failed')
             
             token_data = token_res.json()
@@ -108,14 +102,14 @@ class GoogleCallbackView(APIView):
             
             email = user_info.get('email')
             if not email:
-                print(f"[DEBUG OAUTH] Failure: Email not provided by Google", file=sys.stderr)
+                logger.warning("OAuth callback: Google did not provide email")
                 return redirect('/login?error=email_access_denied')
 
             # 3. User Management (Atomic Transaction)
             with transaction.atomic():
                 user = User.objects.filter(email=email).first()
                 if not user:
-                    print(f"[DEBUG OAUTH] Creating new user for email: {email}", file=sys.stderr)
+                    logger.info("OAuth: creating new user for email")
                     username = email.split('@')[0]
                     # Ensure username uniqueness
                     base_username = username
@@ -130,12 +124,12 @@ class GoogleCallbackView(APIView):
 
             # 4. Issue JWT tokens and redirect back to the React success handler
             refresh = RefreshToken.for_user(user)
-            print(f"[DEBUG OAUTH] Authentication successful for: {user.username}", file=sys.stderr)
-            return redirect(f"/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}")
+            logger.info("OAuth: authentication successful for user_id=%s", user.id)
+            frontend_url = getattr(settings, 'FRONTEND_URL', '')
+            return redirect(f"{frontend_url}/login-success?access={str(refresh.access_token)}&refresh={str(refresh)}")
 
         except Exception as e:
-            print(f"[DEBUG OAUTH] CRITICAL ERROR during callback: {str(e)}", file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
+            logger.exception("OAuth callback error")
             return redirect('/login?error=auth_failed')
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -210,4 +204,5 @@ class LoginView(APIView):
                 "error": None
             })
         except Exception as e:
-            return Response({"status": "error", "data": None, "error": str(e)}, status=500)
+            logger.exception("Login error")
+            return Response({"status": "error", "data": None, "error": "Internal server error"}, status=500)

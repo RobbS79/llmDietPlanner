@@ -28,6 +28,10 @@ services:
       - "8000:8000"
     environment:
       - DEBUG=True
+      - SECRET_KEY=dev-only-insecure-key-do-not-use-in-production
+      - FIELD_ENCRYPTION_KEY=dev-only-32-char-encryption-key!
+      - ALLOWED_HOSTS=localhost,127.0.0.1,web
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/llm_diet_planner
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -42,6 +46,8 @@ services:
       - .:/app
     environment:
       - DEBUG=True
+      - SECRET_KEY=dev-only-insecure-key-do-not-use-in-production
+      - FIELD_ENCRYPTION_KEY=dev-only-32-char-encryption-key!
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/llm_diet_planner
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0

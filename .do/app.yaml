@@ -16,18 +16,25 @@ services:
       - key: SECRET_KEY
         scope: RUN_TIME
         type: SECRET
+      - key: FIELD_ENCRYPTION_KEY
+        scope: RUN_TIME
+        type: SECRET
       - key: DEBUG
         value: "False"
       - key: DATABASE_URL
         scope: RUN_TIME
         type: SECRET
       - key: ALLOWED_HOSTS
-        value: ".ondigitalocean.app"
+        value: "squid-app-6avsy.ondigitalocean.app"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://squid-app-6avsy.ondigitalocean.app"
+      - key: FRONTEND_URL
+        value: "https://squid-app-6avsy.ondigitalocean.app"
       - key: GOOGLE_CLIENT_ID
-        scope: RUN_AND_BUILD_TIME
+        scope: RUN_TIME
         type: SECRET
       - key: GOOGLE_CLIENT_SECRET
-        scope: RUN_AND_BUILD_TIME
+        scope: RUN_TIME
         type: SECRET
       - key: GOOGLE_REDIRECT_URI
         value: "https://squid-app-6avsy.ondigitalocean.app/api/auth/google/callback/"

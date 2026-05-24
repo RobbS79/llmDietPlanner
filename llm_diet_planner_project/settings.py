@@ -1,6 +1,5 @@
 # File: llm_diet_planner_project/settings.py
 import os
-import sys
 from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
@@ -9,15 +8,32 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- 1. SECURITY & ENCRYPTION ---
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-prod-key-must-be-set-in-digital-ocean')
+SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
-FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='local-testing-key-32-chars-!@#')
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY')
 
 # --- 2. HOSTS & PROXY ---
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='llmdietplanner-prod.ondigitalocean.app,localhost,127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
+
+# --- CORS ---
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
+CORS_ALLOW_CREDENTIALS = True
+
+# --- SECURITY HEADERS ---
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
 
 # --- 3. STATIC FILES & WHITENOISE ---
 STATIC_URL = "/static/"
@@ -55,6 +71,7 @@ INSTALLED_APPS = [
     "diet_planner",
     "login_app",
     "shopifyin",
+    "slack_bot",
 ]
 
 # --- 5. MIDDLEWARE ---
@@ -95,6 +112,7 @@ TEMPLATES = [
 SITE_ID = 1
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=config('VITE_GOOGLE_CLIENT_ID', default=None))
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default=None)
+FRONTEND_URL = config('FRONTEND_URL', default='')
 DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'))}
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
@@ -105,8 +123,24 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    )
+    ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+    },
 }
+
+# --- PASSWORD VALIDATION ---
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 10}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
 
 # --- AUTHENTICATION HARDENING ---
 # Extended lifetimes to account for DigitalOcean latency and long LLM generation wait times
@@ -124,7 +158,7 @@ SIMPLE_JWT = {
 REST_USE_JWT = True
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
 SOCIALACCOUNT_PROVIDERS = {
@@ -159,4 +193,63 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', config('GEMINI_API_KEY', defau
 GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash-exp')
 
 if not GEMINI_API_KEY:
-    print("CRITICAL WARNING: GEMINI_API_KEY IS NOT SET!", file=sys.stderr)
+    import logging as _log
+    _log.getLogger(__name__).warning("GEMINI_API_KEY is not set")
+
+# --- 10. EMAIL BACKEND ---
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@dietplanner.app')
+
+# --- 11. LOGGING ---
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'diet_planner': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'login_app': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'shopifyin': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

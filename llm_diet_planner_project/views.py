@@ -1,7 +1,6 @@
 # File: llm_diet_planner_project/views.py
 import logging
 from django.http import HttpResponse, Http404
-from django.shortcuts import render
 from django.conf import settings
 from pathlib import Path
 
@@ -45,8 +44,3 @@ def react_app_view(request):
         status=200
     )
 
-def debug_prompt_view(request):
-    return render(request, 'debug_prompt.html')
-
-def test_ui_view(request):
-    return render(request, 'test_ui.html')
