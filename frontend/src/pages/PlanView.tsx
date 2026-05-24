@@ -129,9 +129,9 @@ export const PlanView = () => {
               <div className="space-y-6 max-h-[440px] overflow-y-auto pr-4 custom-scrollbar mb-14">
                 {plan.shopping_list?.map((item: any, idx: number) => (
                   <div key={idx} className="group border-b border-zinc-800 pb-6 last:border-0 last:pb-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-base font-black text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight italic leading-none">{item.ingredient}</p>
-                      <p className="text-sm font-black text-indigo-500 tabular-nums leading-none">{item.price} {item.currency}</p>
+                    <div className="flex justify-between items-start gap-3 mb-2">
+                      <p className="text-base font-black text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
+                      <p className="text-sm font-black text-indigo-500 tabular-nums leading-none shrink-0 whitespace-nowrap">{item.price} {item.currency}</p>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
                       <span className="bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800">{item.quantity} {item.unit}</span>

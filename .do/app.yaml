@@ -39,6 +39,21 @@ services:
       - key: GOOGLE_REDIRECT_URI
         value: "https://squid-app-6avsy.ondigitalocean.app/api/auth/google/callback/"
         scope: RUN_TIME
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.smtp.EmailBackend"
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        value: "admin@kentain.eu"
+      - key: EMAIL_HOST_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+      - key: DEFAULT_FROM_EMAIL
+        value: "DietPlanner <admin@kentain.eu>"
       - key: CELERY_BROKER_URL
         value: "redis://127.0.0.1:6379/0"
       - key: CELERY_RESULT_BACKEND
