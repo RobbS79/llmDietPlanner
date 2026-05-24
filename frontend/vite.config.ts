@@ -1,14 +1,26 @@
 // File: frontend/vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
-// PHASE 1: Sync Frontend Build
-// This configuration ensures Vite prefixes all assets with /static/ 
-// so they align with Django's static file serving logic.
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   // CRITICAL: Tells Vite that assets will be served from Django's /static/ path
-  base: '/static/', 
+  base: '/static/',
+  server: {
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://web:8000',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     // Output directory that the Docker builder and Django will target
     outDir: 'dist',
