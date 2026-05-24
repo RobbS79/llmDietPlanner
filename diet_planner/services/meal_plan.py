@@ -24,7 +24,7 @@ class MealPlanService:
     def __init__(self):
         """Initialize Gemini service."""
         self.llm_service = GeminiService()
-        self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash-exp')
+        self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash')
 
     def generate_meal_plan(self, goal: DietaryGoal) -> Dict[str, Any]:
         """

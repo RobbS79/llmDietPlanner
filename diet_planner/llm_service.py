@@ -43,9 +43,9 @@ logger = logging.getLogger(__name__)
 # Gemini pricing per 1M tokens (as of 2024)
 # Prices in USD
 GEMINI_PRICING = {
-    'gemini-2.0-flash-exp': {
-        'input': 0.0,  # Free tier
-        'output': 0.0,  # Free tier
+    'gemini-2.0-flash': {
+        'input': 0.10,  # $0.10 per 1M input tokens
+        'output': 0.40,  # $0.40 per 1M output tokens
     },
     'gemini-1.5-pro': {
         'input': 1.25,  # $1.25 per 1M input tokens
@@ -118,7 +118,7 @@ class GeminiService:
         self.default_model = getattr(
             settings,
             'GEMINI_MODEL',
-            'gemini-2.0-flash-exp'  # Default to free tier
+            'gemini-2.0-flash'
         )
     
     def generate_dietary_plan(

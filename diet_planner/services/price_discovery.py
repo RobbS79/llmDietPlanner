@@ -50,7 +50,7 @@ class PriceDiscoveryService:
 
         # Initialize Gemini service
         self.llm_service = GeminiService()
-        self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash-exp')
+        self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash')
 
     def fill_missing_prices(self, shopping_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
