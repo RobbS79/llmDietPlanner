@@ -42,6 +42,8 @@ services:
       - key: GEMINI_API_KEY
         scope: RUN_TIME
         type: SECRET
+      - key: GEMINI_MODEL
+        value: "gemini-2.5-flash"
       - key: EMAIL_BACKEND
         value: "django.core.mail.backends.smtp.EmailBackend"
       - key: EMAIL_HOST

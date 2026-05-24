@@ -43,17 +43,21 @@ logger = logging.getLogger(__name__)
 # Gemini pricing per 1M tokens (as of 2024)
 # Prices in USD
 GEMINI_PRICING = {
+    'gemini-2.5-flash': {
+        'input': 0.15,
+        'output': 0.60,
+    },
     'gemini-2.0-flash': {
-        'input': 0.10,  # $0.10 per 1M input tokens
-        'output': 0.40,  # $0.40 per 1M output tokens
+        'input': 0.10,
+        'output': 0.40,
     },
     'gemini-1.5-pro': {
-        'input': 1.25,  # $1.25 per 1M input tokens
-        'output': 5.00,  # $5.00 per 1M output tokens
+        'input': 1.25,
+        'output': 5.00,
     },
     'gemini-1.5-flash': {
-        'input': 0.075,  # $0.075 per 1M input tokens
-        'output': 0.30,  # $0.30 per 1M output tokens
+        'input': 0.075,
+        'output': 0.30,
     },
 }
 
@@ -118,7 +122,7 @@ class GeminiService:
         self.default_model = getattr(
             settings,
             'GEMINI_MODEL',
-            'gemini-2.0-flash'
+            'gemini-2.5-flash'
         )
     
     def generate_dietary_plan(
