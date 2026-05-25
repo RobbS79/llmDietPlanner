@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { CardSkeleton } from '@/components/ui/Skeleton';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
@@ -17,8 +17,6 @@ export const Dashboard = () => {
     queryKey: ['profile'],
     queryFn: () => api.get('/auth/profile/').then(res => res.data.data),
   });
-
-  if (isLoading) return <LoadingScreen message="Loading your meal plans..." />;
 
   return (
     <MainLayout>
@@ -46,7 +44,13 @@ export const Dashboard = () => {
         </header>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {goals?.length === 0 ? (
+          {isLoading ? (
+            <>
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+            </>
+          ) : goals?.length === 0 ? (
             <div className="col-span-full py-40 flex flex-col items-center justify-center border border-zinc-800 rounded-[2.5rem] bg-zinc-900/10 text-center">
               <Box size={64} className="text-zinc-500 mb-8" />
               <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatim zadne jidelnicky</p>

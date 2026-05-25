@@ -47,24 +47,24 @@ export const ShoppingListPage = () => {
           onClick={() => navigate(`/plan/${id}`)}
           className="flex items-center gap-2 text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors print:hidden"
         >
-          <ArrowLeft size={16} /> Back to Plan
+          <ArrowLeft size={16} /> Zpet na plan
         </button>
 
         <header className="mb-16 flex flex-col sm:flex-row sm:items-end justify-between gap-8 text-left">
           <div className="space-y-4">
-            <Badge variant="emerald">Shopping List</Badge>
+            <Badge variant="emerald">Nakupni seznam</Badge>
             <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">
-              Your List<span className="text-indigo-500 not-italic">.</span>
+              Vas seznam<span className="text-indigo-500 not-italic">.</span>
             </h1>
             <p className="text-zinc-600 text-sm font-bold italic">
-              {items.length} items &middot; {checked.size} checked off
+              {items.length} polozek &middot; {checked.size} odskrtnuto
             </p>
           </div>
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white px-6 h-12 rounded-xl font-black uppercase text-[10px] tracking-[0.15em] transition-colors print:hidden"
           >
-            <Printer size={16} /> Print
+            <Printer size={16} /> Tisknout
           </button>
         </header>
 
@@ -110,7 +110,7 @@ export const ShoppingListPage = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <ShoppingCart size={22} className="text-indigo-500" />
-              <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">Estimated Total</p>
+              <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">Odhadovana cena celkem</p>
             </div>
             <p className="text-4xl font-black text-white italic tracking-tighter">
               {plan.total_price}<span className="text-indigo-500 text-base not-italic ml-2 uppercase">{plan.currency}</span>

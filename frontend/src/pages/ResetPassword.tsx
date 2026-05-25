@@ -120,7 +120,7 @@ export const ResetPassword = () => {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6"
           >
             {mutation.isPending ? <Loader2 className="animate-spin" size={18} /> : 'Nastavit nove heslo'}
           </button>

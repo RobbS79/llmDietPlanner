@@ -13,6 +13,7 @@ import { ResetPassword } from '@/pages/ResetPassword';
 import { Landing } from '@/pages/Landing';
 import { Privacy } from '@/pages/Privacy';
 import { Terms } from '@/pages/Terms';
+import { ToastProvider } from '@/components/ui/Toast';
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ function HomeRoute() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ToastProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -40,6 +42,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

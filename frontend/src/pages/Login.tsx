@@ -143,7 +143,7 @@ export const Login = () => {
           )}
 
           <button type="submit" disabled={isLoading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6">
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6">
             {isLoading ? <Loader2 className="animate-spin" size={18} /> : mode === 'login' ? 'Prihlasit se' : 'Vytvorit ucet'}
           </button>
 
@@ -163,7 +163,7 @@ export const Login = () => {
         </div>
 
         <button onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || ''}/api/auth/google/login/`}
-          className="w-full bg-white hover:bg-zinc-100 text-black h-12 rounded-xl font-black transition-all flex items-center justify-center gap-4 text-[11px] uppercase tracking-[0.15em] shadow-xl active:scale-[0.98]">
+          className="w-full bg-white hover:bg-zinc-100 text-black h-12 rounded-xl font-black transition-all flex items-center justify-center gap-4 text-xs uppercase tracking-[0.15em] shadow-xl active:scale-[0.98]">
           <GoogleIcon /> Pokracovat pres Google
         </button>
 

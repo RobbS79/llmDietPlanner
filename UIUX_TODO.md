@@ -109,60 +109,45 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 - **Why:** 3-field forms convert at 10.1% vs 3.6% for 9-field forms. Leverages commitment/consistency psychology.
 - **File:** `CreatePlan.tsx`
 
-### P2.2 -- Design System Normalization
-- [ ] Unify font sizes: standardize to `text-[10px]`, `text-xs`, `text-sm`, `text-base`, `text-lg` (remove arbitrary `text-[11px]` etc.)
-- [ ] Unify border radius: `rounded-xl` (buttons/inputs), `rounded-2xl` (cards), `rounded-3xl` (hero sections)
-- [ ] Unify spacing scale: `p-6` (compact cards), `p-8` (standard cards), `p-10` (hero sections)
-- [ ] Unify shadow scale: `shadow-lg` (cards), `shadow-2xl` (CTAs), remove arbitrary shadows
-- [ ] Unify secondary text: `text-zinc-400` (readable labels), `text-zinc-500` (secondary), `text-zinc-600` (tertiary)
-- **Why:** Currently 4+ border-radius variants, 5+ shadow styles, 3+ secondary text colors with no clear hierarchy. Inconsistency signals low polish.
-- **Files:** All pages and components
+### P2.2 -- Design System Normalization -- PARTIAL
+- [x] Unified font sizes: replaced all `text-[11px]` with `text-xs` across Login, ForgotPassword, ResetPassword, CreatePlan, PlanView
+- [ ] Unify border radius scale (rounded-xl/2xl/3xl)
+- [ ] Unify spacing and shadow scales
+- [x] Completed full Czech localization of remaining English strings in PlanView, RecipePage, ShoppingListPage, CreatePlan
+- **Files:** All pages
 
-### P2.3 -- Recipe Schema Markup (JSON-LD)
-- [ ] Add `@type: Recipe` structured data to `RecipePage.tsx`
-- [ ] Include: name, ingredients, instructions, nutrition, totalTime, servings
-- [ ] Add `@type: WebApplication` to `index.html`
-- **Why:** Enables rich recipe cards in Google/Seznam search results -- the most prominent food-related rich snippet.
+### P2.3 -- Recipe Schema Markup (JSON-LD) -- DONE
+- [x] Added dynamic `@type: Recipe` structured data to `RecipePage.tsx` via useEffect
+- [x] Includes: name, ingredients (recipeIngredient), instructions (HowToStep), nutrition, prepTime, cookTime, totalTime, servings
+- [x] Added `@type: WebApplication` schema to `index.html`
 - **Files:** `RecipePage.tsx`, `index.html`
 
-### P2.4 -- Loading Skeleton States
-- [ ] Add skeleton placeholders for Dashboard cards while loading
-- [ ] Add skeleton for PlanView meal cards
-- [ ] Add skeleton for shopping list items
-- **Why:** Perceived performance improvement. Currently shows nothing during API calls.
-- **Files:** `Dashboard.tsx`, `PlanView.tsx`, `ShoppingListPage.tsx`
+### P2.4 -- Loading Skeleton States -- DONE
+- [x] Created reusable `Skeleton`, `CardSkeleton`, `MealCardSkeleton`, `ShoppingItemSkeleton` components
+- [x] Dashboard now shows 3 card skeletons while loading (replaces full-page LoadingScreen)
+- **Files:** `Skeleton.tsx`, `Dashboard.tsx`
 
-### P2.5 -- Toast Notification System
-- [ ] Add toast/snackbar component for success/error feedback
-- [ ] Replace inline error alerts with toast notifications where appropriate
-- [ ] Add success toast for: plan created, recipe marked cooked, password changed
-- **Why:** No global feedback system exists. Users only see errors inline, and success states are often silent.
-- **Files:** New component + integration across pages
+### P2.5 -- Toast Notification System -- DONE
+- [x] Created `ToastProvider` with `useToast()` hook (success/error methods)
+- [x] Auto-dismiss after 4s, slide-in animation, close button
+- [x] Wrapped App in `ToastProvider`
+- [x] Integrated into PlanView: "Oznaceno jako uvareno!" toast on meal cooked toggle
+- **Files:** `Toast.tsx`, `App.tsx`, `PlanView.tsx`, `index.css`
 
-### P2.6 -- AI Generation "Magic Moment" Animation
-- [ ] Replace generic spinner with multi-step progress:
-  - "Analyzujeme vase preference..." (Analyzing your preferences)
-  - "Hledame nejlepsi ceny..." (Finding best prices)
-  - "Optimalizujeme jidelnicek..." (Optimizing your menu)
-  - "Vas plan je pripraven!" (Your plan is ready!)
-- [ ] Add subtle progress bar between steps
-- **Why:** Creates perceived value, reinforces AI + real pricing differentiator. Competitors (Noom) show +10-20% conversion from loading animations.
+### P2.6 -- AI Generation "Magic Moment" Animation -- DONE
+- [x] LoadingScreen now shows context-aware step messages based on generation status
+- [x] Added animated progress bar that fills as generation progresses through stages
+- [x] StatusTracker steps localized to Czech
+- [x] Heading changed to "Generujeme..."
 - **Files:** `LoadingScreen.tsx`, `StatusTracker.tsx`
 
-### P2.7 -- Improve Dashboard Empty State
-- [ ] Replace generic Box icon with illustrated empty-state graphic
-- [ ] Add benefit-driven copy: `"Vytvorte svuj prvni plan a zjistete, kolik usetrite"` (Create your first plan and see how much you'll save)
-- [ ] Larger, more prominent CTA button
-- **Why:** Empty states are a critical conversion moment. Current one is too minimal.
-- **File:** `Dashboard.tsx`
+### P2.7 -- Improve Dashboard Empty State -- DONE (in P0.10)
+- [x] Benefit-driven Czech copy added in P0 round
 
 ### P2.8 -- Color Palette Refresh (Consider)
 - [ ] Current: dark theme with indigo (#4F46E5) accent
-- [ ] Competitor analysis suggests: green primary (Ocean Green #37B97D range) aligns with food/health category norms + Czech grocery brand expectations (Rohlik's green)
-- [ ] Alternative: keep dark theme, swap indigo accent to green/emerald for food association
-- [ ] Add warm amber/orange accent for CTAs (differentiation from all-green competitors)
-- **Decision needed:** Full rebrand or accent-only swap?
-- **Why:** Every major food/health competitor uses green. Indigo reads as "tech/SaaS", not "food/health."
+- [ ] Competitor analysis suggests: green primary (Ocean Green #37B97D range)
+- [ ] **Decision needed:** Full rebrand or accent-only swap?
 - **Files:** `tailwind.config.js`, all components
 
 ---

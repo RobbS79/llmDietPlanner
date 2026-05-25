@@ -121,7 +121,7 @@ export const CreatePlan = () => {
                 <div className="space-y-3">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Zeme</label>
                   <select
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-[11px] font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-xs font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
                     value={formData.country}
                     onChange={e => {
                       const c = e.target.value;
@@ -175,14 +175,14 @@ export const CreatePlan = () => {
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Svacinky</span>
-                    <span className="text-xl font-black text-indigo-500 italic">{formData.small_meals_per_day}/day</span>
+                    <span className="text-xl font-black text-indigo-500 italic">{formData.small_meals_per_day}/den</span>
                   </div>
                   <input type="range" min="0" max="5" className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Drobne snacky</span>
-                    <span className="text-xl font-black text-indigo-500 italic">{formData.snacks_per_day}/day</span>
+                    <span className="text-xl font-black text-indigo-500 italic">{formData.snacks_per_day}/den</span>
                   </div>
                   <input type="range" min="0" max="3" className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
                 </div>
@@ -218,7 +218,7 @@ export const CreatePlan = () => {
                     }`}
                   >
                     <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Available</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupne</span>
                     {formData.shop === shop.code && <div className="absolute top-8 right-8 text-indigo-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
                   </button>
                 ))}
