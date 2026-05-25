@@ -247,14 +247,79 @@ class ShopsListView(APIView):
 class RecipeDetailView(APIView):
     """
     Synthesized recipe instructions.
+    Returns existing recipe or generates one on-demand from the meal plan data.
     """
     permission_classes = [IsAuthenticated]
+
     def get(self, request, meal_identifier: str) -> Response:
+        # Return existing recipe if available
         try:
             recipe = Recipe.objects.get(meal_identifier=meal_identifier, dietary_goal__user=request.user)
             return Response({"status": "success", "data": RecipeSerializer(recipe).data})
         except Recipe.DoesNotExist:
-            return Response({"status": "error", "error": "Recipe mapping failed"}, status=404)
+            pass
+
+        # Generate on-demand: parse meal_identifier (format: goal_id:day_number:meal_type:index)
+        try:
+            parts = meal_identifier.split(':')
+            if len(parts) < 3:
+                return Response({"status": "error", "error": "Invalid meal identifier"}, status=400)
+            goal_id, day_number, meal_type = int(parts[0]), int(parts[1]), parts[2]
+        except (ValueError, IndexError):
+            return Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
+
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+        except DietaryGoal.DoesNotExist:
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
+
+        try:
+            plan = goal.dietary_plan
+        except DietaryPlan.DoesNotExist:
+            return Response({"status": "error", "error": "Plan not found"}, status=404)
+
+        # Find the meal in plan days
+        meal = None
+        for day in (plan.days or []):
+            if day.get('day_number') == day_number:
+                meal = day.get(meal_type)
+                break
+        if not meal:
+            return Response({"status": "error", "error": "Meal not found in plan"}, status=404)
+
+        # Generate cooking instructions via LLM
+        from .llm_service import GeminiService
+        try:
+            llm_service = GeminiService()
+            ingredient_names = []
+            for ing in meal.get('ingredients', []):
+                if isinstance(ing, dict):
+                    ingredient_names.append(ing.get('name', str(ing)))
+                else:
+                    ingredient_names.append(str(ing))
+
+            instructions = llm_service.generate_recipe_instructions(
+                meal_name=meal.get('name', ''),
+                ingredients=ingredient_names,
+                description=meal.get('description', ''),
+                language_code=goal.language_code,
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate recipe instructions for {meal_identifier}: {e}")
+            instructions = []
+
+        # Store recipe for future requests
+        recipe = Recipe.objects.create(
+            meal_identifier=meal_identifier,
+            dietary_goal=goal,
+            name=meal.get('name', ''),
+            description=meal.get('description', ''),
+            instructions=instructions,
+            ingredients=meal.get('ingredients', []),
+            preparation_time=meal.get('preparation_time'),
+            nutritional_info=meal.get('nutritional_info', {}),
+        )
+        return Response({"status": "success", "data": RecipeSerializer(recipe).data})
 
 
 class MealInstanceView(APIView):

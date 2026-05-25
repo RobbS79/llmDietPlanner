@@ -172,36 +172,56 @@ QUANTITY_LIMITS = {
 def transform_days_to_new_format(days_data: List[Dict[str, Any]], goal: DietaryGoal) -> List[Dict[str, Any]]:
     """
     Transform days data from old format (main_courses array) to new format (breakfast/lunch/dinner objects).
+    Adds meal_identifier to each meal for recipe detail linking.
     """
     if not days_data or not isinstance(days_data, list):
         return []
-    
+
     transformed_days = []
     wants_breakfast = getattr(goal, 'breakfast', True)
     wants_lunch = getattr(goal, 'lunch', True)
     wants_dinner = getattr(goal, 'dinner', True)
-    
+
     for day in days_data:
+        day_number = day.get('day_number', len(transformed_days) + 1)
         transformed_day = {
-            'day_number': day.get('day_number', len(transformed_days) + 1),
+            'day_number': day_number,
             'small_meals': day.get('small_meals', []),
             'snacks': day.get('snacks', []),
         }
-        
+
         if 'breakfast' in day or 'lunch' in day or 'dinner' in day:
-            if wants_breakfast: transformed_day['breakfast'] = day.get('breakfast')
-            if wants_lunch: transformed_day['lunch'] = day.get('lunch')
-            if wants_dinner: transformed_day['dinner'] = day.get('dinner')
+            if wants_breakfast and day.get('breakfast'):
+                meal = day['breakfast']
+                meal['meal_identifier'] = f"{goal.id}:{day_number}:breakfast:0"
+                transformed_day['breakfast'] = meal
+            if wants_lunch and day.get('lunch'):
+                meal = day['lunch']
+                meal['meal_identifier'] = f"{goal.id}:{day_number}:lunch:0"
+                transformed_day['lunch'] = meal
+            if wants_dinner and day.get('dinner'):
+                meal = day['dinner']
+                meal['meal_identifier'] = f"{goal.id}:{day_number}:dinner:0"
+                transformed_day['dinner'] = meal
         elif 'main_courses' in day:
             main_courses = day['main_courses']
             idx = 0
             if wants_breakfast and idx < len(main_courses):
-                transformed_day['breakfast'] = main_courses[idx]; idx += 1
+                meal = main_courses[idx]
+                meal['meal_identifier'] = f"{goal.id}:{day_number}:breakfast:0"
+                transformed_day['breakfast'] = meal
+                idx += 1
             if wants_lunch and idx < len(main_courses):
-                transformed_day['lunch'] = main_courses[idx]; idx += 1
+                meal = main_courses[idx]
+                meal['meal_identifier'] = f"{goal.id}:{day_number}:lunch:0"
+                transformed_day['lunch'] = meal
+                idx += 1
             if wants_dinner and idx < len(main_courses):
-                transformed_day['dinner'] = main_courses[idx]; idx += 1
-        
+                meal = main_courses[idx]
+                meal['meal_identifier'] = f"{goal.id}:{day_number}:dinner:0"
+                transformed_day['dinner'] = meal
+                idx += 1
+
         transformed_days.append(transformed_day)
     return transformed_days
 

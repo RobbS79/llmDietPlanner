@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, MapPin, Timer, Globe, Download, ShoppingCart, UtensilsCrossed, ExternalLink } from 'lucide-react';
+import { AlertCircle, MapPin, Timer, Globe, Download, ShoppingCart, UtensilsCrossed, ArrowRight, List } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -90,7 +90,14 @@ export const PlanView = () => {
 
                 <div className="grid gap-10">
                   {['breakfast', 'lunch', 'dinner'].map(m => day[m] && (
-                    <Card key={m} className="p-10 hover:bg-zinc-900/80 hover:border-indigo-500/20 group/meal relative overflow-hidden text-left">
+                    <Card
+                      key={m}
+                      onClick={() => {
+                        const mealId = day[m].meal_identifier || `${id}:${day.day_number}:${m}:0`;
+                        navigate(`/plan/${id}/recipe/${mealId}`);
+                      }}
+                      className="p-10 hover:bg-zinc-900/80 hover:border-indigo-500/20 group/meal relative overflow-hidden text-left cursor-pointer"
+                    >
                       <div className="absolute top-0 right-0 p-8 text-zinc-900 opacity-20 pointer-events-none group-hover/meal:text-indigo-900 transition-colors">
                         <UtensilsCrossed size={120} />
                       </div>
@@ -112,6 +119,10 @@ export const PlanView = () => {
                             <p className="text-xl font-black text-zinc-200 italic tracking-tighter leading-none">{v}</p>
                           </div>
                         ))}
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-8 text-[10px] font-black text-indigo-500 uppercase tracking-widest italic opacity-0 group-hover/meal:opacity-100 transition-opacity relative z-10">
+                        View Recipe <ArrowRight size={14} />
                       </div>
                     </Card>
                   ))}
@@ -151,8 +162,11 @@ export const PlanView = () => {
                     {plan.total_price}<span className="text-blue-500 text-xl not-italic ml-2 uppercase leading-none">{plan.currency}</span>
                   </p>
                 </div>
-                <button className="w-full h-16 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-4">
-                  Shop Now <ExternalLink size={18} />
+                <button
+                  onClick={() => navigate(`/plan/${id}/shopping-list`)}
+                  className="w-full h-16 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-4"
+                >
+                  <List size={18} /> View Full List
                 </button>
               </div>
             </Card>
