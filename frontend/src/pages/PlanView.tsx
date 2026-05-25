@@ -37,7 +37,10 @@ export const PlanView = () => {
           <AlertCircle size={48} />
         </div>
         <h1 className="text-5xl font-black tracking-tighter uppercase mb-4 leading-none italic">Generation Failed<span className="text-rose-600 not-italic">.</span></h1>
-        <p className="text-zinc-600 max-w-sm mb-12 font-medium tracking-tight italic opacity-80 leading-relaxed">We couldn't generate your meal plan. Please try again with different parameters.</p>
+        <p className={`text-zinc-600 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed ${statusData?.error_message ? 'mb-4' : 'mb-12'}`}>We couldn't generate your meal plan. Please try again with different parameters.</p>
+        {statusData?.error_message && (
+          <p className="text-zinc-700 max-w-md mb-12 text-xs font-mono opacity-60 leading-relaxed">{statusData.error_message}</p>
+        )}
         <button onClick={() => navigate('/')} className="px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl">Back to Plans</button>
       </div>
     );

@@ -1576,11 +1576,9 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         logger.error(f"Task failed for goal {goal_id}: {str(exc)}", exc_info=True)
         try:
             goal = DietaryGoal.objects.get(id=goal_id)
-            # If payment was received but meal plan generation failed, mark as refund eligible
-            # This ensures user is not charged for a failed service
+            goal.error_message = f"Meal plan generation failed: {str(exc)}"
             if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
                 goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
-                goal.error_message = f"Meal plan generation failed: {str(exc)}"
                 logger.warning(
                     f"Goal {goal_id} failed after payment - marked as REFUND_ELIGIBLE. "
                     f"Order {goal.shopify_order_id} should be refunded."
@@ -1588,11 +1586,10 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             else:
                 goal.status = DietaryGoal.StatusChoices.FAILED
             goal.save(update_fields=['status', 'error_message'])
-        except Exception:
-            pass
-        
-        # Retry with exponential backoff (Celery will handle max_retries from decorator)
-        raise self.retry(exc=exc, countdown=30)
+        except Exception as inner_exc:
+            logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
+
+        raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries))
 
 
 def _find_matching_product(

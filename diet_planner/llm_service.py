@@ -388,34 +388,38 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
 
         try:
             gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
-            MAX_OUTPUT_TOKENS = 8192
-            
+            max_tokens = getattr(settings, 'GEMINI_MAX_OUTPUT_TOKENS', 65536)
+
             response = gemini_model.generate_content(
                 full_prompt,
                 generation_config={
                     "response_mime_type": "application/json",
                     "temperature": 0.7,
-                    "max_output_tokens": MAX_OUTPUT_TOKENS,
+                    "max_output_tokens": max_tokens,
                 },
                 request_options={"timeout": 300}
             )
-            
+
+            if response.candidates and hasattr(response.candidates[0], 'finish_reason'):
+                finish_reason = response.candidates[0].finish_reason
+                if finish_reason.name == 'MAX_TOKENS':
+                    logger.error(f"Meal plan response truncated at {max_tokens} tokens")
+                    raise ValueError(f"Response truncated: output exceeded {max_tokens} tokens")
+
             content = response.text
             usage = response.usage_metadata
-            
-            # Parse JSON
+
             try:
                 parsed_response = json.loads(content)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse meal plan JSON: {e}")
-                # Try cleaning
                 try:
                     cleaned = re.sub(r',\s*}', '}', content)
                     cleaned = re.sub(r',\s*]', ']', cleaned)
                     parsed_response = json.loads(cleaned)
                 except json.JSONDecodeError:
                     raise ValueError(f"Invalid JSON from meal plan generation: {e}")
-            
+
             return {
                 'response': parsed_response,
                 'input_tokens': usage.prompt_token_count,
@@ -424,7 +428,7 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
                 'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
                 'model': model,
             }
-            
+
         except Exception as e:
             logger.error(f"Meal plan generation error: {e}", exc_info=True)
             raise
@@ -494,21 +498,27 @@ Browse {shop_url} and return complete shopping list with real prices."""
 
         try:
             gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
-            MAX_OUTPUT_TOKENS = 8192
-            
+            max_tokens = getattr(settings, 'GEMINI_MAX_OUTPUT_TOKENS', 65536)
+
             response = gemini_model.generate_content(
                 prompt,
                 generation_config={
                     "response_mime_type": "application/json",
-                    "temperature": 0.3,  # Lower temp for price accuracy
-                    "max_output_tokens": MAX_OUTPUT_TOKENS,
+                    "temperature": 0.3,
+                    "max_output_tokens": max_tokens,
                 },
                 request_options={"timeout": 300}
             )
-            
+
+            if response.candidates and hasattr(response.candidates[0], 'finish_reason'):
+                finish_reason = response.candidates[0].finish_reason
+                if finish_reason.name == 'MAX_TOKENS':
+                    logger.error(f"Shopping list response truncated at {max_tokens} tokens")
+                    raise ValueError(f"Response truncated: output exceeded {max_tokens} tokens")
+
             content = response.text
             usage = response.usage_metadata
-            
+
             try:
                 parsed_response = json.loads(content)
             except json.JSONDecodeError as e:
@@ -519,7 +529,7 @@ Browse {shop_url} and return complete shopping list with real prices."""
                     parsed_response = json.loads(cleaned)
                 except json.JSONDecodeError:
                     raise ValueError(f"Invalid JSON from shopping list generation: {e}")
-            
+
             return {
                 'response': parsed_response,
                 'input_tokens': usage.prompt_token_count,
@@ -528,7 +538,7 @@ Browse {shop_url} and return complete shopping list with real prices."""
                 'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
                 'model': model,
             }
-            
+
         except Exception as e:
             logger.error(f"Shopping list generation error: {e}", exc_info=True)
             raise

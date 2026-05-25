@@ -205,6 +205,7 @@ class DietaryGoalTaskStatusView(APIView):
                     "task_status": task_result.state,
                     "goal_status": goal.status,
                     "ready": task_result.ready(),
+                    "error_message": goal.error_message,
                 }
             })
         except DietaryGoal.DoesNotExist:
