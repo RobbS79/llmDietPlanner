@@ -13,6 +13,7 @@ import { ResetPassword } from '@/pages/ResetPassword';
 import { Landing } from '@/pages/Landing';
 import { Privacy } from '@/pages/Privacy';
 import { Terms } from '@/pages/Terms';
+import { Pricing } from '@/pages/Pricing';
 import { ToastProvider } from '@/components/ui/Toast';
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/" element={<HomeRoute />} />
           <Route path="/create" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
           <Route path="/plan/:id" element={<ProtectedRoute><PlanView /></ProtectedRoute>} />

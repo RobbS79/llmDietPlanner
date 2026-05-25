@@ -157,15 +157,17 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 
 ## P3 -- Strategic (1+ days each)
 
-### P3.1 -- Pricing Page
-- [ ] Create `/pricing` route
-- [ ] Free tier: 10 AI meal plans, basic recipes, shopping list
-- [ ] Pro tier: unlimited plans, priority generation, PDF export, advanced macros, multi-store comparison
-- [ ] Monthly/annual toggle with "Save X%" badge
-- [ ] FAQ section below cards (with FAQ schema markup)
-- [ ] Frame cost against savings: `"Stoji mene nez jedno kafe tydne"` (Costs less than one coffee per week)
-- **Why:** No pricing page exists. Transparent pricing pages convert at 7-10%.
-- **Files:** New `Pricing.tsx` page, `App.tsx` route
+### P3.1 -- Pricing Page -- DONE
+- [x] Created `/pricing` route with full Czech pricing page
+- [x] Free tier (10 plans, basic features) + Pro tier (149/99 CZK monthly/annual)
+- [x] Monthly/annual toggle with "-33%" badge and savings calculator
+- [x] Feature comparison list with check/x icons
+- [x] FAQ section with 5 questions + accordion UI
+- [x] FAQ schema markup (JSON-LD FAQPage) for SEO
+- [x] "Stoji mene nez jedno kafe tydne" savings framing
+- [x] "Cenik" link added to Landing nav + footer
+- [x] Bottom CTA section + footer with privacy/terms links
+- **Files:** `Pricing.tsx`, `App.tsx`, `Landing.tsx`
 
 ### P3.2 -- Server-Side Rendering / Prerendering for SEO
 - [ ] Current SPA is invisible to Seznam.cz and suboptimal for Google

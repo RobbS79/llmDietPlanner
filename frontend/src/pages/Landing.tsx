@@ -43,6 +43,9 @@ export const Landing = () => {
           </span>
         </div>
         <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
+            Cenik
+          </button>
           <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">
             Prihlasit se
           </button>
@@ -335,6 +338,7 @@ export const Landing = () => {
               <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-600">DietPlanner.</span>
             </div>
             <div className="flex items-center gap-6">
+              <a href="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Cenik</a>
               <a href="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zasady ochrany soukromi</a>
               <a href="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodni podminky</a>
               <a href="mailto:support@dietplanner.cz" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Kontakt</a>
