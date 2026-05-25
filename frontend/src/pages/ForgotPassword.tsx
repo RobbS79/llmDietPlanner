@@ -38,9 +38,9 @@ export const ForgotPassword = () => {
             <Zap size={32} fill="currentColor" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tighter leading-none uppercase italic mb-3">
-            Reset <span className="text-indigo-500 not-italic">Password.</span>
+            Obnova <span className="text-indigo-500 not-italic">hesla.</span>
           </h1>
-          <p className="text-xs text-zinc-600 font-bold">Enter your email and we'll send you a reset link.</p>
+          <p className="text-xs text-zinc-600 font-bold">Zadejte svuj e-mail a posleme vam odkaz pro obnovu.</p>
         </div>
 
         {error && (
@@ -58,7 +58,7 @@ export const ForgotPassword = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Email</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">E-mail</label>
             <div className="relative">
               <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
               <input
@@ -68,7 +68,7 @@ export const ForgotPassword = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/50"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50"
               />
             </div>
           </div>
@@ -78,13 +78,13 @@ export const ForgotPassword = () => {
             disabled={mutation.isPending}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6"
           >
-            {mutation.isPending ? <Loader2 className="animate-spin" size={18} /> : 'Send Reset Link'}
+            {mutation.isPending ? <Loader2 className="animate-spin" size={18} /> : 'Odeslat odkaz pro obnovu'}
           </button>
         </form>
 
         <div className="text-center mt-8">
           <Link to="/login" className="text-xs font-bold text-zinc-600 hover:text-indigo-400 transition-colors inline-flex items-center gap-2">
-            <ArrowLeft size={14} /> Back to Sign In
+            <ArrowLeft size={14} /> Zpet na prihlaseni
           </Link>
         </div>
       </div>

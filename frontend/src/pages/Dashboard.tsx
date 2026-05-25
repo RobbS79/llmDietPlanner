@@ -26,13 +26,13 @@ export const Dashboard = () => {
         <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-16 text-left">
           <div className="space-y-3">
             <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">
-              Your<br /><span className="text-indigo-500 not-italic text-6xl">Plans.</span>
+              Vase<br /><span className="text-indigo-500 not-italic text-6xl">plany.</span>
             </h1>
             {profile && (
               <div className="flex items-center gap-2 pt-2">
                 <Sparkles size={14} className="text-indigo-500" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                  {profile.free_generations_remaining} free plans remaining
+                  {profile.free_generations_remaining} planu zdarma zbyva
                 </span>
               </div>
             )}
@@ -41,17 +41,18 @@ export const Dashboard = () => {
             onClick={() => navigate('/create')}
             className="h-14 px-10 bg-white text-black font-black uppercase text-[10px] tracking-[0.2em] rounded-xl hover:bg-zinc-200 transition-all shadow-2xl active:scale-95 flex items-center gap-3 shrink-0"
           >
-            <Plus size={20} strokeWidth={4} /> New Plan
+            <Plus size={20} strokeWidth={4} /> Novy plan
           </button>
         </header>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {goals?.length === 0 ? (
             <div className="col-span-full py-40 flex flex-col items-center justify-center border border-zinc-800 rounded-[2.5rem] bg-zinc-900/10 text-center">
-              <Box size={64} className="text-zinc-800 mb-8" />
-              <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-10 italic">No meal plans yet</p>
+              <Box size={64} className="text-zinc-500 mb-8" />
+              <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatim zadne jidelnicky</p>
+              <p className="text-zinc-500 text-xs mb-10">Vytvorte svuj prvni plan a zjistete, kolik usetrite.</p>
               <button onClick={() => navigate('/create')} className="text-indigo-500 font-black uppercase text-[10px] tracking-widest hover:underline flex items-center gap-2">
-                Create your first plan <ArrowRight size={14} />
+                Vytvorit prvni plan <ArrowRight size={14} />
               </button>
             </div>
           ) : (
@@ -65,7 +66,7 @@ export const Dashboard = () => {
                   <Badge variant={goal.status === 'completed' ? 'emerald' : goal.status === 'failed' ? 'rose' : 'blue'}>
                     {goal.status.replace(/_/g, ' ')}
                   </Badge>
-                  <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">
+                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
                     #{goal.id}
                   </span>
                 </div>
@@ -79,7 +80,7 @@ export const Dashboard = () => {
                     <span className="flex items-center gap-2"><MapPin size={12} className="text-indigo-500" /> {goal.city}</span>
                     <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{goal.num_days} days</span>
                   </div>
-                  <div className="flex justify-between items-center text-[9px] font-black text-zinc-800 uppercase tracking-[0.4em] pt-1">
+                  <div className="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] pt-1">
                     <span>{new Date(goal.created_at).toLocaleDateString()}</span>
                     <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform group-hover:text-indigo-500" />
                   </div>

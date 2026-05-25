@@ -67,9 +67,9 @@ export const CreatePlan = () => {
     <MainLayout>
       <div className="max-w-4xl mx-auto px-6 py-12 w-full">
         <header className="mb-20 text-center space-y-4">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em]">Step 1: Configure</p>
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em]">Krok 1: Nastaveni</p>
           <h1 className="text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">
-            New<br /><span className="text-indigo-500 not-italic">Plan.</span>
+            Novy<br /><span className="text-indigo-500 not-italic">plan.</span>
           </h1>
         </header>
 
@@ -77,7 +77,7 @@ export const CreatePlan = () => {
           <div className="mb-12 p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-left">
             <div className="flex items-center gap-3 mb-4">
               <RotateCcw size={16} className="text-indigo-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Reuse Previous Settings</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pouzit predchozi nastaveni</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {completedGoals.slice(0, 5).map((goal: any) => (
@@ -100,18 +100,18 @@ export const CreatePlan = () => {
           <section className="space-y-8 text-left">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">1</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Dietary Goals</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Stravovaci cile</h2>
             </div>
 
             <Card className="p-8 space-y-10">
               <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 flex items-center gap-2 italic">
-                  <BrainCircuit size={14} className="text-indigo-500" /> Describe your goals
+                  <BrainCircuit size={14} className="text-indigo-500" /> Popiste sve cile
                 </label>
                 <textarea
                   required
-                  className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-6 text-lg font-bold text-white placeholder:text-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-600/50 transition-all min-h-[220px] leading-relaxed"
-                  placeholder="e.g. High-protein diet, 2400 kcal target. Dairy-free. Focus on affordable ingredients available in Prague..."
+                  className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-6 text-lg font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50 transition-all min-h-[220px] leading-relaxed"
+                  placeholder="napr. Vysoko proteinova dieta, 2400 kcal denne. Bez mlecnych vyrobku. Cenove dostupne suroviny v Praze..."
                   value={formData.prompt}
                   onChange={e => update('prompt', e.target.value)}
                 />
@@ -119,7 +119,7 @@ export const CreatePlan = () => {
 
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Country</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Zeme</label>
                   <select
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-[11px] font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
                     value={formData.country}
@@ -129,13 +129,13 @@ export const CreatePlan = () => {
                       update('language_code', c === 'CZ' ? 'cs' : 'sk');
                     }}
                   >
-                    <option value="CZ">Czechia (CZK)</option>
-                    <option value="SK">Slovakia (EUR)</option>
+                    <option value="CZ">Cesko (CZK)</option>
+                    <option value="SK">Slovensko (EUR)</option>
                   </select>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">City</label>
-                  <input required type="text" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-800 focus:outline-none" placeholder="e.g. Prague" value={formData.city} onChange={e => update('city', e.target.value)} />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Mesto</label>
+                  <input required type="text" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-600 focus:outline-none" placeholder="napr. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
                 </div>
               </div>
             </Card>
@@ -145,15 +145,15 @@ export const CreatePlan = () => {
           <section className="space-y-8 text-left">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">2</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Meal Settings</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Nastaveni jidel</h2>
             </div>
 
             <Card className="p-8 space-y-12">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 {[
-                  { id: 'breakfast', label: 'Breakfast', icon: Coffee },
-                  { id: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
-                  { id: 'dinner', label: 'Dinner', icon: Utensils },
+                  { id: 'breakfast', label: 'Snidane', icon: Coffee },
+                  { id: 'lunch', label: 'Obed', icon: UtensilsCrossed },
+                  { id: 'dinner', label: 'Vecere', icon: Utensils },
                 ].map((meal) => (
                   <button
                     key={meal.id}
@@ -174,14 +174,14 @@ export const CreatePlan = () => {
               <div className="grid sm:grid-cols-2 gap-12">
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Small Meals</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Svacinky</span>
                     <span className="text-xl font-black text-indigo-500 italic">{formData.small_meals_per_day}/day</span>
                   </div>
                   <input type="range" min="0" max="5" className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Snacks</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Drobne snacky</span>
                     <span className="text-xl font-black text-indigo-500 italic">{formData.snacks_per_day}/day</span>
                   </div>
                   <input type="range" min="0" max="3" className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
@@ -189,7 +189,7 @@ export const CreatePlan = () => {
               </div>
 
               <div className="flex flex-wrap gap-2.5 pt-8 border-t border-zinc-800">
-                <span className="w-full text-[10px] font-black uppercase tracking-widest text-zinc-700 mb-2 italic">Plan Duration (Days)</span>
+                <span className="w-full text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 italic">Delka planu (dny)</span>
                 {[1, 3, 7, 14, 30].map(d => (
                   <button key={d} type="button" onClick={() => update('num_days', d)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-800 ${formData.num_days === d ? 'bg-indigo-600 text-white shadow-lg border-indigo-500' : 'bg-zinc-950 text-zinc-600 hover:text-zinc-400'}`}>
                     {d}D
@@ -203,7 +203,7 @@ export const CreatePlan = () => {
           <section className="space-y-8 text-left">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">3</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferred Store</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferovany obchod</h2>
             </div>
 
             <Card className="p-8">
@@ -238,7 +238,7 @@ export const CreatePlan = () => {
             disabled={mutation.isPending || !formData.prompt}
             className="w-full h-24 bg-white text-black rounded-[2rem] font-black text-2xl uppercase tracking-[0.5em] shadow-[0_30px_60px_rgba(255,255,255,0.05)] transition-all active:scale-[0.98] disabled:opacity-30 border-b-[12px] border-zinc-300 flex items-center justify-center gap-6"
           >
-            {mutation.isPending ? <div className="flex items-center gap-4"><Loader2 className="animate-spin" size={32} /> Creating...</div> : "Generate Plan"}
+            {mutation.isPending ? <div className="flex items-center gap-4"><Loader2 className="animate-spin" size={32} /> Vytvari se...</div> : "Vygenerovat plan"}
           </button>
         </form>
       </div>

@@ -80,7 +80,7 @@ export const Login = () => {
           {(['login', 'register'] as const).map((m) => (
             <button key={m} type="button" onClick={() => { setMode(m); setError(''); setSuccess(''); }}
               className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${mode === m ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}>
-              {m === 'login' ? <><KeyRound size={12} /> Sign In</> : <><UserPlus size={12} /> Register</>}
+              {m === 'login' ? <><KeyRound size={12} /> Prihlaseni</> : <><UserPlus size={12} /> Registrace</>}
             </button>
           ))}
         </div>
@@ -100,32 +100,32 @@ export const Login = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Username</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Uzivatelske jmeno</label>
             <div className="relative">
               <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
-              <input required type="text" autoComplete="username" placeholder={mode === 'login' ? 'Username or email' : 'Choose a username'} value={form.username} onChange={e => update('username', e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
+              <input required type="text" autoComplete="username" placeholder={mode === 'login' ? 'Jmeno nebo email' : 'Zvolte uzivatelske jmeno'} value={form.username} onChange={e => update('username', e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
             </div>
           </div>
 
           {mode === 'register' && (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Email</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">E-mail</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
                 <input required type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={e => update('email', e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
               </div>
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Password</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Heslo</label>
             <div className="relative">
               <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
-              <input required type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'register' ? 'Min 8 chars, 1 letter, 1 digit' : 'Enter password'} value={form.password} onChange={e => update('password', e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-11 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400">
+              <input required type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'register' ? 'Min. 8 znaku, 1 pismeno, 1 cislice' : 'Zadejte heslo'} value={form.password} onChange={e => update('password', e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-11 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Skryt heslo' : 'Zobrazit heslo'} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400">
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -133,24 +133,24 @@ export const Login = () => {
 
           {mode === 'register' && (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Confirm Password</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Potvrzeni hesla</label>
               <div className="relative">
                 <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
-                <input required type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Re-enter password" value={form.passwordConfirm} onChange={e => update('passwordConfirm', e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
+                <input required type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Zadejte heslo znovu" value={form.passwordConfirm} onChange={e => update('passwordConfirm', e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50" />
               </div>
             </div>
           )}
 
           <button type="submit" disabled={isLoading}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6">
-            {isLoading ? <Loader2 className="animate-spin" size={18} /> : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {isLoading ? <Loader2 className="animate-spin" size={18} /> : mode === 'login' ? 'Prihlasit se' : 'Vytvorit ucet'}
           </button>
 
           {mode === 'login' && (
             <div className="text-center mt-4">
               <Link to="/forgot-password" className="text-xs font-bold text-zinc-600 hover:text-indigo-400 transition-colors">
-                Forgot your password?
+                Zapomeli jste heslo?
               </Link>
             </div>
           )}
@@ -158,14 +158,16 @@ export const Login = () => {
 
         <div className="flex items-center gap-4 my-8">
           <div className="flex-1 h-px bg-zinc-800" />
-          <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest">or</span>
+          <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">nebo</span>
           <div className="flex-1 h-px bg-zinc-800" />
         </div>
 
         <button onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || ''}/api/auth/google/login/`}
           className="w-full bg-white hover:bg-zinc-100 text-black h-12 rounded-xl font-black transition-all flex items-center justify-center gap-4 text-[11px] uppercase tracking-[0.15em] shadow-xl active:scale-[0.98]">
-          <GoogleIcon /> Continue with Google
+          <GoogleIcon /> Pokracovat pres Google
         </button>
+
+        <p className="text-center text-[10px] text-zinc-600 mt-6">Pridejte se k 500+ lidem, kteri uz planuji chytreji.</p>
       </div>
     </div>
   );

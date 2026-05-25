@@ -3,8 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Zap, LayoutDashboard, Sparkles, LogOut, Menu, X } from 'lucide-react';
 
 const navLinks = [
-  { path: '/', label: 'My Plans', icon: LayoutDashboard },
-  { path: '/create', label: 'New Plan', icon: Sparkles },
+  { path: '/', label: 'Moje plany', icon: LayoutDashboard },
+  { path: '/create', label: 'Novy plan', icon: Sparkles },
 ];
 
 export const Navbar = () => {
@@ -45,12 +45,12 @@ export const Navbar = () => {
             ))}
           </nav>
           <div className="h-6 w-px bg-zinc-800" />
-          <button onClick={handleLogout} className="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all">
+          <button onClick={handleLogout} aria-label="Odhlasit se" className="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all">
             <LogOut size={18} />
           </button>
         </div>
 
-        <button className="md:hidden p-2 text-zinc-400" onClick={() => setMobileOpen(!mobileOpen)}>
+        <button className="md:hidden p-2 text-zinc-400" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Zavrit menu' : 'Otevrit menu'}>
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
@@ -69,7 +69,7 @@ export const Navbar = () => {
             </Link>
           ))}
           <button onClick={handleLogout} className="flex items-center gap-3 p-4 rounded-xl font-bold uppercase text-xs tracking-widest text-rose-500">
-            <LogOut size={16} /> Logout
+            <LogOut size={16} /> Odhlasit se
           </button>
         </div>
       )}

@@ -101,7 +101,7 @@ export const PlanView = () => {
         <h1 className="text-5xl font-black tracking-tighter uppercase mb-4 leading-none italic">Generation Failed<span className="text-rose-600 not-italic">.</span></h1>
         <p className={`text-zinc-600 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed ${statusData?.error_message ? 'mb-4' : 'mb-12'}`}>We couldn't generate your meal plan. Please try again with different parameters.</p>
         {statusData?.error_message && (
-          <p className="text-zinc-700 max-w-md mb-12 text-xs font-mono opacity-60 leading-relaxed">{statusData.error_message}</p>
+          <p className="text-zinc-500 max-w-md mb-12 text-xs font-mono opacity-60 leading-relaxed">{statusData.error_message}</p>
         )}
         <button onClick={() => navigate('/')} className="px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl">Back to Plans</button>
       </div>
@@ -274,7 +274,7 @@ export const PlanView = () => {
 
               <div className="pt-10 border-t-2 border-indigo-600/30 space-y-10">
                 <div className="space-y-2 text-left">
-                  <p className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.3em] italic leading-none">Estimated Total</p>
+                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em] italic leading-none">Estimated Total</p>
                   <p className="text-6xl font-black text-white italic tracking-tighter leading-none">
                     {plan.total_price}<span className="text-blue-500 text-xl not-italic ml-2 uppercase leading-none">{plan.currency}</span>
                   </p>
