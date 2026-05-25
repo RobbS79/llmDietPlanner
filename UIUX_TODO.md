@@ -99,15 +99,18 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 
 ## P2 -- Medium Effort (half-day each)
 
-### P2.1 -- Progressive Onboarding (Wizard) for CreatePlan
-- [ ] Split 3-section form into stepped wizard with progress bar
-  - Step 1: Dietary goals (textarea -- most engaging, lowest friction)
-  - Step 2: Meal config (meals, snacks, duration)
-  - Step 3: Location + store
-- [ ] Add progress indicator ("Step 2 of 3")
-- [ ] Sticky submit button on mobile
-- **Why:** 3-field forms convert at 10.1% vs 3.6% for 9-field forms. Leverages commitment/consistency psychology.
-- **File:** `CreatePlan.tsx`
+### P2.1 -- Progressive Onboarding (Wizard) for CreatePlan -- DONE
+- [x] Split 3-section form into 3-step wizard (Step 1: Goals+city, Step 2: Meals+duration, Step 3: Store)
+- [x] Animated progress bar with step indicators (numbered circles, checkmarks for completed)
+- [x] "Krok X z 3" label below progress bar
+- [x] Back/Next navigation buttons (desktop: bottom row, mobile: sticky bottom bar)
+- [x] Step validation: can't advance from step 1 without prompt + city
+- [x] Summary card on step 3 showing all selections before submit
+- [x] FadeIn animation on step transitions
+- [x] Sticky submit button on mobile (fixed bottom bar)
+- [x] "Reuse previous settings" only shown on step 1
+- [x] Increased range slider height from h-1.5 to h-2 for mobile touch
+- **File:** `CreatePlan.tsx`, `index.css`
 
 ### P2.2 -- Design System Normalization -- PARTIAL
 - [x] Unified font sizes: replaced all `text-[11px]` with `text-xs` across Login, ForgotPassword, ResetPassword, CreatePlan, PlanView

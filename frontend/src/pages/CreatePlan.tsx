@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw } from 'lucide-react';
+import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ShoppingCart, ChefHat } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 
+const STEPS = [
+  { label: 'Cile', icon: BrainCircuit },
+  { label: 'Jidla', icon: ChefHat },
+  { label: 'Obchod', icon: ShoppingCart },
+];
+
 export const CreatePlan = () => {
   const navigate = useNavigate();
+  const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     prompt: '',
@@ -58,22 +65,66 @@ export const CreatePlan = () => {
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/goals/', data),
     onSuccess: (res) => { setError(''); navigate(`/plan/${res.data.data.goal_id}`); },
-    onError: (err: any) => setError(err.response?.data?.error || 'Failed to create plan. Please try again.'),
+    onError: (err: any) => setError(err.response?.data?.error || 'Nepodarilo se vytvorit plan. Zkuste to znovu.'),
   });
 
   const update = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  const canAdvance = () => {
+    if (step === 0) return formData.prompt.trim().length > 0 && formData.city.trim().length > 0;
+    return true;
+  };
+
+  const next = () => { if (step < 2 && canAdvance()) setStep(step + 1); };
+  const back = () => { if (step > 0) setStep(step - 1); };
+
+  const handleSubmit = () => {
+    setError('');
+    mutation.mutate(formData);
+  };
+
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto px-6 py-12 w-full">
-        <header className="mb-20 text-center space-y-4">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em]">Krok 1: Nastaveni</p>
-          <h1 className="text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">
+      <div className="max-w-4xl mx-auto px-6 py-12 w-full pb-32 sm:pb-12">
+        <header className="mb-12 text-center space-y-4">
+          <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">
             Novy<br /><span className="text-indigo-500 not-italic">plan.</span>
           </h1>
         </header>
 
-        {completedGoals.length > 0 && (
+        {/* Progress bar */}
+        <div className="mb-12 max-w-md mx-auto">
+          <div className="flex items-center justify-between mb-3">
+            {STEPS.map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => { if (i < step || (i === step) || (i <= step + 1 && canAdvance())) setStep(i); }}
+                className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                  i === step ? 'text-indigo-400' : i < step ? 'text-emerald-400 cursor-pointer' : 'text-zinc-600'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black transition-all ${
+                  i === step ? 'bg-indigo-600 text-white shadow-lg' : i < step ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
+                }`}>
+                  {i < step ? <Check size={14} /> : i + 1}
+                </div>
+                <span className="hidden sm:inline">{s.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+            />
+          </div>
+          <p className="text-center text-[10px] font-black text-zinc-500 uppercase tracking-widest mt-3">
+            Krok {step + 1} z {STEPS.length}
+          </p>
+        </div>
+
+        {completedGoals.length > 0 && step === 0 && (
           <div className="mb-12 p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-left">
             <div className="flex items-center gap-3 mb-4">
               <RotateCcw size={16} className="text-indigo-500" />
@@ -95,9 +146,9 @@ export const CreatePlan = () => {
           </div>
         )}
 
-        <form onSubmit={e => { e.preventDefault(); setError(''); mutation.mutate(formData); }} className="space-y-12">
-          {/* Dietary Goals */}
-          <section className="space-y-8 text-left">
+        {/* Step 1: Dietary Goals */}
+        {step === 0 && (
+          <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">1</div>
               <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Stravovaci cile</h2>
@@ -109,7 +160,7 @@ export const CreatePlan = () => {
                   <BrainCircuit size={14} className="text-indigo-500" /> Popiste sve cile
                 </label>
                 <textarea
-                  required
+                  autoFocus
                   className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-6 text-lg font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50 transition-all min-h-[220px] leading-relaxed"
                   placeholder="napr. Vysoko proteinova dieta, 2400 kcal denne. Bez mlecnych vyrobku. Cenove dostupne suroviny v Praze..."
                   value={formData.prompt}
@@ -135,14 +186,16 @@ export const CreatePlan = () => {
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Mesto</label>
-                  <input required type="text" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-600 focus:outline-none" placeholder="napr. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
+                  <input type="text" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-600 focus:outline-none" placeholder="napr. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
                 </div>
               </div>
             </Card>
           </section>
+        )}
 
-          {/* Meal Settings */}
-          <section className="space-y-8 text-left">
+        {/* Step 2: Meal Settings */}
+        {step === 1 && (
+          <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">2</div>
               <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Nastaveni jidel</h2>
@@ -177,14 +230,14 @@ export const CreatePlan = () => {
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Svacinky</span>
                     <span className="text-xl font-black text-indigo-500 italic">{formData.small_meals_per_day}/den</span>
                   </div>
-                  <input type="range" min="0" max="5" className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
+                  <input type="range" min="0" max="5" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Drobne snacky</span>
                     <span className="text-xl font-black text-indigo-500 italic">{formData.snacks_per_day}/den</span>
                   </div>
-                  <input type="range" min="0" max="3" className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
+                  <input type="range" min="0" max="3" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
                 </div>
               </div>
 
@@ -198,9 +251,11 @@ export const CreatePlan = () => {
               </div>
             </Card>
           </section>
+        )}
 
-          {/* Preferred Store */}
-          <section className="space-y-8 text-left">
+        {/* Step 3: Preferred Store */}
+        {step === 2 && (
+          <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">3</div>
               <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferovany obchod</h2>
@@ -224,23 +279,80 @@ export const CreatePlan = () => {
                 ))}
               </div>
             </Card>
+
+            {/* Summary card */}
+            <Card className="p-8 border-indigo-500/10">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-6">Shruti vaseho planu</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Mesto</p>
+                  <p className="font-black text-white">{formData.city || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Delka</p>
+                  <p className="font-black text-white">{formData.num_days} dni</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Jidla</p>
+                  <p className="font-black text-white">
+                    {[formData.breakfast && 'S', formData.lunch && 'O', formData.dinner && 'V'].filter(Boolean).join('+')}
+                    {formData.small_meals_per_day > 0 && ` +${formData.small_meals_per_day}sv`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Obchod</p>
+                  <p className="font-black text-white">{formData.shop}</p>
+                </div>
+              </div>
+            </Card>
           </section>
+        )}
 
-          {error && (
-            <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-5 text-sm font-bold">
-              <AlertCircle size={18} className="shrink-0" />
-              <span>{error}</span>
-            </div>
+        {error && (
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-5 text-sm font-bold mt-8">
+            <AlertCircle size={18} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Desktop navigation buttons */}
+        <div className="hidden sm:flex items-center justify-between mt-12 gap-4">
+          {step > 0 ? (
+            <button type="button" onClick={back} className="flex items-center gap-3 px-8 h-14 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
+              <ArrowLeft size={16} /> Zpet
+            </button>
+          ) : <div />}
+
+          {step < 2 ? (
+            <button type="button" onClick={next} disabled={!canAdvance()} className="flex items-center gap-3 px-10 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
+              Dalsi krok <ArrowRight size={16} />
+            </button>
+          ) : (
+            <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex items-center gap-4 px-12 h-16 bg-white text-black rounded-2xl font-black text-lg uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] disabled:opacity-30">
+              {mutation.isPending ? <><Loader2 className="animate-spin" size={24} /> Vytvari se...</> : <>Vygenerovat plan <ArrowRight size={20} /></>}
+            </button>
           )}
+        </div>
 
-          <button
-            type="submit"
-            disabled={mutation.isPending || !formData.prompt}
-            className="w-full h-24 bg-white text-black rounded-[2rem] font-black text-2xl uppercase tracking-[0.5em] shadow-[0_30px_60px_rgba(255,255,255,0.05)] transition-all active:scale-[0.98] disabled:opacity-30 border-b-[12px] border-zinc-300 flex items-center justify-center gap-6"
-          >
-            {mutation.isPending ? <div className="flex items-center gap-4"><Loader2 className="animate-spin" size={32} /> Vytvari se...</div> : "Vygenerovat plan"}
-          </button>
-        </form>
+        {/* Mobile sticky bottom bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#09090b]/95 backdrop-blur-lg border-t border-zinc-800 sm:hidden">
+          <div className="flex gap-3">
+            {step > 0 && (
+              <button type="button" onClick={back} className="flex items-center justify-center w-14 h-14 border border-zinc-800 text-zinc-400 rounded-xl transition-all">
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            {step < 2 ? (
+              <button type="button" onClick={next} disabled={!canAdvance()} className="flex-1 flex items-center justify-center gap-3 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
+                Dalsi krok <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex-1 flex items-center justify-center gap-3 h-14 bg-white text-black rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
+                {mutation.isPending ? <><Loader2 className="animate-spin" size={20} /> Vytvari se...</> : <>Vygenerovat plan <ArrowRight size={16} /></>}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </MainLayout>
   );
