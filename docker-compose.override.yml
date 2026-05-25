@@ -1,0 +1,57 @@
+services:
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install --legacy-peer-deps && npm run dev -- --host 0.0.0.0 --port 5173 --base /"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://157.230.123.199.nip.io:8000
+
+  web:
+    env_file:
+      - .env
+    environment:
+      - SECRET_KEY=e2e-only-not-a-real-secret-key-do-not-ship
+      - ALLOWED_HOSTS=localhost,127.0.0.1,web,157.230.123.199.nip.io
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://157.230.123.199.nip.io:5173
+      - FRONTEND_URL=http://157.230.123.199.nip.io:5173
+      - FIELD_ENCRYPTION_KEY=F4VaYcd599E5eHNB0j76wiES9NL2ZL9P1SNRfcy_6n8=
+
+  celery:
+    environment:
+      - SECRET_KEY=e2e-only-not-a-real-secret-key-do-not-ship
+      - FIELD_ENCRYPTION_KEY=F4VaYcd599E5eHNB0j76wiES9NL2ZL9P1SNRfcy_6n8=
+
+  # Slack <-> Claude Code bridge. Lives behind a profile so the rest of the
+  # stack starts cleanly without Slack credentials. Bring it up with:
+  #   docker-compose --profile slack up -d slackbot
+  slackbot:
+    profiles: ["slack"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python manage.py run_slackbot
+    volumes:
+      - .:/app
+      # Forward host's `claude login` credentials so the inner Claude Code
+      # uses your Pro/Max subscription instead of an API key.
+      - /root/.claude:/root/.claude
+    env_file:
+      - .env
+    environment:
+      - SECRET_KEY=e2e-only-not-a-real-secret-key-do-not-ship
+      - FIELD_ENCRYPTION_KEY=F4VaYcd599E5eHNB0j76wiES9NL2ZL9P1SNRfcy_6n8=
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/llm_diet_planner
+      - SLACKBOT_WORKING_DIR=/app
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+volumes:
+  frontend_node_modules:

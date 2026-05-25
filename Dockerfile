@@ -9,8 +9,18 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Install system dependencies
+# - postgresql-client: psql for diagnostics
+# - curl/ca-certificates/gnupg/git: required by NodeSource repo + claude CLI
+# - nodejs + @anthropic-ai/claude-code: required by the slack_bot Claude Code integration
 RUN apt-get update && apt-get install -y \
     postgresql-client \
+    curl \
+    ca-certificates \
+    gnupg \
+    git \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @anthropic-ai/claude-code \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
