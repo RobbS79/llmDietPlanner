@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Zap, Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound } from 'lucide-react';
 import axios from 'axios';
@@ -146,6 +146,14 @@ export const Login = () => {
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6">
             {isLoading ? <Loader2 className="animate-spin" size={18} /> : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
+
+          {mode === 'login' && (
+            <div className="text-center mt-4">
+              <Link to="/forgot-password" className="text-xs font-bold text-zinc-600 hover:text-indigo-400 transition-colors">
+                Forgot your password?
+              </Link>
+            </div>
+          )}
         </form>
 
         <div className="flex items-center gap-4 my-8">

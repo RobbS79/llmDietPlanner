@@ -42,7 +42,19 @@ urlpatterns = [
     
     # URL: /api/auth/refresh/
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    
+
+    # --- PASSWORD RESET (JSON API) ---
+
+    # URL: /api/auth/password-reset/
+    path('password-reset/', views.PasswordResetRequestView.as_view(), name='password-reset'),
+
+    # URL: /api/auth/password-reset-confirm/
+    path('password-reset-confirm/', views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+
+    # --- USER PROFILE ---
+    # URL: /api/auth/profile/
+    path('profile/', views.UserProfileView.as_view(), name='user-profile'),
+
     # Optional dj-rest-auth paths for profile/user management
     path('', include('dj_rest_auth.urls')),
 ]

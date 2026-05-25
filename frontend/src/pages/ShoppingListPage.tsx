@@ -11,7 +11,12 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 export const ShoppingListPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [checked, setChecked] = useState<Set<number>>(new Set());
+
+  const storageKey = `shopping-checked-${id}`;
+  const [checked, setChecked] = useState<Set<number>>(() => {
+    const saved = localStorage.getItem(storageKey);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   const { data: goalDetail, isLoading } = useQuery({
     queryKey: ['plan', id],
@@ -28,6 +33,7 @@ export const ShoppingListPage = () => {
     setChecked(prev => {
       const next = new Set(prev);
       next.has(idx) ? next.delete(idx) : next.add(idx);
+      localStorage.setItem(storageKey, JSON.stringify([...next]));
       return next;
     });
   };

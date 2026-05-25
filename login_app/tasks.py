@@ -7,7 +7,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth.models import User
-from .utils import get_verification_email_content
+from .utils import get_verification_email_content, get_password_reset_email_content
 import logging
 
 logger = logging.getLogger(__name__)
@@ -63,5 +63,36 @@ def send_verification_email_task(self, user_id: int, uid: str, token: str, base_
     except Exception as exc:
         logger.error(f"Failed to send verification email to user {user_id}: {str(exc)}")
         # Retry the task with exponential backoff
+        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+
+
+@shared_task(bind=True, max_retries=3)
+def send_password_reset_email_task(self, user_id: int, uid: str, token: str, base_url: str = None):
+    """Send password reset email via Celery."""
+    try:
+        user = User.objects.get(id=user_id)
+
+        frontend_url = base_url.rstrip('/') if base_url else ''
+        reset_url = f"{frontend_url}/reset-password?uid={uid}&token={token}"
+
+        email_content = get_password_reset_email_content(user.username, reset_url)
+
+        msg = EmailMultiAlternatives(
+            subject=email_content['subject'],
+            body=email_content['text_content'],
+            from_email=email_content['from_email'],
+            to=[user.email]
+        )
+        msg.attach_alternative(email_content['html_content'], "text/html")
+        msg.send(fail_silently=False)
+
+        logger.info(f"Password reset email sent to {user.email}")
+        return True
+
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found for password reset")
+        return False
+    except Exception as exc:
+        logger.error(f"Failed to send password reset email to user {user_id}: {str(exc)}")
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
 

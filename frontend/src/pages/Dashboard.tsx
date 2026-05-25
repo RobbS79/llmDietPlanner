@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, MapPin, ChevronRight, Box, ArrowRight } from 'lucide-react';
+import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -13,6 +13,10 @@ export const Dashboard = () => {
     queryKey: ['goals'],
     queryFn: () => api.get('/goals/list/').then(res => res.data.data),
   });
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => api.get('/auth/profile/').then(res => res.data.data),
+  });
 
   if (isLoading) return <LoadingScreen message="Loading your meal plans..." />;
 
@@ -24,6 +28,14 @@ export const Dashboard = () => {
             <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">
               Your<br /><span className="text-indigo-500 not-italic text-6xl">Plans.</span>
             </h1>
+            {profile && (
+              <div className="flex items-center gap-2 pt-2">
+                <Sparkles size={14} className="text-indigo-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                  {profile.free_generations_remaining} free plans remaining
+                </span>
+              </div>
+            )}
           </div>
           <button
             onClick={() => navigate('/create')}

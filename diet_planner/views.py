@@ -325,14 +325,38 @@ class RecipeDetailView(APIView):
 class MealInstanceView(APIView):
     """
     Individual meal execution state (Cooked/Pending).
+    Supports GET (read) and PATCH (toggle cooked / update notes).
     """
     permission_classes = [IsAuthenticated]
+
     def get(self, request, meal_identifier: str) -> Response:
         try:
             instance = MealInstance.objects.get(meal_identifier=meal_identifier, user=request.user)
             return Response({"status": "success", "data": MealInstanceSerializer(instance).data})
         except MealInstance.DoesNotExist:
             return Response({"status": "error", "error": "Node not found"}, status=404)
+
+    def patch(self, request, meal_identifier: str) -> Response:
+        instance, created = MealInstance.objects.get_or_create(
+            meal_identifier=meal_identifier,
+            user=request.user,
+            defaults={
+                'dietary_goal_id': int(meal_identifier.split(':')[0]),
+                'meal_name': request.data.get('meal_name', ''),
+                'day_number': int(meal_identifier.split(':')[1]) if len(meal_identifier.split(':')) > 1 else 1,
+                'meal_type': meal_identifier.split(':')[2] if len(meal_identifier.split(':')) > 2 else '',
+            }
+        )
+        serializer = MealInstanceCreateUpdateSerializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            if 'is_cooked' in request.data and request.data['is_cooked'] and not instance.is_cooked:
+                serializer.validated_data['cooked_at'] = timezone.now()
+            elif 'is_cooked' in request.data and not request.data['is_cooked']:
+                serializer.validated_data['cooked_at'] = None
+            serializer.save()
+            instance.refresh_from_db()
+            return Response({"status": "success", "data": MealInstanceSerializer(instance).data})
+        return Response({"status": "error", "error": serializer.errors}, status=400)
 
 
 class MealInstanceBatchView(APIView):

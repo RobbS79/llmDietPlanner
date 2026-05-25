@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check } from 'lucide-react';
+import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 
 export const CreatePlan = () => {
   const navigate = useNavigate();
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     prompt: '',
     dietary_restrictions: '',
@@ -24,6 +25,30 @@ export const CreatePlan = () => {
     goal_id: null as number | null,
   });
 
+  const { data: previousGoals } = useQuery({
+    queryKey: ['goals'],
+    queryFn: () => api.get('/goals/list/').then(res => res.data.data),
+  });
+
+  const completedGoals = previousGoals?.filter((g: any) => g.status === 'completed') || [];
+
+  const prefillFrom = (goal: any) => {
+    setFormData(prev => ({
+      ...prev,
+      prompt: goal.prompt || prev.prompt,
+      country: goal.country || prev.country,
+      city: goal.city || prev.city,
+      language_code: goal.language_code || prev.language_code,
+      num_days: goal.num_days ?? prev.num_days,
+      breakfast: goal.breakfast ?? prev.breakfast,
+      lunch: goal.lunch ?? prev.lunch,
+      dinner: goal.dinner ?? prev.dinner,
+      small_meals_per_day: goal.small_meals_per_day ?? prev.small_meals_per_day,
+      snacks_per_day: goal.snacks_per_day ?? prev.snacks_per_day,
+      shop: goal.shop || prev.shop,
+    }));
+  };
+
   const { data: shopsData } = useQuery({
     queryKey: ['shops', formData.country],
     queryFn: () => api.get(`/shops/?country=${formData.country}`).then(res => res.data.data),
@@ -32,7 +57,8 @@ export const CreatePlan = () => {
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/goals/', data),
-    onSuccess: (res) => navigate(`/plan/${res.data.data.goal_id}`),
+    onSuccess: (res) => { setError(''); navigate(`/plan/${res.data.data.goal_id}`); },
+    onError: (err: any) => setError(err.response?.data?.error || 'Failed to create plan. Please try again.'),
   });
 
   const update = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
@@ -47,7 +73,29 @@ export const CreatePlan = () => {
           </h1>
         </header>
 
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(formData); }} className="space-y-12">
+        {completedGoals.length > 0 && (
+          <div className="mb-12 p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-left">
+            <div className="flex items-center gap-3 mb-4">
+              <RotateCcw size={16} className="text-indigo-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Reuse Previous Settings</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {completedGoals.slice(0, 5).map((goal: any) => (
+                <button
+                  key={goal.id}
+                  type="button"
+                  onClick={() => prefillFrom(goal)}
+                  className="px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:border-indigo-500/50 transition-all truncate max-w-[220px]"
+                  title={goal.prompt}
+                >
+                  {goal.city} · {goal.num_days}d — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={e => { e.preventDefault(); setError(''); mutation.mutate(formData); }} className="space-y-12">
           {/* Dietary Goals */}
           <section className="space-y-8 text-left">
             <div className="flex items-center gap-4 text-white">
@@ -177,6 +225,13 @@ export const CreatePlan = () => {
               </div>
             </Card>
           </section>
+
+          {error && (
+            <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-5 text-sm font-bold">
+              <AlertCircle size={18} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <button
             type="submit"

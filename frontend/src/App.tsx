@@ -8,8 +8,16 @@ import { RecipePage } from '@/pages/RecipePage';
 import { ShoppingListPage } from '@/pages/ShoppingListPage';
 import { Login } from '@/pages/Login';
 import { LoginSuccess } from '@/pages/LoginSuccess';
+import { ForgotPassword } from '@/pages/ForgotPassword';
+import { ResetPassword } from '@/pages/ResetPassword';
+import { Landing } from '@/pages/Landing';
 
 const queryClient = new QueryClient();
+
+function HomeRoute() {
+  if (localStorage.getItem('access_token')) return <Dashboard />;
+  return <Landing />;
+}
 
 export default function App() {
   return (
@@ -18,7 +26,9 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/login-success" element={<LoginSuccess />} />
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/" element={<HomeRoute />} />
           <Route path="/create" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
           <Route path="/plan/:id" element={<ProtectedRoute><PlanView /></ProtectedRoute>} />
           <Route path="/plan/:id/recipe/:mealId" element={<ProtectedRoute><RecipePage /></ProtectedRoute>} />

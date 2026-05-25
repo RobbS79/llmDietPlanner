@@ -18,13 +18,13 @@ from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import UserProfile
-from .schemas import RegistrationRequest, LoginRequest
-from .utils import generate_email_verification_token
-from .tasks import send_verification_email_task
+from .schemas import RegistrationRequest, LoginRequest, PasswordResetRequestSchema, PasswordResetConfirmSchema
+from .utils import generate_email_verification_token, verify_email_token
+from .tasks import send_verification_email_task, send_password_reset_email_task
 
 logger = logging.getLogger(__name__)
 
@@ -206,3 +206,82 @@ class LoginView(APIView):
         except Exception as e:
             logger.exception("Login error")
             return Response({"status": "error", "data": None, "error": "Internal server error"}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PasswordResetRequestView(APIView):
+    """Send a password reset link to the user's email."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request) -> Response:
+        try:
+            schema = PasswordResetRequestSchema(**request.data)
+            user = User.objects.filter(email=schema.email).first()
+
+            if user:
+                uid, token = generate_email_verification_token(user)
+                frontend_url = getattr(settings, 'FRONTEND_URL', request.build_absolute_uri('/').rstrip('/'))
+                send_password_reset_email_task.delay(user.id, uid, token, frontend_url)
+
+            return Response({
+                "status": "success",
+                "data": {"message": "If an account with that email exists, a reset link has been sent."},
+                "error": None
+            })
+        except Exception as e:
+            logger.exception("Password reset request error")
+            return Response({"status": "error", "data": None, "error": "Failed to process request"}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PasswordResetConfirmView(APIView):
+    """Validate the reset token and set the new password."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request) -> Response:
+        try:
+            schema = PasswordResetConfirmSchema(**request.data)
+
+            from django.utils.http import urlsafe_base64_decode
+            from django.utils.encoding import force_str
+            user_id = force_str(urlsafe_base64_decode(schema.uid))
+            user = User.objects.get(pk=user_id)
+
+            if not verify_email_token(user, schema.uid, schema.token):
+                return Response({"status": "error", "data": None, "error": "Invalid or expired reset link"}, status=400)
+
+            user.set_password(schema.password)
+            user.save()
+
+            return Response({
+                "status": "success",
+                "data": {"message": "Password has been reset successfully."},
+                "error": None
+            })
+        except User.DoesNotExist:
+            return Response({"status": "error", "data": None, "error": "Invalid reset link"}, status=400)
+        except ValueError as e:
+            return Response({"status": "error", "data": None, "error": str(e)}, status=400)
+        except Exception as e:
+            logger.exception("Password reset confirm error")
+            return Response({"status": "error", "data": None, "error": "Failed to reset password"}, status=500)
+
+
+class UserProfileView(APIView):
+    """Returns user profile with generation credits info."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        return Response({
+            "status": "success",
+            "data": {
+                "email": request.user.email,
+                "username": request.user.username,
+                "free_generations_remaining": profile.free_generations_remaining,
+                "total_generations": profile.total_generations,
+            },
+            "error": None
+        })
