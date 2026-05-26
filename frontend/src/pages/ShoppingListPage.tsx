@@ -1,12 +1,37 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ShoppingCart, Printer, Check } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+
+const PRICE_SOURCE_CONFIG: Record<string, { label: string; color: string; icon: typeof Tag }> = {
+  leaflet_discount: { label: 'Akce', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', icon: Tag },
+  store_regular: { label: 'Běžná cena', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', icon: Store },
+  pantry_estimate: { label: 'Odhad', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Sparkles },
+  cross_store_match: { label: 'Jiný obchod', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20', icon: Store },
+  historical_average: { label: 'Historická', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', icon: Clock },
+  not_available: { label: 'Nedostupná', color: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20', icon: HelpCircle },
+};
+
+const PriceSourceBadge = ({ source, detail }: { source?: string; detail?: string }) => {
+  if (!source) return null;
+  const config = PRICE_SOURCE_CONFIG[source];
+  if (!config) return null;
+  const Icon = config.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${config.color}`}
+      title={detail || config.label}
+    >
+      <Icon size={9} />
+      {config.label}
+    </span>
+  );
+};
 
 export const ShoppingListPage = () => {
   const { id } = useParams();
@@ -86,16 +111,34 @@ export const ShoppingListPage = () => {
                       <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-600' : 'text-white'}`}>
                         {item.ingredient}
                       </p>
-                      {item.price != null && (
-                        <p className="text-sm font-black text-emerald-500 tabular-nums leading-none shrink-0 whitespace-nowrap">
-                          {item.price} {item.currency}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {item.original_price != null && item.discount_percentage != null && (
+                          <span className="text-[10px] font-bold text-zinc-600 line-through tabular-nums">
+                            {item.original_price}
+                          </span>
+                        )}
+                        {item.price_total != null ? (
+                          <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
+                            {item.price_total} {item.currency}
+                          </p>
+                        ) : item.price != null ? (
+                          <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
+                            {item.price} {item.currency}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center mt-2 text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
-                      <span>{item.quantity} {item.unit}</span>
+                    <div className="flex justify-between items-center mt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
+                          {item.quantity} {item.unit}
+                        </span>
+                        <PriceSourceBadge source={item.price_source} detail={item.source_detail} />
+                      </div>
                       {item.matched_product_name && (
-                        <span className="opacity-50 max-w-[180px] truncate text-right">{item.matched_product_name}</span>
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
+                          {item.matched_product_name}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -106,17 +149,33 @@ export const ShoppingListPage = () => {
         </div>
 
         {/* Total */}
-        <Card className="p-8 mt-10 text-left">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <ShoppingCart size={22} className="text-emerald-500" />
-              <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">Odhadovaná cena celkem</p>
-            </div>
-            <p className="text-4xl font-black text-white italic tracking-tighter">
-              {plan.total_price}<span className="text-emerald-500 text-base not-italic ml-2 uppercase">{plan.currency}</span>
-            </p>
-          </div>
-        </Card>
+        {(() => {
+          const estimatedCount = items.filter((i: any) => i.estimated).length;
+          const unavailableCount = items.filter((i: any) => i.price_source === 'not_available').length;
+          const hasEstimates = estimatedCount > 0 || unavailableCount > 0;
+          return (
+            <Card className="p-8 mt-10 text-left">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <ShoppingCart size={22} className="text-emerald-500" />
+                  <div>
+                    <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">
+                      {hasEstimates ? 'Odhadovaná cena celkem' : 'Cena celkem'}
+                    </p>
+                    {unavailableCount > 0 && (
+                      <p className="text-[10px] text-amber-500/80 font-bold mt-0.5">
+                        {unavailableCount} {unavailableCount === 1 ? 'položka' : 'položek'} bez ceny
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-4xl font-black text-white italic tracking-tighter">
+                  {plan.total_price}<span className="text-emerald-500 text-base not-italic ml-2 uppercase">{plan.currency}</span>
+                </p>
+              </div>
+            </Card>
+          );
+        })()}
       </div>
     </MainLayout>
   );

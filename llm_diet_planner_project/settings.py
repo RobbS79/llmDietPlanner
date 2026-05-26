@@ -190,6 +190,88 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1 # Prevent one worker from hoarding heavy s
 BROKER_URL = CELERY_BROKER_URL
 RESULT_BACKEND = CELERY_RESULT_BACKEND
 
+# Celery Beat schedule — proactive scraping and freshness lifecycle
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    # Leaflet stores: scrape Mon + Thu mornings (when leaflets typically change)
+    'scrape-lidl-cz': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=6, minute=0, day_of_week='mon,thu'),
+        'args': ('LIDL_CZ',),
+    },
+    'scrape-albert-cz': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=6, minute=5, day_of_week='mon,thu'),
+        'args': ('ALBERT_CZ',),
+    },
+    'scrape-kaufland-cz': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=6, minute=10, day_of_week='mon,thu'),
+        'args': ('KAUFLAND_CZ',),
+    },
+    'scrape-penny-cz': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=6, minute=15, day_of_week='mon,thu'),
+        'args': ('PENNY_CZ',),
+    },
+    'scrape-tesco-cz': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=6, minute=20, day_of_week='mon,thu'),
+        'args': ('TESCO_CZ',),
+    },
+    'scrape-lidl-sk': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=6, minute=25, day_of_week='mon,thu'),
+        'args': ('LIDL_SK',),
+    },
+    'scrape-kaufland-sk': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=6, minute=30, day_of_week='mon,thu'),
+        'args': ('KAUFLAND_SK',),
+    },
+    # Online stores: scrape daily (prices change more frequently)
+    'scrape-rohlik-daily': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=5, minute=0),
+        'args': ('ROHLIK',),
+    },
+    'scrape-lunys-daily': {
+        'task': 'diet_planner.tasks.scrape_store_task',
+        'schedule': crontab(hour=5, minute=15),
+        'args': ('LUNYS',),
+    },
+    # Freshness lifecycle: transition states every hour
+    'update-freshness-states': {
+        'task': 'diet_planner.tasks.update_freshness_states_task',
+        'schedule': crontab(minute=0),  # top of every hour
+    },
+    # Archive expired offers weekly
+    'archive-expired-offers': {
+        'task': 'diet_planner.tasks.archive_expired_offers_task',
+        'schedule': crontab(hour=3, minute=0, day_of_week='sun'),
+    },
+}
+
+# Freshness TTL config per store type (hours)
+FRESHNESS_CONFIG = {
+    # Leaflet-based stores (weekly leaflets)
+    'LIDL_CZ':     {'fresh_hours': 72, 'stale_hours': 120, 'expire_hours': 168},
+    'LIDL_SK':     {'fresh_hours': 72, 'stale_hours': 120, 'expire_hours': 168},
+    'ALBERT_CZ':   {'fresh_hours': 72, 'stale_hours': 120, 'expire_hours': 168},
+    'KAUFLAND_CZ': {'fresh_hours': 72, 'stale_hours': 120, 'expire_hours': 168},
+    'KAUFLAND_SK': {'fresh_hours': 72, 'stale_hours': 120, 'expire_hours': 168},
+    'PENNY_CZ':    {'fresh_hours': 72, 'stale_hours': 120, 'expire_hours': 168},
+    'TESCO_CZ':    {'fresh_hours': 72, 'stale_hours': 120, 'expire_hours': 168},
+    # Online stores (prices change daily)
+    'ROHLIK':      {'fresh_hours': 12, 'stale_hours': 24, 'expire_hours': 48},
+    'LUNYS':       {'fresh_hours': 12, 'stale_hours': 24, 'expire_hours': 48},
+    'KOSIK_CZ':    {'fresh_hours': 12, 'stale_hours': 24, 'expire_hours': 48},
+}
+
+# Feature flag for catalog-constrained generation
+CATALOG_CONSTRAINED_GENERATION = config('CATALOG_CONSTRAINED_GENERATION', default=False, cast=bool)
+
 # --- 9. GEMINI AI CONFIGURATION ---
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', config('GEMINI_API_KEY', default=None))
 GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')

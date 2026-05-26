@@ -38,6 +38,10 @@ python manage.py collectstatic --noinput --clear
 echo "Starting Synthesis Worker (Celery)..."
 celery -A llm_diet_planner_project worker --concurrency=2 --loglevel=info &
 
-# 5. Launch Application Server
+# 5. Launch Beat Scheduler (proactive scraping + freshness lifecycle)
+echo "Starting Beat Scheduler..."
+celery -A llm_diet_planner_project beat --loglevel=info &
+
+# 6. Launch Application Server
 echo "Starting Application Hub (Gunicorn)..."
 exec gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 llm_diet_planner_project.wsgi:application

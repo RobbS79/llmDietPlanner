@@ -1613,6 +1613,193 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
 
 
 # =============================================================================
+# SCRAPING & FRESHNESS LIFECYCLE TASKS (Phase 3)
+# =============================================================================
+
+@shared_task(bind=True, max_retries=3)
+def scrape_store_task(self, shop_code: str) -> Dict[str, Any]:
+    """
+    Proactive scraping task triggered by Celery Beat schedule.
+
+    Scrapes a single store, stores results in LeafletOffer,
+    and creates a ScrapeRun audit record.
+    """
+    import time
+    from datetime import timedelta
+    from .models import LeafletOffer, GroceryStore, ScrapeRun
+
+    started = time.time()
+    log_prefix = f"[SCRAPE:{shop_code}]"
+
+    try:
+        store = GroceryStore.objects.filter(code=shop_code, is_active=True).first()
+        if not store:
+            logger.warning(f"{log_prefix} Store not found or inactive, skipping")
+            return {'status': 'skipped', 'reason': 'store_not_found'}
+
+        scrape_run = ScrapeRun.objects.create(
+            store=store,
+            status=ScrapeRun.Status.RUNNING,
+            method=ScrapeRun.Method.HYBRID,
+        )
+
+        logger.info(f"{log_prefix} Starting scrape (run {scrape_run.pk})")
+
+        scraper = ScraperService.get_scraper(shop_code)
+        products = scraper.scrape()
+
+        if not products:
+            logger.warning(f"{log_prefix} Structured scraping returned 0 products")
+
+        # Store in LeafletOffer (same pattern as existing scrape_and_store)
+        from .scrapers.utils import normalize_ingredient_name
+        now = timezone.now()
+        ttl_hours = store.default_price_ttl_hours or 168
+        expires_at = now + timedelta(hours=ttl_hours)
+        country = store.country
+        currency = store.currency
+
+        created = 0
+        updated = 0
+        for product in products:
+            ingredient_name = normalize_ingredient_name(
+                product.get('ingredient_name', product.get('display_name', ''))
+            )
+            if not ingredient_name:
+                continue
+
+            price = product.get('price')
+            if not price or float(price) <= 0:
+                continue
+
+            _, was_created = LeafletOffer.objects.update_or_create(
+                shop=shop_code,
+                country=country,
+                ingredient_name=ingredient_name,
+                defaults={
+                    'display_name': product.get('display_name', ingredient_name),
+                    'price': price,
+                    'currency': product.get('currency', currency),
+                    'unit': product.get('unit', ''),
+                    'price_type': product.get('price_type', 'REGULAR'),
+                    'original_price': product.get('original_price'),
+                    'discount_percentage': product.get('discount_percentage'),
+                    'source_url': product.get('source_url', ''),
+                    'expires_at': expires_at,
+                    'freshness_state': 'fresh',
+                    'stale_at': None,
+                },
+            )
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+
+        duration = time.time() - started
+        scrape_run.status = ScrapeRun.Status.COMPLETED
+        scrape_run.completed_at = timezone.now()
+        scrape_run.duration_seconds = duration
+        scrape_run.products_found = len(products)
+        scrape_run.products_created = created
+        scrape_run.products_updated = updated
+        scrape_run.prices_recorded = created + updated
+        scrape_run.save()
+
+        logger.info(
+            f"{log_prefix} Complete: {len(products)} found, {created} created, "
+            f"{updated} updated in {duration:.1f}s"
+        )
+        return {
+            'status': 'success',
+            'products_found': len(products),
+            'created': created,
+            'updated': updated,
+            'duration_seconds': round(duration, 1),
+        }
+
+    except Exception as exc:
+        duration = time.time() - started
+        logger.error(f"{log_prefix} Failed: {exc}", exc_info=True)
+
+        try:
+            if 'scrape_run' in locals():
+                scrape_run.status = ScrapeRun.Status.FAILED
+                scrape_run.completed_at = timezone.now()
+                scrape_run.duration_seconds = duration
+                scrape_run.error_log = str(exc)[:2000]
+                scrape_run.errors_count = 1
+                scrape_run.save()
+        except Exception:
+            pass
+
+        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+
+
+@shared_task
+def update_freshness_states_task() -> Dict[str, Any]:
+    """
+    Transition LeafletOffer freshness states based on FRESHNESS_CONFIG TTLs.
+
+    FRESH → STALE (past fresh_hours)
+    STALE → EXPIRED (past stale_hours, set via expires_at)
+    """
+    from datetime import timedelta
+    from django.conf import settings as django_settings
+    from .models import LeafletOffer
+
+    freshness_config = getattr(django_settings, 'FRESHNESS_CONFIG', {})
+    now = timezone.now()
+    total_staled = 0
+    total_expired = 0
+
+    for shop_code, config in freshness_config.items():
+        fresh_hours = config.get('fresh_hours', 72)
+        stale_cutoff = now - timedelta(hours=fresh_hours)
+
+        # FRESH → STALE
+        staled = LeafletOffer.objects.filter(
+            shop=shop_code,
+            freshness_state='fresh',
+            scraped_at__lt=stale_cutoff,
+        ).update(freshness_state='stale', stale_at=now)
+        total_staled += staled
+
+        # STALE → EXPIRED (using expires_at which is already set)
+        expired = LeafletOffer.objects.filter(
+            shop=shop_code,
+            freshness_state='stale',
+            expires_at__lt=now,
+        ).update(freshness_state='expired')
+        total_expired += expired
+
+    if total_staled or total_expired:
+        logger.info(f"Freshness update: {total_staled} → stale, {total_expired} → expired")
+
+    return {'staled': total_staled, 'expired': total_expired}
+
+
+@shared_task
+def archive_expired_offers_task() -> Dict[str, Any]:
+    """
+    Delete expired LeafletOffer rows older than 30 days.
+    Price history is preserved via PriceRecord (when populated).
+    """
+    from datetime import timedelta
+    from .models import LeafletOffer
+
+    cutoff = timezone.now() - timedelta(days=30)
+    count, _ = LeafletOffer.objects.filter(
+        freshness_state='expired',
+        scraped_at__lt=cutoff,
+    ).delete()
+
+    if count:
+        logger.info(f"Archived {count} expired offers older than 30 days")
+
+    return {'archived': count}
+
+
+# =============================================================================
 # CATALOG-CONSTRAINED TASK (Phase 4)
 # =============================================================================
 # New flow: real catalog → constrained LLM → DB-only prices

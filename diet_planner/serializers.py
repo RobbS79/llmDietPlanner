@@ -56,11 +56,19 @@ class ShoppingListItemSerializer(serializers.Serializer):
     quantity = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     unit = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    # Price information (added by price matching)
+    # Price information
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    price_total = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     currency = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    offer_unit = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    offer_display_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    matched_product_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    # Price transparency (Phase 4)
+    price_source = serializers.CharField(required=False, allow_null=True)
+    source_detail = serializers.CharField(required=False, allow_null=True)
+    estimated = serializers.BooleanField(required=False, default=False)
+    valid_until = serializers.CharField(required=False, allow_null=True)
+    cross_store = serializers.CharField(required=False, allow_null=True)
+    original_price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    discount_percentage = serializers.IntegerField(required=False, allow_null=True)
 
 
 class DietaryPlanSerializer(serializers.ModelSerializer):
