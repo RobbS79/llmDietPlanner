@@ -4,13 +4,13 @@ import { StatusTracker } from './StatusTracker';
 export const LoadingScreen = ({ message, status }: { message: string; status?: any }) => {
   const currentStatus = status?.goal_status || 'pending';
   const stepMessages: Record<string, string> = {
-    pending: 'Analyzujeme vase stravovaci cile a preference...',
-    awaiting_payment: 'Analyzujeme vase stravovaci cile a preference...',
-    payment_confirmed: 'Vytvarime personalizovany jidelnicek s recepty...',
-    processing: 'Vytvarime personalizovany jidelnicek s recepty...',
-    processing_meal_plan: 'Vytvarime personalizovany jidelnicek s recepty...',
-    processing_shopping_list: 'Hledame nejlepsi ceny z vaseho obchodu...',
-    validating: 'Overujeme nutricni hodnoty a finalizujeme plan...',
+    pending: 'Analyzujeme vaše stravovací cíle a preference...',
+    awaiting_payment: 'Analyzujeme vaše stravovací cíle a preference...',
+    payment_confirmed: 'Vytváříme personalizovaný jídelníček s recepty...',
+    processing: 'Vytváříme personalizovaný jídelníček s recepty...',
+    processing_meal_plan: 'Vytváříme personalizovaný jídelníček s recepty...',
+    processing_shopping_list: 'Hledáme nejlepší ceny z vašeho obchodu...',
+    validating: 'Ověřujeme nutriční hodnoty a finalizujeme plán...',
   };
 
   const displayMessage = status ? (stepMessages[currentStatus] || message) : message;

@@ -7,51 +7,51 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 
 const STEPS = [
-  { label: 'Cil', icon: Target },
+  { label: 'Cíl', icon: Target },
   { label: 'Styl', icon: Leaf },
   { label: 'Alergie', icon: AlertTriangle },
-  { label: 'Domacnost', icon: Home },
-  { label: 'Vareni', icon: ChefHat },
+  { label: 'Domácnost', icon: Home },
+  { label: 'Vaření', icon: ChefHat },
   { label: 'Obchod', icon: ShoppingCart },
 ];
 
 const GOALS = [
-  { id: 'lose_weight', label: 'Chci zhubnout', icon: '🎯', desc: 'Snizit vahu zdravym zpusobem' },
-  { id: 'eat_healthy', label: 'Chci jist zdraveji', icon: '🥗', desc: 'Vyvazena strava s nutricnimi hodnotami' },
-  { id: 'save_money', label: 'Chci setrit za jidlo', icon: '💰', desc: 'Levnejsi nakupy bez plytvrni' },
-  { id: 'save_time', label: 'Chci setrit cas', icon: '⏱️', desc: 'Rychle recepty a hotovy plan' },
+  { id: 'lose_weight', label: 'Chci zhubnout', icon: '🎯', desc: 'Snížit váhu zdravým způsobem' },
+  { id: 'eat_healthy', label: 'Chci jíst zdravěji', icon: '🥗', desc: 'Vyvážená strava s nutričními hodnotami' },
+  { id: 'save_money', label: 'Chci šetřit za jídlo', icon: '💰', desc: 'Levnější nákupy bez plýtvání' },
+  { id: 'save_time', label: 'Chci šetřit čas', icon: '⏱️', desc: 'Rychlé recepty a hotový plán' },
 ];
 
 const DIETARY_STYLES = [
-  { id: 'none', label: 'Bez omezeni' },
-  { id: 'vegetarian', label: 'Vegetarian' },
+  { id: 'none', label: 'Bez omezení' },
+  { id: 'vegetarian', label: 'Vegetarián' },
   { id: 'vegan', label: 'Vegan' },
-  { id: 'gluten_free', label: 'Bezlepkove' },
+  { id: 'gluten_free', label: 'Bezlepkové' },
   { id: 'keto', label: 'Keto / Low-carb' },
-  { id: 'high_protein', label: 'Vysoko proteinove' },
+  { id: 'high_protein', label: 'Vysoko proteinové' },
 ];
 
 const ALLERGIES = [
-  { id: 'none', label: 'Zadne alergie' },
-  { id: 'lactose', label: 'Laktoza' },
+  { id: 'none', label: 'Žádné alergie' },
+  { id: 'lactose', label: 'Laktóza' },
   { id: 'gluten', label: 'Lepek' },
-  { id: 'nuts', label: 'Orechy' },
+  { id: 'nuts', label: 'Ořechy' },
   { id: 'eggs', label: 'Vejce' },
   { id: 'fish', label: 'Ryby' },
-  { id: 'soy', label: 'Soja' },
+  { id: 'soy', label: 'Sója' },
 ];
 
 const COOKING_SKILLS = [
-  { id: 'beginner', label: 'Zacatecnik', desc: 'Jednoduche recepty, malo ingredienci' },
-  { id: 'intermediate', label: 'Pokrocily', desc: 'Stredne narocne recepty' },
-  { id: 'advanced', label: 'Zkuseny kuchaf', desc: 'Nebojim se i slozitejsich receptu' },
+  { id: 'beginner', label: 'Začátečník', desc: 'Jednoduché recepty, málo ingrediencí' },
+  { id: 'intermediate', label: 'Pokročilý', desc: 'Středně náročné recepty' },
+  { id: 'advanced', label: 'Zkušený kuchař', desc: 'Nebojím se i složitějších receptů' },
 ];
 
 const COOKING_TIMES = [
   { id: '15min', label: 'Do 15 min' },
   { id: '30min', label: 'Do 30 min' },
   { id: '60min', label: 'Do 60 min' },
-  { id: 'unlimited', label: 'Cas nehraje roli' },
+  { id: 'unlimited', label: 'Čas nehraje roli' },
 ];
 
 interface OnboardingData {
@@ -130,9 +130,9 @@ export const Onboarding = () => {
   };
   const back = () => { if (step > 0) setStep(step - 1); };
 
-  const goalLabel: Record<string, string> = { lose_weight: 'Zhubnout', eat_healthy: 'Jist zdraveji', save_money: 'Setrit za jidlo', save_time: 'Setrit cas' };
-  const skillLabel: Record<string, string> = { beginner: 'Zacatecnik', intermediate: 'Pokrocily', advanced: 'Zkuseny kuchaf' };
-  const shopName = data.shop === 'ROHLIK' ? 'Rohlik.cz' : data.shop === 'KOSIK' ? 'Kosik.cz' : data.shop;
+  const goalLabel: Record<string, string> = { lose_weight: 'Zhubnout', eat_healthy: 'Jíst zdravěji', save_money: 'Šetřit za jídlo', save_time: 'Šetřit čas' };
+  const skillLabel: Record<string, string> = { beginner: 'Začátečník', intermediate: 'Pokročilý', advanced: 'Zkušený kuchař' };
+  const shopName = data.shop === 'ROHLIK' ? 'Rohlík.cz' : data.shop === 'KOSIK' ? 'Košík.cz' : data.shop;
 
   if (showSummary) {
     return (
@@ -140,23 +140,23 @@ export const Onboarding = () => {
         <div className="max-w-2xl mx-auto px-6 py-16 w-full text-center">
           <div className="inline-flex items-center gap-2 bg-emerald-600/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-8">
             <Check size={14} className="text-emerald-400" />
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Profil pripraven</span>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Profil připraven</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter uppercase italic leading-[0.85] mb-8">
-            Vas personalizovany<br /><span className="text-emerald-500 not-italic">plan.</span>
+            Váš personalizovaný<br /><span className="text-emerald-500 not-italic">plán.</span>
           </h1>
 
           <Card className="p-8 text-left mb-10 space-y-4">
-            <Row label="Cil" value={goalLabel[data.goal] || data.goal} />
+            <Row label="Cíl" value={goalLabel[data.goal] || data.goal} />
             {data.dietary_styles.length > 0 && data.dietary_styles[0] !== 'none' && (
               <Row label="Styl" value={data.dietary_styles.map(s => DIETARY_STYLES.find(d => d.id === s)?.label || s).join(', ')} />
             )}
             {data.allergies.length > 0 && data.allergies[0] !== 'none' && (
               <Row label="Alergie" value={data.allergies.map(a => ALLERGIES.find(al => al.id === a)?.label || a).join(', ')} />
             )}
-            <Row label="Domacnost" value={`${data.household_size} ${data.household_size === 1 ? 'osoba' : data.household_size < 5 ? 'osoby' : 'osob'}`} />
-            <Row label="Rozpocet" value={`${data.weekly_budget.toLocaleString('cs-CZ')} ${data.country === 'SK' ? 'EUR' : 'CZK'}/tyden`} />
-            <Row label="Vareni" value={`${skillLabel[data.cooking_skill] || ''}, ${COOKING_TIMES.find(t => t.id === data.cooking_time)?.label || ''}`} />
+            <Row label="Domácnost" value={`${data.household_size} ${data.household_size === 1 ? 'osoba' : data.household_size < 5 ? 'osoby' : 'osob'}`} />
+            <Row label="Rozpočet" value={`${data.weekly_budget.toLocaleString('cs-CZ')} ${data.country === 'SK' ? 'EUR' : 'CZK'}/týden`} />
+            <Row label="Vaření" value={`${skillLabel[data.cooking_skill] || ''}, ${COOKING_TIMES.find(t => t.id === data.cooking_time)?.label || ''}`} />
             <Row label="Obchod" value={shopName} />
           </Card>
 
@@ -164,9 +164,9 @@ export const Onboarding = () => {
             onClick={() => navigate('/create', { state: { fromOnboarding: data } })}
             className="bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3"
           >
-            Vytvorte si jidelnicek <ArrowRight size={18} />
+            Vytvořte si jídelníček <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">10 planu zdarma. Bez kreditni karty.</p>
+          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
         </div>
       </MainLayout>
     );
@@ -177,10 +177,10 @@ export const Onboarding = () => {
       <div className="max-w-3xl mx-auto px-6 py-12 w-full pb-32 sm:pb-12">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tighter uppercase italic leading-none">
-            O vas<span className="text-emerald-500 not-italic">.</span>
+            O vás<span className="text-emerald-500 not-italic">.</span>
           </h1>
           <button onClick={() => skipMutation.mutate()} className="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1.5">
-            <X size={14} /> Preskocit
+            <X size={14} /> Přeskočit
           </button>
         </div>
 
@@ -214,7 +214,7 @@ export const Onboarding = () => {
         {/* Step 0: Goal */}
         {step === 0 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <StepHeader num={1} title="Jaky je vas hlavni cil?" />
+            <StepHeader num={1} title="Jaký je váš hlavní cíl?" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {GOALS.map(g => (
                 <button key={g.id} type="button" onClick={() => update('goal', g.id)}
@@ -233,7 +233,7 @@ export const Onboarding = () => {
         {/* Step 1: Dietary Style */}
         {step === 1 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <StepHeader num={2} title="Jaky stravovaci styl preferujete?" />
+            <StepHeader num={2} title="Jaký stravovací styl preferujete?" />
             <div className="flex flex-wrap gap-3">
               {DIETARY_STYLES.map(s => (
                 <button key={s.id} type="button" onClick={() => toggleMulti('dietary_styles', s.id)}
@@ -250,7 +250,7 @@ export const Onboarding = () => {
         {/* Step 2: Allergies */}
         {step === 2 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <StepHeader num={3} title="Mate nejake alergie?" />
+            <StepHeader num={3} title="Máte nějaké alergie?" />
             <div className="flex flex-wrap gap-3">
               {ALLERGIES.map(a => (
                 <button key={a.id} type="button" onClick={() => toggleMulti('allergies', a.id)}
@@ -267,10 +267,10 @@ export const Onboarding = () => {
         {/* Step 3: Household & Budget */}
         {step === 3 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <StepHeader num={4} title="Domacnost a rozpocet" />
+            <StepHeader num={4} title="Domácnost a rozpočet" />
             <Card className="p-8 space-y-10">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Pocet osob v domacnosti</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Počet osob v domácnosti</label>
                 <div className="flex flex-wrap gap-2.5">
                   {[1, 2, 3, 4, 5, 6].map(n => (
                     <button key={n} type="button" onClick={() => update('household_size', n)}
@@ -284,7 +284,7 @@ export const Onboarding = () => {
               </div>
               <div>
                 <div className="flex justify-between items-end mb-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Tydenni rozpocet na jidlo</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Týdenní rozpočet na jídlo</label>
                   <span className="text-xl font-black text-emerald-500 italic">
                     {data.weekly_budget.toLocaleString('cs-CZ')} {data.country === 'SK' ? 'EUR' : 'CZK'}
                   </span>
@@ -309,10 +309,10 @@ export const Onboarding = () => {
         {/* Step 4: Cooking */}
         {step === 4 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <StepHeader num={5} title="Jak radni varite?" />
+            <StepHeader num={5} title="Jak rádi vaříte?" />
             <Card className="p-8 space-y-10">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Uroven vareni</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Úroveň vaření</label>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {COOKING_SKILLS.map(s => (
                     <button key={s.id} type="button" onClick={() => update('cooking_skill', s.id)}
@@ -326,7 +326,7 @@ export const Onboarding = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Kolik casu mate na pripravu jidla?</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Kolik času máte na přípravu jídla?</label>
                 <div className="flex flex-wrap gap-3">
                   {COOKING_TIMES.map(t => (
                     <button key={t.id} type="button" onClick={() => update('cooking_time', t.id)}
@@ -348,10 +348,10 @@ export const Onboarding = () => {
             <StepHeader num={6} title="Kde nakupujete?" />
             <Card className="p-8 space-y-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Zeme</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Země</label>
                 <select value={data.country} onChange={e => { update('country', e.target.value); update('weekly_budget', e.target.value === 'SK' ? 60 : 1500); }}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-xs font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer">
-                  <option value="CZ">Cesko (CZK)</option>
+                  <option value="CZ">Česko (CZK)</option>
                   <option value="SK">Slovensko (EUR)</option>
                 </select>
               </div>
@@ -362,7 +362,7 @@ export const Onboarding = () => {
                       data.shop === shop.code ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl' : 'bg-zinc-950 border-transparent text-zinc-600 hover:bg-zinc-900'
                     }`}>
                     <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupne</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupné</span>
                     {data.shop === shop.code && <div className="absolute top-8 right-8 text-emerald-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
                   </button>
                 ))}
@@ -375,12 +375,12 @@ export const Onboarding = () => {
         <div className="hidden sm:flex items-center justify-between mt-12 gap-4">
           {step > 0 ? (
             <button type="button" onClick={back} className="flex items-center gap-3 px-8 h-14 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
-              <ArrowLeft size={16} /> Zpet
+              <ArrowLeft size={16} /> Zpět
             </button>
           ) : <div />}
           <button type="button" onClick={next} disabled={!canAdvance() || saveMutation.isPending}
             className="flex items-center gap-3 px-10 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
-            {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : step === 5 ? 'Dokoncit' : 'Dalsi krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
+            {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : step === 5 ? 'Dokončit' : 'Další krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
           </button>
         </div>
 
@@ -394,7 +394,7 @@ export const Onboarding = () => {
             )}
             <button type="button" onClick={next} disabled={!canAdvance() || saveMutation.isPending}
               className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
-              {saveMutation.isPending ? <Loader2 size={20} className="animate-spin" /> : step === 5 ? 'Dokoncit' : 'Dalsi krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
+              {saveMutation.isPending ? <Loader2 size={20} className="animate-spin" /> : step === 5 ? 'Dokončit' : 'Další krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
             </button>
           </div>
         </div>

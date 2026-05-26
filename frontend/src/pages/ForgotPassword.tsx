@@ -28,7 +28,7 @@ export const ForgotPassword = () => {
   return (
     <div className="h-screen flex items-center justify-center p-6 bg-[#09090b] relative overflow-hidden">
       <a href="#forgot-form" className="skip-to-content">
-        Prejit na formular
+        Přejít na formulář
       </a>
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
         <div className="absolute top-[-15%] left-[-15%] w-[800px] h-[800px] bg-emerald-600/[0.04] blur-[180px] rounded-full animate-pulse" />
@@ -43,7 +43,7 @@ export const ForgotPassword = () => {
           <h1 className="text-3xl font-black text-white tracking-tighter leading-none uppercase italic mb-3">
             Obnova <span className="text-emerald-500 not-italic">hesla.</span>
           </h1>
-          <p className="text-xs text-zinc-600 font-bold">Zadejte svuj e-mail a posleme vam odkaz pro obnovu.</p>
+          <p className="text-xs text-zinc-600 font-bold">Zadejte svůj e-mail a pošleme vám odkaz pro obnovu.</p>
         </div>
 
         <div aria-live="polite" aria-atomic="true">
@@ -93,7 +93,7 @@ export const ForgotPassword = () => {
 
         <div className="text-center mt-8">
           <Link to="/login" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2">
-            <ArrowLeft size={14} /> Zpet na prihlaseni
+            <ArrowLeft size={14} /> Zpět na přihlášení
           </Link>
         </div>
       </div>

@@ -16,50 +16,50 @@ export const Privacy = () => (
 
     <main className="max-w-4xl mx-auto px-6 sm:px-12 py-12">
       <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
-        <ArrowLeft size={14} /> Zpet na hlavni stranku
+        <ArrowLeft size={14} /> Zpět na hlavní stránku
       </Link>
 
       <h1 className="text-4xl font-black tracking-tighter uppercase italic mb-12">
-        Zasady ochrany <span className="text-emerald-500 not-italic">soukromi.</span>
+        Zásady ochrany <span className="text-emerald-500 not-italic">soukromí.</span>
       </h1>
 
       <div className="prose prose-invert prose-zinc max-w-none space-y-8 text-sm text-zinc-400 leading-relaxed">
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">1. Spravce udaju</h2>
-          <p>Spravcem vasich osobnich udaju je DietPlanner AI. V pripade dotazu nas kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-emerald-400 hover:text-emerald-300">support@dietplanner.cz</a>.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">1. Správce údajů</h2>
+          <p>Správcem vašich osobních údajů je DietPlanner AI. V případě dotazů nás kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-emerald-400 hover:text-emerald-300">support@dietplanner.cz</a>.</p>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">2. Jake udaje shromazdujeme</h2>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">2. Jaké údaje shromažďujeme</h2>
           <ul className="list-disc pl-5 space-y-2">
-            <li>Registracni udaje (e-mail, uzivatelske jmeno)</li>
-            <li>Stravovaci preference a cile</li>
-            <li>Vygenerovane jidelnicky a nakupni seznamy</li>
-            <li>Technicke udaje (IP adresa, typ prohlizece)</li>
+            <li>Registrační údaje (e-mail, uživatelské jméno)</li>
+            <li>Stravovací preference a cíle</li>
+            <li>Vygenerované jídelníčky a nákupní seznamy</li>
+            <li>Technické údaje (IP adresa, typ prohlížeče)</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">3. Jak udaje pouzivame</h2>
-          <p>Vase udaje pouzivame vyhradne k poskytovani sluzby — generovani personalizovanych jidelniku, nakupnich seznamu a nutricnich informaci. Vase data neprodavame tretim stranam.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">3. Jak údaje používáme</h2>
+          <p>Vaše údaje používáme výhradně k poskytování služby — generování personalizovaných jídelníků, nákupních seznamů a nutričních informací. Vaše data neprodáváme třetím stranám.</p>
         </section>
 
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">4. Cookies</h2>
-          <p>Pouzivame pouze technicke cookies nezbytne pro fungovani aplikace (autentizace, session). Nepouzivame sledovaci ani reklamni cookies.</p>
+          <p>Používáme pouze technické cookies nezbytné pro fungování aplikace (autentizace, session). Nepoužíváme sledovací ani reklamní cookies.</p>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">5. Vase prava</h2>
-          <p>Mate pravo na pristup ke svym udajum, jejich opravu, vymazani a prenositelnost. Pro uplatneni techto prav nas kontaktujte na vyse uvedenem e-mailu.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">5. Vaše práva</h2>
+          <p>Máte právo na přístup ke svým údajům, jejich opravu, vymazání a přenositelnost. Pro uplatnění těchto práv nás kontaktujte na výše uvedeném e-mailu.</p>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">6. Zabezpeceni</h2>
-          <p>Vase data chranime sifrovani pri prenosu (HTTPS/TLS) a bezpecnym ulozenim v databazi. Pristup k datum maji pouze opravnene osoby.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">6. Zabezpečení</h2>
+          <p>Vaše data chráníme šifrováním při přenosu (HTTPS/TLS) a bezpečným uložením v databázi. Přístup k datům mají pouze oprávněné osoby.</p>
         </section>
 
-        <p className="text-zinc-600 text-xs pt-8 border-t border-zinc-800">Posledni aktualizace: kveten 2026</p>
+        <p className="text-zinc-600 text-xs pt-8 border-t border-zinc-800">Poslední aktualizace: květen 2026</p>
       </div>
     </main>
   </div>

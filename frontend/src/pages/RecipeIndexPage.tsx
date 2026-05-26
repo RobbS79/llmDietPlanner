@@ -26,9 +26,9 @@ export const RecipeIndexPage = () => {
           </span>
         </Link>
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">Cenik</button>
-          <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">Prihlasit se</button>
-          <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">Zacit zdarma</button>
+          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">Ceník</button>
+          <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">Přihlásit se</button>
+          <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">Začít zdarma</button>
         </div>
       </nav>
 
@@ -39,7 +39,7 @@ export const RecipeIndexPage = () => {
             Prozkoumejte <span className="text-emerald-500 not-italic">recepty.</span>
           </h1>
           <p className="text-zinc-400 text-lg mt-4 max-w-xl">
-            Recepty generovane AI s nutricnimi hodnotami, podrobnymi postupy a ingrediencemi.
+            Recepty generované AI s nutričními hodnotami, podrobnými postupy a ingrediencemi.
           </p>
         </header>
 
@@ -50,7 +50,7 @@ export const RecipeIndexPage = () => {
         ) : data?.results?.length === 0 ? (
           <div className="py-20 text-center">
             <ChefHat size={64} className="text-zinc-500 mx-auto mb-6" />
-            <p className="text-zinc-500 text-sm font-bold italic">Zatim zadne verejne recepty. Recepty se objevi, jakmile uzivatele zacnou generovat jidelnicky.</p>
+            <p className="text-zinc-500 text-sm font-bold italic">Zatím žádné veřejné recepty. Recepty se objeví, jakmile uživatelé začnou generovat jídelníčky.</p>
           </div>
         ) : (
           <>
@@ -75,7 +75,7 @@ export const RecipeIndexPage = () => {
                     )}
                     {recipe.servings && (
                       <span className="flex items-center gap-1.5">
-                        <Users size={12} className="text-emerald-500" /> {recipe.servings} porci
+                        <Users size={12} className="text-emerald-500" /> {recipe.servings} porcí
                       </span>
                     )}
                   </div>
@@ -87,13 +87,13 @@ export const RecipeIndexPage = () => {
               <div className="flex items-center justify-center gap-4 mt-12">
                 {data.has_previous && (
                   <button onClick={() => setPage(p => p - 1)} className="px-6 py-3 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-colors">
-                    Predchozi
+                    Předchozí
                   </button>
                 )}
                 <span className="text-zinc-500 text-xs font-bold">Strana {data.current_page} z {data.num_pages}</span>
                 {data.has_next && (
                   <button onClick={() => setPage(p => p + 1)} className="px-6 py-3 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-colors">
-                    Dalsi
+                    Další
                   </button>
                 )}
               </div>
@@ -102,14 +102,14 @@ export const RecipeIndexPage = () => {
         )}
 
         <div className="mt-20 bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16 text-center">
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Chcete vlastni jidelnicek na miru?</h2>
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Chcete vlastní jídelníček na míru?</h2>
           <p className="text-zinc-400 text-lg mb-8 max-w-md mx-auto">
-            AI vytvori personalizovany jidelnicek s recepty a nakupnim seznamem s realnimi cenami z vaseho obchodu.
+            AI vytvoří personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami z vašeho obchodu.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
-            Vytvorte si jidelnicek zdarma <ArrowRight size={18} />
+            Vytvořte si jídelníček zdarma <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">10 planu zdarma. Bez kreditni karty.</p>
+          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
         </div>
       </div>
 
@@ -121,9 +121,9 @@ export const RecipeIndexPage = () => {
           </div>
           <div className="flex items-center gap-6">
             <Link to="/recepty" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Recepty</Link>
-            <Link to="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Cenik</Link>
-            <Link to="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zasady ochrany soukromi</Link>
-            <Link to="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodni podminky</Link>
+            <Link to="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Ceník</Link>
+            <Link to="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zásady ochrany soukromí</Link>
+            <Link to="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodní podmínky</Link>
           </div>
         </div>
       </footer>

@@ -16,54 +16,54 @@ export const Terms = () => (
 
     <main className="max-w-4xl mx-auto px-6 sm:px-12 py-12">
       <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
-        <ArrowLeft size={14} /> Zpet na hlavni stranku
+        <ArrowLeft size={14} /> Zpět na hlavní stránku
       </Link>
 
       <h1 className="text-4xl font-black tracking-tighter uppercase italic mb-12">
-        Obchodni <span className="text-emerald-500 not-italic">podminky.</span>
+        Obchodní <span className="text-emerald-500 not-italic">podmínky.</span>
       </h1>
 
       <div className="prose prose-invert prose-zinc max-w-none space-y-8 text-sm text-zinc-400 leading-relaxed">
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">1. Zakladni ustanoveni</h2>
-          <p>Tyto obchodni podminky upravuji prava a povinnosti uzivatelu sluzby DietPlanner AI. Pouzitim sluzby souhlasite s temito podminkami.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">1. Základní ustanovení</h2>
+          <p>Tyto obchodní podmínky upravují práva a povinnosti uživatelů služby DietPlanner AI. Použitím služby souhlasíte s těmito podmínkami.</p>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">2. Popis sluzby</h2>
-          <p>DietPlanner AI je webova aplikace, ktera pomoci umele inteligence generuje personalizovane jidelnicky, recepty a nakupni seznamy s realnimi cenami z ceskych a slovenskych obchodu.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">2. Popis služby</h2>
+          <p>DietPlanner AI je webová aplikace, která pomocí umělé inteligence generuje personalizované jídelníčky, recepty a nákupní seznamy s reálními cenami z českých a slovenských obchodů.</p>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">3. Bezplatne pouziti</h2>
-          <p>Kazdy uzivatel ma narok na 10 bezplatnych generovani jidelniku. Po vycerpani bezplatnych generovani je mozne zakoupit dalsi kredity.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">3. Bezplatné použití</h2>
+          <p>Každý uživatel má nárok na 10 bezplatných generování jídelníků. Po vyčerpání bezplatných generování je možné zakoupit další kredity.</p>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">4. Omezeni odpovednosti</h2>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">4. Omezení odpovědnosti</h2>
           <ul className="list-disc pl-5 space-y-2">
-            <li>Vygenerovane jidelnicky jsou informativniho charakteru a nenahrazuji odbornou vyzivovou poradu.</li>
-            <li>Ceny produktu jsou orientacni a mohou se lisit od aktualnich cen v obchodech.</li>
-            <li>Neneseme odpovednost za alergicke reakce ci zdravotni komplikace.</li>
+            <li>Vygenerované jídelníčky jsou informativního charakteru a nenahrazují odbornou výživovou poradu.</li>
+            <li>Ceny produktů jsou orientační a mohou se lišit od aktuálních cen v obchodech.</li>
+            <li>Neneseme odpovědnost za alergické reakce či zdravotní komplikace.</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">5. Uzivatelsky ucet</h2>
-          <p>Uzivatel je povinen chranit sve prihlasovaci udaje. Za aktivitu na uctu je odpovedny vlastnik uctu. Ucet je mozne kdykoliv zrusit kontaktovanim podpory.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">5. Uživatelský účet</h2>
+          <p>Uživatel je povinen chránit své přihlašovací údaje. Za aktivitu na účtu je odpovědný vlastník účtu. Účet je možné kdykoliv zrušit kontaktováním podpory.</p>
         </section>
 
         <section>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">6. Dusevni vlastnictvi</h2>
-          <p>Veskery obsah aplikace (design, kod, texty) je chraneny autorskym pravem. Vygenerovane jidelnicky jsou urceny vyhradne pro osobni pouziti uzivatele.</p>
+          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">6. Duševní vlastnictví</h2>
+          <p>Veškerý obsah aplikace (design, kód, texty) je chráněný autorským právem. Vygenerované jídelníčky jsou určeny výhradně pro osobní použití uživatele.</p>
         </section>
 
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">7. Kontakt</h2>
-          <p>Pro dotazy, pripominky a reklamace nas kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-emerald-400 hover:text-emerald-300">support@dietplanner.cz</a>.</p>
+          <p>Pro dotazy, připomínky a reklamace nás kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-emerald-400 hover:text-emerald-300">support@dietplanner.cz</a>.</p>
         </section>
 
-        <p className="text-zinc-600 text-xs pt-8 border-t border-zinc-800">Posledni aktualizace: kveten 2026</p>
+        <p className="text-zinc-600 text-xs pt-8 border-t border-zinc-800">Poslední aktualizace: květen 2026</p>
       </div>
     </main>
   </div>

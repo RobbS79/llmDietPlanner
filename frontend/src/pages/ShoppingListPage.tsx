@@ -47,17 +47,17 @@ export const ShoppingListPage = () => {
           onClick={() => navigate(`/plan/${id}`)}
           className="flex items-center gap-2 text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors print:hidden"
         >
-          <ArrowLeft size={16} /> Zpet na plan
+          <ArrowLeft size={16} /> Zpět na plán
         </button>
 
         <header className="mb-16 flex flex-col sm:flex-row sm:items-end justify-between gap-8 text-left">
           <div className="space-y-4">
-            <Badge variant="emerald">Nakupni seznam</Badge>
+            <Badge variant="emerald">Nákupní seznam</Badge>
             <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">
-              Vas seznam<span className="text-emerald-500 not-italic">.</span>
+              Váš seznam<span className="text-emerald-500 not-italic">.</span>
             </h1>
             <p className="text-zinc-600 text-sm font-bold italic">
-              {items.length} polozek &middot; {checked.size} odskrtnuto
+              {items.length} položek &middot; {checked.size} odškrtnuto
             </p>
           </div>
           <button
@@ -110,7 +110,7 @@ export const ShoppingListPage = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <ShoppingCart size={22} className="text-emerald-500" />
-              <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">Odhadovana cena celkem</p>
+              <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">Odhadovaná cena celkem</p>
             </div>
             <p className="text-4xl font-black text-white italic tracking-tighter">
               {plan.total_price}<span className="text-emerald-500 text-base not-italic ml-2 uppercase">{plan.currency}</span>

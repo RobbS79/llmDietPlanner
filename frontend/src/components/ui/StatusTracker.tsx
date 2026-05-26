@@ -1,9 +1,9 @@
 const steps = [
-  { label: 'Analyzujeme vase preference', keys: ['pending', 'awaiting_payment'] },
-  { label: 'Vytvarime jidelnicek', keys: ['payment_confirmed', 'processing', 'processing_meal_plan'] },
-  { label: 'Hledame nejlepsi ceny', keys: ['processing_shopping_list'] },
-  { label: 'Overujeme plan', keys: ['validating'] },
-  { label: 'Vas plan je pripraven!', keys: ['completed'] },
+  { label: 'Analyzujeme vaše preference', keys: ['pending', 'awaiting_payment'] },
+  { label: 'Vytváříme jídelníček', keys: ['payment_confirmed', 'processing', 'processing_meal_plan'] },
+  { label: 'Hledáme nejlepší ceny', keys: ['processing_shopping_list'] },
+  { label: 'Ověřujeme plán', keys: ['validating'] },
+  { label: 'Váš plán je připraven!', keys: ['completed'] },
 ];
 
 export const StatusTracker = ({ statusData }: { statusData: any }) => {

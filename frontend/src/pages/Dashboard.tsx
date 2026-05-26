@@ -52,13 +52,13 @@ export const Dashboard = () => {
         <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-16 text-left">
           <div className="space-y-3">
             <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">
-              Vase<br /><span className="text-emerald-500 not-italic text-6xl">plany.</span>
+              Vaše<br /><span className="text-emerald-500 not-italic text-6xl">plány.</span>
             </h1>
             {profile && (
               <div className="flex items-center gap-2 pt-2">
                 <Sparkles size={14} className="text-emerald-500" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                  {profile.free_generations_remaining} planu zdarma zbyva
+                  {profile.free_generations_remaining} plánů zdarma zbývá
                 </span>
               </div>
             )}
@@ -67,7 +67,7 @@ export const Dashboard = () => {
             onClick={() => navigate('/create')}
             className="h-14 px-10 bg-white text-black font-black uppercase text-[10px] tracking-[0.2em] rounded-xl hover:bg-zinc-200 transition-all shadow-2xl active:scale-95 flex items-center gap-3 shrink-0"
           >
-            <Plus size={20} strokeWidth={4} /> Novy plan
+            <Plus size={20} strokeWidth={4} /> Nový plán
           </button>
         </header>
 
@@ -84,9 +84,9 @@ export const Dashboard = () => {
                     <Wallet size={24} className="text-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-1">Posledni plan — tydenni naklady</p>
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-1">Poslední plán — týdenní náklady</p>
                     <p className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter leading-none">
-                      {weeklyCost.toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}/tyden</span>
+                      {weeklyCost.toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}/týden</span>
                     </p>
                     <p className="text-xs text-zinc-500 font-bold mt-1 italic">na {shopName}</p>
                   </div>
@@ -95,8 +95,8 @@ export const Dashboard = () => {
                   <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-3">
                     <TrendingDown size={18} className="text-emerald-400" />
                     <div>
-                      <p className="text-lg font-black text-emerald-400 italic tracking-tighter leading-none">-{savings.toLocaleString('cs-CZ')} {latestCost.currency}/tyden</p>
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">vs. prumerny cesky nakup</p>
+                      <p className="text-lg font-black text-emerald-400 italic tracking-tighter leading-none">-{savings.toLocaleString('cs-CZ')} {latestCost.currency}/týden</p>
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">vs. průměrný český nákup</p>
                     </div>
                   </div>
                 )}
@@ -115,10 +115,10 @@ export const Dashboard = () => {
           ) : goals?.length === 0 ? (
             <div className="col-span-full py-40 flex flex-col items-center justify-center border border-zinc-800 rounded-3xl bg-zinc-900/10 text-center">
               <Box size={64} className="text-zinc-500 mb-8" />
-              <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatim zadne jidelnicky</p>
-              <p className="text-zinc-500 text-xs mb-10">Vytvorte svuj prvni plan a zjistete, kolik usetrite.</p>
+              <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatím žádné jídelníčky</p>
+              <p className="text-zinc-500 text-xs mb-10">Vytvořte svůj první plán a zjistíte, kolik ušetříte.</p>
               <button onClick={() => navigate('/create')} className="text-emerald-500 font-black uppercase text-[10px] tracking-widest hover:underline flex items-center gap-2">
-                Vytvorit prvni plan <ArrowRight size={14} />
+                Vytvořit první plán <ArrowRight size={14} />
               </button>
             </div>
           ) : (
@@ -153,7 +153,7 @@ export const Dashboard = () => {
                 <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-zinc-800">
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-500 italic">
                     <span className="flex items-center gap-2"><MapPin size={12} className="text-emerald-500" /> {goal.city}</span>
-                    <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{goal.num_days} dni</span>
+                    <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{goal.num_days} dní</span>
                   </div>
                   <div className="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] pt-1">
                     <span>{new Date(goal.created_at).toLocaleDateString()}</span>

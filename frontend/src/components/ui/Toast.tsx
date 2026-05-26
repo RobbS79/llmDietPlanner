@@ -58,7 +58,7 @@ const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) =>
     }`}>
       {isSuccess ? <CheckCircle2 size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
       <span className="flex-1">{toast.message}</span>
-      <button onClick={onClose} aria-label="Zavrit oznameni" className="text-zinc-500 hover:text-white shrink-0">
+      <button onClick={onClose} aria-label="Zavřít oznámení" className="text-zinc-500 hover:text-white shrink-0">
         <X size={14} />
       </button>
     </div>

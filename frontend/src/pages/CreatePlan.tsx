@@ -7,8 +7,8 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 
 const STEPS = [
-  { label: 'Cile', icon: BrainCircuit },
-  { label: 'Jidla', icon: ChefHat },
+  { label: 'Cíle', icon: BrainCircuit },
+  { label: 'Jídla', icon: ChefHat },
   { label: 'Obchod', icon: ShoppingCart },
 ];
 
@@ -42,11 +42,11 @@ export const CreatePlan = () => {
     const prefs = (location.state as any)?.fromOnboarding || profile?.dietary_preferences;
     if (!prefs || Object.keys(prefs).length === 0) return;
 
-    const goalMap: Record<string, string> = { lose_weight: 'Chci zhubnout', eat_healthy: 'Chci jist zdraveji', save_money: 'Chci setrit za jidlo', save_time: 'Chci setrit cas pri vareni' };
-    const styleMap: Record<string, string> = { vegetarian: 'vegetarianska strava', vegan: 'veganska strava', gluten_free: 'bezlepkova dieta', keto: 'keto dieta', high_protein: 'vysoko proteinova strava' };
-    const allergyMap: Record<string, string> = { lactose: 'bez laktozy', gluten: 'bez lepku', nuts: 'bez orechu', eggs: 'bez vajec', fish: 'bez ryb', soy: 'bez soji' };
-    const skillMap: Record<string, string> = { beginner: 'jednoduche recepty pro zacatecniky', intermediate: 'stredne narocne recepty', advanced: 'i slozitejsi recepty' };
-    const timeMap: Record<string, string> = { '15min': 'Max 15 minut na pripravu', '30min': 'Max 30 minut na pripravu', '60min': 'Max 60 minut na pripravu' };
+    const goalMap: Record<string, string> = { lose_weight: 'Chci zhubnout', eat_healthy: 'Chci jíst zdravěji', save_money: 'Chci šetřit za jídlo', save_time: 'Chci šetřit čas při vaření' };
+    const styleMap: Record<string, string> = { vegetarian: 'vegetariánská strava', vegan: 'veganská strava', gluten_free: 'bezlepková dieta', keto: 'keto dieta', high_protein: 'vysoko proteinová strava' };
+    const allergyMap: Record<string, string> = { lactose: 'bez laktózy', gluten: 'bez lepku', nuts: 'bez ořechů', eggs: 'bez vajec', fish: 'bez ryb', soy: 'bez sóji' };
+    const skillMap: Record<string, string> = { beginner: 'jednoduché recepty pro začátečníky', intermediate: 'středně náročné recepty', advanced: 'i složitější recepty' };
+    const timeMap: Record<string, string> = { '15min': 'Max 15 minut na přípravu', '30min': 'Max 30 minut na přípravu', '60min': 'Max 60 minut na přípravu' };
 
     const parts: string[] = [];
     if (prefs.goal) parts.push(goalMap[prefs.goal] || '');
@@ -55,7 +55,7 @@ export const CreatePlan = () => {
     const allergies = (prefs.allergies || []).filter((a: string) => a !== 'none').map((a: string) => allergyMap[a]).filter(Boolean);
     if (allergies.length) parts.push(allergies.join(', '));
     if (prefs.household_size) parts.push(`Pro ${prefs.household_size} ${prefs.household_size === 1 ? 'osobu' : 'osoby'}`);
-    if (prefs.weekly_budget) parts.push(`Rozpocet ${prefs.weekly_budget} ${prefs.country === 'SK' ? 'EUR' : 'CZK'}/tyden`);
+    if (prefs.weekly_budget) parts.push(`Rozpočet ${prefs.weekly_budget} ${prefs.country === 'SK' ? 'EUR' : 'CZK'}/týden`);
     if (prefs.cooking_skill) parts.push(skillMap[prefs.cooking_skill] || '');
     if (prefs.cooking_time && prefs.cooking_time !== 'unlimited') parts.push(timeMap[prefs.cooking_time] || '');
 
@@ -105,7 +105,7 @@ export const CreatePlan = () => {
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/goals/', data),
     onSuccess: (res) => { setError(''); navigate(`/plan/${res.data.data.goal_id}`); },
-    onError: (err: any) => setError(err.response?.data?.error || 'Nepodarilo se vytvorit plan. Zkuste to znovu.'),
+    onError: (err: any) => setError(err.response?.data?.error || 'Nepodařilo se vytvořit plán. Zkuste to znovu.'),
   });
 
   const update = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
@@ -128,7 +128,7 @@ export const CreatePlan = () => {
       <div className="max-w-4xl mx-auto px-6 py-12 w-full pb-32 sm:pb-12">
         <header className="mb-12 text-center space-y-4">
           <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">
-            Novy<br /><span className="text-emerald-500 not-italic">plan.</span>
+            Nový<br /><span className="text-emerald-500 not-italic">plán.</span>
           </h1>
         </header>
 
@@ -168,7 +168,7 @@ export const CreatePlan = () => {
           <div className="mb-12 p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-left">
             <div className="flex items-center gap-3 mb-4">
               <RotateCcw size={16} className="text-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pouzit predchozi nastaveni</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Použít předchozí nastavení</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {completedGoals.slice(0, 5).map((goal: any) => (
@@ -191,18 +191,18 @@ export const CreatePlan = () => {
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">1</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Stravovaci cile</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Stravovací cíle</h2>
             </div>
 
             <Card className="p-8 space-y-10">
               <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 flex items-center gap-2 italic">
-                  <BrainCircuit size={14} className="text-emerald-500" /> Popiste sve cile
+                  <BrainCircuit size={14} className="text-emerald-500" /> Popište své cíle
                 </label>
                 <textarea
                   autoFocus
                   className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-6 text-lg font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/50 transition-all min-h-[220px] leading-relaxed"
-                  placeholder="napr. Vysoko proteinova dieta, 2400 kcal denne. Bez mlecnych vyrobku. Cenove dostupne suroviny v Praze..."
+                  placeholder="např. Vysoko proteinová dieta, 2400 kcal denně. Bez mléčných výrobků. Cenově dostupné suroviny v Praze..."
                   value={formData.prompt}
                   onChange={e => update('prompt', e.target.value)}
                 />
@@ -210,7 +210,7 @@ export const CreatePlan = () => {
 
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Zeme</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Země</label>
                   <select
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-xs font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
                     value={formData.country}
@@ -220,13 +220,13 @@ export const CreatePlan = () => {
                       update('language_code', c === 'CZ' ? 'cs' : 'sk');
                     }}
                   >
-                    <option value="CZ">Cesko (CZK)</option>
+                    <option value="CZ">Česko (CZK)</option>
                     <option value="SK">Slovensko (EUR)</option>
                   </select>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Mesto</label>
-                  <input type="text" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-600 focus:outline-none" placeholder="napr. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Město</label>
+                  <input type="text" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-600 focus:outline-none" placeholder="např. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
                 </div>
               </div>
             </Card>
@@ -238,15 +238,15 @@ export const CreatePlan = () => {
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">2</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Nastaveni jidel</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Nastavení jídel</h2>
             </div>
 
             <Card className="p-8 space-y-12">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 {[
-                  { id: 'breakfast', label: 'Snidane', icon: Coffee },
-                  { id: 'lunch', label: 'Obed', icon: UtensilsCrossed },
-                  { id: 'dinner', label: 'Vecere', icon: Utensils },
+                  { id: 'breakfast', label: 'Snídaně', icon: Coffee },
+                  { id: 'lunch', label: 'Oběd', icon: UtensilsCrossed },
+                  { id: 'dinner', label: 'Večeře', icon: Utensils },
                 ].map((meal) => (
                   <button
                     key={meal.id}
@@ -267,14 +267,14 @@ export const CreatePlan = () => {
               <div className="grid sm:grid-cols-2 gap-12">
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Svacinky</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Svačinky</span>
                     <span className="text-xl font-black text-emerald-500 italic">{formData.small_meals_per_day}/den</span>
                   </div>
                   <input type="range" min="0" max="5" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-emerald-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Drobne snacky</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Drobné snacky</span>
                     <span className="text-xl font-black text-emerald-500 italic">{formData.snacks_per_day}/den</span>
                   </div>
                   <input type="range" min="0" max="3" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-emerald-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
@@ -282,7 +282,7 @@ export const CreatePlan = () => {
               </div>
 
               <div className="flex flex-wrap gap-2.5 pt-8 border-t border-zinc-800">
-                <span className="w-full text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 italic">Delka planu (dny)</span>
+                <span className="w-full text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 italic">Délka plánu (dny)</span>
                 {[1, 3, 7, 14, 30].map(d => (
                   <button key={d} type="button" onClick={() => update('num_days', d)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-800 ${formData.num_days === d ? 'bg-emerald-600 text-white shadow-lg border-emerald-500' : 'bg-zinc-950 text-zinc-600 hover:text-zinc-400'}`}>
                     {d}D
@@ -298,7 +298,7 @@ export const CreatePlan = () => {
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">3</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferovany obchod</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferovaný obchod</h2>
             </div>
 
             <Card className="p-8">
@@ -313,7 +313,7 @@ export const CreatePlan = () => {
                     }`}
                   >
                     <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupne</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupné</span>
                     {formData.shop === shop.code && <div className="absolute top-8 right-8 text-emerald-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
                   </button>
                 ))}
@@ -322,18 +322,18 @@ export const CreatePlan = () => {
 
             {/* Summary card */}
             <Card className="p-8 border-emerald-500/10">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-6">Shruti vaseho planu</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-6">Shrnutí vašeho plánu</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Mesto</p>
+                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Město</p>
                   <p className="font-black text-white">{formData.city || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Delka</p>
-                  <p className="font-black text-white">{formData.num_days} dni</p>
+                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Délka</p>
+                  <p className="font-black text-white">{formData.num_days} dní</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Jidla</p>
+                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Jídla</p>
                   <p className="font-black text-white">
                     {[formData.breakfast && 'S', formData.lunch && 'O', formData.dinner && 'V'].filter(Boolean).join('+')}
                     {formData.small_meals_per_day > 0 && ` +${formData.small_meals_per_day}sv`}
@@ -361,17 +361,17 @@ export const CreatePlan = () => {
         <div className="hidden sm:flex items-center justify-between mt-12 gap-4">
           {step > 0 ? (
             <button type="button" onClick={back} className="flex items-center gap-3 px-8 h-14 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
-              <ArrowLeft size={16} /> Zpet
+              <ArrowLeft size={16} /> Zpět
             </button>
           ) : <div />}
 
           {step < 2 ? (
             <button type="button" onClick={next} disabled={!canAdvance()} className="flex items-center gap-3 px-10 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
-              Dalsi krok <ArrowRight size={16} />
+              Další krok <ArrowRight size={16} />
             </button>
           ) : (
             <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex items-center gap-4 px-12 h-16 bg-white text-black rounded-2xl font-black text-lg uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] disabled:opacity-30">
-              {mutation.isPending ? <><Loader2 className="animate-spin" size={24} /> Vytvari se...</> : <>Vygenerovat plan <ArrowRight size={20} /></>}
+              {mutation.isPending ? <><Loader2 className="animate-spin" size={24} /> Vytváří se...</> : <>Vygenerovat plán <ArrowRight size={20} /></>}
             </button>
           )}
         </div>
@@ -386,11 +386,11 @@ export const CreatePlan = () => {
             )}
             {step < 2 ? (
               <button type="button" onClick={next} disabled={!canAdvance()} className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
-                Dalsi krok <ArrowRight size={16} />
+                Další krok <ArrowRight size={16} />
               </button>
             ) : (
               <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex-1 flex items-center justify-center gap-3 h-14 bg-white text-black rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
-                {mutation.isPending ? <><Loader2 className="animate-spin" size={20} /> Vytvari se...</> : <>Vygenerovat plan <ArrowRight size={16} /></>}
+                {mutation.isPending ? <><Loader2 className="animate-spin" size={20} /> Vytváří se...</> : <>Vygenerovat plán <ArrowRight size={16} /></>}
               </button>
             )}
           </div>

@@ -4,16 +4,16 @@ import { Zap, ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefH
 
 const SAMPLE_PLAN = {
   days: [
-    { day: 1, meals: ['Ovesna kase s ovocem', 'Kurecí wok s ryzi', 'Losos s brokolicí'] },
-    { day: 2, meals: ['Jogurt s granolou', 'Salat s tunakem', 'Hovezi gulas s knedlikem'] },
-    { day: 3, meals: ['Vajicka s avokado', 'Tresci file s brambory', 'Kurecí curry s ryzi'] },
+    { day: 1, meals: ['Ovesná kaše s ovocem', 'Kuřecí wok s rýží', 'Losos s brokolicí'] },
+    { day: 2, meals: ['Jogurt s granolou', 'Salát s tuňákem', 'Hovězí guláš s knedlíkem'] },
+    { day: 3, meals: ['Vajíčka s avokádo', 'Treščí filé s brambory', 'Kuřecí curry s rýží'] },
   ],
   shoppingList: [
-    { name: 'Kurecí prsa', price: '159', unit: '1 kg' },
+    { name: 'Kuřecí prsa', price: '159', unit: '1 kg' },
     { name: 'Losos filet', price: '219', unit: '400 g' },
-    { name: 'Ovesne vlocky', price: '42', unit: '500 g' },
+    { name: 'Ovesné vločky', price: '42', unit: '500 g' },
     { name: 'Brokolice', price: '39', unit: '1 ks' },
-    { name: 'Ryze basmati', price: '55', unit: '1 kg' },
+    { name: 'Rýže basmati', price: '55', unit: '1 kg' },
   ],
   total: '1,247',
   currency: 'CZK',
@@ -33,7 +33,7 @@ export const Landing = () => {
   return (
     <div className="min-h-screen bg-[#09090b] text-white overflow-hidden pb-20 sm:pb-0">
       <a href="#main-content" className="skip-to-content">
-        Prejit na obsah
+        Přejít na obsah
       </a>
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
@@ -50,13 +50,13 @@ export const Landing = () => {
             Recepty
           </button>
           <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
-            Cenik
+            Ceník
           </button>
           <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">
-            Prihlasit se
+            Přihlásit se
           </button>
           <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-            Zacit zdarma
+            Začít zdarma
           </button>
         </div>
       </nav>
@@ -69,23 +69,23 @@ export const Landing = () => {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 bg-emerald-600/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-8">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">AI jidelnicek s cenami z obchodu</span>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">AI jídelníček s cenami z obchodu</span>
           </div>
 
           <h1 className="text-5xl sm:text-7xl font-black tracking-tighter leading-[0.9] mb-8">
-            Vite, co budete jist<br />
-            <span className="text-emerald-500">i kolik to bude stat.</span>
+            Víte, co budete jíst<br />
+            <span className="text-emerald-500">i kolik to bude stát.</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-zinc-400 max-w-xl mb-4 leading-relaxed">
-            AI vytvori personalizovany jidelnicek s recepty, nutricnimi hodnotami a nakupnim seznamem s <strong className="text-white">realnimi cenami z vaseho obchodu.</strong>
+            AI vytvoří personalizovaný jídelníček s recepty, nutričními hodnotami a nákupním seznamem s <strong className="text-white">reálními cenami z vašeho obchodu.</strong>
           </p>
 
-          <p className="text-sm text-zinc-500 mb-12">Bez kreditni karty. Hotovo za mene nez 60 sekund.</p>
+          <p className="text-sm text-zinc-500 mb-12">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] flex items-center justify-center gap-3">
-              Vytvorit jidelnicek zdarma <ArrowRight size={18} />
+              Vytvořit jídelníček zdarma <ArrowRight size={18} />
             </button>
             <a href="#how-it-works" className="border border-zinc-700 text-zinc-300 px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest hover:border-zinc-500 transition-all text-center">
               Jak to funguje
@@ -98,9 +98,9 @@ export const Landing = () => {
       <section className="px-6 sm:px-12 pb-20 max-w-7xl mx-auto">
         <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
           {[
-            { value: '500+', label: 'Vygenerovanych planu' },
-            { value: '97%', label: 'Presnost cen' },
-            { value: '<60s', label: 'Cas generovani' },
+            { value: '500+', label: 'Vygenerovaných plánů' },
+            { value: '97%', label: 'Přesnost cen' },
+            { value: '<60s', label: 'Čas generování' },
           ].map((stat) => (
             <div key={stat.label}>
               <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{stat.value}</p>
@@ -115,18 +115,18 @@ export const Landing = () => {
         <div className="grid sm:grid-cols-3 gap-6">
           {[
             {
-              quote: 'Usetril jsem skoro 400 Kc za tyden. Konecne vim, co budu varit a kolik to bude stat.',
+              quote: 'Ušetřil jsem skoro 400 Kč za týden. Konečně vím, co budu vařit a kolik to bude stát.',
               name: 'Marek T.',
               location: 'Praha',
             },
             {
-              quote: 'Driv jsem nad jidelnickem stravila 2 hodiny tydne. Ted za 60 sekund mam plan i nakup z Rohliku. Usetrim cas i nervy.',
-              name: 'Katerina S.',
+              quote: 'Dřív jsem nad jídelníčkem strávila 2 hodiny týdně. Teď za 60 sekund mám plán i nákup z Rohlíku. Ušetřím čas i nervy.',
+              name: 'Kateřina S.',
               location: 'Brno',
             },
             {
-              quote: 'Zhubl jsem 3 kg za mesic bez hladoveni. AI mi presne spocita kalorie a vybere recepty, co me bavi.',
-              name: 'Tomas K.',
+              quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. AI mi přesně spočítá kalorie a vybere recepty, co mě baví.',
+              name: 'Tomáš K.',
               location: 'Bratislava',
             },
           ].map((t) => (
@@ -150,14 +150,14 @@ export const Landing = () => {
       <section className="px-6 sm:px-12 pb-20 max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Pro koho je to</p>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Vytvoreno pro lidi, kteri...</h2>
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Vytvořeno pro lidi, kteří...</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { icon: Heart, title: 'Chteji jist zdraveji', desc: 'Ale nevi, kde zacit a co varit' },
-            { icon: Target, title: 'Sleduji makra a kalorie', desc: 'Ale nenavidi planovani jidel' },
-            { icon: Wallet, title: 'Chteji setrit za jidlo', desc: 'A vedet presne, kolik utrati pred nakupem' },
-            { icon: Lightbulb, title: 'Vari doma', desc: 'Ale dochazi jim napady na recepty' },
+            { icon: Heart, title: 'Chtějí jíst zdravěji', desc: 'Ale neví, kde začít a co vařit' },
+            { icon: Target, title: 'Sledují makra a kalorie', desc: 'Ale nenávidí plánování jídel' },
+            { icon: Wallet, title: 'Chtějí šetřit za jídlo', desc: 'A vědět přesně, kolik utratí před nákupem' },
+            { icon: Lightbulb, title: 'Vaří doma', desc: 'Ale dochází jim nápady na recepty' },
           ].map((item) => (
             <div key={item.title} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center hover:border-emerald-500/20 transition-all">
               <item.icon size={28} className="text-emerald-500 mx-auto mb-4" />
@@ -172,7 +172,7 @@ export const Landing = () => {
       <section id="how-it-works" className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
         <div className="text-center mb-20">
           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak to funguje</p>
-          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Tri kroky k vasemu jidelnicku.</h2>
+          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Tři kroky k vašemu jídelníčku.</h2>
         </div>
 
         <div className="grid sm:grid-cols-3 gap-8">
@@ -180,20 +180,20 @@ export const Landing = () => {
             {
               step: '1',
               icon: UtensilsCrossed,
-              title: 'Popiste sve cile',
-              desc: 'Reknete nam, co chcete — vysoko proteinova, levna, veganska, keto — vlastnimi slovy. Vyberte zemi a oblibeny obchod.',
+              title: 'Popište své cíle',
+              desc: 'Řekněte nám, co chcete — vysoko proteinová, levná, veganská, keto — vlastními slovy. Vyberte zemi a oblíbený obchod.',
             },
             {
               step: '2',
               icon: ChefHat,
-              title: 'AI vytvori plan',
-              desc: 'Nase AI vygeneruje kompletni vicedenny jidelnicek se snidani, obedem, vecefi, recepty a nutricnimi hodnotami.',
+              title: 'AI vytvoří plán',
+              desc: 'Naše AI vygeneruje kompletní vícedenní jídelníček se snídaní, obědem, večeří, recepty a nutričními hodnotami.',
             },
             {
               step: '3',
               icon: ShoppingCart,
-              title: 'Nakupujte s realnimi cenami',
-              desc: 'Dostanete nakupni seznam s aktualnimi cenami z vaseho obchodu. Vite presne, co koupit a kolik to bude stat.',
+              title: 'Nakupujte s reálními cenami',
+              desc: 'Dostanete nákupní seznam s aktuálními cenami z vašeho obchodu. Víte přesně, co koupit a kolik to bude stát.',
             },
           ].map((item) => (
             <div key={item.step} className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-10 hover:border-emerald-500/20 transition-all group">
@@ -212,15 +212,15 @@ export const Landing = () => {
       <section className="px-6 sm:px-12 pb-24 max-w-7xl mx-auto">
         <div className="bg-zinc-900/30 border border-zinc-800 rounded-3xl p-8 sm:p-12">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak nase AI funguje</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Transparentne a pod vasi kontrolou.</h2>
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak naše AI funguje</p>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Transparentně a pod vaší kontrolou.</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Search, title: 'Analyzuje vase cile', desc: 'Pochopi vase stravovaci potreby, omezeni i rozpocet' },
-              { icon: ChefHat, title: 'Vytvori vyvazena jidla', desc: 'Kazdy plan splnuje nutricni doporuceni pro vase cile' },
-              { icon: ShoppingCart, title: 'Overuje realne ceny', desc: 'Stahuje aktualni ceny z vaseho oblibeneho obchodu' },
-              { icon: SlidersHorizontal, title: 'Vy mate kontrolu', desc: 'Upravte, regenerujte nebo zmente cokoliv kdykoliv' },
+              { icon: Search, title: 'Analyzuje vaše cíle', desc: 'Pochopí vaše stravovací potřeby, omezení i rozpočet' },
+              { icon: ChefHat, title: 'Vytvoří vyvážená jídla', desc: 'Každý plán splňuje nutriční doporučení pro vaše cíle' },
+              { icon: ShoppingCart, title: 'Ověřuje reálné ceny', desc: 'Stahuje aktuální ceny z vašeho oblíbeného obchodu' },
+              { icon: SlidersHorizontal, title: 'Vy máte kontrolu', desc: 'Upravte, regenerujte nebo změňte cokoliv kdykoliv' },
             ].map((item) => (
               <div key={item.title} className="text-center">
                 <div className="w-12 h-12 rounded-xl bg-emerald-600/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
@@ -237,15 +237,15 @@ export const Landing = () => {
       {/* Sample plan preview */}
       <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
         <div className="text-center mb-20">
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Ukazka</p>
-          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Podivejte se, co dostanete.</h2>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Ukázka</p>
+          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Podívejte se, co dostanete.</h2>
         </div>
 
         <div className="grid lg:grid-cols-12 gap-8">
           {/* Plan preview */}
           <div className="lg:col-span-7 bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 sm:p-10">
             <div className="flex items-center gap-3 mb-8">
-              <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black text-emerald-400 uppercase tracking-widest">Ukazkovy plan</div>
+              <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black text-emerald-400 uppercase tracking-widest">Ukázkový plán</div>
               <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">3 dny • Praha</span>
             </div>
 
@@ -259,7 +259,7 @@ export const Landing = () => {
                     {day.meals.map((meal, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest w-20 shrink-0">
-                          {['Snidane', 'Obed', 'Vecere'][i]}
+                          {['Snídaně', 'Oběd', 'Večeře'][i]}
                         </span>
                         <span className="text-sm font-bold text-zinc-300">{meal}</span>
                       </div>
@@ -274,7 +274,7 @@ export const Landing = () => {
           <div className="lg:col-span-5 bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 sm:p-10">
             <div className="flex items-center gap-3 mb-8">
               <ShoppingCart size={18} className="text-emerald-500" />
-              <h3 className="text-lg font-black uppercase tracking-tight italic">Nakupni seznam</h3>
+              <h3 className="text-lg font-black uppercase tracking-tight italic">Nákupní seznam</h3>
               <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-auto">{SAMPLE_PLAN.store}</span>
             </div>
 
@@ -288,11 +288,11 @@ export const Landing = () => {
                   <p className="text-sm font-black text-emerald-400 tabular-nums">{item.price} {SAMPLE_PLAN.currency}</p>
                 </div>
               ))}
-              <div className="text-center text-zinc-500 text-xs font-bold">+ 12 dalsich polozek...</div>
+              <div className="text-center text-zinc-500 text-xs font-bold">+ 12 dalších položek...</div>
             </div>
 
             <div className="pt-6 border-t-2 border-emerald-600/30">
-              <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Odhadovana cena celkem</p>
+              <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Odhadovaná cena celkem</p>
               <p className="text-4xl font-black tracking-tighter">
                 {SAMPLE_PLAN.total} <span className="text-emerald-500 text-lg">{SAMPLE_PLAN.currency}</span>
               </p>
@@ -305,10 +305,10 @@ export const Landing = () => {
       <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { icon: BarChart3, title: 'Nutricni hodnoty', desc: 'Kalorie, bílkoviny, sacharidy a tuky u kazdeho jidla' },
-            { icon: List, title: 'Tisk a export', desc: 'Vezmete si nakupni seznam do obchodu nebo ho sdilite' },
-            { icon: ChefHat, title: 'Kompletni recepty', desc: 'Postup pripravy krok za krokem se vsemi ingrediencemi' },
-            { icon: Check, title: 'Interaktivni seznam', desc: 'Odskrtavejte polozky primo v telefonu pri nakupu' },
+            { icon: BarChart3, title: 'Nutriční hodnoty', desc: 'Kalorie, bílkoviny, sacharidy a tuky u každého jídla' },
+            { icon: List, title: 'Tisk a export', desc: 'Vezmete si nákupní seznam do obchodu nebo ho sdílíte' },
+            { icon: ChefHat, title: 'Kompletní recepty', desc: 'Postup přípravy krok za krokem se všemi ingrediencemi' },
+            { icon: Check, title: 'Interaktivní seznam', desc: 'Odškrtávejte položky přímo v telefonu při nákupu' },
           ].map((f) => (
             <div key={f.title} className="bg-zinc-950 border border-zinc-800/50 rounded-2xl p-8 hover:border-zinc-700 transition-all">
               <f.icon size={24} className="text-emerald-500 mb-4" />
@@ -323,15 +323,15 @@ export const Landing = () => {
       <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
         <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-20 text-center">
           <h2 className="text-4xl sm:text-5xl font-black tracking-tighter mb-6">
-            Pripraveni planovat sve jidlo?
+            Připraveni plánovat své jídlo?
           </h2>
           <p className="text-zinc-400 text-lg mb-10 max-w-md mx-auto">
-            Zacnete s 10 plany zdarma. Bez kreditni karty.
+            Začněte s 10 plány zdarma. Bez kreditní karty.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
-            Vytvorit muj prvni plan <ArrowRight size={18} />
+            Vytvořit můj první plán <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">Dostupne v Cesku a na Slovensku</p>
+          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">Dostupné v Česku a na Slovensku</p>
         </div>
       </section>
 
@@ -345,9 +345,9 @@ export const Landing = () => {
             </div>
             <div className="flex items-center gap-6">
               <a href="/recepty" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Recepty</a>
-              <a href="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Cenik</a>
-              <a href="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zasady ochrany soukromi</a>
-              <a href="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodni podminky</a>
+              <a href="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Ceník</a>
+              <a href="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zásady ochrany soukromí</a>
+              <a href="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodní podmínky</a>
               <a href="mailto:support@dietplanner.cz" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Kontakt</a>
             </div>
           </div>
@@ -359,7 +359,7 @@ export const Landing = () => {
       {showStickyCta && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#09090b]/95 backdrop-blur-lg border-t border-zinc-800 sm:hidden">
           <button onClick={() => navigate('/login')} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-            Vytvorit jidelnicek zdarma <ArrowRight size={16} />
+            Vytvořit jídelníček zdarma <ArrowRight size={16} />
           </button>
         </div>
       )}

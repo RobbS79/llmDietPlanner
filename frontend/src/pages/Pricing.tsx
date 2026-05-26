@@ -6,59 +6,59 @@ const PLANS = [
   {
     name: 'Zdarma',
     price: { monthly: 0, annual: 0 },
-    description: 'Pro zacatek',
-    cta: 'Zacit zdarma',
+    description: 'Pro začátek',
+    cta: 'Začít zdarma',
     highlighted: false,
     features: [
-      { text: '10 AI jidelniku', included: true },
-      { text: 'Zakladni recepty', included: true },
-      { text: 'Nakupni seznam', included: true },
-      { text: 'Nutricni hodnoty', included: true },
-      { text: 'Realne ceny z obchodu', included: false },
+      { text: '10 AI jídelníků', included: true },
+      { text: 'Základní recepty', included: true },
+      { text: 'Nákupní seznam', included: true },
+      { text: 'Nutriční hodnoty', included: true },
+      { text: 'Reálné ceny z obchodů', included: false },
       { text: 'Export do PDF', included: false },
-      { text: 'Porovnani obchodu', included: false },
-      { text: 'Prioritni generovani', included: false },
+      { text: 'Porovnání obchodů', included: false },
+      { text: 'Prioritní generování', included: false },
     ],
   },
   {
     name: 'Pro',
     price: { monthly: 149, annual: 99 },
-    description: 'Pro aktivni planovani',
+    description: 'Pro aktivní plánování',
     cta: 'Upgradovat na Pro',
     highlighted: true,
     features: [
-      { text: 'Neomezene jidelnicky', included: true },
-      { text: 'Kompletni recepty', included: true },
-      { text: 'Nakupni seznam', included: true },
-      { text: 'Nutricni hodnoty', included: true },
-      { text: 'Realne ceny z obchodu', included: true },
+      { text: 'Neomezené jídelníčky', included: true },
+      { text: 'Kompletní recepty', included: true },
+      { text: 'Nákupní seznam', included: true },
+      { text: 'Nutriční hodnoty', included: true },
+      { text: 'Reálné ceny z obchodů', included: true },
       { text: 'Export do PDF', included: true },
-      { text: 'Porovnani obchodu', included: true },
-      { text: 'Prioritni generovani', included: true },
+      { text: 'Porovnání obchodů', included: true },
+      { text: 'Prioritní generování', included: true },
     ],
   },
 ];
 
 const FAQ = [
   {
-    q: 'Kolik jidelniku mohu zdarma vygenerovat?',
-    a: 'Kazdy uzivatel dostane 10 bezplatnych generovani. Kazde generovani vytvori kompletni vicedenny jidelnicek s recepty a nakupnim seznamem.',
+    q: 'Kolik jídelníků mohu zdarma vygenerovat?',
+    a: 'Každý uživatel dostane 10 bezplatných generování. Každé generování vytvoří kompletní vícedenný jídelníček s recepty a nákupním seznamem.',
   },
   {
-    q: 'Jak presne jsou ceny z obchodu?',
-    a: 'Ceny aktualizujeme pravidelne primo z e-shopu jako Rohlik.cz, Kosik.cz a dalsich. Presnost je obvykle 97% a vyssi.',
+    q: 'Jak přesné jsou ceny z obchodů?',
+    a: 'Ceny aktualizujeme pravidelně přímo z e-shopů jako Rohlík.cz, Košík.cz a dalších. Přesnost je obvykle 97% a vyšší.',
   },
   {
-    q: 'Mohu plan kdykoliv zrusit?',
-    a: 'Ano, predplatne muzete zrusit kdykoliv. Pristup k Pro funkcim vam zustane do konce zaplaceného obdobi.',
+    q: 'Mohu plán kdykoliv zrušit?',
+    a: 'Ano, předplatné můžete zrušit kdykoliv. Přístup k Pro funkcím vám zůstane do konce zaplaceného období.',
   },
   {
-    q: 'Podporujete dietni omezeni?',
-    a: 'Ano, AI zohledni veskera omezeni — bezlepkove, veganske, keto, vysoko proteinove, alergie a dalsi. Staci je popsat pri vytvareni planu.',
+    q: 'Podporujete dietní omezení?',
+    a: 'Ano, AI zohledí veškerá omezení — bezlepkové, veganské, keto, vysoko proteinové, alergie a další. Stačí je popsat při vytváření plánu.',
   },
   {
-    q: 'V jakych obchodech jsou dostupne ceny?',
-    a: 'Aktualne podporujeme Rohlik.cz, Kosik.cz, Kaufland a dalsi obchody v Cesku a na Slovensku. Postupne pridavame dalsi.',
+    q: 'V jakých obchodech jsou dostupné ceny?',
+    a: 'Aktuálně podporujeme Rohlík.cz, Košík.cz, Kaufland a další obchody v Česku a na Slovensku. Postupně přidáváme další.',
   },
 ];
 
@@ -97,26 +97,26 @@ export const Pricing = () => {
           </span>
         </Link>
         <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-          Zacit zdarma
+          Začít zdarma
         </button>
       </nav>
 
       <main className="max-w-5xl mx-auto px-6 sm:px-12 py-12">
         <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
-          <ArrowLeft size={14} /> Zpet na hlavni stranku
+          <ArrowLeft size={14} /> Zpět na hlavní stránku
         </Link>
 
         <header className="text-center mb-16 space-y-6">
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em]">Cenik</p>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em]">Ceník</p>
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase italic leading-[0.85]">
-            Jednoduchy <span className="text-emerald-500 not-italic">cenik.</span>
+            Jednoduchý <span className="text-emerald-500 not-italic">ceník.</span>
           </h1>
           <p className="text-zinc-400 text-lg max-w-md mx-auto">
-            Zacnete zdarma. Upgradujte, az budete priraveni.
+            Začněte zdarma. Upgradujte, až budete připraveni.
           </p>
 
           <div className="flex items-center justify-center gap-4 pt-4">
-            <span className={`text-sm font-bold transition-colors ${!annual ? 'text-white' : 'text-zinc-500'}`}>Mesicne</span>
+            <span className={`text-sm font-bold transition-colors ${!annual ? 'text-white' : 'text-zinc-500'}`}>Měsíčně</span>
             <button
               onClick={() => setAnnual(!annual)}
               className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-emerald-600' : 'bg-zinc-800'}`}
@@ -124,7 +124,7 @@ export const Pricing = () => {
               <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-transform ${annual ? 'left-8' : 'left-1'}`} />
             </button>
             <span className={`text-sm font-bold transition-colors ${annual ? 'text-white' : 'text-zinc-500'}`}>
-              Rocne
+              Ročně
               <span className="ml-2 text-[10px] font-black text-emerald-400 uppercase tracking-widest">-33%</span>
             </span>
           </div>
@@ -142,7 +142,7 @@ export const Pricing = () => {
             >
               {plan.highlighted && (
                 <div className="inline-block px-3 py-1 bg-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest mb-6 shadow-lg">
-                  Doporuceno
+                  Doporučeno
                 </div>
               )}
 
@@ -157,12 +157,12 @@ export const Pricing = () => {
                 ) : (
                   <>
                     <p className="text-5xl font-black tracking-tighter">
-                      {annual ? plan.price.annual : plan.price.monthly} <span className="text-zinc-500 text-lg">CZK/mesic</span>
+                      {annual ? plan.price.annual : plan.price.monthly} <span className="text-zinc-500 text-lg">CZK/měsíc</span>
                     </p>
                     {annual && (
                       <p className="text-xs text-zinc-500 mt-2">
                         <span className="line-through text-zinc-600">{plan.price.monthly} CZK</span>
-                        <span className="ml-2 text-emerald-400 font-bold">Usetrite {(plan.price.monthly - plan.price.annual) * 12} CZK/rok</span>
+                        <span className="ml-2 text-emerald-400 font-bold">Ušetříte {(plan.price.monthly - plan.price.annual) * 12} CZK/rok</span>
                       </p>
                     )}
                   </>
@@ -198,7 +198,7 @@ export const Pricing = () => {
 
         <div className="text-center mb-16">
           <p className="text-zinc-500 text-sm">
-            Stoji mene nez jedno kafe tydne. Prumerny uzivatel usetri <strong className="text-white">850 CZK mesicne</strong> na nakupech.
+            Stojí méně než jedno kafe týdně. Průměrný uživatel ušetří <strong className="text-white">850 CZK měsíčně</strong> na nákupech.
           </p>
         </div>
 
@@ -206,7 +206,7 @@ export const Pricing = () => {
         <section className="max-w-3xl mx-auto mb-24">
           <div className="text-center mb-12">
             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">FAQ</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Caste dotazy</h2>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Časté dotazy</h2>
           </div>
 
           <div className="space-y-3">
@@ -232,10 +232,10 @@ export const Pricing = () => {
         {/* Bottom CTA */}
         <section className="text-center pb-12">
           <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16">
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Pripraveni setrit cas i penize?</h2>
-            <p className="text-zinc-400 mb-8">Zacnete s 10 plany zdarma. Bez kreditni karty.</p>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Připraveni šetřit čas i peníze?</h2>
+            <p className="text-zinc-400 mb-8">Začněte s 10 plány zdarma. Bez kreditní karty.</p>
             <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
-              Vytvorit jidelnicek zdarma <ArrowRight size={18} />
+              Vytvořit jídelníček zdarma <ArrowRight size={18} />
             </button>
           </div>
         </section>
@@ -248,8 +248,8 @@ export const Pricing = () => {
             <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-600">DietPlanner.</span>
           </div>
           <div className="flex items-center gap-6">
-            <Link to="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zasady ochrany soukromi</Link>
-            <Link to="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodni podminky</Link>
+            <Link to="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zásady ochrany soukromí</Link>
+            <Link to="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodní podmínky</Link>
           </div>
         </div>
       </footer>

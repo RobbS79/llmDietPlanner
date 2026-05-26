@@ -9,9 +9,9 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useToast } from '@/components/ui/Toast';
 
 const MEAL_LABELS: Record<string, string> = {
-  breakfast: 'Snidane',
-  lunch: 'Obed',
-  dinner: 'Vecere',
+  breakfast: 'Snídaně',
+  lunch: 'Oběd',
+  dinner: 'Večeře',
 };
 
 function exportPlanAsText(goalDetail: any, plan: any) {
@@ -93,7 +93,7 @@ export const PlanView = () => {
       api.patch(`/meals/${mealId}/`, { is_cooked: isCooked, meal_name: mealName }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['mealInstances', id] });
-      toast.success(variables.isCooked ? 'Oznaceno jako uvareno!' : 'Odznaceno');
+      toast.success(variables.isCooked ? 'Označeno jako uvařeno!' : 'Odznačeno');
     },
   });
 
@@ -103,12 +103,12 @@ export const PlanView = () => {
         <div className="w-24 h-24 rounded-3xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 mb-10 animate-bounce">
           <AlertCircle size={48} />
         </div>
-        <h1 className="text-5xl font-black tracking-tighter uppercase mb-4 leading-none italic">Generovani selhalo<span className="text-rose-600 not-italic">.</span></h1>
-        <p className={`text-zinc-600 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed ${statusData?.error_message ? 'mb-4' : 'mb-12'}`}>Nepodarilo se vygenerovat jidelnicek. Zkuste to prosim znovu s jinymi parametry.</p>
+        <h1 className="text-5xl font-black tracking-tighter uppercase mb-4 leading-none italic">Generování selhalo<span className="text-rose-600 not-italic">.</span></h1>
+        <p className={`text-zinc-600 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed ${statusData?.error_message ? 'mb-4' : 'mb-12'}`}>Nepodařilo se vygenerovat jídelníček. Zkuste to prosím znovu s jinými parametry.</p>
         {statusData?.error_message && (
           <p className="text-zinc-500 max-w-md mb-12 text-xs font-mono opacity-60 leading-relaxed">{statusData.error_message}</p>
         )}
-        <button onClick={() => navigate('/')} className="px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl">Zpet na plany</button>
+        <button onClick={() => navigate('/')} className="px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl">Zpět na plány</button>
       </div>
     );
   }
@@ -125,12 +125,12 @@ export const PlanView = () => {
       <div className="max-w-[1400px] mx-auto px-6 py-12 w-full">
         <header className="mb-24 flex flex-col lg:flex-row lg:items-end justify-between gap-12 text-left">
           <div className="space-y-6">
-            <Badge variant="emerald">Plan pripraven</Badge>
-            <h1 className="text-7xl sm:text-8xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">Vas plan<span className="text-emerald-500 not-italic">.</span></h1>
+            <Badge variant="emerald">Plán připraven</Badge>
+            <h1 className="text-7xl sm:text-8xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">Váš plán<span className="text-emerald-500 not-italic">.</span></h1>
             <div className="flex flex-wrap gap-4 pt-6">
               {[
                 { icon: MapPin, text: goalDetail.city },
-                { icon: Timer, text: `${goalDetail.num_days} dni` },
+                { icon: Timer, text: `${goalDetail.num_days} dní` },
                 { icon: Globe, text: goalDetail.language_code.toUpperCase() },
               ].map((meta, i) => (
                 <div key={i} className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
@@ -165,7 +165,7 @@ export const PlanView = () => {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-4">
                     <Wallet size={18} className="text-emerald-400" />
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Tydenni naklady</p>
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Týdenní náklady</p>
                   </div>
                   <p className="text-5xl sm:text-6xl font-black text-white italic tracking-tighter leading-none">
                     {weeklyCost.toLocaleString('cs-CZ')}<span className="text-emerald-500 text-lg not-italic ml-2 uppercase">{plan.currency}</span>
@@ -178,14 +178,14 @@ export const PlanView = () => {
                 <div className="flex flex-col justify-center space-y-2">
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingDown size={18} className="text-emerald-400" />
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Odhadovana uspora</p>
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Odhadovaná úspora</p>
                   </div>
                   <p className="text-4xl font-black text-emerald-400 italic tracking-tighter leading-none">
-                    {estimatedSavings > 0 ? `-${estimatedSavings.toLocaleString('cs-CZ')}` : '0'}<span className="text-emerald-500/60 text-sm not-italic ml-2 uppercase">{plan.currency}/tyden</span>
+                    {estimatedSavings > 0 ? `-${estimatedSavings.toLocaleString('cs-CZ')}` : '0'}<span className="text-emerald-500/60 text-sm not-italic ml-2 uppercase">{plan.currency}/týden</span>
                   </p>
                   {estimatedSavings > 0 && (
                     <p className="text-xs text-zinc-500 font-bold italic">
-                      {savingsPercent}% mene nez prumerny cesky nakup ({avgCzWeekly.toLocaleString('cs-CZ')} {plan.currency}/tyden)
+                      {savingsPercent}% méně než průměrný český nákup ({avgCzWeekly.toLocaleString('cs-CZ')} {plan.currency}/týden)
                     </p>
                   )}
                 </div>
@@ -193,7 +193,7 @@ export const PlanView = () => {
                 <div className="flex flex-col justify-center space-y-2">
                   <div className="flex items-center gap-2 mb-2">
                     <CalendarDays size={18} className="text-zinc-500" />
-                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em]">Mesicne usetrite</p>
+                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em]">Měsíčně ušetříte</p>
                   </div>
                   <p className="text-4xl font-black text-white italic tracking-tighter leading-none">
                     {estimatedSavings > 0 ? `${(estimatedSavings * 4).toLocaleString('cs-CZ')}` : '—'}<span className="text-zinc-500 text-sm not-italic ml-2 uppercase">{estimatedSavings > 0 ? plan.currency : ''}</span>
@@ -233,11 +233,11 @@ export const PlanView = () => {
           return (
             <div className="mb-16 grid grid-cols-2 sm:grid-cols-5 gap-4 text-left">
               {[
-                { label: 'Prum. kcal/den', value: avg.kcal, icon: Flame, color: 'text-orange-400' },
-                { label: 'Prum. bilkoviny', value: `${avg.protein}g`, icon: null, color: 'text-rose-400' },
-                { label: 'Prum. sacharidy', value: `${avg.carbs}g`, icon: null, color: 'text-amber-400' },
-                { label: 'Prum. tuky', value: `${avg.fat}g`, icon: null, color: 'text-blue-400' },
-                { label: 'Uvareno', value: `${cookedCount}/${totalMeals}`, icon: ChefHat, color: 'text-emerald-400' },
+                { label: 'Prům. kcal/den', value: avg.kcal, icon: Flame, color: 'text-orange-400' },
+                { label: 'Prům. bílkoviny', value: `${avg.protein}g`, icon: null, color: 'text-rose-400' },
+                { label: 'Prům. sacharidy', value: `${avg.carbs}g`, icon: null, color: 'text-amber-400' },
+                { label: 'Prům. tuky', value: `${avg.fat}g`, icon: null, color: 'text-blue-400' },
+                { label: 'Uvařeno', value: `${cookedCount}/${totalMeals}`, icon: ChefHat, color: 'text-emerald-400' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
                   <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-2">{stat.label}</p>
@@ -274,14 +274,14 @@ export const PlanView = () => {
                         <div className="flex justify-between items-center mb-10 relative z-10">
                           <div className="flex items-center gap-3">
                             <span className="px-5 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{MEAL_LABELS[m] || m}</span>
-                            {isCooked && <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">Uvareno</span>}
+                            {isCooked && <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">Uvařeno</span>}
                           </div>
                           <div className="flex items-center gap-3">
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleCooked.mutate({ mealId, isCooked: !isCooked, mealName: day[m].name }); }}
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${isCooked ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-400' : 'bg-black/30 border-zinc-800 text-zinc-600 hover:border-emerald-500/30 hover:text-emerald-400'}`}
                             >
-                              <ChefHat size={14} /> {isCooked ? 'Zrusit' : 'Oznacit jako uvarene'}
+                              <ChefHat size={14} /> {isCooked ? 'Zrušit' : 'Označit jako uvařené'}
                             </button>
                             <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg text-[9px] font-black text-zinc-600 border border-zinc-800 uppercase tracking-widest italic">
                               <Timer size={14} className="text-emerald-500" /> {day[m].preparation_time || 20} min
@@ -320,7 +320,7 @@ export const PlanView = () => {
                 <div className="w-12 h-12 rounded-xl bg-emerald-600/10 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
                   <ShoppingCart size={28} />
                 </div>
-                <h2 className="text-2xl font-black uppercase tracking-tighter italic text-white leading-none">Nakupni seznam</h2>
+                <h2 className="text-2xl font-black uppercase tracking-tighter italic text-white leading-none">Nákupní seznam</h2>
               </div>
 
               <div className="space-y-6 max-h-[440px] overflow-y-auto pr-4 custom-scrollbar mb-14">
@@ -340,7 +340,7 @@ export const PlanView = () => {
 
               <div className="pt-10 border-t-2 border-emerald-600/30 space-y-10">
                 <div className="space-y-2 text-left">
-                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em] italic leading-none">Odhadovana cena celkem</p>
+                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em] italic leading-none">Odhadovaná cena celkem</p>
                   <p className="text-6xl font-black text-white italic tracking-tighter leading-none">
                     {plan.total_price}<span className="text-emerald-500 text-xl not-italic ml-2 uppercase leading-none">{plan.currency}</span>
                   </p>
@@ -349,7 +349,7 @@ export const PlanView = () => {
                   onClick={() => navigate(`/plan/${id}/shopping-list`)}
                   className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-4"
                 >
-                  <List size={18} /> Zobrazit cely seznam
+                  <List size={18} /> Zobrazit celý seznam
                 </button>
               </div>
             </Card>

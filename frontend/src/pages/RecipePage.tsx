@@ -74,7 +74,7 @@ export const RecipePage = () => {
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Generujeme recept</h2>
-            <p className="text-zinc-600 text-sm italic">Nas kuchaf pise postup krok za krokem...</p>
+            <p className="text-zinc-600 text-sm italic">Náš kuchař píše postup krok za krokem...</p>
           </div>
         </div>
       </MainLayout>
@@ -87,7 +87,7 @@ export const RecipePage = () => {
         <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
           <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Recept nenalezen</h2>
           <button onClick={() => navigate(`/plan/${id}`)} className="px-8 h-12 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl">
-            Zpet na plan
+            Zpět na plán
           </button>
         </div>
       </MainLayout>
@@ -101,7 +101,7 @@ export const RecipePage = () => {
           onClick={() => navigate(`/plan/${id}`)}
           className="flex items-center gap-2 text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors"
         >
-          <ArrowLeft size={16} /> Zpet na plan
+          <ArrowLeft size={16} /> Zpět na plán
         </button>
 
         <header className="mb-16 text-left">
@@ -126,7 +126,7 @@ export const RecipePage = () => {
             )}
             {recipe.servings && (
               <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                <Users size={14} className="text-emerald-500" /> {recipe.servings} {recipe.servings > 1 ? 'porci' : 'porce'}
+                <Users size={14} className="text-emerald-500" /> {recipe.servings} {recipe.servings > 1 ? 'porcí' : 'porce'}
               </div>
             )}
           </div>
@@ -182,7 +182,7 @@ export const RecipePage = () => {
             {/* Nutritional info */}
             {recipe.nutritional_info && Object.keys(recipe.nutritional_info).length > 0 && (
               <Card className="p-8 mt-12">
-                <h3 className="text-sm font-black text-white uppercase tracking-tighter italic mb-6">Nutricni hodnoty</h3>
+                <h3 className="text-sm font-black text-white uppercase tracking-tighter italic mb-6">Nutriční hodnoty</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {Object.entries(recipe.nutritional_info).map(([k, v]: any) => (
                     <div key={k} className="space-y-1">
