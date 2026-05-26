@@ -315,7 +315,7 @@ export const PlanView = () => {
           </div>
 
           <aside className="lg:col-span-4 lg:sticky lg:top-10">
-            <Card className="p-10 border-emerald-500/10 text-left shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)]">
+            <Card className="p-10 border-emerald-500/10 text-left shadow-deep">
               <div className="flex items-center gap-4 mb-14 border-b border-zinc-800 pb-10">
                 <div className="w-12 h-12 rounded-xl bg-emerald-600/10 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
                   <ShoppingCart size={28} />

@@ -16,7 +16,7 @@ export const LoadingScreen = ({ message, status }: { message: string; status?: a
   const displayMessage = status ? (stepMessages[currentStatus] || message) : message;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#09090b]">
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#09090b]" role="status" aria-live="polite">
       <div className="relative mb-12 flex items-center justify-center">
         <div className="absolute inset-0 bg-emerald-600/10 blur-[80px] rounded-full" />
         <Loader2 className="animate-spin text-emerald-500 relative z-10" size={100} strokeWidth={1} />

@@ -308,12 +308,14 @@ export const CreatePlan = () => {
           </section>
         )}
 
+        <div aria-live="polite" aria-atomic="true">
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-5 text-sm font-bold mt-8">
+          <div role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-5 text-sm font-bold mt-8">
             <AlertCircle size={18} className="shrink-0" />
             <span>{error}</span>
           </div>
         )}
+        </div>
 
         {/* Desktop navigation buttons */}
         <div className="hidden sm:flex items-center justify-between mt-12 gap-4">

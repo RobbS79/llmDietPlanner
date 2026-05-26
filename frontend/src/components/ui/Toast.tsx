@@ -33,7 +33,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-3 max-w-sm">
+      <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-3 max-w-sm" aria-live="assertive" aria-atomic="true">
         {toasts.map(toast => (
           <ToastItem key={toast.id} toast={toast} onClose={() => remove(toast.id)} />
         ))}
@@ -51,14 +51,14 @@ const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) =>
   const isSuccess = toast.type === 'success';
 
   return (
-    <div className={`flex items-center gap-3 px-5 py-4 rounded-xl border shadow-2xl backdrop-blur-lg text-sm font-bold animate-[slideIn_0.3s_ease-out] ${
+    <div role={isSuccess ? 'status' : 'alert'} className={`flex items-center gap-3 px-5 py-4 rounded-xl border shadow-2xl backdrop-blur-lg text-sm font-bold animate-[slideIn_0.3s_ease-out] ${
       isSuccess
         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
         : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
     }`}>
       {isSuccess ? <CheckCircle2 size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
       <span className="flex-1">{toast.message}</span>
-      <button onClick={onClose} className="text-zinc-500 hover:text-white shrink-0">
+      <button onClick={onClose} aria-label="Zavrit oznameni" className="text-zinc-500 hover:text-white shrink-0">
         <X size={14} />
       </button>
     </div>

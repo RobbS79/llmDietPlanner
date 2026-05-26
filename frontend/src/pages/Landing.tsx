@@ -32,6 +32,9 @@ export const Landing = () => {
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white overflow-hidden pb-20 sm:pb-0">
+      <a href="#main-content" className="skip-to-content">
+        Prejit na obsah
+      </a>
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
@@ -56,7 +59,7 @@ export const Landing = () => {
       </nav>
 
       {/* Hero */}
-      <section className="relative px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">
+      <section id="main-content" className="relative px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">
         <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-600/[0.06] blur-[180px] rounded-full" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-teal-600/[0.03] blur-[220px] rounded-full" />
 
@@ -315,7 +318,7 @@ export const Landing = () => {
 
       {/* CTA */}
       <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-        <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-[3rem] p-12 sm:p-20 text-center">
+        <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-20 text-center">
           <h2 className="text-4xl sm:text-5xl font-black tracking-tighter mb-6">
             Pripraveni planovat sve jidlo?
           </h2>

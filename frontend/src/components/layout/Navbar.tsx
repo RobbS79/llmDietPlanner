@@ -22,7 +22,7 @@ export const Navbar = () => {
     <header className="h-16 border-b border-zinc-800 bg-[#09090b]/80 backdrop-blur-xl flex-none z-50">
       <div className="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(5,150,105,0.3)]">
+          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-glow-sm">
             <Zap size={18} fill="currentColor" />
           </div>
           <span className="text-xl font-bold tracking-tight text-white uppercase italic">

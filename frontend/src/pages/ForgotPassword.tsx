@@ -27,14 +27,17 @@ export const ForgotPassword = () => {
 
   return (
     <div className="h-screen flex items-center justify-center p-6 bg-[#09090b] relative overflow-hidden">
+      <a href="#forgot-form" className="skip-to-content">
+        Prejit na formular
+      </a>
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
         <div className="absolute top-[-15%] left-[-15%] w-[800px] h-[800px] bg-emerald-600/[0.04] blur-[180px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-15%] right-[-15%] w-[900px] h-[900px] bg-teal-600/[0.02] blur-[220px] rounded-full animate-pulse delay-1000" />
       </div>
 
-      <div className="max-w-md w-full relative z-10 bg-zinc-900/50 border border-zinc-800 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] p-12">
+      <div className="max-w-md w-full relative z-10 bg-zinc-900/50 border border-zinc-800 rounded-3xl shadow-deep-full p-12">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-400 text-white mb-6 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-400 text-white mb-6 shadow-glow-md">
             <Zap size={32} fill="currentColor" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tighter leading-none uppercase italic mb-3">
@@ -43,20 +46,24 @@ export const ForgotPassword = () => {
           <p className="text-xs text-zinc-600 font-bold">Zadejte svuj e-mail a posleme vam odkaz pro obnovu.</p>
         </div>
 
+        <div aria-live="polite" aria-atomic="true">
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-4 mb-6 text-xs font-bold">
+          <div role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-4 mb-6 text-xs font-bold">
             <AlertCircle size={16} className="shrink-0" />
             <span>{error}</span>
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl p-4 mb-6 text-xs font-bold">
+          <div role="status" className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl p-4 mb-6 text-xs font-bold">
             <CheckCircle2 size={16} className="shrink-0" />
             <span>{success}</span>
           </div>
         )}
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="forgot-form" onSubmit={handleSubmit} className="space-y-4">
+          <fieldset className="space-y-4 border-0 p-0 m-0">
+            <legend className="sr-only">Obnova hesla</legend>
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">E-mail</label>
             <div className="relative">
@@ -72,6 +79,8 @@ export const ForgotPassword = () => {
               />
             </div>
           </div>
+
+          </fieldset>
 
           <button
             type="submit"

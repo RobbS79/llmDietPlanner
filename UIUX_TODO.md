@@ -18,11 +18,11 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 - [x] Added `"Bez kreditni karty. Hotovo za mene nez 60 sekund."` below hero description
 - **File:** `Landing.tsx`
 
-### P0.3 -- Add `og:image` Meta Tag -- PARTIAL
-- [ ] **TODO:** Create 1200x630px Open Graph image and place at `frontend/public/og-image.png`
+### P0.3 -- Add `og:image` Meta Tag -- DONE
+- [x] Created 1200x630px Open Graph image at `frontend/public/og-image.png` (dark theme, brand, sample plan, Czech copy)
 - [x] Added `<meta property="og:image">` to `index.html`
 - [x] Added `<meta name="twitter:image">` to `index.html`
-- **File:** `index.html`
+- **Files:** `index.html`, `frontend/public/og-image.png`
 
 ### P0.4 -- Placeholder/Label Contrast -- DONE
 - [x] Bumped `placeholder:text-zinc-800` -> `placeholder:text-zinc-600` across all forms
@@ -70,11 +70,14 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 
 ### P1.3 -- Social Proof on Login/Register Page -- DONE (moved to P0.8)
 
-### P1.4 -- Add `robots.txt` and `sitemap.xml` -- PARTIAL
+### P1.4 -- Add `robots.txt` and `sitemap.xml` -- DONE (sitemap implemented)
 - [x] Created `frontend/public/robots.txt` with SeznamBot allow + sitemap reference
-- [ ] **TODO:** Generate `sitemap.xml` from Django backend
-- [ ] **TODO:** Submit to Google Search Console and Seznam Webmaster Tools
-- **Files:** `frontend/public/robots.txt`
+- [x] Added `django.contrib.sitemaps` to INSTALLED_APPS
+- [x] Created `sitemaps.py` with per-section sitemaps (landing, pricing, legal, auth) with proper priority/changefreq
+- [x] Added `/sitemap.xml` URL route before catch-all in `urls.py`
+- [ ] **TODO (ops):** Submit to Google Search Console and Seznam Webmaster Tools
+- [ ] **TODO (ops):** Update `django.contrib.sites` Site domain from default to production domain
+- **Files:** `settings.py`, `sitemaps.py`, `urls.py`, `frontend/public/robots.txt`
 
 ### P1.5 -- Landing Page: Add "Who Is This For?" Section -- DONE
 - [x] 4 cards after testimonials: "Chteji jist zdraveji", "Sleduji makra", "Chteji setrit za jidlo", "Vari doma"
@@ -112,12 +115,12 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 - [x] Increased range slider height from h-1.5 to h-2 for mobile touch
 - **File:** `CreatePlan.tsx`, `index.css`
 
-### P2.2 -- Design System Normalization -- PARTIAL
+### P2.2 -- Design System Normalization -- DONE
 - [x] Unified font sizes: replaced all `text-[11px]` with `text-xs` across Login, ForgotPassword, ResetPassword, CreatePlan, PlanView
-- [ ] Unify border radius scale (rounded-xl/2xl/3xl)
-- [ ] Unify spacing and shadow scales
+- [x] Unified border radius scale: replaced `rounded-[3rem]` and `rounded-[2.5rem]` with standard `rounded-3xl` across all pages
+- [x] Unified shadow scale: created reusable `shadow-glow-sm/md/lg`, `shadow-deep`, `shadow-deep-full` utility classes in `index.css` and replaced all arbitrary shadow values
 - [x] Completed full Czech localization of remaining English strings in PlanView, RecipePage, ShoppingListPage, CreatePlan
-- **Files:** All pages
+- **Files:** All pages, `index.css`
 
 ### P2.3 -- Recipe Schema Markup (JSON-LD) -- DONE
 - [x] Added dynamic `@type: Recipe` structured data to `RecipePage.tsx` via useEffect
@@ -230,12 +233,12 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 
 ## Accessibility Backlog
 
-- [ ] Add `prefers-reduced-motion` media query (disable animations for vestibular disorders)
-- [ ] Add `skip-to-content` link
-- [ ] Add `fieldset`/`legend` to form sections
-- [ ] Status badges: add text/icon alongside color (colorblind support)
-- [ ] Card `onClick` handlers: use `<button>` or `<a>` instead of `<div>` for keyboard nav
-- [ ] Add `aria-live` regions for dynamic content (loading states, form errors)
+- [x] Add `prefers-reduced-motion` media query (disable animations for vestibular disorders) — `index.css`
+- [x] Add `skip-to-content` link — `index.css`, `MainLayout.tsx`, `Landing.tsx`, `Login.tsx`, `ForgotPassword.tsx`, `ResetPassword.tsx`
+- [x] Add `fieldset`/`legend` to form sections — `Login.tsx`, `ForgotPassword.tsx`, `ResetPassword.tsx`
+- [x] Status badges: add text/icon alongside color (colorblind support) — `Badge.tsx` (CheckCircle2/XCircle/Clock/AlertTriangle icons per variant)
+- [x] Card `onClick` handlers: use `role="button"` + `tabIndex` + keyboard handler for keyboard nav — `Card.tsx`
+- [x] Add `aria-live` regions for dynamic content (loading states, form errors, toasts) — `Login.tsx`, `ForgotPassword.tsx`, `ResetPassword.tsx`, `CreatePlan.tsx`, `LoadingScreen.tsx`, `Toast.tsx`
 - [ ] Test with screen reader (NVDA/VoiceOver)
 
 ---

@@ -113,7 +113,7 @@ export const Dashboard = () => {
               <CardSkeleton />
             </>
           ) : goals?.length === 0 ? (
-            <div className="col-span-full py-40 flex flex-col items-center justify-center border border-zinc-800 rounded-[2.5rem] bg-zinc-900/10 text-center">
+            <div className="col-span-full py-40 flex flex-col items-center justify-center border border-zinc-800 rounded-3xl bg-zinc-900/10 text-center">
               <Box size={64} className="text-zinc-500 mb-8" />
               <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatim zadne jidelnicky</p>
               <p className="text-zinc-500 text-xs mb-10">Vytvorte svuj prvni plan a zjistete, kolik usetrite.</p>
