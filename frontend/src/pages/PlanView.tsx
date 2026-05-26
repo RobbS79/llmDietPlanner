@@ -115,7 +115,7 @@ export const PlanView = () => {
   }
 
   if (statusData?.goal_status !== 'completed') {
-    return <LoadingScreen message="Generating your personalized meal plan with real store prices..." status={statusData} />;
+    return <LoadingScreen message="Generating your personalized meal plan with real store prices..." status={statusData} goalId={id} />;
   }
 
   const plan = goalDetail?.dietary_plan;

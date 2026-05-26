@@ -234,13 +234,13 @@ class DietaryGoalPromptDebugView(APIView):
 
 
 class AdminRetryGoalView(APIView):
-    """Admin-only endpoint to retry or fail a stuck goal."""
-    permission_classes = [IsAdminUser]
+    """Retry or fail a stuck goal. Users can retry their own goals."""
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, goal_id: int) -> Response:
         action = request.data.get('action', 'retry')
         try:
-            goal = DietaryGoal.objects.get(id=goal_id)
+            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
         except DietaryGoal.DoesNotExist:
             return Response({"status": "error", "error": "Goal not found"}, status=404)
 

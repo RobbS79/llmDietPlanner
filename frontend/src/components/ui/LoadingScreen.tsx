@@ -1,8 +1,31 @@
-import { Loader2, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Loader2, Zap, RotateCcw } from 'lucide-react';
 import { StatusTracker } from './StatusTracker';
+import { api } from '@/lib/api';
 
-export const LoadingScreen = ({ message, status }: { message: string; status?: any }) => {
+export const LoadingScreen = ({ message, status, goalId }: { message: string; status?: any; goalId?: string }) => {
   const currentStatus = status?.goal_status || 'pending';
+  const [elapsed, setElapsed] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleRetry = async () => {
+    if (!goalId || retrying) return;
+    setRetrying(true);
+    try {
+      await api.post(`/goals/${goalId}/admin-retry/`, { action: 'retry' });
+      setElapsed(0);
+    } catch {
+      // fall through
+    } finally {
+      setTimeout(() => setRetrying(false), 3000);
+    }
+  };
+
   const stepMessages: Record<string, string> = {
     pending: 'Analyzujeme vaše stravovací cíle a preference...',
     awaiting_payment: 'Analyzujeme vaše stravovací cíle a preference...',
@@ -14,6 +37,7 @@ export const LoadingScreen = ({ message, status }: { message: string; status?: a
   };
 
   const displayMessage = status ? (stepMessages[currentStatus] || message) : message;
+  const isStuck = elapsed > 120;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#09090b]" role="status" aria-live="polite">
@@ -37,6 +61,19 @@ export const LoadingScreen = ({ message, status }: { message: string; status?: a
             />
           </div>
           <StatusTracker statusData={status} />
+        </div>
+      )}
+      {isStuck && goalId && (
+        <div className="mt-10 space-y-3">
+          <p className="text-zinc-600 text-xs font-bold">Generování trvá déle než obvykle.</p>
+          <button
+            onClick={handleRetry}
+            disabled={retrying}
+            className="flex items-center gap-2 mx-auto px-6 h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-40"
+          >
+            <RotateCcw size={14} className={retrying ? 'animate-spin' : ''} />
+            {retrying ? 'Obnovujeme...' : 'Zkusit znovu'}
+          </button>
         </div>
       )}
     </div>
