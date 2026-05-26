@@ -251,6 +251,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'diet_planner.tasks.archive_expired_offers_task',
         'schedule': crontab(hour=3, minute=0, day_of_week='sun'),
     },
+    # Daily health check at 9am UTC
+    'scraper-health-check': {
+        'task': 'diet_planner.tasks.scraper_health_check_task',
+        'schedule': crontab(hour=9, minute=0),
+    },
 }
 
 # Freshness TTL config per store type (hours)

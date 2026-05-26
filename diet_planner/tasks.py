@@ -1799,6 +1799,80 @@ def archive_expired_offers_task() -> Dict[str, Any]:
     return {'archived': count}
 
 
+@shared_task
+def scraper_health_check_task() -> Dict[str, Any]:
+    """
+    Daily health check across all stores.
+    Logs warnings and sends Slack alert if any store is stale or broken.
+    """
+    from datetime import timedelta
+    from .models import GroceryStore, LeafletOffer, ScrapeRun
+
+    now = timezone.now()
+    week_ago = now - timedelta(days=7)
+    alerts = []
+
+    stores = GroceryStore.objects.filter(is_active=True)
+    for store in stores:
+        # Check 1: successful scrape in last 48h
+        latest = ScrapeRun.objects.filter(
+            store=store, status='COMPLETED',
+        ).order_by('-started_at').first()
+
+        if not latest:
+            alerts.append(f"CRITICAL: {store.code} has NEVER been scraped")
+        elif (now - latest.started_at).total_seconds() > 48 * 3600:
+            hours_ago = (now - latest.started_at).total_seconds() / 3600
+            alerts.append(f"STALE: {store.code} last scraped {hours_ago:.0f}h ago")
+
+        # Check 2: product count drop
+        last_two = list(ScrapeRun.objects.filter(
+            store=store, status__in=['COMPLETED', 'PARTIAL'],
+        ).order_by('-started_at')[:2])
+
+        if len(last_two) == 2 and last_two[1].products_found > 0:
+            ratio = last_two[0].products_found / last_two[1].products_found
+            if ratio < 0.3:
+                alerts.append(
+                    f"DROP: {store.code} products dropped from "
+                    f"{last_two[1].products_found} to {last_two[0].products_found}"
+                )
+
+        # Check 3: weekly LLM cost spike
+        from django.db.models import Sum as _Sum
+        weekly_cost = ScrapeRun.objects.filter(
+            store=store, started_at__gte=week_ago,
+        ).aggregate(total=_Sum('llm_cost_usd'))['total'] or 0
+        if float(weekly_cost) > 1.0:
+            alerts.append(f"COST: {store.code} weekly LLM cost ${weekly_cost:.2f}")
+
+    if alerts:
+        alert_text = "Scraper Health Check:\n" + "\n".join(f"  - {a}" for a in alerts)
+        logger.warning(alert_text)
+        _send_slack_alert(alert_text)
+    else:
+        logger.info("Scraper health check: all stores healthy")
+
+    return {'alerts': alerts, 'stores_checked': stores.count()}
+
+
+def _send_slack_alert(message: str) -> None:
+    """Best-effort Slack alert. Fails silently if Slack is not configured."""
+    import os
+    try:
+        token = os.environ.get('SLACK_BOT_TOKEN')
+        channel = os.environ.get('SLACK_ALERT_CHANNEL')
+        if not token or not channel:
+            return
+
+        from slack_sdk import WebClient
+        client = WebClient(token=token)
+        client.chat_postMessage(channel=channel, text=message)
+        logger.info("Slack alert sent")
+    except Exception as e:
+        logger.warning(f"Failed to send Slack alert: {e}")
+
+
 # =============================================================================
 # CATALOG-CONSTRAINED TASK (Phase 4)
 # =============================================================================

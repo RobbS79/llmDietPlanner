@@ -1,0 +1,94 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Scraper Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  .dashboard-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+  .dashboard-table th, .dashboard-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+  .dashboard-table th { background: #f8f8f8; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .health-ok { color: #22c55e; font-weight: 700; }
+  .health-warn { color: #f59e0b; font-weight: 700; }
+  .health-stale { color: #ef4444; font-weight: 700; }
+  .health-never { color: #ef4444; font-weight: 700; }
+  .stat-card { display: inline-block; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px 24px; margin: 0 12px 12px 0; }
+  .stat-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; }
+  .stat-card .value { font-size: 28px; font-weight: 800; color: #111; margin-top: 4px; }
+  .failures-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+  .failures-table th, .failures-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #fee2e2; }
+  .failures-table th { background: #fef2f2; font-size: 11px; text-transform: uppercase; }
+</style>
+
+<h2>Store Health</h2>
+
+<div style="margin: 20px 0;">
+  <div class="stat-card">
+    <div class="label">Active Offers</div>
+    <div class="value">{{ total_active_offers }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Weekly LLM Cost</div>
+    <div class="value">{{ total_weekly_cost }}</div>
+  </div>
+</div>
+
+<table class="dashboard-table">
+  <thead>
+    <tr>
+      <th>Store</th>
+      <th>Health</th>
+      <th>Last Scrape</th>
+      <th>Products</th>
+      <th>Active Offers</th>
+      <th>Fresh / Stale</th>
+      <th>Runs/week</th>
+      <th>Cost/week</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in store_data %}
+    <tr>
+      <td><strong>{{ s.store.code }}</strong><br><small style="color:#888">{{ s.store.name }}</small></td>
+      <td class="health-{{ s.health }}">{{ s.health|upper }}</td>
+      <td>{{ s.age_hours }}</td>
+      <td>{% if s.latest_run %}{{ s.latest_run.products_found }}{% else %}&mdash;{% endif %}</td>
+      <td>{{ s.active_offers }}</td>
+      <td>{{ s.fresh }} / {{ s.stale }}</td>
+      <td>{{ s.weekly_runs }}</td>
+      <td>{{ s.weekly_cost }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if recent_failures %}
+<h2>Recent Failures (last 7 days)</h2>
+<table class="failures-table">
+  <thead>
+    <tr>
+      <th>Store</th>
+      <th>When</th>
+      <th>Duration</th>
+      <th>Error</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in recent_failures %}
+    <tr>
+      <td>{{ run.store.code }}</td>
+      <td>{{ run.started_at|date:"Y-m-d H:i" }}</td>
+      <td>{% if run.duration_seconds %}{{ run.duration_seconds|floatformat:1 }}s{% else %}&mdash;{% endif %}</td>
+      <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ run.error_log|truncatechars:200 }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#22c55e;font-weight:600;">No failures in the last 7 days.</p>
+{% endif %}
+
+<p style="margin-top:30px;">
+  <a href="{% url 'admin:diet_planner_scraperun_changelist' %}" class="button">View All Scrape Runs &rarr;</a>
+</p>
+{% endblock %}

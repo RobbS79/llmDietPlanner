@@ -1,5 +1,13 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django.contrib import admin
 from django.contrib import messages
+from django.db.models import Sum, Count, Max
+from django.template.response import TemplateResponse
+from django.urls import path
+from django.utils import timezone
+
 from .models import (
     DietaryGoal, DietaryPlan, HistoricNutritionPlan, LeafletOffer, Recipe, MealInstance,
     GroceryStore, CanonicalIngredient, IngredientAlias, IngredientSubstitute,
@@ -228,3 +236,77 @@ class ScrapeRunAdmin(admin.ModelAdmin):
     list_filter = ['status', 'method', 'store']
     date_hierarchy = 'started_at'
     readonly_fields = ['started_at']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path('dashboard/', self.admin_site.admin_view(self.dashboard_view), name='scraper-dashboard'),
+        ]
+        return custom + urls
+
+    def dashboard_view(self, request):
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+        stores = GroceryStore.objects.filter(is_active=True).order_by('chain', 'country')
+
+        store_data = []
+        for store in stores:
+            latest = ScrapeRun.objects.filter(
+                store=store, status='COMPLETED',
+            ).order_by('-started_at').first()
+
+            active = LeafletOffer.objects.filter(
+                shop=store.code, country=store.country,
+                expires_at__gt=now, price__gt=0,
+            ).count()
+
+            fresh = LeafletOffer.objects.filter(shop=store.code, freshness_state='fresh').count()
+            stale = LeafletOffer.objects.filter(shop=store.code, freshness_state='stale').count()
+
+            weekly_cost = ScrapeRun.objects.filter(
+                store=store, started_at__gte=week_ago,
+            ).aggregate(total=Sum('llm_cost_usd'))['total'] or Decimal('0')
+
+            weekly_runs = ScrapeRun.objects.filter(
+                store=store, started_at__gte=week_ago,
+            ).count()
+
+            if latest:
+                age_hours = (now - latest.started_at).total_seconds() / 3600
+                health = 'ok' if age_hours < store.default_price_ttl_hours * 0.75 else (
+                    'warn' if age_hours < store.default_price_ttl_hours else 'stale'
+                )
+            else:
+                age_hours = None
+                health = 'never'
+
+            store_data.append({
+                'store': store,
+                'latest_run': latest,
+                'age_hours': f"{age_hours:.0f}h" if age_hours else "never",
+                'active_offers': active,
+                'fresh': fresh,
+                'stale': stale,
+                'weekly_runs': weekly_runs,
+                'weekly_cost': f"${weekly_cost:.4f}",
+                'health': health,
+            })
+
+        # Recent failed runs
+        recent_failures = ScrapeRun.objects.filter(
+            status='FAILED', started_at__gte=week_ago,
+        ).order_by('-started_at')[:10]
+
+        total_weekly_cost = ScrapeRun.objects.filter(
+            started_at__gte=week_ago,
+        ).aggregate(total=Sum('llm_cost_usd'))['total'] or Decimal('0')
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Scraper Dashboard',
+            'store_data': store_data,
+            'recent_failures': recent_failures,
+            'total_weekly_cost': f"${total_weekly_cost:.4f}",
+            'total_active_offers': sum(s['active_offers'] for s in store_data),
+        }
+        return TemplateResponse(request, 'admin/scraper_dashboard.html', context)
