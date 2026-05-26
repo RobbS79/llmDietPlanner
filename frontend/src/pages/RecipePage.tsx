@@ -18,35 +18,6 @@ export const RecipePage = () => {
     staleTime: Infinity,
   });
 
-  if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-emerald-600/10 flex items-center justify-center border border-emerald-500/20 animate-pulse">
-            <Loader2 size={40} className="text-emerald-500 animate-spin" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Generujeme recept</h2>
-            <p className="text-zinc-600 text-sm italic">Nas kuchaf pise postup krok za krokem...</p>
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <MainLayout>
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Recept nenalezen</h2>
-          <button onClick={() => navigate(`/plan/${id}`)} className="px-8 h-12 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl">
-            Zpet na plan
-          </button>
-        </div>
-      </MainLayout>
-    );
-  }
-
   const recipe = data;
 
   useEffect(() => {
@@ -93,6 +64,35 @@ export const RecipePage = () => {
     document.head.appendChild(script);
     return () => { document.getElementById('recipe-schema')?.remove(); };
   }, [recipe]);
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-emerald-600/10 flex items-center justify-center border border-emerald-500/20 animate-pulse">
+            <Loader2 size={40} className="text-emerald-500 animate-spin" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Generujeme recept</h2>
+            <p className="text-zinc-600 text-sm italic">Nas kuchaf pise postup krok za krokem...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <MainLayout>
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Recept nenalezen</h2>
+          <button onClick={() => navigate(`/plan/${id}`)} className="px-8 h-12 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl">
+            Zpet na plan
+          </button>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
