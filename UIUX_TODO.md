@@ -147,11 +147,15 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 ### P2.7 -- Improve Dashboard Empty State -- DONE (in P0.10)
 - [x] Benefit-driven Czech copy added in P0 round
 
-### P2.8 -- Color Palette Refresh (Consider)
-- [ ] Current: dark theme with indigo (#4F46E5) accent
-- [ ] Competitor analysis suggests: green primary (Ocean Green #37B97D range)
-- [ ] **Decision needed:** Full rebrand or accent-only swap?
-- **Files:** `tailwind.config.js`, all components
+### P2.8 -- Color Palette Refresh -- DONE
+- [x] Swapped full accent from indigo to emerald green across all 18+ files
+- [x] Secondary gradient: purple → teal
+- [x] Updated hex shadow values (glow effects) to emerald tones
+- [x] Updated index.css base styles (body gradient, btn-primary, input-field, selection color)
+- [x] Updated theme.ts accent, MainLayout selection, Badge blue variant → actual blue
+- [x] All pages: Landing, Login, CreatePlan, Dashboard, PlanView, Pricing, RecipePage, ShoppingListPage, ForgotPassword, ResetPassword, Privacy, Terms
+- [x] All components: Navbar, LoadingScreen, StatusTracker
+- **Files:** All frontend files
 
 ---
 
@@ -199,12 +203,14 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 - **Why:** Quiz-based onboarding: +8.5% trial starts, +17% paying conversions, +22% ARPU (industry benchmarks). Builds commitment before paywall.
 - **Files:** New `Onboarding.tsx` wizard, backend to store preferences
 
-### P3.5 -- Weekly Cost Dashboard Widget
-- [ ] Add prominent "Weekly Cost" card at top of Dashboard/PlanView
-- [ ] Show: `"Tento tyden: 1,247 Kc na Rohliku"` (This week: 1,247 CZK at Rohlik)
-- [ ] Running counter: `"Usetfili jste 2,340 Kc tento mesic"` (You saved 2,340 CZK this month)
-- **Why:** This is the #1 unique differentiator vs all competitors. No other meal planner shows real grocery prices. Make it impossible to miss.
-- **Files:** `Dashboard.tsx`, `PlanView.tsx`, possibly new API endpoint for savings tracking
+### P3.5 -- Weekly Cost Dashboard Widget -- DONE
+- [x] **PlanView:** Prominent 3-column cost card at top — weekly cost, estimated savings vs Czech average (1,850 CZK/week), monthly/yearly projection
+- [x] **PlanView:** Shows daily cost, shop name, savings percentage
+- [x] **Dashboard:** Cost summary banner showing latest plan's weekly cost + savings estimate
+- [x] **Dashboard:** Per-card cost display on completed goal cards (fetched via useQueries)
+- [x] Localized to Czech with proper number formatting (cs-CZ locale)
+- [x] Fixed remaining "days" → "dni" Czech localization on Dashboard cards
+- **Files:** `PlanView.tsx`, `Dashboard.tsx`
 
 ### P3.6 -- Seznam.cz Optimization
 - [ ] Register in Seznam Webmaster Tools (search.seznam.cz/prirucka)

@@ -88,7 +88,7 @@ export const CreatePlan = () => {
       <div className="max-w-4xl mx-auto px-6 py-12 w-full pb-32 sm:pb-12">
         <header className="mb-12 text-center space-y-4">
           <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">
-            Novy<br /><span className="text-indigo-500 not-italic">plan.</span>
+            Novy<br /><span className="text-emerald-500 not-italic">plan.</span>
           </h1>
         </header>
 
@@ -101,11 +101,11 @@ export const CreatePlan = () => {
                 type="button"
                 onClick={() => { if (i < step || (i === step) || (i <= step + 1 && canAdvance())) setStep(i); }}
                 className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  i === step ? 'text-indigo-400' : i < step ? 'text-emerald-400 cursor-pointer' : 'text-zinc-600'
+                  i === step ? 'text-emerald-400' : i < step ? 'text-emerald-400 cursor-pointer' : 'text-zinc-600'
                 }`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black transition-all ${
-                  i === step ? 'bg-indigo-600 text-white shadow-lg' : i < step ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
+                  i === step ? 'bg-emerald-600 text-white shadow-lg' : i < step ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
                 }`}>
                   {i < step ? <Check size={14} /> : i + 1}
                 </div>
@@ -115,7 +115,7 @@ export const CreatePlan = () => {
           </div>
           <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
             />
           </div>
@@ -127,7 +127,7 @@ export const CreatePlan = () => {
         {completedGoals.length > 0 && step === 0 && (
           <div className="mb-12 p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-left">
             <div className="flex items-center gap-3 mb-4">
-              <RotateCcw size={16} className="text-indigo-500" />
+              <RotateCcw size={16} className="text-emerald-500" />
               <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pouzit predchozi nastaveni</span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -136,7 +136,7 @@ export const CreatePlan = () => {
                   key={goal.id}
                   type="button"
                   onClick={() => prefillFrom(goal)}
-                  className="px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:border-indigo-500/50 transition-all truncate max-w-[220px]"
+                  className="px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:border-emerald-500/50 transition-all truncate max-w-[220px]"
                   title={goal.prompt}
                 >
                   {goal.city} · {goal.num_days}d — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
@@ -150,18 +150,18 @@ export const CreatePlan = () => {
         {step === 0 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">1</div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">1</div>
               <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Stravovaci cile</h2>
             </div>
 
             <Card className="p-8 space-y-10">
               <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 flex items-center gap-2 italic">
-                  <BrainCircuit size={14} className="text-indigo-500" /> Popiste sve cile
+                  <BrainCircuit size={14} className="text-emerald-500" /> Popiste sve cile
                 </label>
                 <textarea
                   autoFocus
-                  className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-6 text-lg font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50 transition-all min-h-[220px] leading-relaxed"
+                  className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-6 text-lg font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/50 transition-all min-h-[220px] leading-relaxed"
                   placeholder="napr. Vysoko proteinova dieta, 2400 kcal denne. Bez mlecnych vyrobku. Cenove dostupne suroviny v Praze..."
                   value={formData.prompt}
                   onChange={e => update('prompt', e.target.value)}
@@ -197,7 +197,7 @@ export const CreatePlan = () => {
         {step === 1 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">2</div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">2</div>
               <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Nastaveni jidel</h2>
             </div>
 
@@ -214,7 +214,7 @@ export const CreatePlan = () => {
                     onClick={() => update(meal.id, !(formData as any)[meal.id])}
                     className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-4 ${
                       (formData as any)[meal.id]
-                        ? 'bg-indigo-600/10 border-indigo-600 text-white shadow-xl shadow-indigo-500/10'
+                        ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl shadow-emerald-500/10'
                         : 'bg-zinc-950 border-transparent text-zinc-600 hover:text-zinc-400 grayscale opacity-40'
                     }`}
                   >
@@ -228,23 +228,23 @@ export const CreatePlan = () => {
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Svacinky</span>
-                    <span className="text-xl font-black text-indigo-500 italic">{formData.small_meals_per_day}/den</span>
+                    <span className="text-xl font-black text-emerald-500 italic">{formData.small_meals_per_day}/den</span>
                   </div>
-                  <input type="range" min="0" max="5" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
+                  <input type="range" min="0" max="5" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-emerald-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Drobne snacky</span>
-                    <span className="text-xl font-black text-indigo-500 italic">{formData.snacks_per_day}/den</span>
+                    <span className="text-xl font-black text-emerald-500 italic">{formData.snacks_per_day}/den</span>
                   </div>
-                  <input type="range" min="0" max="3" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-indigo-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
+                  <input type="range" min="0" max="3" className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-emerald-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2.5 pt-8 border-t border-zinc-800">
                 <span className="w-full text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 italic">Delka planu (dny)</span>
                 {[1, 3, 7, 14, 30].map(d => (
-                  <button key={d} type="button" onClick={() => update('num_days', d)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-800 ${formData.num_days === d ? 'bg-indigo-600 text-white shadow-lg border-indigo-500' : 'bg-zinc-950 text-zinc-600 hover:text-zinc-400'}`}>
+                  <button key={d} type="button" onClick={() => update('num_days', d)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-800 ${formData.num_days === d ? 'bg-emerald-600 text-white shadow-lg border-emerald-500' : 'bg-zinc-950 text-zinc-600 hover:text-zinc-400'}`}>
                     {d}D
                   </button>
                 ))}
@@ -257,7 +257,7 @@ export const CreatePlan = () => {
         {step === 2 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
             <div className="flex items-center gap-4 text-white">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black italic shadow-lg">3</div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">3</div>
               <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferovany obchod</h2>
             </div>
 
@@ -268,20 +268,20 @@ export const CreatePlan = () => {
                     key={shop.code} type="button" onClick={() => update('shop', shop.code)}
                     className={`p-8 rounded-2xl border-2 text-left transition-all relative overflow-hidden group ${
                       formData.shop === shop.code
-                        ? 'bg-indigo-600/10 border-indigo-600 text-white shadow-xl'
+                        ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl'
                         : 'bg-zinc-950 border-transparent text-zinc-600 hover:bg-zinc-900'
                     }`}
                   >
                     <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
                     <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupne</span>
-                    {formData.shop === shop.code && <div className="absolute top-8 right-8 text-indigo-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
+                    {formData.shop === shop.code && <div className="absolute top-8 right-8 text-emerald-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
                   </button>
                 ))}
               </div>
             </Card>
 
             {/* Summary card */}
-            <Card className="p-8 border-indigo-500/10">
+            <Card className="p-8 border-emerald-500/10">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-6">Shruti vaseho planu</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                 <div>
@@ -324,7 +324,7 @@ export const CreatePlan = () => {
           ) : <div />}
 
           {step < 2 ? (
-            <button type="button" onClick={next} disabled={!canAdvance()} className="flex items-center gap-3 px-10 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
+            <button type="button" onClick={next} disabled={!canAdvance()} className="flex items-center gap-3 px-10 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
               Dalsi krok <ArrowRight size={16} />
             </button>
           ) : (
@@ -343,7 +343,7 @@ export const CreatePlan = () => {
               </button>
             )}
             {step < 2 ? (
-              <button type="button" onClick={next} disabled={!canAdvance()} className="flex-1 flex items-center justify-center gap-3 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
+              <button type="button" onClick={next} disabled={!canAdvance()} className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
                 Dalsi krok <ArrowRight size={16} />
               </button>
             ) : (

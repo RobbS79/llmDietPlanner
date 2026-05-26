@@ -54,7 +54,7 @@ export const ShoppingListPage = () => {
           <div className="space-y-4">
             <Badge variant="emerald">Nakupni seznam</Badge>
             <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">
-              Vas seznam<span className="text-indigo-500 not-italic">.</span>
+              Vas seznam<span className="text-emerald-500 not-italic">.</span>
             </h1>
             <p className="text-zinc-600 text-sm font-bold italic">
               {items.length} polozek &middot; {checked.size} odskrtnuto
@@ -75,10 +75,10 @@ export const ShoppingListPage = () => {
               <Card
                 key={idx}
                 onClick={() => toggleItem(idx)}
-                className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-zinc-800/50' : 'hover:border-indigo-500/20'}`}
+                className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-zinc-800/50' : 'hover:border-emerald-500/20'}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-indigo-600 border-indigo-600' : 'border-zinc-700'}`}>
+                  <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-zinc-700'}`}>
                     {done && <Check size={16} className="text-white" />}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -87,7 +87,7 @@ export const ShoppingListPage = () => {
                         {item.ingredient}
                       </p>
                       {item.price != null && (
-                        <p className="text-sm font-black text-indigo-500 tabular-nums leading-none shrink-0 whitespace-nowrap">
+                        <p className="text-sm font-black text-emerald-500 tabular-nums leading-none shrink-0 whitespace-nowrap">
                           {item.price} {item.currency}
                         </p>
                       )}
@@ -109,11 +109,11 @@ export const ShoppingListPage = () => {
         <Card className="p-8 mt-10 text-left">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <ShoppingCart size={22} className="text-indigo-500" />
+              <ShoppingCart size={22} className="text-emerald-500" />
               <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">Odhadovana cena celkem</p>
             </div>
             <p className="text-4xl font-black text-white italic tracking-tighter">
-              {plan.total_price}<span className="text-indigo-500 text-base not-italic ml-2 uppercase">{plan.currency}</span>
+              {plan.total_price}<span className="text-emerald-500 text-base not-italic ml-2 uppercase">{plan.currency}</span>
             </p>
           </div>
         </Card>

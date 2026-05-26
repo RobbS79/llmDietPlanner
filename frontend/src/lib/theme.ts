@@ -4,5 +4,5 @@ export const THEME = {
   border: "border-zinc-800",
   textPrimary: "text-zinc-100",
   textSecondary: "text-zinc-500",
-  accent: "indigo",
+  accent: "emerald",
 };

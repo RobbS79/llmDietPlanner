@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles } from 'lucide-react';
+import { useQuery, useQueries } from '@tanstack/react-query';
+import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Wallet, TrendingDown } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -18,17 +18,45 @@ export const Dashboard = () => {
     queryFn: () => api.get('/auth/profile/').then(res => res.data.data),
   });
 
+  const completedGoalIds = (goals || [])
+    .filter((g: any) => g.status === 'completed')
+    .slice(0, 6)
+    .map((g: any) => g.id);
+
+  const goalDetails = useQueries({
+    queries: completedGoalIds.map((gid: number) => ({
+      queryKey: ['plan', gid],
+      queryFn: () => api.get(`/goals/${gid}/`).then(res => res.data.data),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+
+  const costMap = new Map<number, { total: number; currency: string; days: number; shop: string }>();
+  goalDetails.forEach((q) => {
+    if (q.data?.dietary_plan?.total_price) {
+      costMap.set(q.data.id, {
+        total: parseFloat(q.data.dietary_plan.total_price),
+        currency: q.data.dietary_plan.currency || 'CZK',
+        days: q.data.num_days || 7,
+        shop: q.data.shop || '',
+      });
+    }
+  });
+
+  const totalSpent = Array.from(costMap.values()).reduce((s, c) => s + c.total, 0);
+  const latestCost = completedGoalIds.length > 0 ? costMap.get(completedGoalIds[0]) : undefined;
+
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto px-6 py-12 w-full">
         <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-16 text-left">
           <div className="space-y-3">
             <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">
-              Vase<br /><span className="text-indigo-500 not-italic text-6xl">plany.</span>
+              Vase<br /><span className="text-emerald-500 not-italic text-6xl">plany.</span>
             </h1>
             {profile && (
               <div className="flex items-center gap-2 pt-2">
-                <Sparkles size={14} className="text-indigo-500" />
+                <Sparkles size={14} className="text-emerald-500" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                   {profile.free_generations_remaining} planu zdarma zbyva
                 </span>
@@ -43,6 +71,40 @@ export const Dashboard = () => {
           </button>
         </header>
 
+        {latestCost && (() => {
+          const weeklyCost = Math.round(latestCost.total / latestCost.days * 7);
+          const avgCzWeekly = 1850;
+          const savings = Math.max(0, avgCzWeekly - weeklyCost);
+          const shopName = latestCost.shop === 'ROHLIK' ? 'Rohlik.cz' : latestCost.shop === 'KOSIK' ? 'Kosik.cz' : latestCost.shop || 'obchodu';
+          return (
+            <div className="mb-10 bg-gradient-to-r from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 rounded-2xl p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-600/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                    <Wallet size={24} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-1">Posledni plan — tydenni naklady</p>
+                    <p className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter leading-none">
+                      {weeklyCost.toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}/tyden</span>
+                    </p>
+                    <p className="text-xs text-zinc-500 font-bold mt-1 italic">na {shopName}</p>
+                  </div>
+                </div>
+                {savings > 0 && (
+                  <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-3">
+                    <TrendingDown size={18} className="text-emerald-400" />
+                    <div>
+                      <p className="text-lg font-black text-emerald-400 italic tracking-tighter leading-none">-{savings.toLocaleString('cs-CZ')} {latestCost.currency}/tyden</p>
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">vs. prumerny cesky nakup</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
             <>
@@ -55,7 +117,7 @@ export const Dashboard = () => {
               <Box size={64} className="text-zinc-500 mb-8" />
               <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatim zadne jidelnicky</p>
               <p className="text-zinc-500 text-xs mb-10">Vytvorte svuj prvni plan a zjistete, kolik usetrite.</p>
-              <button onClick={() => navigate('/create')} className="text-indigo-500 font-black uppercase text-[10px] tracking-widest hover:underline flex items-center gap-2">
+              <button onClick={() => navigate('/create')} className="text-emerald-500 font-black uppercase text-[10px] tracking-widest hover:underline flex items-center gap-2">
                 Vytvorit prvni plan <ArrowRight size={14} />
               </button>
             </div>
@@ -63,7 +125,7 @@ export const Dashboard = () => {
             goals?.map((goal: any) => (
               <Card
                 key={goal.id}
-                className="p-8 hover:bg-zinc-900 hover:border-indigo-500/30 cursor-pointer group flex flex-col h-full text-left"
+                className="p-8 hover:bg-zinc-900 hover:border-emerald-500/30 cursor-pointer group flex flex-col h-full text-left"
                 onClick={() => navigate(`/plan/${goal.id}`)}
               >
                 <div className="flex justify-between items-start mb-12">
@@ -75,18 +137,27 @@ export const Dashboard = () => {
                   </span>
                 </div>
 
-                <h3 className="text-2xl font-black text-white mb-8 leading-tight uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors line-clamp-3">
+                <h3 className="text-2xl font-black text-white mb-8 leading-tight uppercase tracking-tight italic group-hover:text-emerald-400 transition-colors line-clamp-3">
                   {goal.prompt}
                 </h3>
 
+                {costMap.has(goal.id) && (
+                  <div className="mb-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Celkem</span>
+                    <span className="text-lg font-black text-emerald-400 italic tracking-tighter">
+                      {Math.round(costMap.get(goal.id)!.total).toLocaleString('cs-CZ')} {costMap.get(goal.id)!.currency}
+                    </span>
+                  </div>
+                )}
+
                 <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-zinc-800">
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-500 italic">
-                    <span className="flex items-center gap-2"><MapPin size={12} className="text-indigo-500" /> {goal.city}</span>
-                    <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{goal.num_days} days</span>
+                    <span className="flex items-center gap-2"><MapPin size={12} className="text-emerald-500" /> {goal.city}</span>
+                    <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{goal.num_days} dni</span>
                   </div>
                   <div className="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] pt-1">
                     <span>{new Date(goal.created_at).toLocaleDateString()}</span>
-                    <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform group-hover:text-indigo-500" />
+                    <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform group-hover:text-emerald-500" />
                   </div>
                 </div>
               </Card>

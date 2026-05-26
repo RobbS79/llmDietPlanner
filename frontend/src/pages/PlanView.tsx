@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, MapPin, Timer, Globe, Download, ShoppingCart, UtensilsCrossed, ArrowRight, List, ChefHat, Flame } from 'lucide-react';
+import { AlertCircle, MapPin, Timer, Globe, Download, ShoppingCart, UtensilsCrossed, ArrowRight, List, ChefHat, Flame, Wallet, TrendingDown, CalendarDays } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -126,7 +126,7 @@ export const PlanView = () => {
         <header className="mb-24 flex flex-col lg:flex-row lg:items-end justify-between gap-12 text-left">
           <div className="space-y-6">
             <Badge variant="emerald">Plan pripraven</Badge>
-            <h1 className="text-7xl sm:text-8xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">Vas plan<span className="text-indigo-500 not-italic">.</span></h1>
+            <h1 className="text-7xl sm:text-8xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">Vas plan<span className="text-emerald-500 not-italic">.</span></h1>
             <div className="flex flex-wrap gap-4 pt-6">
               {[
                 { icon: MapPin, text: goalDetail.city },
@@ -134,7 +134,7 @@ export const PlanView = () => {
                 { icon: Globe, text: goalDetail.language_code.toUpperCase() },
               ].map((meta, i) => (
                 <div key={i} className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                  <meta.icon size={14} className="text-indigo-500" /> {meta.text}
+                  <meta.icon size={14} className="text-emerald-500" /> {meta.text}
                 </div>
               ))}
             </div>
@@ -147,6 +147,67 @@ export const PlanView = () => {
             <Download size={20} /> Exportovat
           </button>
         </header>
+
+        {/* Weekly Cost Widget — #1 differentiator */}
+        {plan.total_price && (() => {
+          const totalPrice = parseFloat(plan.total_price);
+          const numDays = goalDetail.num_days || 7;
+          const dailyCost = Math.round(totalPrice / numDays);
+          const weeklyCost = numDays >= 7 ? Math.round(totalPrice / numDays * 7) : Math.round(totalPrice);
+          const avgCzWeekly = 1850;
+          const estimatedSavings = Math.max(0, avgCzWeekly - weeklyCost);
+          const savingsPercent = Math.round((estimatedSavings / avgCzWeekly) * 100);
+          const shopName = goalDetail.shop === 'ROHLIK' ? 'Rohlik.cz' : goalDetail.shop === 'KOSIK' ? 'Kosik.cz' : goalDetail.shop || 'obchodu';
+
+          return (
+            <div className="mb-16 bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 rounded-3xl p-8 sm:p-10 text-left">
+              <div className="grid sm:grid-cols-3 gap-8">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Wallet size={18} className="text-emerald-400" />
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Tydenni naklady</p>
+                  </div>
+                  <p className="text-5xl sm:text-6xl font-black text-white italic tracking-tighter leading-none">
+                    {weeklyCost.toLocaleString('cs-CZ')}<span className="text-emerald-500 text-lg not-italic ml-2 uppercase">{plan.currency}</span>
+                  </p>
+                  <p className="text-xs text-zinc-500 font-bold italic">
+                    {dailyCost.toLocaleString('cs-CZ')} {plan.currency}/den na {shopName}
+                  </p>
+                </div>
+
+                <div className="flex flex-col justify-center space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingDown size={18} className="text-emerald-400" />
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Odhadovana uspora</p>
+                  </div>
+                  <p className="text-4xl font-black text-emerald-400 italic tracking-tighter leading-none">
+                    {estimatedSavings > 0 ? `-${estimatedSavings.toLocaleString('cs-CZ')}` : '0'}<span className="text-emerald-500/60 text-sm not-italic ml-2 uppercase">{plan.currency}/tyden</span>
+                  </p>
+                  {estimatedSavings > 0 && (
+                    <p className="text-xs text-zinc-500 font-bold italic">
+                      {savingsPercent}% mene nez prumerny cesky nakup ({avgCzWeekly.toLocaleString('cs-CZ')} {plan.currency}/tyden)
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-col justify-center space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CalendarDays size={18} className="text-zinc-500" />
+                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em]">Mesicne usetrite</p>
+                  </div>
+                  <p className="text-4xl font-black text-white italic tracking-tighter leading-none">
+                    {estimatedSavings > 0 ? `${(estimatedSavings * 4).toLocaleString('cs-CZ')}` : '—'}<span className="text-zinc-500 text-sm not-italic ml-2 uppercase">{estimatedSavings > 0 ? plan.currency : ''}</span>
+                  </p>
+                  {estimatedSavings > 0 && (
+                    <p className="text-xs text-zinc-500 font-bold italic">
+                      {(estimatedSavings * 52).toLocaleString('cs-CZ')} {plan.currency} za rok
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Nutritional Summary */}
         {plan.days?.length > 0 && (() => {
@@ -191,7 +252,7 @@ export const PlanView = () => {
           <div className="lg:col-span-8 space-y-32">
             {plan.days?.map((day: any) => (
               <div key={day.day_number} className="relative group text-left">
-                <div className="absolute -left-10 top-0 bottom-0 w-[1px] bg-gradient-to-b from-indigo-600/50 via-zinc-800 to-transparent hidden 2xl:block" />
+                <div className="absolute -left-10 top-0 bottom-0 w-[1px] bg-gradient-to-b from-emerald-600/50 via-zinc-800 to-transparent hidden 2xl:block" />
                 <div className="flex items-center gap-6 mb-12">
                   <div className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center text-3xl font-black italic shadow-2xl">{day.day_number}</div>
                   <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Den {day.day_number}</h2>
@@ -204,15 +265,15 @@ export const PlanView = () => {
                     return (
                       <Card
                         key={m}
-                        className={`p-10 hover:bg-zinc-900/80 hover:border-indigo-500/20 group/meal relative overflow-hidden text-left ${isCooked ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}
+                        className={`p-10 hover:bg-zinc-900/80 hover:border-emerald-500/20 group/meal relative overflow-hidden text-left ${isCooked ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}
                       >
-                        <div className="absolute top-0 right-0 p-8 text-zinc-900 opacity-20 pointer-events-none group-hover/meal:text-indigo-900 transition-colors">
+                        <div className="absolute top-0 right-0 p-8 text-zinc-900 opacity-20 pointer-events-none group-hover/meal:text-emerald-900 transition-colors">
                           <UtensilsCrossed size={120} />
                         </div>
 
                         <div className="flex justify-between items-center mb-10 relative z-10">
                           <div className="flex items-center gap-3">
-                            <span className="px-5 py-1.5 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{MEAL_LABELS[m] || m}</span>
+                            <span className="px-5 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{MEAL_LABELS[m] || m}</span>
                             {isCooked && <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">Uvareno</span>}
                           </div>
                           <div className="flex items-center gap-3">
@@ -223,13 +284,13 @@ export const PlanView = () => {
                               <ChefHat size={14} /> {isCooked ? 'Zrusit' : 'Oznacit jako uvarene'}
                             </button>
                             <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg text-[9px] font-black text-zinc-600 border border-zinc-800 uppercase tracking-widest italic">
-                              <Timer size={14} className="text-indigo-500" /> {day[m].preparation_time || 20} min
+                              <Timer size={14} className="text-emerald-500" /> {day[m].preparation_time || 20} min
                             </div>
                           </div>
                         </div>
 
                         <div className="cursor-pointer" onClick={() => navigate(`/plan/${id}/recipe/${mealId}`)}>
-                          <h3 className={`text-4xl font-black mb-6 tracking-tighter leading-tight uppercase italic group-hover/meal:text-indigo-400 transition-colors relative z-10 ${isCooked ? 'text-zinc-500 line-through' : 'text-white'}`}>{day[m].name}</h3>
+                          <h3 className={`text-4xl font-black mb-6 tracking-tighter leading-tight uppercase italic group-hover/meal:text-emerald-400 transition-colors relative z-10 ${isCooked ? 'text-zinc-500 line-through' : 'text-white'}`}>{day[m].name}</h3>
                           <p className="text-zinc-500 text-lg font-medium leading-relaxed mb-12 max-w-2xl relative z-10 italic">"{day[m].description}"</p>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 pt-8 border-t border-zinc-800">
@@ -241,7 +302,7 @@ export const PlanView = () => {
                             ))}
                           </div>
 
-                          <div className="flex items-center gap-2 mt-8 text-[10px] font-black text-indigo-500 uppercase tracking-widest italic opacity-0 group-hover/meal:opacity-100 transition-opacity relative z-10">
+                          <div className="flex items-center gap-2 mt-8 text-[10px] font-black text-emerald-500 uppercase tracking-widest italic opacity-0 group-hover/meal:opacity-100 transition-opacity relative z-10">
                             Zobrazit recept <ArrowRight size={14} />
                           </div>
                         </div>
@@ -254,9 +315,9 @@ export const PlanView = () => {
           </div>
 
           <aside className="lg:col-span-4 lg:sticky lg:top-10">
-            <Card className="p-10 border-indigo-500/10 text-left shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)]">
+            <Card className="p-10 border-emerald-500/10 text-left shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)]">
               <div className="flex items-center gap-4 mb-14 border-b border-zinc-800 pb-10">
-                <div className="w-12 h-12 rounded-xl bg-indigo-600/10 flex items-center justify-center text-indigo-500 border border-indigo-500/10">
+                <div className="w-12 h-12 rounded-xl bg-emerald-600/10 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
                   <ShoppingCart size={28} />
                 </div>
                 <h2 className="text-2xl font-black uppercase tracking-tighter italic text-white leading-none">Nakupni seznam</h2>
@@ -266,8 +327,8 @@ export const PlanView = () => {
                 {plan.shopping_list?.map((item: any, idx: number) => (
                   <div key={idx} className="group border-b border-zinc-800 pb-6 last:border-0 last:pb-0">
                     <div className="flex justify-between items-start gap-3 mb-2">
-                      <p className="text-base font-black text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
-                      <p className="text-sm font-black text-indigo-500 tabular-nums leading-none shrink-0 whitespace-nowrap">{item.price} {item.currency}</p>
+                      <p className="text-base font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
+                      <p className="text-sm font-black text-emerald-500 tabular-nums leading-none shrink-0 whitespace-nowrap">{item.price} {item.currency}</p>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
                       <span className="bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800">{item.quantity} {item.unit}</span>
@@ -277,16 +338,16 @@ export const PlanView = () => {
                 ))}
               </div>
 
-              <div className="pt-10 border-t-2 border-indigo-600/30 space-y-10">
+              <div className="pt-10 border-t-2 border-emerald-600/30 space-y-10">
                 <div className="space-y-2 text-left">
                   <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em] italic leading-none">Odhadovana cena celkem</p>
                   <p className="text-6xl font-black text-white italic tracking-tighter leading-none">
-                    {plan.total_price}<span className="text-blue-500 text-xl not-italic ml-2 uppercase leading-none">{plan.currency}</span>
+                    {plan.total_price}<span className="text-emerald-500 text-xl not-italic ml-2 uppercase leading-none">{plan.currency}</span>
                   </p>
                 </div>
                 <button
                   onClick={() => navigate(`/plan/${id}/shopping-list`)}
-                  className="w-full h-16 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-4"
+                  className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-4"
                 >
                   <List size={18} /> Zobrazit cely seznam
                 </button>

@@ -28,17 +28,17 @@ export const ForgotPassword = () => {
   return (
     <div className="h-screen flex items-center justify-center p-6 bg-[#09090b] relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-[-15%] left-[-15%] w-[800px] h-[800px] bg-indigo-600/[0.04] blur-[180px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-15%] right-[-15%] w-[900px] h-[900px] bg-purple-600/[0.02] blur-[220px] rounded-full animate-pulse delay-1000" />
+        <div className="absolute top-[-15%] left-[-15%] w-[800px] h-[800px] bg-emerald-600/[0.04] blur-[180px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-15%] right-[-15%] w-[900px] h-[900px] bg-teal-600/[0.02] blur-[220px] rounded-full animate-pulse delay-1000" />
       </div>
 
       <div className="max-w-md w-full relative z-10 bg-zinc-900/50 border border-zinc-800 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] p-12">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-400 text-white mb-6 shadow-[0_0_30px_rgba(37,99,235,0.3)]">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-400 text-white mb-6 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
             <Zap size={32} fill="currentColor" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tighter leading-none uppercase italic mb-3">
-            Obnova <span className="text-indigo-500 not-italic">hesla.</span>
+            Obnova <span className="text-emerald-500 not-italic">hesla.</span>
           </h1>
           <p className="text-xs text-zinc-600 font-bold">Zadejte svuj e-mail a posleme vam odkaz pro obnovu.</p>
         </div>
@@ -68,7 +68,7 @@ export const ForgotPassword = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/50"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/50"
               />
             </div>
           </div>
@@ -76,14 +76,14 @@ export const ForgotPassword = () => {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6"
           >
             {mutation.isPending ? <Loader2 className="animate-spin" size={18} /> : 'Odeslat odkaz pro obnovu'}
           </button>
         </form>
 
         <div className="text-center mt-8">
-          <Link to="/login" className="text-xs font-bold text-zinc-600 hover:text-indigo-400 transition-colors inline-flex items-center gap-2">
+          <Link to="/login" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2">
             <ArrowLeft size={14} /> Zpet na prihlaseni
           </Link>
         </div>

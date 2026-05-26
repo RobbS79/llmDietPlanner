@@ -89,27 +89,27 @@ export const Pricing = () => {
     <div className="min-h-screen bg-[#09090b] text-white">
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-400 flex items-center justify-center shadow-lg">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
             <Zap size={20} fill="currentColor" />
           </div>
           <span className="text-xl font-black tracking-tighter uppercase italic">
-            Diet<span className="text-indigo-500 not-italic">Planner.</span>
+            Diet<span className="text-emerald-500 not-italic">Planner.</span>
           </span>
         </Link>
-        <button onClick={() => navigate('/login')} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+        <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
           Zacit zdarma
         </button>
       </nav>
 
       <main className="max-w-5xl mx-auto px-6 sm:px-12 py-12">
-        <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-indigo-400 transition-colors inline-flex items-center gap-2 mb-8">
+        <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
           <ArrowLeft size={14} /> Zpet na hlavni stranku
         </Link>
 
         <header className="text-center mb-16 space-y-6">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em]">Cenik</p>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em]">Cenik</p>
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase italic leading-[0.85]">
-            Jednoduchy <span className="text-indigo-500 not-italic">cenik.</span>
+            Jednoduchy <span className="text-emerald-500 not-italic">cenik.</span>
           </h1>
           <p className="text-zinc-400 text-lg max-w-md mx-auto">
             Zacnete zdarma. Upgradujte, az budete priraveni.
@@ -119,7 +119,7 @@ export const Pricing = () => {
             <span className={`text-sm font-bold transition-colors ${!annual ? 'text-white' : 'text-zinc-500'}`}>Mesicne</span>
             <button
               onClick={() => setAnnual(!annual)}
-              className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-indigo-600' : 'bg-zinc-800'}`}
+              className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-emerald-600' : 'bg-zinc-800'}`}
             >
               <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-transform ${annual ? 'left-8' : 'left-1'}`} />
             </button>
@@ -136,12 +136,12 @@ export const Pricing = () => {
               key={plan.name}
               className={`rounded-3xl p-10 transition-all ${
                 plan.highlighted
-                  ? 'bg-gradient-to-br from-indigo-600/10 to-purple-600/5 border-2 border-indigo-500/30 shadow-[0_0_60px_rgba(79,70,229,0.1)]'
+                  ? 'bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border-2 border-emerald-500/30 shadow-[0_0_60px_rgba(5,150,105,0.1)]'
                   : 'bg-zinc-900/50 border border-zinc-800'
               }`}
             >
               {plan.highlighted && (
-                <div className="inline-block px-3 py-1 bg-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest mb-6 shadow-lg">
+                <div className="inline-block px-3 py-1 bg-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest mb-6 shadow-lg">
                   Doporuceno
                 </div>
               )}
@@ -205,7 +205,7 @@ export const Pricing = () => {
         {/* FAQ */}
         <section className="max-w-3xl mx-auto mb-24">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em] mb-4">FAQ</p>
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">FAQ</p>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Caste dotazy</h2>
           </div>
 
@@ -217,7 +217,7 @@ export const Pricing = () => {
                   className="w-full flex items-center justify-between p-6 text-left"
                 >
                   <span className="text-sm font-bold text-white pr-4">{item.q}</span>
-                  <HelpCircle size={18} className={`shrink-0 transition-colors ${openFaq === i ? 'text-indigo-400' : 'text-zinc-600'}`} />
+                  <HelpCircle size={18} className={`shrink-0 transition-colors ${openFaq === i ? 'text-emerald-400' : 'text-zinc-600'}`} />
                 </button>
                 {openFaq === i && (
                   <div className="px-6 pb-6 pt-0">
@@ -231,7 +231,7 @@ export const Pricing = () => {
 
         {/* Bottom CTA */}
         <section className="text-center pb-12">
-          <div className="bg-gradient-to-br from-indigo-600/10 to-purple-600/5 border border-indigo-500/10 rounded-3xl p-12 sm:p-16">
+          <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16">
             <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Pripraveni setrit cas i penize?</h2>
             <p className="text-zinc-400 mb-8">Zacnete s 10 plany zdarma. Bez kreditni karty.</p>
             <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
@@ -244,7 +244,7 @@ export const Pricing = () => {
       <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-zinc-900">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Zap size={16} className="text-indigo-500" />
+            <Zap size={16} className="text-emerald-500" />
             <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-600">DietPlanner.</span>
           </div>
           <div className="flex items-center gap-6">

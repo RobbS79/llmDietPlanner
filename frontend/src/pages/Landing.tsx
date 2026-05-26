@@ -35,11 +35,11 @@ export const Landing = () => {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-400 flex items-center justify-center shadow-lg">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
             <Zap size={20} fill="currentColor" />
           </div>
           <span className="text-xl font-black tracking-tighter uppercase italic">
-            Diet<span className="text-indigo-500 not-italic">Planner.</span>
+            Diet<span className="text-emerald-500 not-italic">Planner.</span>
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -49,7 +49,7 @@ export const Landing = () => {
           <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">
             Prihlasit se
           </button>
-          <button onClick={() => navigate('/login')} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+          <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
             Zacit zdarma
           </button>
         </div>
@@ -57,18 +57,18 @@ export const Landing = () => {
 
       {/* Hero */}
       <section className="relative px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">
-        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-600/[0.06] blur-[180px] rounded-full" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-purple-600/[0.03] blur-[220px] rounded-full" />
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-600/[0.06] blur-[180px] rounded-full" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-teal-600/[0.03] blur-[220px] rounded-full" />
 
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 bg-indigo-600/10 border border-indigo-500/20 rounded-full px-4 py-1.5 mb-8">
+          <div className="inline-flex items-center gap-2 bg-emerald-600/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-8">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">AI jidelnicek s cenami z obchodu</span>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">AI jidelnicek s cenami z obchodu</span>
           </div>
 
           <h1 className="text-5xl sm:text-7xl font-black tracking-tighter leading-[0.9] mb-8">
             Vite, co budete jist<br />
-            <span className="text-indigo-500">i kolik to bude stat.</span>
+            <span className="text-emerald-500">i kolik to bude stat.</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-zinc-400 max-w-xl mb-4 leading-relaxed">
@@ -125,7 +125,7 @@ export const Landing = () => {
             },
           ].map((t) => (
             <div key={t.name} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
-              <Quote size={20} className="text-indigo-500/40 mb-4" />
+              <Quote size={20} className="text-emerald-500/40 mb-4" />
               <p className="text-sm text-zinc-300 leading-relaxed mb-6">{t.quote}</p>
               <div className="flex items-center gap-3">
                 <div className="flex gap-0.5">
@@ -143,7 +143,7 @@ export const Landing = () => {
       {/* Who is this for */}
       <section className="px-6 sm:px-12 pb-20 max-w-7xl mx-auto">
         <div className="text-center mb-12">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em] mb-4">Pro koho je to</p>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Pro koho je to</p>
           <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Vytvoreno pro lidi, kteri...</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -153,8 +153,8 @@ export const Landing = () => {
             { icon: Wallet, title: 'Chteji setrit za jidlo', desc: 'A vedet presne, kolik utrati pred nakupem' },
             { icon: Lightbulb, title: 'Vari doma', desc: 'Ale dochazi jim napady na recepty' },
           ].map((item) => (
-            <div key={item.title} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center hover:border-indigo-500/20 transition-all">
-              <item.icon size={28} className="text-indigo-500 mx-auto mb-4" />
+            <div key={item.title} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center hover:border-emerald-500/20 transition-all">
+              <item.icon size={28} className="text-emerald-500 mx-auto mb-4" />
               <h4 className="font-black text-sm uppercase tracking-tight mb-2">{item.title}</h4>
               <p className="text-zinc-500 text-xs leading-relaxed">{item.desc}</p>
             </div>
@@ -165,7 +165,7 @@ export const Landing = () => {
       {/* How it works */}
       <section id="how-it-works" className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
         <div className="text-center mb-20">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em] mb-4">Jak to funguje</p>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak to funguje</p>
           <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Tri kroky k vasemu jidelnicku.</h2>
         </div>
 
@@ -190,11 +190,11 @@ export const Landing = () => {
               desc: 'Dostanete nakupni seznam s aktualnimi cenami z vaseho obchodu. Vite presne, co koupit a kolik to bude stat.',
             },
           ].map((item) => (
-            <div key={item.step} className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-10 hover:border-indigo-500/20 transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-2xl font-black italic mb-8 shadow-lg group-hover:shadow-indigo-500/20 transition-shadow">
+            <div key={item.step} className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-10 hover:border-emerald-500/20 transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-2xl font-black italic mb-8 shadow-lg group-hover:shadow-emerald-500/20 transition-shadow">
                 {item.step}
               </div>
-              <item.icon size={32} className="text-indigo-500 mb-6" />
+              <item.icon size={32} className="text-emerald-500 mb-6" />
               <h3 className="text-xl font-black tracking-tight mb-4">{item.title}</h3>
               <p className="text-zinc-500 text-sm leading-relaxed">{item.desc}</p>
             </div>
@@ -206,7 +206,7 @@ export const Landing = () => {
       <section className="px-6 sm:px-12 pb-24 max-w-7xl mx-auto">
         <div className="bg-zinc-900/30 border border-zinc-800 rounded-3xl p-8 sm:p-12">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em] mb-4">Jak nase AI funguje</p>
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak nase AI funguje</p>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Transparentne a pod vasi kontrolou.</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -217,8 +217,8 @@ export const Landing = () => {
               { icon: SlidersHorizontal, title: 'Vy mate kontrolu', desc: 'Upravte, regenerujte nebo zmente cokoliv kdykoliv' },
             ].map((item) => (
               <div key={item.title} className="text-center">
-                <div className="w-12 h-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4">
-                  <item.icon size={22} className="text-indigo-400" />
+                <div className="w-12 h-12 rounded-xl bg-emerald-600/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                  <item.icon size={22} className="text-emerald-400" />
                 </div>
                 <h4 className="font-black text-sm tracking-tight mb-2">{item.title}</h4>
                 <p className="text-zinc-500 text-xs leading-relaxed">{item.desc}</p>
@@ -231,7 +231,7 @@ export const Landing = () => {
       {/* Sample plan preview */}
       <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
         <div className="text-center mb-20">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[1em] mb-4">Ukazka</p>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Ukazka</p>
           <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Podivejte se, co dostanete.</h2>
         </div>
 
@@ -267,7 +267,7 @@ export const Landing = () => {
           {/* Shopping list preview */}
           <div className="lg:col-span-5 bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 sm:p-10">
             <div className="flex items-center gap-3 mb-8">
-              <ShoppingCart size={18} className="text-indigo-500" />
+              <ShoppingCart size={18} className="text-emerald-500" />
               <h3 className="text-lg font-black uppercase tracking-tight italic">Nakupni seznam</h3>
               <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-auto">{SAMPLE_PLAN.store}</span>
             </div>
@@ -279,16 +279,16 @@ export const Landing = () => {
                     <p className="text-sm font-bold text-white">{item.name}</p>
                     <p className="text-[10px] font-bold text-zinc-600">{item.unit}</p>
                   </div>
-                  <p className="text-sm font-black text-indigo-400 tabular-nums">{item.price} {SAMPLE_PLAN.currency}</p>
+                  <p className="text-sm font-black text-emerald-400 tabular-nums">{item.price} {SAMPLE_PLAN.currency}</p>
                 </div>
               ))}
               <div className="text-center text-zinc-500 text-xs font-bold">+ 12 dalsich polozek...</div>
             </div>
 
-            <div className="pt-6 border-t-2 border-indigo-600/30">
+            <div className="pt-6 border-t-2 border-emerald-600/30">
               <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Odhadovana cena celkem</p>
               <p className="text-4xl font-black tracking-tighter">
-                {SAMPLE_PLAN.total} <span className="text-indigo-500 text-lg">{SAMPLE_PLAN.currency}</span>
+                {SAMPLE_PLAN.total} <span className="text-emerald-500 text-lg">{SAMPLE_PLAN.currency}</span>
               </p>
             </div>
           </div>
@@ -305,7 +305,7 @@ export const Landing = () => {
             { icon: Check, title: 'Interaktivni seznam', desc: 'Odskrtavejte polozky primo v telefonu pri nakupu' },
           ].map((f) => (
             <div key={f.title} className="bg-zinc-950 border border-zinc-800/50 rounded-2xl p-8 hover:border-zinc-700 transition-all">
-              <f.icon size={24} className="text-indigo-500 mb-4" />
+              <f.icon size={24} className="text-emerald-500 mb-4" />
               <h4 className="font-black text-sm uppercase tracking-tight mb-2">{f.title}</h4>
               <p className="text-zinc-600 text-xs leading-relaxed">{f.desc}</p>
             </div>
@@ -315,7 +315,7 @@ export const Landing = () => {
 
       {/* CTA */}
       <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-        <div className="bg-gradient-to-br from-indigo-600/10 to-purple-600/5 border border-indigo-500/10 rounded-[3rem] p-12 sm:p-20 text-center">
+        <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-[3rem] p-12 sm:p-20 text-center">
           <h2 className="text-4xl sm:text-5xl font-black tracking-tighter mb-6">
             Pripraveni planovat sve jidlo?
           </h2>
@@ -334,7 +334,7 @@ export const Landing = () => {
         <div className="flex flex-col gap-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Zap size={16} className="text-indigo-500" />
+              <Zap size={16} className="text-emerald-500" />
               <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-600">DietPlanner.</span>
             </div>
             <div className="flex items-center gap-6">
@@ -351,7 +351,7 @@ export const Landing = () => {
       {/* Sticky mobile CTA */}
       {showStickyCta && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#09090b]/95 backdrop-blur-lg border-t border-zinc-800 sm:hidden">
-          <button onClick={() => navigate('/login')} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+          <button onClick={() => navigate('/login')} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
             Vytvorit jidelnicek zdarma <ArrowRight size={16} />
           </button>
         </div>

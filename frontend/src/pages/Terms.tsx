@@ -5,22 +5,22 @@ export const Terms = () => (
   <div className="min-h-screen bg-[#09090b] text-white">
     <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-4xl mx-auto">
       <Link to="/" className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-400 flex items-center justify-center shadow-lg">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
           <Zap size={20} fill="currentColor" />
         </div>
         <span className="text-xl font-black tracking-tighter uppercase italic">
-          Diet<span className="text-indigo-500 not-italic">Planner.</span>
+          Diet<span className="text-emerald-500 not-italic">Planner.</span>
         </span>
       </Link>
     </nav>
 
     <main className="max-w-4xl mx-auto px-6 sm:px-12 py-12">
-      <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-indigo-400 transition-colors inline-flex items-center gap-2 mb-8">
+      <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
         <ArrowLeft size={14} /> Zpet na hlavni stranku
       </Link>
 
       <h1 className="text-4xl font-black tracking-tighter uppercase italic mb-12">
-        Obchodni <span className="text-indigo-500 not-italic">podminky.</span>
+        Obchodni <span className="text-emerald-500 not-italic">podminky.</span>
       </h1>
 
       <div className="prose prose-invert prose-zinc max-w-none space-y-8 text-sm text-zinc-400 leading-relaxed">
@@ -60,7 +60,7 @@ export const Terms = () => (
 
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">7. Kontakt</h2>
-          <p>Pro dotazy, pripominky a reklamace nas kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-indigo-400 hover:text-indigo-300">support@dietplanner.cz</a>.</p>
+          <p>Pro dotazy, pripominky a reklamace nas kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-emerald-400 hover:text-emerald-300">support@dietplanner.cz</a>.</p>
         </section>
 
         <p className="text-zinc-600 text-xs pt-8 border-t border-zinc-800">Posledni aktualizace: kveten 2026</p>
