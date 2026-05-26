@@ -67,7 +67,7 @@ export const RecipeIndexPage = () => {
                     return imgUrl ? (
                       <div className="relative h-40 overflow-hidden">
                         <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy"
-                          onError={(e) => { (e.target as HTMLImageElement).closest('.relative')!.style.display = 'none'; }}
+                          onError={(e) => { ((e.target as HTMLImageElement).closest('.relative') as HTMLElement).style.display = 'none'; }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#161d2f] to-transparent" />
                       </div>

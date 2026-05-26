@@ -273,7 +273,7 @@ export const PlanView = () => {
                           return imgUrl ? (
                             <div className="relative h-48 sm:h-56 overflow-hidden">
                               <img src={imgUrl} alt={day[m].name} className="w-full h-full object-cover" loading="lazy"
-                                onError={(e) => { (e.target as HTMLImageElement).closest('.relative')!.style.display = 'none'; }}
+                                onError={(e) => { ((e.target as HTMLImageElement).closest('.relative') as HTMLElement).style.display = 'none'; }}
                               />
                               <div className="absolute inset-0 bg-gradient-to-t from-[#161d2f] via-[#161d2f]/60 to-transparent" />
                             </div>
