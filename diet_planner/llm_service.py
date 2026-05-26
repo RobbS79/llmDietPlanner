@@ -1092,6 +1092,143 @@ Příklad pro sůl 500g:
             return None
 
 
+    # ─── Catalog-Constrained Generation (Phase 4) ─────────────────────
+
+    def generate_catalog_constrained_plan(
+        self,
+        user_prompt: str,
+        catalog_text: str,
+        goal: Any,
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate a meal plan constrained to a real product catalog.
+
+        Instead of browsing a URL, the LLM receives the actual catalog of
+        available products and MUST use only those (plus pantry staples).
+        This eliminates price hallucination entirely.
+
+        Args:
+            user_prompt: Full user prompt/clinical document
+            catalog_text: Compact text block of available products (from CatalogService)
+            goal: DietaryGoal object
+            model: Optional model override
+
+        Returns:
+            Dict with 'response' (parsed JSON), token counts, cost
+        """
+        model = model or self.default_model
+
+        language_names = {
+            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
+            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
+            'de': 'German', 'en': 'English',
+        }
+        target_language = language_names.get(
+            getattr(goal, 'language_code', 'en') or 'en', 'English'
+        )
+
+        system_prompt = f"""You are a nutrition expert creating meal plans.
+
+RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.
+
+CRITICAL CONSTRAINT: You MUST use ONLY ingredients from the AVAILABLE PRODUCTS
+list below, plus items from PANTRY STAPLES. Do NOT invent ingredients that are
+not in either list.
+
+For each ingredient, include "catalog_id" — the # number from the product list.
+For pantry staples, set "catalog_id": null and "pantry": true.
+
+AVAILABLE PRODUCTS:
+{catalog_text}
+
+OUTPUT STRUCTURE:
+{{
+  "days": [
+    {{
+      "day_number": 1,
+      "breakfast": {{
+        "name": "meal name",
+        "description": "brief 1 sentence",
+        "food_category": "one of: {', '.join(CATEGORY_SLUGS)}",
+        "preparation_time": 15,
+        "ingredients": [
+          {{"name": "kuřecí prsa", "catalog_id": 42, "quantity": 200, "unit": "g"}},
+          {{"name": "sůl", "catalog_id": null, "quantity": 5, "unit": "g", "pantry": true}}
+        ],
+        "instructions": ["Step 1", "Step 2", "Step 3"],
+        "nutritional_info": {{"calories": 450, "protein": "30g", "carbs": "25g", "fat": "20g"}}
+      }},
+      "lunch": {{...}},
+      "dinner": {{...}},
+      "small_meals": [{{...}}],
+      "snacks": [{{...}}]
+    }}
+  ]
+}}
+
+RULES:
+- {getattr(goal, 'num_days', 7)} days total
+- Keep instructions BRIEF: 3 steps max per meal
+- Keep descriptions to 1 sentence
+- Ensure variety across days — do not repeat the same meal
+- Every ingredient MUST reference a product # from the list or be a pantry staple
+- DO NOT generate a shopping list or prices — the system handles that"""
+
+        full_prompt = f"""{user_prompt}
+
+Create a {getattr(goal, 'num_days', 7)}-day meal plan using ONLY the available products listed above.
+Keep all text concise — 3 steps max per recipe, 1 sentence descriptions."""
+
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model, system_instruction=system_prompt
+            )
+            max_tokens = getattr(settings, 'GEMINI_MAX_OUTPUT_TOKENS', 65536)
+
+            response = gemini_model.generate_content(
+                full_prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.5,
+                    "max_output_tokens": max_tokens,
+                },
+                request_options={"timeout": 300},
+            )
+
+            if response.candidates and hasattr(response.candidates[0], 'finish_reason'):
+                finish_reason = response.candidates[0].finish_reason
+                if finish_reason.name == 'MAX_TOKENS':
+                    logger.error(f"Catalog-constrained plan truncated at {max_tokens} tokens")
+                    raise ValueError(f"Response truncated at {max_tokens} tokens")
+
+            content = response.text
+            usage = response.usage_metadata
+
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON from catalog-constrained generation: {e}")
+                cleaned = re.sub(r',\s*}', '}', content)
+                cleaned = re.sub(r',\s*]', ']', cleaned)
+                parsed = json.loads(cleaned)
+
+            return {
+                'response': parsed,
+                'input_tokens': usage.prompt_token_count,
+                'output_tokens': usage.candidates_token_count,
+                'total_tokens': usage.total_token_count,
+                'cost_usd': calculate_cost(
+                    usage.prompt_token_count, usage.candidates_token_count, model
+                ),
+                'model': model,
+            }
+
+        except Exception as e:
+            logger.error(f"Catalog-constrained generation error: {e}", exc_info=True)
+            raise
+
+
 # Temporary alias for backward compatibility during migration
 # Can be removed after full migration
 OpenAIService = GeminiService

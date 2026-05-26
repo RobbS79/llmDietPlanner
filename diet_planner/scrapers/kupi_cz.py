@@ -1,5 +1,8 @@
 """
-Scraper for kupi.cz (Lidl Czech Republic).
+Scraper for kupi.cz — Czech leaflet aggregator.
+
+Supports multiple stores: Lidl, Albert, Kaufland, Penny Market, Tesco.
+The store_slug parameter controls which store's leaflets are scraped.
 """
 from typing import List, Dict, Any
 import logging
@@ -13,329 +16,269 @@ from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+# kupi.cz slugs and leaflet URL prefixes per store
+KUPI_CZ_STORES = {
+    'lidl': {
+        'listing_url': 'https://www.kupi.cz/letaky/lidl',
+        'leaflet_prefix': '/letak/lidl-',
+        'skip_words': ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták'],
+    },
+    'albert': {
+        'listing_url': 'https://www.kupi.cz/letaky/albert',
+        'leaflet_prefix': '/letak/albert-',
+        'skip_words': ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'albert leták', 'katalog'],
+    },
+    'kaufland': {
+        'listing_url': 'https://www.kupi.cz/letaky/kaufland',
+        'leaflet_prefix': '/letak/kaufland-',
+        'skip_words': ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'kaufland leták', 'spotřební zboží'],
+    },
+    'penny-market': {
+        'listing_url': 'https://www.kupi.cz/letaky/penny-market',
+        'leaflet_prefix': '/letak/penny-',
+        'skip_words': ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'penny leták'],
+    },
+    'tesco': {
+        'listing_url': 'https://www.kupi.cz/letaky/tesco',
+        'leaflet_prefix': '/letak/tesco-',
+        'skip_words': ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'tesco leták'],
+    },
+}
+
 
 class KupiCzScraper(BaseScraper):
     """
-    Scraper for kupi.cz leaflet (Lidl Czech Republic).
-    
-    Scrapes current Lidl CZ offers from kupi.cz.
-    Strategy: Navigate to leaflet listing page, extract individual leaflet URLs,
-    then scrape each leaflet page for products with prices.
+    Scraper for kupi.cz leaflets. Parametrized by store_slug.
+    Default: 'lidl' (backward compatible).
     """
-    
-    BASE_URL = "https://www.kupi.cz/letaky/lidl"
-    
+
+    def __init__(self, store_slug: str = 'lidl'):
+        if store_slug not in KUPI_CZ_STORES:
+            raise ValueError(f"Unknown kupi.cz store: {store_slug}. Available: {list(KUPI_CZ_STORES.keys())}")
+        self.store_slug = store_slug
+        config = KUPI_CZ_STORES[store_slug]
+        self.base_url = config['listing_url']
+        self.leaflet_prefix = config['leaflet_prefix']
+        self.skip_words = config['skip_words']
+
     def scrape(self) -> List[Dict[str, Any]]:
-        """
-        Scrape Lidl CZ offers from kupi.cz.
-        
-        Returns:
-            List of offer dictionaries with structure:
-            {
-                'ingredient_name': str,
-                'display_name': str,
-                'price': Decimal (optional),
-                'currency': str,
-                'unit': str (optional),
-                'source_url': str (optional),
-            }
-        """
         all_offers = []
-        
+
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept-Language': 'cs-CZ,cs;q=0.9,en;q=0.8',
             }
-            
-            # Step 1: Get list of leaflet URLs
-            logger.info(f"Fetching leaflet listing page: {self.BASE_URL}")
-            response = requests.get(self.BASE_URL, headers=headers, timeout=10)
+
+            logger.info(f"[kupi.cz/{self.store_slug}] Fetching listing page: {self.base_url}")
+            response = requests.get(self.base_url, headers=headers, timeout=15)
             response.raise_for_status()
             response.encoding = 'utf-8'
-            
+
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Extract leaflet URLs - look for links to /letak/lidl-*
-            leaflet_links = []
-            for link in soup.find_all('a', href=True):
-                href = link.get('href', '')
-                if href.startswith('/letak/lidl-') or href.startswith('https://www.kupi.cz/letak/lidl-'):
-                    full_url = urljoin(response.url, href)
-                    if full_url not in leaflet_links:
-                        leaflet_links.append(full_url)
-            
-            logger.info(f"Found {len(leaflet_links)} leaflet pages to scrape")
-            
+
+            leaflet_links = self._extract_leaflet_links(soup, response.url)
+            logger.info(f"[kupi.cz/{self.store_slug}] Found {len(leaflet_links)} leaflet pages")
+
             if not leaflet_links:
-                logger.warning(f"No leaflet links found on {self.BASE_URL}")
-                # Try fallback: scrape "Akční zboží" section from listing page
+                logger.warning(f"[kupi.cz/{self.store_slug}] No leaflet links found, trying akcni-zbozi fallback")
                 offers = self._parse_akcni_zbozi_section(soup, response.url)
                 all_offers.extend(offers)
             else:
-                # Step 2: Scrape only the first (current) leaflet page
                 leaflet_url = leaflet_links[0]
                 try:
-                    logger.info(f"Scraping current Lidl leaflet: {leaflet_url}")
+                    logger.info(f"[kupi.cz/{self.store_slug}] Scraping leaflet: {leaflet_url}")
                     leaflet_offers = self._scrape_leaflet_page(leaflet_url, headers)
                     all_offers.extend(leaflet_offers)
-                    logger.info(f"Found {len(leaflet_offers)} products in leaflet")
+                    logger.info(f"[kupi.cz/{self.store_slug}] Found {len(leaflet_offers)} products")
                 except Exception as e:
-                    logger.error(f"Error scraping leaflet {leaflet_url}: {e}", exc_info=True)
-            
-            # Filter out offers without prices and leaflet titles before returning
-            filtered_offers = []
-            for offer in all_offers:
-                display_name = offer.get('display_name', '')
-                if not display_name:
-                    continue
-                display_name_lower = display_name.lower()
-                # Skip leaflet titles
-                if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
-                    continue
-                # Only include offers with positive prices
-                if offer.get('price') and offer.get('price', 0) > 0:
-                    filtered_offers.append(offer)
-            
-            logger.info(f"Successfully scraped {len(all_offers)} total offers, {len(filtered_offers)} with valid prices from kupi.cz")
-            all_offers = filtered_offers
-            
+                    logger.error(f"[kupi.cz/{self.store_slug}] Error scraping leaflet {leaflet_url}: {e}", exc_info=True)
+
+            filtered = self._filter_offers(all_offers)
+            logger.info(f"[kupi.cz/{self.store_slug}] {len(all_offers)} raw -> {len(filtered)} valid offers")
+            return filtered
+
         except requests.RequestException as e:
-            logger.error(f"Error fetching kupi.cz: {e}")
+            logger.error(f"[kupi.cz/{self.store_slug}] HTTP error: {e}")
         except Exception as e:
-            logger.error(f"Error scraping kupi.cz: {e}", exc_info=True)
-        
+            logger.error(f"[kupi.cz/{self.store_slug}] Scraping error: {e}", exc_info=True)
+
         return all_offers
-    
+
+    def _extract_leaflet_links(self, soup: BeautifulSoup, base_url: str) -> List[str]:
+        links = []
+        for link in soup.find_all('a', href=True):
+            href = link.get('href', '')
+            if href.startswith(self.leaflet_prefix) or (self.leaflet_prefix in href):
+                full_url = urljoin(base_url, href)
+                if full_url not in links:
+                    links.append(full_url)
+        return links
+
+    def _is_skip_title(self, text: str) -> bool:
+        text_lower = text.lower()
+        return any(w in text_lower for w in self.skip_words)
+
+    def _filter_offers(self, offers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        filtered = []
+        for offer in offers:
+            name = offer.get('display_name', '')
+            if not name or self._is_skip_title(name):
+                continue
+            if offer.get('price') and offer.get('price', 0) > 0:
+                filtered.append(offer)
+        return filtered
+
     def _scrape_leaflet_page(self, leaflet_url: str, headers: Dict[str, str]) -> List[Dict[str, Any]]:
-        """
-        Scrape a single leaflet page for products.
-        
-        Args:
-            leaflet_url: URL of the leaflet page
-            headers: HTTP headers to use
-            
-        Returns:
-            List of offer dictionaries
-        """
         offers = []
-        
         try:
-            response = requests.get(leaflet_url, headers=headers, timeout=10)
+            response = requests.get(leaflet_url, headers=headers, timeout=15)
             response.raise_for_status()
             response.encoding = 'utf-8'
-            
+
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Look for product items - try various selectors
-            product_items = []
-            
-            # Strategy 1: Look for common product container classes
+
             product_items = soup.find_all(['div', 'article', 'li'], class_=re.compile(r'product|item|offer|card', re.I))
-            
-            # Strategy 2: Look for elements with product-like attributes
+
             if not product_items:
                 product_items = soup.find_all(['div', 'article'], {'data-product': True}) or \
                                soup.find_all(['div', 'article'], {'data-id': True})
-            
-            # Strategy 3: Look for links containing product names and prices
+
             if not product_items:
-                # Try to find any container with price patterns
                 all_elements = soup.find_all(['div', 'article', 'li', 'a'])
                 for elem in all_elements:
                     text = elem.get_text()
                     if re.search(r'\d+[\s,.]?\d*\s*Kč', text):
                         product_items.append(elem)
-            
-            logger.debug(f"Found {len(product_items)} potential product items on leaflet page")
-            
-            for item in product_items[:200]:  # Limit to first 200 items per leaflet
+
+            for item in product_items[:200]:
                 try:
                     offer_data = self._parse_product_item(item, leaflet_url)
                     if offer_data and offer_data.get('display_name'):
-                        # Additional validation: prefer items with prices, but don't reject all without prices
                         offers.append(offer_data)
-                except Exception as e:
-                    logger.debug(f"Error parsing product item: {e}")
+                except Exception:
                     continue
-            
-            # If no products found, try text-based parsing
+
             if not offers:
-                logger.debug("No products found with DOM parsing, trying text-based fallback")
                 offers = self._parse_fallback_text(soup, leaflet_url)
-            
+
         except requests.RequestException as e:
-            logger.error(f"Error fetching leaflet page {leaflet_url}: {e}")
+            logger.error(f"[kupi.cz/{self.store_slug}] Error fetching leaflet {leaflet_url}: {e}")
         except Exception as e:
-            logger.error(f"Error parsing leaflet page {leaflet_url}: {e}", exc_info=True)
-        
+            logger.error(f"[kupi.cz/{self.store_slug}] Error parsing leaflet {leaflet_url}: {e}", exc_info=True)
+
         return offers
-    
+
     def _parse_product_item(self, item, base_url: str) -> Dict[str, Any]:
-        """Parse a single product item element."""
         offer = {}
-        
-        # Extract product name - try multiple strategies
+
         name_elem = item.find(['h2', 'h3', 'h4', 'a', 'span', 'div'], class_=re.compile(r'name|title|product-name|heading', re.I))
         if not name_elem:
-            # Try to find any heading or strong element
             name_elem = item.find(['h2', 'h3', 'h4', 'strong', 'b'])
-        
+
         if name_elem:
             display_name = name_elem.get_text(strip=True)
-            # Filter out leaflet titles and non-product items
             if display_name and len(display_name) > 2:
-                # Skip leaflet titles and navigation items
-                display_name_lower = display_name.lower()
-                if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního']):
-                    logger.debug(f"Skipping non-product item: {display_name}")
+                if self._is_skip_title(display_name):
                     return None
                 offer['display_name'] = display_name
-                offer['ingredient_name'] = display_name  # Will be normalized later
-        
-        # Extract price - try multiple strategies
-        price_elem = None
+                offer['ingredient_name'] = display_name
+
         price_text = None
-        
-        # Strategy 1: Look for price in common classes
         price_elem = item.find(['span', 'div', 'strong', 'b', 'p'], class_=re.compile(r'price|cost|cena|Price', re.I))
-        
-        # Strategy 2: Look for text containing price pattern
+
         if not price_elem:
             price_elem = item.find(string=re.compile(r'\d+[\s,.]*\d*\s*Kč', re.I))
-        
-        # Strategy 3: Look for any element containing price pattern
+
         if not price_elem:
             item_text = item.get_text()
             price_match = re.search(r'(\d+[\s,.]?\d*)\s*Kč', item_text, re.I)
             if price_match:
                 price_text = price_match.group(0)
-        
+
         if price_elem:
-            if hasattr(price_elem, 'get_text'):
-                price_text = price_elem.get_text(strip=True)
-            else:
-                price_text = str(price_elem).strip()
-        
+            price_text = price_elem.get_text(strip=True) if hasattr(price_elem, 'get_text') else str(price_elem).strip()
+
         if price_text:
-            # Improved regex for Czech price formats: "99 Kč", "99,90 Kč", "99.90 Kč", "99 Kč/kg"
             price_match = re.search(r'(\d+[\s,.]?\d*)\s*Kč', price_text, re.I)
             if not price_match:
-                # Try without Kč symbol
                 price_match = re.search(r'(\d+[\s,.]?\d*)', price_text.replace(',', '.').replace(' ', ''))
-            
             if price_match:
                 try:
                     price_str = price_match.group(1).replace(',', '.').replace(' ', '')
                     price_value = float(price_str)
-                    if price_value > 0:  # Validate positive price
+                    if price_value > 0:
                         offer['price'] = Decimal(str(price_value))
                         offer['currency'] = 'CZK'
-                        logger.debug(f"Extracted price: {price_value} CZK from text: '{price_text}'")
-                except (ValueError, AttributeError) as e:
-                    logger.debug(f"Failed to parse price from text '{price_text}': {e}")
-        
-        # Extract unit (if available)
+                except (ValueError, AttributeError):
+                    pass
+
         unit_text = item.get_text()
         unit_match = re.search(r'(\d+)\s*(kg|g|ml|l|ks|piece|pieces|bal|balíček)', unit_text, re.I)
         if unit_match:
             offer['unit'] = unit_match.group(2).lower()
-        
-        # Extract URL
+
         link_elem = item.find('a', href=True)
         if link_elem:
-            href = link_elem['href']
-            offer['source_url'] = urljoin(base_url, href)
+            offer['source_url'] = urljoin(base_url, link_elem['href'])
         else:
             offer['source_url'] = base_url
-        
-        # Only return offers that have both a name and a price
+
         if not offer.get('display_name'):
             return None
-        
-        # Filter out leaflet titles even if they somehow got through
-        display_name_lower = offer.get('display_name', '').lower()
-        if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního']):
-            logger.debug(f"Filtering out leaflet title: {offer.get('display_name')}")
-            return None
-        
-        # Prefer offers with prices, but don't reject all offers without prices
-        # (some products might legitimately not have prices in the leaflet)
         return offer
-    
+
     def _parse_akcni_zbozi_section(self, soup: BeautifulSoup, base_url: str) -> List[Dict[str, Any]]:
-        """
-        Fallback: Parse the "Akční zboží v Lidl" section from the listing page.
-        This section contains direct product links with prices.
-        """
         offers = []
-        
-        # Look for section with heading "Akční zboží" or similar
         akcni_section = soup.find(string=re.compile(r'Akční zboží', re.I))
         if akcni_section:
             parent = akcni_section.find_parent(['section', 'div', 'article'])
             if parent:
-                # Find all links in this section
                 product_links = parent.find_all('a', href=re.compile(r'/sleva/', re.I))
-                
                 for link in product_links:
                     try:
-                        # Get product name from link text or nearby elements
                         name_elem = link.find(['strong', 'span', 'div'], class_=re.compile(r'name|title', re.I))
                         if not name_elem:
                             name_elem = link.find('strong')
-                        
                         display_name = name_elem.get_text(strip=True) if name_elem else link.get_text(strip=True)
-                        
-                        # Filter out leaflet titles
-                        if display_name:
-                            display_name_lower = display_name.lower()
-                            if any(skip_word in display_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
-                                continue
-                        
-                        # Get price from nearby elements
-                        price_elem = link.find_next(['span', 'div', 'generic'], class_=re.compile(r'price|cost|cena', re.I))
-                        if not price_elem:
-                            # Look in parent or siblings
-                            parent_elem = link.find_parent(['div', 'article'])
-                            if parent_elem:
-                                price_text = parent_elem.get_text()
-                                price_match = re.search(r'(\d+[\s,.]?\d*)\s*Kč', price_text, re.I)
-                                if price_match:
-                                    price_str = price_match.group(1).replace(',', '.').replace(' ', '')
-                                    try:
-                                        price_value = float(price_str)
-                                        if price_value > 0 and display_name:
-                                            offers.append({
-                                                'display_name': display_name,
-                                                'ingredient_name': display_name,
-                                                'price': Decimal(str(price_value)),
-                                                'currency': 'CZK',
-                                                'source_url': urljoin(base_url, link.get('href', '')),
-                                            })
-                                    except (ValueError, AttributeError):
-                                        pass
-                    except Exception as e:
-                        logger.debug(f"Error parsing Akční zboží item: {e}")
+                        if not display_name or self._is_skip_title(display_name):
+                            continue
+
+                        parent_elem = link.find_parent(['div', 'article'])
+                        if parent_elem:
+                            price_text = parent_elem.get_text()
+                            price_match = re.search(r'(\d+[\s,.]?\d*)\s*Kč', price_text, re.I)
+                            if price_match:
+                                price_str = price_match.group(1).replace(',', '.').replace(' ', '')
+                                price_value = float(price_str)
+                                if price_value > 0 and display_name:
+                                    offers.append({
+                                        'display_name': display_name,
+                                        'ingredient_name': display_name,
+                                        'price': Decimal(str(price_value)),
+                                        'currency': 'CZK',
+                                        'source_url': urljoin(base_url, link.get('href', '')),
+                                    })
+                    except Exception:
                         continue
-        
         return offers
-    
+
     def _parse_fallback_text(self, soup: BeautifulSoup, base_url: str) -> List[Dict[str, Any]]:
-        """Fallback parsing method if primary parsing fails."""
         offers = []
-        
-        # Strategy 1: Look for menu items with "Product za X.XX Kč" pattern (kupi.cz leaflet format)
+
+        # Strategy 1: "Product za X.XX Kč" pattern
         menu_items = soup.find_all(['menu', 'div', 'span'], class_=re.compile(r'menu', re.I))
         for menu_item in menu_items:
             menu_text = menu_item.get_text(strip=True)
-            # Pattern: "Product Name za X.XX Kč"
-            za_pattern = re.compile(r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+za\s+(\d+[\s,.]?\d*)\s*Kč', re.UNICODE | re.I)
+            za_pattern = re.compile(
+                r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+za\s+(\d+[\s,.]?\d*)\s*Kč',
+                re.UNICODE | re.I,
+            )
             za_match = za_pattern.search(menu_text)
             if za_match:
                 product_name = za_match.group(1).strip()
                 price_text = za_match.group(2).replace(',', '.').replace(' ', '')
-                
-                if len(product_name) > 3 and len(product_name) < 200:
+                if 3 < len(product_name) < 200 and not self._is_skip_title(product_name):
                     try:
                         price_value = float(price_text)
                         if price_value > 0:
@@ -346,32 +289,22 @@ class KupiCzScraper(BaseScraper):
                                 'currency': 'CZK',
                                 'source_url': base_url,
                             })
-                            logger.debug(f"Fallback parsed (za pattern): {product_name} - {price_value} CZK")
                     except ValueError:
                         pass
-        
-        # Strategy 2: Look for links with product names and prices in href/url patterns
+
+        # Strategy 2: /sleva/ links
         if not offers:
             product_links = soup.find_all('a', href=re.compile(r'/sleva/', re.I))
             for link in product_links:
                 link_text = link.get_text(strip=True)
-                # Look for price in link text or nearby elements
                 price_match = re.search(r'(\d+[\s,.]?\d*)\s*Kč', link_text, re.I)
                 if price_match and len(link_text) > 5:
-                    # Extract product name (remove price part)
                     product_name = re.sub(r'\s+za\s+\d+[\s,.]?\d*\s*Kč.*$', '', link_text, flags=re.I).strip()
                     if not product_name:
                         product_name = link_text.replace(price_match.group(0), '').strip()
-                    
-                    # Filter out leaflet titles
-                    product_name_lower = product_name.lower()
-                    if any(skip_word in product_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
-                        continue
-                    
-                    if len(product_name) > 3 and len(product_name) < 200:
+                    if 3 < len(product_name) < 200 and not self._is_skip_title(product_name):
                         try:
-                            price_text = price_match.group(1).replace(',', '.').replace(' ', '')
-                            price_value = float(price_text)
+                            price_value = float(price_match.group(1).replace(',', '.').replace(' ', ''))
                             if price_value > 0:
                                 offers.append({
                                     'display_name': product_name,
@@ -380,35 +313,24 @@ class KupiCzScraper(BaseScraper):
                                     'currency': 'CZK',
                                     'source_url': urljoin(base_url, link.get('href', '')),
                                 })
-                                logger.debug(f"Fallback parsed (link pattern): {product_name} - {price_value} CZK")
                         except ValueError:
                             pass
-        
-        # Strategy 3: General text-based parsing (original fallback)
+
+        # Strategy 3: General text-based parsing
         if not offers:
             text_content = soup.get_text()
-            # Look for patterns like "Product Name - 99 Kč" or "Product Name 99,90 Kč"
-            price_pattern = re.compile(r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+(\d+[\s,.]?\d*)\s*Kč', re.UNICODE | re.I)
+            price_pattern = re.compile(
+                r'([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s\-]+?)\s+(\d+[\s,.]?\d*)\s*Kč',
+                re.UNICODE | re.I,
+            )
             matches = price_pattern.findall(text_content)
-            
-            logger.debug(f"Fallback parsing found {len(matches)} potential price matches")
-            
-            for match in matches[:100]:  # Limit to 100 matches
-                product_name = match[0].strip()
+            for match in matches[:100]:
+                product_name = re.sub(r'^[\-\s]+|[\-\s]+$', '', match[0].strip())
                 price_text = match[1].replace(',', '.').replace(' ', '')
-                
-                # Clean product name - remove common prefixes/suffixes
-                product_name = re.sub(r'^[\-\s]+|[\-\s]+$', '', product_name)
-                
-                # Filter out leaflet titles and non-product items
-                product_name_lower = product_name.lower()
-                if any(skip_word in product_name_lower for skip_word in ['leták', 'letak', 'platí', 'končí', 'od pondělí', 'od čtvrtka', 'od pátku', 'nabídka spotřebního', 'lidl leták']):
-                    continue
-                
-                if len(product_name) > 3 and len(product_name) < 200:  # Reasonable product name length
+                if 3 < len(product_name) < 200 and not self._is_skip_title(product_name):
                     try:
                         price_value = float(price_text)
-                        if price_value > 0:  # Validate positive price
+                        if price_value > 0:
                             offers.append({
                                 'display_name': product_name,
                                 'ingredient_name': product_name,
@@ -416,9 +338,7 @@ class KupiCzScraper(BaseScraper):
                                 'currency': 'CZK',
                                 'source_url': base_url,
                             })
-                            logger.debug(f"Fallback parsed (text pattern): {product_name} - {price_value} CZK")
-                    except ValueError as e:
-                        logger.debug(f"Failed to parse price '{price_text}' for '{product_name}': {e}")
+                    except ValueError:
                         continue
-        
+
         return offers

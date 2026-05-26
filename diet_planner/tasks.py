@@ -1612,6 +1612,186 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries))
 
 
+# =============================================================================
+# CATALOG-CONSTRAINED TASK (Phase 4)
+# =============================================================================
+# New flow: real catalog → constrained LLM → DB-only prices
+# The old process_dietary_goal_task is kept for rollback safety.
+# Set CATALOG_CONSTRAINED_GENERATION=True in settings to enable.
+
+@shared_task(bind=True, max_retries=3)
+def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
+    """
+    Catalog-constrained meal plan generation.
+
+    Flow:
+    1. Load real product catalog from DB (LeafletOffer)
+    2. Send catalog to Gemini — LLM uses ONLY those products
+    3. Resolve all prices from DB — zero LLM price fabrication
+    4. Every price carries its source label for user transparency
+    """
+    try:
+        context_id = str(uuid.uuid4())[:8]
+        log_prefix = f"[CATALOG:{goal_id}:{context_id}]"
+
+        goal = DietaryGoal.objects.get(id=goal_id)
+        goal.status = DietaryGoal.StatusChoices.PROCESSING
+        goal.save(update_fields=['status'])
+        logger.info(f"{log_prefix} Starting catalog-constrained generation for {goal.num_days} days")
+
+        # ── Phase 1: Build catalog ──
+        from diet_planner.services.catalog import CatalogService
+        catalog_service = CatalogService()
+        catalog = catalog_service.build_catalog_for_prompt(goal)
+        catalog_text = catalog_service.build_compact_prompt_text(catalog, goal)
+
+        if catalog['total_products'] < 10:
+            logger.warning(
+                f"{log_prefix} Very small catalog ({catalog['total_products']} products). "
+                f"Falling back to old flow."
+            )
+            return process_dietary_goal_task(goal_id)
+
+        logger.info(
+            f"{log_prefix} Catalog ready: {catalog['total_products']} products, "
+            f"{len(catalog['pantry_staples'])} pantry staples"
+        )
+
+        # ── Phase 2: Constrained LLM generation (single call) ──
+        llm_service = GeminiService()
+        llm_result = llm_service.generate_catalog_constrained_plan(
+            user_prompt=goal.prompt,
+            catalog_text=catalog_text,
+            goal=goal,
+        )
+
+        llm_response = llm_result['response']
+        days = llm_response.get('days', [])
+        logger.info(f"{log_prefix} LLM generated {len(days)} days")
+
+        # Transform days to standard format
+        transformed_days = transform_days_to_new_format(days, goal)
+
+        # ── Phase 3: Aggregate ingredients into shopping list ──
+        shopping_items = aggregate_ingredients_from_meals(
+            transformed_days, context_id=context_id, goal_id=goal_id
+        )
+
+        # Carry catalog_id and pantry flags from LLM output into aggregated items
+        catalog_id_map = _build_catalog_id_map(days)
+        for item in shopping_items:
+            ingredient_lower = item.get('ingredient', '').lower().strip()
+            if ingredient_lower in catalog_id_map:
+                item['catalog_id'] = catalog_id_map[ingredient_lower].get('catalog_id')
+                item['pantry'] = catalog_id_map[ingredient_lower].get('pantry', False)
+
+        # Validate quantities
+        for i, item in enumerate(shopping_items):
+            shopping_items[i] = validate_shopping_item(
+                item, num_days=goal.num_days, context_id=context_id, goal_id=goal_id
+            )
+
+        # ── Phase 4: Resolve prices from DB only ──
+        from diet_planner.services.price_resolver import PriceResolver
+        resolver = PriceResolver(goal)
+        resolved_list = resolver.resolve_shopping_list(shopping_items)
+
+        # Calculate total
+        total_sum = Decimal('0')
+        priced_count = 0
+        for item in resolved_list:
+            if item.get('price_total'):
+                total_sum += Decimal(str(item['price_total']))
+                priced_count += 1
+
+        unpriced_count = len(resolved_list) - priced_count
+        unpriced_ratio = unpriced_count / max(len(resolved_list), 1)
+
+        if unpriced_ratio > 0.30:
+            logger.warning(
+                f"{log_prefix} High unpriced ratio: {unpriced_count}/{len(resolved_list)} "
+                f"({unpriced_ratio:.0%}) items without price"
+            )
+
+        # ── Store results ──
+        plan = DietaryPlan.objects.create(
+            dietary_goal=goal,
+            days=transformed_days,
+            shopping_list=resolved_list,
+            total_price=total_sum,
+            currency=goal.currency,
+            llm_model_used=llm_result.get('model'),
+            llm_input_tokens=llm_result.get('input_tokens'),
+            llm_output_tokens=llm_result.get('output_tokens'),
+            llm_total_tokens=llm_result.get('total_tokens'),
+            llm_cost_usd=llm_result.get('cost_usd'),
+        )
+
+        goal.status = DietaryGoal.StatusChoices.COMPLETED
+        goal.completed_at = timezone.now()
+        goal.save(update_fields=['status', 'completed_at'])
+
+        if goal.shopify_order_id:
+            logger.info(f"{log_prefix} Order {goal.shopify_order_id} fulfillment complete")
+
+        logger.info(
+            f"{log_prefix} Plan {plan.id} created: {len(resolved_list)} items, "
+            f"{priced_count} priced, total={total_sum} {goal.currency}, "
+            f"LLM cost=${llm_result.get('cost_usd', 0)}"
+        )
+        return {'status': 'success', 'plan_id': plan.id}
+
+    except Exception as exc:
+        logger.error(f"Catalog task failed for goal {goal_id}: {str(exc)}", exc_info=True)
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id)
+            goal.error_message = f"Meal plan generation failed: {str(exc)}"
+            if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
+                goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
+                logger.warning(f"Goal {goal_id} marked REFUND_ELIGIBLE (order {goal.shopify_order_id})")
+            else:
+                goal.status = DietaryGoal.StatusChoices.FAILED
+            goal.save(update_fields=['status', 'error_message'])
+        except Exception as inner_exc:
+            logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
+
+        raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries))
+
+
+def _build_catalog_id_map(days: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """
+    Extract catalog_id and pantry flags from LLM-generated days.
+    Returns a map of normalized ingredient name -> {catalog_id, pantry}.
+    """
+    result = {}
+    for day in days:
+        for meal_type in ['breakfast', 'lunch', 'dinner']:
+            meal = day.get(meal_type)
+            if meal and isinstance(meal, dict):
+                for ing in meal.get('ingredients', []):
+                    if isinstance(ing, dict):
+                        name = (ing.get('name') or '').lower().strip()
+                        if name:
+                            result[name] = {
+                                'catalog_id': ing.get('catalog_id'),
+                                'pantry': ing.get('pantry', False),
+                            }
+        for meal_type in ['small_meals', 'snacks']:
+            meals = day.get(meal_type, [])
+            if isinstance(meals, list):
+                for meal in meals:
+                    if isinstance(meal, dict):
+                        for ing in meal.get('ingredients', []):
+                            if isinstance(ing, dict):
+                                name = (ing.get('name') or '').lower().strip()
+                                if name:
+                                    result[name] = {
+                                        'catalog_id': ing.get('catalog_id'),
+                                        'pantry': ing.get('pantry', False),
+                                    }
+    return result
+
+
 def _find_matching_product(
     ingredient_name: str,
     available_ingredients: List[Dict[str, Any]]

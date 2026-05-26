@@ -33,7 +33,7 @@ from .serializers import (
     MealInstanceCreateUpdateSerializer,
 )
 from .schemas import DietaryGoalCreateRequest
-from .tasks import process_dietary_goal_task, build_llm_prompt_json
+from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
 
@@ -121,9 +121,13 @@ class DietaryGoalCreateView(APIView):
             if is_free_generation:
                 profile.use_free_generation()
 
-            # Trigger Background Synthesis (Phase 1 & 2)
+            # Trigger Background Synthesis
             try:
-                task = process_dietary_goal_task.delay(dietary_goal.id)
+                use_catalog = getattr(settings, 'CATALOG_CONSTRAINED_GENERATION', False)
+                if use_catalog:
+                    task = process_dietary_goal_catalog_task.delay(dietary_goal.id)
+                else:
+                    task = process_dietary_goal_task.delay(dietary_goal.id)
                 dietary_goal.celery_task_id = task.id
                 dietary_goal.save(update_fields=['celery_task_id'])
                 message = "Synthesis protocol initiated."

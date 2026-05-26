@@ -42,32 +42,39 @@ class ScraperService:
     triggers scraping if needed, and stores results.
     """
     
-    # Map shop codes to scraper classes
+    # Map shop codes to (scraper_class, constructor_kwargs)
     SCRAPER_MAP = {
-        'LIDL_CZ': KupiCzScraper,
-        'ROHLIK': RohlikCzScraper,
-        'LIDL_SK': KupinoSkScraper,
-        'LUNYS': LunysSkScraper,
+        'LIDL_CZ': (KupiCzScraper, {'store_slug': 'lidl'}),
+        'ALBERT_CZ': (KupiCzScraper, {'store_slug': 'albert'}),
+        'KAUFLAND_CZ': (KupiCzScraper, {'store_slug': 'kaufland'}),
+        'PENNY_CZ': (KupiCzScraper, {'store_slug': 'penny-market'}),
+        'TESCO_CZ': (KupiCzScraper, {'store_slug': 'tesco'}),
+        'ROHLIK': (RohlikCzScraper, {}),
+        'LIDL_SK': (KupinoSkScraper, {'store_slug': 'lidl'}),
+        'KAUFLAND_SK': (KupinoSkScraper, {'store_slug': 'kaufland'}),
+        'LUNYS': (LunysSkScraper, {}),
+        # KOSIK_CZ: will be added when kosik.cz scraper is implemented
     }
-    
+
     @classmethod
     def get_scraper(cls, shop: str):
         """
         Get scraper instance for a shop.
-        
+
         Args:
-            shop: Shop code (e.g., 'LIDL_CZ')
-            
+            shop: Shop code (e.g., 'LIDL_CZ', 'ALBERT_CZ')
+
         Returns:
             Scraper instance
-            
+
         Raises:
             ValueError: If shop is not supported
         """
-        scraper_class = cls.SCRAPER_MAP.get(shop)
-        if not scraper_class:
-            raise ValueError(f"Unsupported shop: {shop}")
-        return scraper_class()
+        entry = cls.SCRAPER_MAP.get(shop)
+        if not entry:
+            raise ValueError(f"Unsupported shop: {shop}. Available: {list(cls.SCRAPER_MAP.keys())}")
+        scraper_class, kwargs = entry
+        return scraper_class(**kwargs)
     
     @classmethod
     def _get_shop_urls(cls, shop: str, country: str) -> List[str]:
@@ -83,15 +90,21 @@ class ScraperService:
         """
         url_map = {
             'LIDL_CZ': 'https://www.kupi.cz/letaky/lidl',
+            'ALBERT_CZ': 'https://www.kupi.cz/letaky/albert',
+            'KAUFLAND_CZ': 'https://www.kupi.cz/letaky/kaufland',
+            'PENNY_CZ': 'https://www.kupi.cz/letaky/penny-market',
+            'TESCO_CZ': 'https://www.kupi.cz/letaky/tesco',
             'ROHLIK': 'https://www.rohlik.cz/cs/akcni-nabidka',
             'LIDL_SK': 'https://kupino.sk/lidl',
+            'KAUFLAND_SK': 'https://kupino.sk/kaufland',
             'LUNYS': 'https://lunys.sk/akcie',
+            'KOSIK_CZ': 'https://www.kosik.cz/',
         }
-        
+
         base_url = url_map.get(shop)
         if not base_url:
             raise ValueError(f"Unknown shop: {shop}")
-        
+
         return [base_url]
     
     @classmethod
@@ -112,19 +125,27 @@ class ScraperService:
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            if shop == 'LIDL_CZ':
-                # Look for links matching /letak/lidl-*
+            # Map shop codes to their leaflet URL prefix patterns
+            shop_leaflet_prefixes = {
+                'LIDL_CZ': '/letak/lidl-',
+                'ALBERT_CZ': '/letak/albert-',
+                'KAUFLAND_CZ': '/letak/kaufland-',
+                'PENNY_CZ': '/letak/penny-',
+                'TESCO_CZ': '/letak/tesco-',
+            }
+
+            prefix = shop_leaflet_prefixes.get(shop)
+            if prefix:
                 for link in soup.find_all('a', href=True):
                     href = link.get('href', '')
-                    if href.startswith('/letak/lidl-') or href.startswith('https://www.kupi.cz/letak/lidl-'):
+                    if prefix in href:
                         full_url = urljoin(base_url, href)
                         if full_url not in leaflet_urls:
                             leaflet_urls.append(full_url)
-            elif shop == 'LIDL_SK':
-                # Similar pattern for kupino.sk
+            elif shop in ('LIDL_SK', 'KAUFLAND_SK'):
                 for link in soup.find_all('a', href=True):
                     href = link.get('href', '')
-                    if '/letak/' in href or '/lidl-' in href:
+                    if '/letak/' in href or f'/{shop.split("_")[0].lower()}-' in href:
                         full_url = urljoin(base_url, href)
                         if full_url not in leaflet_urls:
                             leaflet_urls.append(full_url)

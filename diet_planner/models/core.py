@@ -71,6 +71,12 @@ SHOP_CHOICES = [
     ('ROHLIK', 'Rohlik.cz'),
     ('LIDL_SK', 'Lidl (Slovakia)'),
     ('LUNYS', 'Lunys.sk'),
+    ('ALBERT_CZ', 'Albert (Czech Republic)'),
+    ('KAUFLAND_CZ', 'Kaufland (Czech Republic)'),
+    ('KAUFLAND_SK', 'Kaufland (Slovakia)'),
+    ('PENNY_CZ', 'Penny (Czech Republic)'),
+    ('TESCO_CZ', 'Tesco (Czech Republic)'),
+    ('KOSIK_CZ', 'Košík.cz'),
 ]
 
 SHOP_TO_SOURCE_URL = {
@@ -78,11 +84,17 @@ SHOP_TO_SOURCE_URL = {
     'ROHLIK': 'rohlik.cz',
     'LIDL_SK': 'kupino.sk',
     'LUNYS': 'lunys.sk',
+    'ALBERT_CZ': 'kupi.cz',
+    'KAUFLAND_CZ': 'kupi.cz',
+    'KAUFLAND_SK': 'kupino.sk',
+    'PENNY_CZ': 'kupi.cz',
+    'TESCO_CZ': 'kupi.cz',
+    'KOSIK_CZ': 'kosik.cz',
 }
 
 COUNTRY_TO_SHOPS = {
-    'CZ': ['LIDL_CZ', 'ROHLIK'],
-    'SK': ['LIDL_SK', 'LUNYS'],
+    'CZ': ['LIDL_CZ', 'ROHLIK', 'ALBERT_CZ', 'KAUFLAND_CZ', 'PENNY_CZ', 'TESCO_CZ', 'KOSIK_CZ'],
+    'SK': ['LIDL_SK', 'LUNYS', 'KAUFLAND_SK'],
 }
 
 
@@ -253,7 +265,7 @@ class DietaryGoal(models.Model):
         help_text="Language code (ISO 639-1) for i18n support"
     )
     
-    # Shop selection
+    # Shop selection (CharField kept for backward compat; new code should use grocery_store FK)
     shop = models.CharField(
         max_length=20,
         choices=SHOP_CHOICES,
@@ -261,7 +273,27 @@ class DietaryGoal(models.Model):
         null=True,
         help_text="Shop where user wants to source ingredients"
     )
-    
+    grocery_store = models.ForeignKey(
+        'diet_planner.GroceryStore',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dietary_goals',
+        help_text="Grocery store FK (preferred over shop CharField)"
+    )
+
+    class StoreMode(models.TextChoices):
+        SINGLE = 'single', 'Single Store'
+        MIX_COST = 'mix_cost', 'Mix - Minimize Cost'
+        MIX_TRIPS = 'mix_trips', 'Mix - Minimize Trips'
+
+    store_mode = models.CharField(
+        max_length=20,
+        choices=StoreMode.choices,
+        default=StoreMode.SINGLE,
+        help_text="Single store or cross-store optimization (premium)"
+    )
+
     # Meal plan configuration (day-by-day plan)
     num_days = models.IntegerField(
         default=7,
@@ -574,14 +606,39 @@ class LeafletOffer(models.Model):
         null=True,
         help_text="Source URL (optional, for debugging)"
     )
-    
+
+    # Freshness lifecycle
+    class FreshnessState(models.TextChoices):
+        FRESH = 'fresh', 'Fresh'
+        STALE = 'stale', 'Stale'
+        EXPIRED = 'expired', 'Expired'
+
+    freshness_state = models.CharField(
+        max_length=10,
+        choices=FreshnessState.choices,
+        default=FreshnessState.FRESH,
+        db_index=True,
+    )
+    stale_at = models.DateTimeField(null=True, blank=True)
+
+    # Link to new schema (nullable during migration)
+    store_product = models.ForeignKey(
+        'diet_planner.StoreProduct',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='leaflet_offers',
+        help_text="Link to StoreProduct in new catalog schema"
+    )
+
     class Meta:
         ordering = ['-scraped_at']
         indexes = [
             models.Index(fields=['shop', 'country', 'expires_at']),
             models.Index(fields=['ingredient_name', 'shop', 'country']),
+            models.Index(fields=['freshness_state']),
         ]
-    
+
     def __str__(self) -> str:
         return f"{self.display_name} ({self.shop}, {self.country})"
 

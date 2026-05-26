@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.contrib import messages
-from .models import DietaryGoal, DietaryPlan, HistoricNutritionPlan, LeafletOffer, Recipe, MealInstance
+from .models import (
+    DietaryGoal, DietaryPlan, HistoricNutritionPlan, LeafletOffer, Recipe, MealInstance,
+    GroceryStore, CanonicalIngredient, IngredientAlias, IngredientSubstitute,
+    StoreProduct, PriceRecord, PriceFreshnessPolicy, ScrapeRun,
+)
 
 
 @admin.register(DietaryGoal)
@@ -106,8 +110,8 @@ class HistoricNutritionPlanAdmin(admin.ModelAdmin):
 
 @admin.register(LeafletOffer)
 class LeafletOfferAdmin(admin.ModelAdmin):
-    list_display = ['id', 'shop', 'country', 'ingredient_name', 'price', 'currency', 'price_type', 'expires_at']
-    list_filter = ['shop', 'country', 'price_type', 'currency']
+    list_display = ['id', 'shop', 'country', 'ingredient_name', 'price', 'currency', 'price_type', 'freshness_state', 'expires_at']
+    list_filter = ['shop', 'country', 'price_type', 'freshness_state', 'currency']
     search_fields = ['ingredient_name', 'display_name']
     readonly_fields = ['scraped_at']
 
@@ -161,3 +165,66 @@ class MealInstanceAdmin(admin.ModelAdmin):
             'fields': ('created_at', 'updated_at')
         }),
     )
+
+
+# ========================================================================
+# New catalog / pricing / scraping models
+# ========================================================================
+
+@admin.register(GroceryStore)
+class GroceryStoreAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'chain', 'country', 'currency', 'is_online_only', 'is_active', 'default_price_ttl_hours']
+    list_filter = ['chain', 'country', 'is_active', 'is_online_only']
+    search_fields = ['code', 'name']
+
+
+@admin.register(CanonicalIngredient)
+class CanonicalIngredientAdmin(admin.ModelAdmin):
+    list_display = ['name', 'name_cs', 'slug', 'category', 'default_unit', 'is_pantry_staple']
+    list_filter = ['category', 'is_pantry_staple']
+    search_fields = ['name', 'name_cs', 'name_sk', 'slug']
+    prepopulated_fields = {'slug': ('name',)}
+
+
+@admin.register(IngredientAlias)
+class IngredientAliasAdmin(admin.ModelAdmin):
+    list_display = ['alias', 'canonical_ingredient', 'language_code']
+    list_filter = ['language_code']
+    search_fields = ['alias', 'canonical_ingredient__name']
+    raw_id_fields = ['canonical_ingredient']
+
+
+@admin.register(IngredientSubstitute)
+class IngredientSubstituteAdmin(admin.ModelAdmin):
+    list_display = ['ingredient', 'substitute', 'quality_score', 'conversion_factor']
+    raw_id_fields = ['ingredient', 'substitute']
+
+
+@admin.register(StoreProduct)
+class StoreProductAdmin(admin.ModelAdmin):
+    list_display = ['name', 'store', 'canonical_ingredient', 'package_size', 'package_unit', 'is_active']
+    list_filter = ['store', 'is_active']
+    search_fields = ['name', 'normalized_name', 'canonical_ingredient__name']
+    raw_id_fields = ['canonical_ingredient']
+
+
+@admin.register(PriceRecord)
+class PriceRecordAdmin(admin.ModelAdmin):
+    list_display = ['store_product', 'price', 'currency', 'source_type', 'confidence', 'valid_from', 'valid_until', 'scraped_at']
+    list_filter = ['source_type', 'currency']
+    search_fields = ['store_product__name']
+    raw_id_fields = ['store_product', 'scrape_run']
+    date_hierarchy = 'scraped_at'
+
+
+@admin.register(PriceFreshnessPolicy)
+class PriceFreshnessPolicyAdmin(admin.ModelAdmin):
+    list_display = ['source_type', 'ttl_hours', 'auto_expire', 'default_confidence']
+
+
+@admin.register(ScrapeRun)
+class ScrapeRunAdmin(admin.ModelAdmin):
+    list_display = ['store', 'status', 'method', 'products_found', 'prices_recorded', 'errors_count', 'llm_cost_usd', 'started_at', 'duration_seconds']
+    list_filter = ['status', 'method', 'store']
+    date_hierarchy = 'started_at'
+    readonly_fields = ['started_at']

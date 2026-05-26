@@ -27,13 +27,24 @@ class CountryEnum(str, Enum):
 
 
 class ShopEnum(str, Enum):
-    """
-    Supported shops for ingredient sourcing.
-    """
-    LIDL_CZ = "LIDL_CZ"  # Lidl (Czech Republic)
-    ROHLIK = "ROHLIK"    # Rohlik.cz
-    LIDL_SK = "LIDL_SK"  # Lidl (Slovakia)
-    LUNYS = "LUNYS"      # Lunys.sk
+    """Supported shops for ingredient sourcing."""
+    LIDL_CZ = "LIDL_CZ"
+    ROHLIK = "ROHLIK"
+    LIDL_SK = "LIDL_SK"
+    LUNYS = "LUNYS"
+    ALBERT_CZ = "ALBERT_CZ"
+    KAUFLAND_CZ = "KAUFLAND_CZ"
+    KAUFLAND_SK = "KAUFLAND_SK"
+    PENNY_CZ = "PENNY_CZ"
+    TESCO_CZ = "TESCO_CZ"
+    KOSIK_CZ = "KOSIK_CZ"
+
+
+class StoreModeEnum(str, Enum):
+    """Shopping mode for cross-store optimization."""
+    SINGLE = "single"
+    MIX_COST = "mix_cost"
+    MIX_TRIPS = "mix_trips"
 
 
 class DietaryGoalCreateRequest(BaseModel):
