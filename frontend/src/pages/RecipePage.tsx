@@ -106,7 +106,7 @@ export const RecipePage = () => {
         </button>
 
         {(() => {
-          const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category);
+          const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);
           return imgUrl ? (
             <div className="relative h-64 sm:h-80 rounded-3xl overflow-hidden mb-12">
               <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" />

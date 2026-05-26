@@ -63,7 +63,7 @@ export const RecipeIndexPage = () => {
                   onClick={() => navigate(`/recepty/${recipe.id}/${recipe.slug || ''}/`)}
                 >
                   {(() => {
-                    const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category);
+                    const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);
                     return imgUrl ? (
                       <div className="relative h-40 overflow-hidden">
                         <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy"

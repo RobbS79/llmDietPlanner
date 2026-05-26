@@ -269,7 +269,7 @@ export const PlanView = () => {
                         className={`p-0 hover:bg-zinc-900/80 hover:border-emerald-500/20 group/meal relative overflow-hidden text-left ${isCooked ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}
                       >
                         {(() => {
-                          const imgUrl = getFoodImageUrl(day[m].food_category);
+                          const imgUrl = getFoodImageUrl(day[m].food_category, day[m].name);
                           return imgUrl ? (
                             <div className="relative h-48 sm:h-56 overflow-hidden">
                               <img src={imgUrl} alt={day[m].name} className="w-full h-full object-cover" loading="lazy"
@@ -284,7 +284,7 @@ export const PlanView = () => {
                           );
                         })()}
 
-                        <div className={`${getFoodImageUrl(day[m].food_category) ? 'px-10 pb-10 -mt-16 relative z-10' : 'p-10'}`}>
+                        <div className="px-10 pb-10 -mt-16 relative z-10">
                         <div className="flex justify-between items-center mb-10 relative z-10">
                           <div className="flex items-center gap-3">
                             <span className="px-5 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{MEAL_LABELS[m] || m}</span>
