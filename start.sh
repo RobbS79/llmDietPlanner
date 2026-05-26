@@ -29,6 +29,17 @@ fi
 echo "Synchronizing Schema..."
 python manage.py migrate --noinput
 
+# 2b. Ensure superuser exists
+echo "Ensuring superuser..."
+python manage.py shell -c "
+from django.contrib.auth.models import User
+if not User.objects.filter(is_superuser=True).exists():
+    User.objects.create_superuser('admin', 'soroka.robert8@gmail.com', 'DietAdmin2026!')
+    print('Superuser created')
+else:
+    print('Superuser already exists')
+"
+
 # 3. Static Asset Aggregation
 echo "Collecting UI Assets..."
 python manage.py collectstatic --noinput --clear
