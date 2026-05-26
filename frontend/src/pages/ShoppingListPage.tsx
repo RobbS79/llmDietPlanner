@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -33,12 +33,61 @@ const PriceSourceBadge = ({ source, detail }: { source?: string; detail?: string
   );
 };
 
+const ShoppingItem = ({ item, done, onToggle }: { item: any; done: boolean; onToggle: () => void }) => (
+  <Card
+    onClick={onToggle}
+    className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-zinc-800/50' : 'hover:border-emerald-500/20'}`}
+  >
+    <div className="flex items-center gap-4">
+      <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-zinc-700'}`}>
+        {done && <Check size={16} className="text-white" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-start gap-3">
+          <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-600' : 'text-white'}`}>
+            {item.ingredient}
+          </p>
+          <div className="flex items-center gap-2 shrink-0">
+            {item.original_price != null && item.discount_percentage != null && (
+              <span className="text-[10px] font-bold text-zinc-600 line-through tabular-nums">
+                {item.original_price}
+              </span>
+            )}
+            {item.price_total != null ? (
+              <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
+                {item.price_total} {item.currency}
+              </p>
+            ) : item.price != null ? (
+              <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
+                {item.price} {item.currency}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex justify-between items-center mt-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
+              {item.quantity} {item.unit}
+            </span>
+            <PriceSourceBadge source={item.price_source} detail={item.source_detail} />
+          </div>
+          {item.matched_product_name && (
+            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
+              {item.matched_product_name}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  </Card>
+);
+
 export const ShoppingListPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const storageKey = `shopping-checked-${id}`;
-  const [checked, setChecked] = useState<Set<number>>(() => {
+  const [checked, setChecked] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(storageKey);
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
@@ -53,17 +102,23 @@ export const ShoppingListPage = () => {
   const plan = goalDetail.dietary_plan;
   if (!plan) return <LoadingScreen message="Loading shopping list..." />;
 
-  const items = plan.shopping_list || [];
-  const toggleItem = (idx: number) => {
+  const rawList = plan.shopping_list || [];
+  const isCrossStore = rawList && !Array.isArray(rawList) && rawList.by_store;
+  const items: any[] = isCrossStore ? (rawList.items || []) : rawList;
+  const byStore: any[] | null = isCrossStore ? rawList.by_store : null;
+
+  const toggleItem = (key: string) => {
     setChecked(prev => {
       const next = new Set(prev);
-      next.has(idx) ? next.delete(idx) : next.add(idx);
+      next.has(key) ? next.delete(key) : next.add(key);
       localStorage.setItem(storageKey, JSON.stringify([...next]));
       return next;
     });
   };
 
   const handlePrint = () => window.print();
+  const totalItems = items.length;
+  const checkedCount = checked.size;
 
   return (
     <MainLayout>
@@ -82,7 +137,7 @@ export const ShoppingListPage = () => {
               Váš seznam<span className="text-emerald-500 not-italic">.</span>
             </h1>
             <p className="text-zinc-600 text-sm font-bold italic">
-              {items.length} položek &middot; {checked.size} odškrtnuto
+              {totalItems} položek &middot; {checkedCount} odškrtnuto
             </p>
           </div>
           <button
@@ -93,60 +148,76 @@ export const ShoppingListPage = () => {
           </button>
         </header>
 
-        <div className="space-y-3">
-          {items.map((item: any, idx: number) => {
-            const done = checked.has(idx);
-            return (
-              <Card
-                key={idx}
-                onClick={() => toggleItem(idx)}
-                className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-zinc-800/50' : 'hover:border-emerald-500/20'}`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-zinc-700'}`}>
-                    {done && <Check size={16} className="text-white" />}
+        {/* Cross-store savings banner */}
+        {isCrossStore && rawList.savings_vs_single > 0 && (
+          <Card className="p-5 mb-8 border-emerald-500/20 text-left">
+            <div className="flex items-center gap-3">
+              <TrendingDown size={20} className="text-emerald-500 shrink-0" />
+              <div>
+                <p className="text-sm font-black text-emerald-400 uppercase tracking-tight italic">
+                  Ušetříte {rawList.savings_vs_single} {plan.currency}
+                </p>
+                <p className="text-[10px] font-bold text-zinc-600 mt-0.5">
+                  oproti nákupu v jednom obchodu ({rawList.best_single_store}) &middot; {rawList.num_stores} obchody
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Cross-store grouped view */}
+        {byStore ? (
+          <div className="space-y-10">
+            {byStore.map((storeGroup: any) => {
+              const storeKey = storeGroup.store || 'unavailable';
+              return (
+                <div key={storeKey}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Store size={16} className="text-zinc-500" />
+                      <h2 className="text-sm font-black text-white uppercase tracking-widest italic">
+                        {storeGroup.store_name}
+                      </h2>
+                    </div>
+                    {storeGroup.subtotal > 0 && (
+                      <span className="text-sm font-black text-emerald-500 tabular-nums">
+                        {storeGroup.subtotal} {plan.currency}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-3">
-                      <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-600' : 'text-white'}`}>
-                        {item.ingredient}
-                      </p>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {item.original_price != null && item.discount_percentage != null && (
-                          <span className="text-[10px] font-bold text-zinc-600 line-through tabular-nums">
-                            {item.original_price}
-                          </span>
-                        )}
-                        {item.price_total != null ? (
-                          <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
-                            {item.price_total} {item.currency}
-                          </p>
-                        ) : item.price != null ? (
-                          <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
-                            {item.price} {item.currency}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
-                          {item.quantity} {item.unit}
-                        </span>
-                        <PriceSourceBadge source={item.price_source} detail={item.source_detail} />
-                      </div>
-                      {item.matched_product_name && (
-                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
-                          {item.matched_product_name}
-                        </span>
-                      )}
-                    </div>
+                  <div className="space-y-3">
+                    {storeGroup.items.map((item: any, idx: number) => {
+                      const itemKey = `${storeKey}-${idx}`;
+                      return (
+                        <ShoppingItem
+                          key={itemKey}
+                          item={item}
+                          done={checked.has(itemKey)}
+                          onToggle={() => toggleItem(itemKey)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
-              </Card>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Single-store flat list */
+          <div className="space-y-3">
+            {items.map((item: any, idx: number) => {
+              const itemKey = String(idx);
+              return (
+                <ShoppingItem
+                  key={itemKey}
+                  item={item}
+                  done={checked.has(itemKey)}
+                  onToggle={() => toggleItem(itemKey)}
+                />
+              );
+            })}
+          </div>
+        )}
 
         {/* Total */}
         {(() => {

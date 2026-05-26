@@ -1878,18 +1878,33 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
                 item, num_days=goal.num_days, context_id=context_id, goal_id=goal_id
             )
 
-        # ── Phase 4: Resolve prices from DB only ──
-        from diet_planner.services.price_resolver import PriceResolver
-        resolver = PriceResolver(goal)
-        resolved_list = resolver.resolve_shopping_list(shopping_items)
+        # ── Phase 4: Resolve prices from DB ──
+        store_mode = getattr(goal, 'store_mode', 'single')
+        cross_store_data = None
 
-        # Calculate total
-        total_sum = Decimal('0')
-        priced_count = 0
-        for item in resolved_list:
-            if item.get('price_total'):
-                total_sum += Decimal(str(item['price_total']))
-                priced_count += 1
+        if store_mode in ('mix_cost', 'mix_trips'):
+            from diet_planner.services.cross_store_optimizer import CrossStoreOptimizer
+            optimizer = CrossStoreOptimizer(goal)
+            cross_store_data = optimizer.optimize(shopping_items, strategy=store_mode)
+            # Flatten all items from all stores for storage
+            resolved_list = []
+            for store_list in cross_store_data['shopping_lists_by_store']:
+                for item in store_list['items']:
+                    item['assigned_store'] = store_list['store']
+                    item['assigned_store_name'] = store_list['store_name']
+                    resolved_list.append(item)
+            total_sum = Decimal(str(cross_store_data['total_price']))
+            priced_count = sum(1 for i in resolved_list if i.get('price_total'))
+        else:
+            from diet_planner.services.price_resolver import PriceResolver
+            resolver = PriceResolver(goal)
+            resolved_list = resolver.resolve_shopping_list(shopping_items)
+            total_sum = Decimal('0')
+            priced_count = 0
+            for item in resolved_list:
+                if item.get('price_total'):
+                    total_sum += Decimal(str(item['price_total']))
+                    priced_count += 1
 
         unpriced_count = len(resolved_list) - priced_count
         unpriced_ratio = unpriced_count / max(len(resolved_list), 1)
@@ -1900,11 +1915,24 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
                 f"({unpriced_ratio:.0%}) items without price"
             )
 
+        # Build shopping_list payload (include cross-store metadata if applicable)
+        shopping_list_payload = resolved_list
+        if cross_store_data:
+            shopping_list_payload = {
+                'items': resolved_list,
+                'by_store': cross_store_data['shopping_lists_by_store'],
+                'savings_vs_single': cross_store_data['savings_vs_single'],
+                'best_single_store': cross_store_data['best_single_store'],
+                'best_single_store_total': cross_store_data['best_single_store_total'],
+                'num_stores': cross_store_data['num_stores'],
+                'strategy': cross_store_data['strategy'],
+            }
+
         # ── Store results ──
         plan = DietaryPlan.objects.create(
             dietary_goal=goal,
             days=transformed_days,
-            shopping_list=resolved_list,
+            shopping_list=shopping_list_payload,
             total_price=total_sum,
             currency=goal.currency,
             llm_model_used=llm_result.get('model'),
