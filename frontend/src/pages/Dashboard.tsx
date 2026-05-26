@@ -32,7 +32,7 @@ export const Dashboard = () => {
   });
 
   const costMap = new Map<number, { total: number; currency: string; days: number; shop: string }>();
-  goalDetails.forEach((q) => {
+  goalDetails.forEach((q: any) => {
     if (q.data?.dietary_plan?.total_price) {
       costMap.set(q.data.id, {
         total: parseFloat(q.data.dietary_plan.total_price),
