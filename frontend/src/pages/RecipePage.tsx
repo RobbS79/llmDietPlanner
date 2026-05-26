@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getFoodImageUrl } from '@/lib/food-image';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -103,6 +104,16 @@ export const RecipePage = () => {
         >
           <ArrowLeft size={16} /> Zpět na plán
         </button>
+
+        {(() => {
+          const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category);
+          return imgUrl ? (
+            <div className="relative h-64 sm:h-80 rounded-3xl overflow-hidden mb-12">
+              <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent" />
+            </div>
+          ) : null;
+        })()}
 
         <header className="mb-16 text-left">
           <Badge variant="emerald">Recept</Badge>

@@ -199,7 +199,8 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for Recipe model."""
     dietary_goal_id = serializers.IntegerField(source='dietary_goal.id', read_only=True)
-    
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Recipe
         fields = [
@@ -209,6 +210,8 @@ class RecipeSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
+            'food_category',
+            'image_url',
             'instructions',
             'ingredients',
             'preparation_time',
@@ -223,6 +226,11 @@ class RecipeSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+    def get_image_url(self, obj):
+        from .food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
+        category = obj.food_category if obj.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
+        return f"/food-images/{category}.webp"
 
 
 class MealInstanceSerializer(serializers.ModelSerializer):

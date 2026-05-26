@@ -77,11 +77,16 @@ def public_recipe_view(request, pk, slug=None):
     for k, v in (recipe.nutritional_info or {}).items():
         nutrition_html += f'<dt>{escape(k)}</dt><dd>{escape(str(v))}</dd>'
 
+    from diet_planner.food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
+    img_category = recipe.food_category if recipe.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
+    img_url = f'/food-images/{img_category}.webp'
+
     schema_ld = {
         "@context": "https://schema.org",
         "@type": "Recipe",
         "name": recipe.name,
         "description": recipe.description or "",
+        "image": img_url,
         "recipeIngredient": [
             f"{ing.get('quantity', '')} {ing.get('unit', '')} {ing.get('name', '')}".strip()
             if isinstance(ing, dict) else str(ing)
@@ -114,6 +119,10 @@ def public_recipe_view(request, pk, slug=None):
 
     recipe_html = f'''<div style="max-width:56rem;margin:0 auto;padding:3rem 1.5rem;color:white;">
 <nav style="margin-bottom:2rem;font-size:0.875rem;"><a href="/recepty/" style="color:#34d399;">Recepty</a> / <span>{escape(recipe.name)}</span></nav>
+<div style="position:relative;height:20rem;border-radius:1.5rem;overflow:hidden;margin-bottom:2rem;">
+<img src="{img_url}" alt="{escape(recipe.name)}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.style.display='none'" />
+<div style="position:absolute;inset:0;background:linear-gradient(to top,#0a0f1e,transparent);"></div>
+</div>
 <h1 style="font-size:2.5rem;font-weight:900;">{escape(recipe.name)}</h1>
 {f'<p style="color:#a1a1aa;margin-top:0.5rem;font-style:italic;">{escape(recipe.description)}</p>' if recipe.description else ''}
 <div style="display:flex;gap:1.5rem;margin-top:1rem;font-size:0.75rem;color:#71717a;">

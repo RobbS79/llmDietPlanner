@@ -37,6 +37,8 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 import google.generativeai as genai
 
+from .food_categories import CATEGORY_SLUGS
+
 logger = logging.getLogger(__name__)
 
 
@@ -362,6 +364,7 @@ OUTPUT STRUCTURE:
       "breakfast": {{
         "name": "meal name",
         "description": "brief 1 sentence",
+        "food_category": "one of the allowed slugs below",
         "preparation_time": 15,
         "ingredients": [{{"name": "ingredient", "quantity": 200, "unit": "g"}}],
         "instructions": ["Step 1", "Step 2", "Step 3"],
@@ -374,6 +377,8 @@ OUTPUT STRUCTURE:
     }}
   ]
 }}
+
+FOOD_CATEGORY must be exactly one of: {', '.join(CATEGORY_SLUGS)}
 
 CRITICAL RULES:
 - Keep instructions VERY BRIEF: 3 steps maximum per meal

@@ -314,6 +314,7 @@ class RecipeDetailView(APIView):
             dietary_goal=goal,
             name=meal.get('name', ''),
             description=meal.get('description', ''),
+            food_category=meal.get('food_category', ''),
             instructions=instructions,
             ingredients=meal.get('ingredients', []),
             preparation_time=meal.get('preparation_time'),

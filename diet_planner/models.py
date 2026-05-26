@@ -605,6 +605,7 @@ class Recipe(models.Model):
     )
     name = models.CharField(max_length=255, help_text="Recipe name")
     slug = models.SlugField(max_length=255, blank=True, db_index=True, help_text="URL-friendly name")
+    food_category = models.CharField(max_length=50, blank=True, default='', db_index=True, help_text="Food category slug for stock image mapping")
     description = models.TextField(blank=True, null=True, help_text="Recipe description")
     instructions = models.JSONField(default=list, help_text="Step-by-step cooking instructions")
     ingredients = models.JSONField(default=list, help_text="List of ingredients with quantities")

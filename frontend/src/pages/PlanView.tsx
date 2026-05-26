@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, MapPin, Timer, Globe, Download, ShoppingCart, UtensilsCrossed, ArrowRight, List, ChefHat, Flame, Wallet, TrendingDown, CalendarDays } from 'lucide-react';
+import { getFoodImageUrl } from '@/lib/food-image';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -265,12 +266,25 @@ export const PlanView = () => {
                     return (
                       <Card
                         key={m}
-                        className={`p-10 hover:bg-zinc-900/80 hover:border-emerald-500/20 group/meal relative overflow-hidden text-left ${isCooked ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}
+                        className={`p-0 hover:bg-zinc-900/80 hover:border-emerald-500/20 group/meal relative overflow-hidden text-left ${isCooked ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}
                       >
-                        <div className="absolute top-0 right-0 p-8 text-zinc-900 opacity-20 pointer-events-none group-hover/meal:text-emerald-900 transition-colors">
-                          <UtensilsCrossed size={120} />
-                        </div>
+                        {(() => {
+                          const imgUrl = getFoodImageUrl(day[m].food_category);
+                          return imgUrl ? (
+                            <div className="relative h-48 sm:h-56 overflow-hidden">
+                              <img src={imgUrl} alt={day[m].name} className="w-full h-full object-cover" loading="lazy"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-[#161d2f] via-[#161d2f]/60 to-transparent" />
+                            </div>
+                          ) : (
+                            <div className="absolute top-0 right-0 p-8 text-zinc-900 opacity-20 pointer-events-none group-hover/meal:text-emerald-900 transition-colors">
+                              <UtensilsCrossed size={120} />
+                            </div>
+                          );
+                        })()}
 
+                        <div className={`${getFoodImageUrl(day[m].food_category) ? 'px-10 pb-10 -mt-16 relative z-10' : 'p-10'}`}>
                         <div className="flex justify-between items-center mb-10 relative z-10">
                           <div className="flex items-center gap-3">
                             <span className="px-5 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{MEAL_LABELS[m] || m}</span>
@@ -305,6 +319,7 @@ export const PlanView = () => {
                           <div className="flex items-center gap-2 mt-8 text-[10px] font-black text-emerald-500 uppercase tracking-widest italic opacity-0 group-hover/meal:opacity-100 transition-opacity relative z-10">
                             Zobrazit recept <ArrowRight size={14} />
                           </div>
+                        </div>
                         </div>
                       </Card>
                     );

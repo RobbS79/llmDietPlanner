@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Zap, ArrowRight, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
 
 export const RecipeIndexPage = () => {
@@ -58,26 +59,39 @@ export const RecipeIndexPage = () => {
               {data?.results?.map((recipe: any) => (
                 <Card
                   key={recipe.id}
-                  className="p-8 hover:bg-zinc-900 hover:border-emerald-500/30 cursor-pointer group text-left"
+                  className="p-0 hover:bg-zinc-900 hover:border-emerald-500/30 cursor-pointer group text-left overflow-hidden"
                   onClick={() => navigate(`/recepty/${recipe.id}/${recipe.slug || ''}/`)}
                 >
-                  <h2 className="text-xl font-black text-white uppercase tracking-tight italic leading-tight group-hover:text-emerald-400 transition-colors mb-4 line-clamp-2">
-                    {recipe.name}
-                  </h2>
-                  {recipe.description && (
-                    <p className="text-zinc-500 text-sm leading-relaxed mb-6 line-clamp-2">{recipe.description}</p>
-                  )}
-                  <div className="mt-auto pt-4 border-t border-zinc-800 flex items-center gap-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                    {recipe.preparation_time && (
-                      <span className="flex items-center gap-1.5">
-                        <Clock size={12} className="text-emerald-500" /> {recipe.preparation_time} min
-                      </span>
+                  {(() => {
+                    const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category);
+                    return imgUrl ? (
+                      <div className="relative h-40 overflow-hidden">
+                        <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#161d2f] to-transparent" />
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className="p-8">
+                    <h2 className="text-xl font-black text-white uppercase tracking-tight italic leading-tight group-hover:text-emerald-400 transition-colors mb-4 line-clamp-2">
+                      {recipe.name}
+                    </h2>
+                    {recipe.description && (
+                      <p className="text-zinc-500 text-sm leading-relaxed mb-6 line-clamp-2">{recipe.description}</p>
                     )}
-                    {recipe.servings && (
-                      <span className="flex items-center gap-1.5">
-                        <Users size={12} className="text-emerald-500" /> {recipe.servings} porcí
-                      </span>
-                    )}
+                    <div className="mt-auto pt-4 border-t border-zinc-800 flex items-center gap-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                      {recipe.preparation_time && (
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={12} className="text-emerald-500" /> {recipe.preparation_time} min
+                        </span>
+                      )}
+                      {recipe.servings && (
+                        <span className="flex items-center gap-1.5">
+                          <Users size={12} className="text-emerald-500" /> {recipe.servings} porcí
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </Card>
               ))}

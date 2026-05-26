@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Clock, Users, ChefHat, Loader2, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
 
 export const PublicRecipePage = () => {
@@ -102,6 +103,16 @@ export const PublicRecipePage = () => {
           <span>/</span>
           <span className="truncate">{recipe.name}</span>
         </div>
+
+        {(() => {
+          const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category);
+          return imgUrl ? (
+            <div className="relative h-64 sm:h-80 rounded-3xl overflow-hidden mb-12">
+              <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f1e] via-transparent to-transparent" />
+            </div>
+          ) : null;
+        })()}
 
         <header className="mb-16 text-left">
           <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">

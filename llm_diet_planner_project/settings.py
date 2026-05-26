@@ -193,6 +193,7 @@ RESULT_BACKEND = CELERY_RESULT_BACKEND
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', config('GEMINI_API_KEY', default=None))
 GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
 GEMINI_MAX_OUTPUT_TOKENS = int(config('GEMINI_MAX_OUTPUT_TOKENS', default=65536))
+GEMINI_IMAGE_MODEL = config('GEMINI_IMAGE_MODEL', default='gemini-2.0-flash-preview-image-generation')
 
 if not GEMINI_API_KEY:
     import logging as _log
