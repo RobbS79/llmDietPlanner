@@ -275,7 +275,7 @@ FRESHNESS_CONFIG = {
 }
 
 # Feature flag for catalog-constrained generation
-CATALOG_CONSTRAINED_GENERATION = config('CATALOG_CONSTRAINED_GENERATION', default=False, cast=bool)
+CATALOG_CONSTRAINED_GENERATION = config('CATALOG_CONSTRAINED_GENERATION', default=True, cast=bool)
 
 # --- 9. GEMINI AI CONFIGURATION ---
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', config('GEMINI_API_KEY', default=None))
