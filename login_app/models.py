@@ -44,6 +44,15 @@ class UserProfile(models.Model):
         default=False,
         help_text="Whether email has been verified (via email link or trusted OAuth provider)"
     )
+    onboarding_completed = models.BooleanField(
+        default=False,
+        help_text="Whether user has completed the onboarding quiz"
+    )
+    dietary_preferences = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Onboarding quiz answers (goal, dietary_styles, allergies, household, budget, cooking, shop)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

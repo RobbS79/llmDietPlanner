@@ -270,7 +270,7 @@ class PasswordResetConfirmView(APIView):
 
 
 class UserProfileView(APIView):
-    """Returns user profile with generation credits info."""
+    """Returns user profile with generation credits and onboarding state."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request) -> Response:
@@ -282,6 +282,33 @@ class UserProfileView(APIView):
                 "username": request.user.username,
                 "free_generations_remaining": profile.free_generations_remaining,
                 "total_generations": profile.total_generations,
+                "onboarding_completed": profile.onboarding_completed,
+                "dietary_preferences": profile.dietary_preferences,
+            },
+            "error": None
+        })
+
+    def patch(self, request) -> Response:
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        update_fields = ['updated_at']
+
+        if 'onboarding_completed' in request.data:
+            profile.onboarding_completed = request.data['onboarding_completed']
+            update_fields.append('onboarding_completed')
+
+        if 'dietary_preferences' in request.data:
+            prefs = request.data['dietary_preferences']
+            if not isinstance(prefs, dict):
+                return Response({"status": "error", "error": "dietary_preferences must be a JSON object"}, status=400)
+            profile.dietary_preferences = prefs
+            update_fields.append('dietary_preferences')
+
+        profile.save(update_fields=update_fields)
+        return Response({
+            "status": "success",
+            "data": {
+                "onboarding_completed": profile.onboarding_completed,
+                "dietary_preferences": profile.dietary_preferences,
             },
             "error": None
         })

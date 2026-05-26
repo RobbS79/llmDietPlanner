@@ -199,19 +199,16 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 - [ ] Content clusters (future): "keto recepty", "vysoko proteinove jidla", "levne zdrave recepty"
 - **Files:** `models.py`, `views.py` (both), `urls.py` (both), `serializers.py`, `sitemaps.py`, `PublicRecipePage.tsx`, `RecipeIndexPage.tsx`, `App.tsx`, `Landing.tsx`
 
-### P3.4 -- Onboarding Quiz (Noom-style)
-- [ ] 6-8 step quiz before first plan creation:
-  1. Primary goal (lose weight / eat healthier / save money / save time)
-  2. Household size
-  3. Dietary restrictions (vegetarian, vegan, gluten-free, etc.)
-  4. Weekly budget in CZK
-  5. Preferred store (Rohlik/Kosik/Kaufland/Tesco)
-  6. Cooking skill + available time
-  7. Allergies
-  8. Taste preferences
-- [ ] Show personalized plan preview with real prices from chosen store
-- **Why:** Quiz-based onboarding: +8.5% trial starts, +17% paying conversions, +22% ARPU (industry benchmarks). Builds commitment before paywall.
-- **Files:** New `Onboarding.tsx` wizard, backend to store preferences
+### P3.4 -- Onboarding Quiz (Noom-style) -- DONE
+- [x] 6-step quiz: Goal → Dietary style → Allergies → Household+budget → Cooking skill+time → Store
+- [x] UserProfile: `onboarding_completed` + `dietary_preferences` (JSONField) + migration
+- [x] PATCH `/api/auth/profile/` endpoint to save quiz answers
+- [x] `AuthenticatedHome` in App.tsx gates new users to `/onboarding` before Dashboard
+- [x] Personalized summary card after completion with "Vytvorte si jidelnicek" CTA
+- [x] CreatePlan auto-generates Czech prompt from quiz answers (goal, style, allergies, budget, skill, time)
+- [x] Skip link on every step (marks onboarding complete with empty prefs)
+- [x] Progress bar, fadeIn transitions, mobile sticky nav (same pattern as CreatePlan)
+- **Files:** `Onboarding.tsx`, `App.tsx`, `CreatePlan.tsx`, `login_app/models.py`, `login_app/views.py`, migration
 
 ### P3.5 -- Weekly Cost Dashboard Widget -- DONE
 - [x] **PlanView:** Prominent 3-column cost card at top — weekly cost, estimated savings vs Czech average (1,850 CZK/week), monthly/yearly projection

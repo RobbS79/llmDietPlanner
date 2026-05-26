@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ShoppingCart, ChefHat } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -14,6 +14,7 @@ const STEPS = [
 
 export const CreatePlan = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -31,6 +32,45 @@ export const CreatePlan = () => {
     shop: 'ROHLIK',
     goal_id: null as number | null,
   });
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => api.get('/auth/profile/').then(res => res.data.data),
+  });
+
+  useEffect(() => {
+    const prefs = (location.state as any)?.fromOnboarding || profile?.dietary_preferences;
+    if (!prefs || Object.keys(prefs).length === 0) return;
+
+    const goalMap: Record<string, string> = { lose_weight: 'Chci zhubnout', eat_healthy: 'Chci jist zdraveji', save_money: 'Chci setrit za jidlo', save_time: 'Chci setrit cas pri vareni' };
+    const styleMap: Record<string, string> = { vegetarian: 'vegetarianska strava', vegan: 'veganska strava', gluten_free: 'bezlepkova dieta', keto: 'keto dieta', high_protein: 'vysoko proteinova strava' };
+    const allergyMap: Record<string, string> = { lactose: 'bez laktozy', gluten: 'bez lepku', nuts: 'bez orechu', eggs: 'bez vajec', fish: 'bez ryb', soy: 'bez soji' };
+    const skillMap: Record<string, string> = { beginner: 'jednoduche recepty pro zacatecniky', intermediate: 'stredne narocne recepty', advanced: 'i slozitejsi recepty' };
+    const timeMap: Record<string, string> = { '15min': 'Max 15 minut na pripravu', '30min': 'Max 30 minut na pripravu', '60min': 'Max 60 minut na pripravu' };
+
+    const parts: string[] = [];
+    if (prefs.goal) parts.push(goalMap[prefs.goal] || '');
+    const styles = (prefs.dietary_styles || []).filter((s: string) => s !== 'none').map((s: string) => styleMap[s]).filter(Boolean);
+    if (styles.length) parts.push(styles.join(', '));
+    const allergies = (prefs.allergies || []).filter((a: string) => a !== 'none').map((a: string) => allergyMap[a]).filter(Boolean);
+    if (allergies.length) parts.push(allergies.join(', '));
+    if (prefs.household_size) parts.push(`Pro ${prefs.household_size} ${prefs.household_size === 1 ? 'osobu' : 'osoby'}`);
+    if (prefs.weekly_budget) parts.push(`Rozpocet ${prefs.weekly_budget} ${prefs.country === 'SK' ? 'EUR' : 'CZK'}/tyden`);
+    if (prefs.cooking_skill) parts.push(skillMap[prefs.cooking_skill] || '');
+    if (prefs.cooking_time && prefs.cooking_time !== 'unlimited') parts.push(timeMap[prefs.cooking_time] || '');
+
+    const prompt = parts.filter(Boolean).join('. ') + '.';
+    const restrictions = allergies.length > 0 ? allergies.join(', ') : '';
+
+    setFormData(prev => ({
+      ...prev,
+      prompt: prev.prompt || prompt,
+      dietary_restrictions: prev.dietary_restrictions || restrictions,
+      country: prefs.country || prev.country,
+      language_code: prefs.country === 'SK' ? 'sk' : 'cs',
+      shop: prefs.shop || prev.shop,
+    }));
+  }, [profile?.dietary_preferences, location.state]);
 
   const { data: previousGoals } = useQuery({
     queryKey: ['goals'],
