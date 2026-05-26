@@ -4,4 +4,4 @@ Allow: /
 User-agent: SeznamBot
 Allow: /
 
-Sitemap: https://squid-app-6avsy.ondigitalocean.app/sitemap.xml
+Sitemap: https://eatalnicek.eu/sitemap.xml

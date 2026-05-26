@@ -2,6 +2,7 @@
 import json
 import logging
 import re
+from datetime import datetime, timezone, timedelta
 from functools import lru_cache
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect
@@ -20,7 +21,7 @@ PRERENDERED_ROUTES = {
     '/forgot-password': 'forgot-password/index.html',
 }
 
-SITE_URL = getattr(settings, 'FRONTEND_URL', 'https://squid-app-6avsy.ondigitalocean.app').rstrip('/')
+SITE_URL = getattr(settings, 'FRONTEND_URL', 'https://eatalnicek.eu').rstrip('/')
 
 
 def _get_index_template():
@@ -197,6 +198,17 @@ def public_recipe_index_view(request):
     html = _replace_meta(html, title, desc, canonical)
 
     return HttpResponse(html, content_type="text/html")
+
+
+def security_txt_view(request):
+    expires = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%Y-%m-%dT00:00:00.000Z")
+    body = (
+        "Contact: mailto:support@dietplanner.cz\n"
+        f"Expires: {expires}\n"
+        "Preferred-Languages: cs, en\n"
+        "Canonical: https://eatalnicek.eu/.well-known/security.txt\n"
+    )
+    return HttpResponse(body, content_type="text/plain")
 
 
 def react_app_view(request):

@@ -25,11 +25,11 @@ services:
         scope: RUN_TIME
         type: SECRET
       - key: ALLOWED_HOSTS
-        value: "squid-app-6avsy.ondigitalocean.app"
+        value: "eatalnicek.eu"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://squid-app-6avsy.ondigitalocean.app"
+        value: "https://eatalnicek.eu"
       - key: FRONTEND_URL
-        value: "https://squid-app-6avsy.ondigitalocean.app"
+        value: "https://eatalnicek.eu"
       - key: GOOGLE_CLIENT_ID
         scope: RUN_TIME
         type: SECRET
@@ -37,7 +37,7 @@ services:
         scope: RUN_TIME
         type: SECRET
       - key: GOOGLE_REDIRECT_URI
-        value: "https://squid-app-6avsy.ondigitalocean.app/api/auth/google/callback/"
+        value: "https://eatalnicek.eu/api/auth/google/callback/"
         scope: RUN_TIME
       - key: GEMINI_API_KEY
         scope: RUN_TIME

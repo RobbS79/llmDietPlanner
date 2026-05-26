@@ -39,6 +39,9 @@ urlpatterns = [
     path("recepty/<int:pk>/<slug:slug>/", views.public_recipe_view, name="public-recipe-detail"),
     path("recepty/<int:pk>/", views.public_recipe_view, name="public-recipe-no-slug"),
 
-    # 6. CATCH-ALL: Serve React App (Must be last)
+    # 6. RFC 9116 security.txt
+    path(".well-known/security.txt", views.security_txt_view, name="security-txt"),
+
+    # 7. CATCH-ALL: Serve React App (Must be last)
     re_path(r'^.*$', views.react_app_view, name="react-app"),
 ]
