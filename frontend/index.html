@@ -39,35 +39,11 @@
     }
     </script>
     <style>
-      body { 
-        background-color: #0a0f1e; 
-        margin: 0; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        height: 100vh;
-        color: white;
-        font-family: sans-serif;
-      }
-      .loader {
-        border: 3px solid #161d2f;
-        border-top: 3px solid #2563eb;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        animation: spin 1s linear infinite;
-      }
-      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      body { background-color: #0a0f1e; margin: 0; color: white; font-family: sans-serif; }
     </style>
   </head>
   <body>
-    <div id="root">
-      <!-- Loading state shows while React/Vite boots -->
-      <div style="text-align: center;">
-        <div class="loader" style="margin: 0 auto 15px;"></div>
-        <p style="font-size: 14px; color: #4b5563;">Pripravujeme vas jidelnicek...</p>
-      </div>
-    </div>
+    <div id="root"><!--ssr-outlet--></div>
     <!-- Vite processes this path during 'npm run build' -->
     <script type="module" src="/src/main.tsx"></script>
   </body>

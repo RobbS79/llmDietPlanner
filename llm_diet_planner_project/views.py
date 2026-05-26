@@ -6,31 +6,54 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+PRERENDERED_ROUTES = {
+    '/': 'index.html',
+    '/login': 'login/index.html',
+    '/pricing': 'pricing/index.html',
+    '/privacy': 'privacy/index.html',
+    '/terms': 'terms/index.html',
+    '/forgot-password': 'forgot-password/index.html',
+}
+
 def health_check(request):
     """Basic health check for DigitalOcean."""
     return HttpResponse("OK", status=200)
 
 def react_app_view(request):
     """
-    Catch-all view that serves the React Single Page Application.
-    
-    PHASE 2 FIX: Prevents returning HTML for missing static assets.
-    If the path has a dot (e.g. .css) and it reached this view, it means WhiteNoise 
-    didn't find the file. We must return 404 to avoid MIME errors.
+    Catch-all view that serves the React SPA.
+
+    For public routes with prerendered HTML, serves the static version
+    for SEO (Seznam.cz, Google). For all other routes, serves the
+    standard SPA index.html shell.
     """
     path_str = request.path.lstrip('/')
-    
-    # MIME TYPE GUARD
+
     if path_str and '.' in path_str and not path_str.endswith('.html'):
         logger.warning(f"Static asset 404 intercepted by catch-all: {path_str}")
         raise Http404(f"Asset '{path_str}' not found in static storage.")
 
-    # In production, look in STATIC_ROOT first (where collectstatic put it)
+    normalized = '/' + path_str.rstrip('/')
+    if normalized != '/':
+        normalized = normalized.rstrip('/')
+
+    prerendered_file = PRERENDERED_ROUTES.get(normalized)
+    if prerendered_file:
+        for base_dir in [settings.STATIC_ROOT, settings.REACT_BUILD_DIR]:
+            candidate = base_dir / "prerendered" / prerendered_file
+            if candidate.exists():
+                try:
+                    with open(candidate, 'r', encoding='utf-8') as f:
+                        return HttpResponse(f.read(), content_type="text/html")
+                except Exception as e:
+                    logger.error(f"Error reading prerendered {candidate}: {e}")
+                    break
+
     index_locations = [
         settings.STATIC_ROOT / "index.html",
         settings.REACT_BUILD_DIR / "index.html"
     ]
-    
+
     for index_path in index_locations:
         if index_path.exists():
             try:

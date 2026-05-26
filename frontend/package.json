@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:ssr": "vite build --ssr src/entry-server.tsx",
+    "prerender": "node prerender.mjs",
+    "build:prod": "tsc && vite build && npm run build:ssr && npm run prerender",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test:e2e": "npm --prefix ../e2e run test:e2e",

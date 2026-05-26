@@ -3,14 +3,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, isSsrBuild }) => ({
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  base: command === 'build' ? '/static/' : '/',
+  base: command === 'build' && !isSsrBuild ? '/static/' : '/',
   server: {
     allowedHosts: true,
     proxy: {
@@ -21,20 +21,19 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
-    // Output directory that the Docker builder and Django will target
-    outDir: 'dist',
-    emptyOutDir: true,
+    outDir: isSsrBuild ? 'dist/server' : 'dist',
+    emptyOutDir: !isSsrBuild,
     assetsDir: 'assets',
-    // Support modern features for Google Auth integration
     target: 'es2020',
     sourcemap: false,
     rollupOptions: {
-      output: {
-        // Prevent naming collisions and ensure clean content hashing
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
-    }
-  }
+      output: isSsrBuild
+        ? { entryFileNames: '[name].js' }
+        : {
+            chunkFileNames: 'assets/[name]-[hash].js',
+            entryFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash].[ext]',
+          },
+    },
+  },
 }))

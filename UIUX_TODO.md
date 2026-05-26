@@ -176,12 +176,16 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 - [x] Bottom CTA section + footer with privacy/terms links
 - **Files:** `Pricing.tsx`, `App.tsx`, `Landing.tsx`
 
-### P3.2 -- Server-Side Rendering / Prerendering for SEO
-- [ ] Current SPA is invisible to Seznam.cz and suboptimal for Google
-- [ ] Option A (quick): Vite SSG plugin or prerender.io for public pages (landing, pricing, public recipes)
-- [ ] Option B (full): Migrate landing to Astro/Next.js for hybrid SSR/SSG
-- **Why:** Single highest-impact SEO change. Seznam does not fully render JavaScript SPAs.
-- **Files:** Build config, deployment
+### P3.2 -- Server-Side Rendering / Prerendering for SEO -- DONE
+- [x] Build-time prerendering using React `renderToString` + `StaticRouter` (no Puppeteer/Chrome)
+- [x] 6 public routes prerendered: `/`, `/login`, `/pricing`, `/privacy`, `/terms`, `/forgot-password`
+- [x] Per-route SEO: unique `<title>`, `<meta description>`, canonical URL, OG/Twitter tags
+- [x] SSR entry point (`entry-server.tsx`) renders public routes in `StaticRouter` context
+- [x] Prerender script (`prerender.mjs`) reads Vite output, injects HTML + meta, saves to `dist/prerendered/`
+- [x] Django `react_app_view` serves prerendered HTML for public routes, SPA shell for protected routes
+- [x] Vite config handles SSR build (no hash, separate outDir)
+- [x] Dockerfile updated to run `build:prod` (tsc → vite build → SSR build → prerender)
+- **Files:** `entry-server.tsx`, `prerender.mjs`, `vite.config.ts`, `index.html`, `package.json`, `Dockerfile.prod`, `views.py`
 
 ### P3.3 -- SEO Content Layer (Public Recipe Pages)
 - [ ] Make generated recipes publicly accessible (no auth required)
