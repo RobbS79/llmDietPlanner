@@ -240,7 +240,10 @@ class AdminRetryGoalView(APIView):
     def post(self, request, goal_id: int) -> Response:
         action = request.data.get('action', 'retry')
         try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+            if request.user.is_staff:
+                goal = DietaryGoal.objects.get(id=goal_id)
+            else:
+                goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
         except DietaryGoal.DoesNotExist:
             return Response({"status": "error", "error": "Goal not found"}, status=404)
 
