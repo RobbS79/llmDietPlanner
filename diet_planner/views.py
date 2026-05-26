@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import User
+from .food_categories import guess_category
 from django.utils import timezone
 
 from .models import (
@@ -314,7 +315,7 @@ class RecipeDetailView(APIView):
             dietary_goal=goal,
             name=meal.get('name', ''),
             description=meal.get('description', ''),
-            food_category=meal.get('food_category', ''),
+            food_category=meal.get('food_category', '') or guess_category(meal.get('name', ''), meal.get('ingredients', [])),
             instructions=instructions,
             ingredients=meal.get('ingredients', []),
             preparation_time=meal.get('preparation_time'),

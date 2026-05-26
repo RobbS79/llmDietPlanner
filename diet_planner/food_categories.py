@@ -126,3 +126,54 @@ CATEGORY_CHOICES = [(slug, cat['name']) for slug, cat in FOOD_CATEGORIES.items()
 DEFAULT_CATEGORY = 'kure'
 
 CATEGORY_SLUGS = list(FOOD_CATEGORIES.keys())
+
+# Keyword → category mapping for backfilling existing recipes.
+# Checked in order; first match wins. Case-insensitive.
+KEYWORD_RULES = [
+    (['ovesn', 'kaše', 'müsli', 'ovsené', 'porridge', 'oatmeal'], 'ovesna-kase'),
+    (['palačink', 'lívanc', 'pancake', 'crêpe', 'french toast'], 'palacinky'),
+    (['smoothie', 'koktejl', 'shake', 'proteinov'], 'smoothie'),
+    (['jogurt', 'yogurt', 'granola', 'müsli s jogurt'], 'jogurt'),
+    (['vajíčk', 'omeleta', 'míchan', 'vejce', 'egg', 'frittata'], 'vajicka'),
+    (['toast', 'sendvič', 'sandwich', 'chléb', 'chleba', 'bageta'], 'toast-sendvic'),
+    (['polévk', 'soup', 'vývar', 'krém z'], 'polevka'),
+    (['salát', 'salad', 'coleslaw'], 'salat'),
+    (['těstovin', 'pasta', 'špaget', 'penne', 'fusilli', 'lasagn', 'makarón', 'tagliatelle', 'gnocchi'], 'testoviny'),
+    (['pizza', 'focaccia', 'calzone'], 'pizza'),
+    (['burger', 'hamburger'], 'burger'),
+    (['wrap', 'tortill', 'burrito', 'quesadilla', 'taco'], 'wrap'),
+    (['guláš', 'goulash', 'dušen'], 'gulas'),
+    (['knedlík', 'svíčkov', 'vepřo-knedlo', 'bramboráky'], 'knedliky'),
+    (['rizoto', 'risotto'], 'rizoto'),
+    (['wok', 'stir-fry', 'asij', 'teriyaki', 'pad thai', 'curry', 'noodle', 'nudle'], 'wok'),
+    (['tofu', 'tempeh', 'seitan'], 'tofu'),
+    (['čočk', 'fazol', 'cizrn', 'luštěnin', 'lentil', 'chickpea', 'hummus'], 'lusteniny'),
+    (['vegan', 'buddha bowl', 'quinoa bowl'], 'vegan-miska'),
+    (['zapékan', 'gratin', 'casserole', 'zapečen'], 'zapekanka'),
+    (['losos', 'salmon', 'tresk', 'filé', 'ryba', 'rybí', 'tuňák', 'tuna', 'pstruh', 'kapr', 'pangasius', 'mořsk'], 'ryba'),
+    (['hovězí', 'beef', 'steak', 'roastbeef', 'tatarák'], 'hovezi'),
+    (['vepřov', 'pork', 'koleno', 'řízek', 'schnitzel'], 'veprove'),
+    (['mlet', 'bolognese', 'boloňsk', 'karbanát', 'sekaná', 'masov'], 'mlete-maso'),
+    (['kuřec', 'chicken', 'drůbež', 'krůt'], 'kure'),
+    (['brambor', 'potato', 'bramborák', 'pyré', 'hranolk'], 'brambory'),
+    (['dezert', 'dort', 'cake', 'čokolád', 'koláč', 'muffin', 'brownie', 'tiramisu', 'mousse', 'zmrzlin'], 'dezert'),
+    (['ovoc', 'fruit', 'jablk', 'banán', 'berry', 'mango', 'smoothie bowl'], 'ovoce'),
+    (['svačin', 'snack', 'tyčink', 'ořech', 'mix'], 'svacina'),
+]
+
+
+def guess_category(name: str, ingredients: list = None) -> str:
+    text = name.lower()
+    if ingredients:
+        for ing in ingredients:
+            if isinstance(ing, dict):
+                text += ' ' + ing.get('name', '').lower()
+            else:
+                text += ' ' + str(ing).lower()
+
+    for keywords, category in KEYWORD_RULES:
+        for kw in keywords:
+            if kw.lower() in text:
+                return category
+
+    return DEFAULT_CATEGORY
