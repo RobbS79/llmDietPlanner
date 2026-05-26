@@ -36,11 +36,13 @@ python manage.py collectstatic --noinput --clear
 # 4. Launch Synthesis Worker
 # Concurrency limited to 2 to optimize memory footprint on basic-xxs instances
 echo "Starting Synthesis Worker (Celery)..."
-celery -A llm_diet_planner_project worker --concurrency=2 --loglevel=info &
+celery -A llm_diet_planner_project worker --concurrency=1 --loglevel=info &
 
 # 5. Launch Beat Scheduler (proactive scraping + freshness lifecycle)
-echo "Starting Beat Scheduler..."
-celery -A llm_diet_planner_project beat --loglevel=info &
+# Disabled on basic-xxs to save ~100MB RAM for the worker
+# Re-enable when upgrading to basic-xs or larger
+# echo "Starting Beat Scheduler..."
+# celery -A llm_diet_planner_project beat --loglevel=info &
 
 # 6. Launch Application Server
 echo "Starting Application Hub (Gunicorn)..."

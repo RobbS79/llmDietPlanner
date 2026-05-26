@@ -233,6 +233,35 @@ class DietaryGoalPromptDebugView(APIView):
             return Response({"status": "error", "error": "Goal not found"}, status=404)
 
 
+class AdminRetryGoalView(APIView):
+    """Admin-only endpoint to retry or fail a stuck goal."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, goal_id: int) -> Response:
+        action = request.data.get('action', 'retry')
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id)
+        except DietaryGoal.DoesNotExist:
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
+
+        if action == 'fail':
+            goal.status = DietaryGoal.StatusChoices.FAILED
+            goal.error_message = request.data.get('reason', 'Manually marked as failed by admin')
+            goal.save(update_fields=['status', 'error_message'])
+            return Response({"status": "success", "data": {"goal_id": goal_id, "new_status": "failed"}})
+
+        goal.status = DietaryGoal.StatusChoices.PENDING
+        goal.error_message = ''
+        goal.save(update_fields=['status', 'error_message'])
+        try:
+            task = process_dietary_goal_task.delay(goal_id)
+            goal.celery_task_id = task.id
+            goal.save(update_fields=['celery_task_id'])
+            return Response({"status": "success", "data": {"goal_id": goal_id, "new_status": "pending", "task_id": task.id}})
+        except Exception as e:
+            return Response({"status": "error", "error": f"Celery unavailable: {e}"}, status=503)
+
+
 class ShopsListView(APIView):
     """
     Public inventory hub retrieval.
