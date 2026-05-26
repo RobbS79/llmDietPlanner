@@ -230,7 +230,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         from .food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
         category = obj.food_category if obj.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
-        return f"/food-images/{category}.webp"
+        return f"/static/food-images/{category}.webp"
 
 
 class MealInstanceSerializer(serializers.ModelSerializer):

@@ -79,7 +79,7 @@ def public_recipe_view(request, pk, slug=None):
 
     from diet_planner.food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
     img_category = recipe.food_category if recipe.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
-    img_url = f'/food-images/{img_category}.webp'
+    img_url = f'/static/food-images/{img_category}.webp'
 
     schema_ld = {
         "@context": "https://schema.org",
