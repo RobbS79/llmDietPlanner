@@ -34,7 +34,11 @@ urlpatterns = [
         name="django.contrib.sitemaps.views.sitemap",
     ),
 
-    # 5. CATCH-ALL: Serve React App (Must be last)
-    # This view is now guarded against asset requests to prevent MIME errors.
+    # 5. Public recipe pages (Django-rendered HTML for SEO)
+    path("recepty/", views.public_recipe_index_view, name="public-recipe-index"),
+    path("recepty/<int:pk>/<slug:slug>/", views.public_recipe_view, name="public-recipe-detail"),
+    path("recepty/<int:pk>/", views.public_recipe_view, name="public-recipe-no-slug"),
+
+    # 6. CATCH-ALL: Serve React App (Must be last)
     re_path(r'^.*$', views.react_app_view, name="react-app"),
 ]

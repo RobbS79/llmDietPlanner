@@ -15,7 +15,10 @@ urlpatterns = [
     path('goals/<int:goal_id>/prompt-debug/', views.DietaryGoalPromptDebugView.as_view(), name='goal-prompt-debug'),
     path('goals/<int:goal_id>/meal-instances/', views.MealInstanceBatchView.as_view(), name='meal-instance-batch'),
     path('debug/scraper/', views.ScraperDebugView.as_view(), name='scraper-debug'),
-    # Recipe endpoints
+    # Public recipe endpoints (no auth)
+    path('recipes/public/', views.PublicRecipeListView.as_view(), name='public-recipe-list'),
+    path('recipes/public/<int:pk>/', views.PublicRecipeDetailView.as_view(), name='public-recipe-detail'),
+    # Authenticated recipe endpoints
     path('recipes/<str:meal_identifier>/', views.RecipeDetailView.as_view(), name='recipe-detail'),
     # Meal instance endpoints
     path('meals/<str:meal_identifier>/', views.MealInstanceView.as_view(), name='meal-instance'),

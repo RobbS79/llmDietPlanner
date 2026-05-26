@@ -591,88 +591,50 @@ class Recipe(models.Model):
     Detailed recipe information for a meal.
     Recipes are linked to meals via a unique meal identifier.
     """
-    # Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)
     meal_identifier = models.CharField(
         max_length=255,
         unique=True,
         db_index=True,
         help_text="Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)"
     )
-    
-    # Link to the dietary goal for easy querying
     dietary_goal = models.ForeignKey(
         DietaryGoal,
         on_delete=models.CASCADE,
         related_name='recipes',
         help_text="The dietary goal this recipe belongs to"
     )
-    
-    # Recipe details
-    name = models.CharField(
-        max_length=255,
-        help_text="Recipe name"
-    )
-    description = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Recipe description"
-    )
-    
-    # Instructions (stored as JSON for structured steps)
-    instructions = models.JSONField(
-        default=list,
-        help_text="Step-by-step cooking instructions (list of strings)"
-    )
-    
-    # Ingredients (stored as JSON to match meal structure)
-    ingredients = models.JSONField(
-        default=list,
-        help_text="List of ingredients with quantities"
-    )
-    
-    # Additional recipe information
-    preparation_time = models.IntegerField(
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-        help_text="Preparation time in minutes"
-    )
-    cooking_time = models.IntegerField(
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-        help_text="Cooking time in minutes"
-    )
-    servings = models.IntegerField(
-        default=1,
-        validators=[MinValueValidator(1)],
-        help_text="Number of servings"
-    )
-    
-    # Nutritional information (stored as JSON for flexibility)
-    nutritional_info = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Nutritional information (calories, protein, carbs, fat, etc.)"
-    )
-    
-    # Timestamps
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="When the recipe was created (ISO-8601)"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="When the recipe was last updated (ISO-8601)"
-    )
-    
+    name = models.CharField(max_length=255, help_text="Recipe name")
+    slug = models.SlugField(max_length=255, blank=True, db_index=True, help_text="URL-friendly name")
+    description = models.TextField(blank=True, null=True, help_text="Recipe description")
+    instructions = models.JSONField(default=list, help_text="Step-by-step cooking instructions")
+    ingredients = models.JSONField(default=list, help_text="List of ingredients with quantities")
+    preparation_time = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0)])
+    cooking_time = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0)])
+    servings = models.IntegerField(default=1, validators=[MinValueValidator(1)])
+    nutritional_info = models.JSONField(default=dict, blank=True)
+    is_public = models.BooleanField(default=False, db_index=True, help_text="Visible on public recipe pages")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['dietary_goal', '-created_at'], name='diet_plann_recipe_goal_idx'),
             models.Index(fields=['meal_identifier'], name='diet_plann_recipe_meal_id_idx'),
+            models.Index(fields=['is_public', '-created_at'], name='diet_plann_recipe_public_idx'),
         ]
-    
+
+    def save(self, *args, **kwargs):
+        from django.utils.text import slugify
+        if not self.slug and self.name:
+            self.slug = slugify(self.name)[:255]
+        if self.instructions and len(self.instructions) > 0:
+            self.is_public = True
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return f"/recepty/{self.pk}/{self.slug}/"
+
     def __str__(self) -> str:
         return f"Recipe: {self.name} ({self.meal_identifier})"
 

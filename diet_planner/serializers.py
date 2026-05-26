@@ -207,6 +207,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'meal_identifier',
             'dietary_goal_id',
             'name',
+            'slug',
             'description',
             'instructions',
             'ingredients',

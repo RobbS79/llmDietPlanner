@@ -66,10 +66,43 @@ class AuthSitemap(Sitemap):
         return item
 
 
+class RecipeIndexSitemap(Sitemap):
+    """Recipe listing page."""
+    protocol = "https"
+    changefreq = "daily"
+    priority = 0.8
+
+    def items(self):
+        return ["/recepty/"]
+
+    def location(self, item):
+        return item
+
+
+class RecipeSitemap(Sitemap):
+    """Individual public recipe pages."""
+    protocol = "https"
+    changefreq = "monthly"
+    priority = 0.7
+    limit = 1000
+
+    def items(self):
+        from diet_planner.models import Recipe
+        return Recipe.objects.filter(is_public=True).order_by('-created_at')
+
+    def location(self, obj):
+        return obj.get_absolute_url()
+
+    def lastmod(self, obj):
+        return obj.updated_at
+
+
 # Registry for urls.py
 sitemaps = {
     "landing": LandingSitemap,
     "pricing": PricingSitemap,
     "legal": LegalSitemap,
     "auth": AuthSitemap,
+    "recipe-index": RecipeIndexSitemap,
+    "recipes": RecipeSitemap,
 }

@@ -392,3 +392,37 @@ class ScraperDebugView(APIView):
         from .scrapers.scraper_service import ScraperService
         offers = ScraperService.get_available_ingredients(shop, country, force_refresh=True)
         return Response({"status": "success", "data": {"count": len(offers), "sample": offers[:5]}})
+
+
+class PublicRecipeListView(APIView):
+    permission_classes = []
+
+    def get(self, request) -> Response:
+        from django.core.paginator import Paginator
+        page_num = request.query_params.get('page', 1)
+        recipes = Recipe.objects.filter(is_public=True).order_by('-created_at')
+        paginator = Paginator(recipes, 24)
+        page = paginator.get_page(page_num)
+        serializer = RecipeSerializer(page.object_list, many=True)
+        return Response({
+            "status": "success",
+            "data": {
+                "results": serializer.data,
+                "count": paginator.count,
+                "num_pages": paginator.num_pages,
+                "current_page": page.number,
+                "has_next": page.has_next(),
+                "has_previous": page.has_previous(),
+            }
+        })
+
+
+class PublicRecipeDetailView(APIView):
+    permission_classes = []
+
+    def get(self, request, pk: int) -> Response:
+        try:
+            recipe = Recipe.objects.get(pk=pk, is_public=True)
+            return Response({"status": "success", "data": RecipeSerializer(recipe).data})
+        except Recipe.DoesNotExist:
+            return Response({"status": "error", "error": "Recipe not found"}, status=404)

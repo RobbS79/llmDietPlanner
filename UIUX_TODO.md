@@ -187,14 +187,17 @@ Sources: full frontend code audit, competitive analysis (Eat This Much, Mealime,
 - [x] Dockerfile updated to run `build:prod` (tsc → vite build → SSR build → prerender)
 - **Files:** `entry-server.tsx`, `prerender.mjs`, `vite.config.ts`, `index.html`, `package.json`, `Dockerfile.prod`, `views.py`
 
-### P3.3 -- SEO Content Layer (Public Recipe Pages)
-- [ ] Make generated recipes publicly accessible (no auth required)
-- [ ] Each recipe: full page with ingredients, instructions, nutrition, schema markup
-- [ ] Internal links to related recipes
-- [ ] CTA on each: `"Want a full week of meals like this? Create your free plan."`
-- [ ] Content clusters: "keto recepty", "vysoko proteinove jidla", "levne zdrave recepty"
-- **Why:** Creates organic traffic engine. Recipe pages are the most SEO-friendly food content format.
-- **Files:** Django views/URLs, new frontend pages, sitemap update
+### P3.3 -- SEO Content Layer (Public Recipe Pages) -- DONE
+- [x] Recipe model: added `slug` (auto from name) + `is_public` (auto when instructions exist) fields + migration
+- [x] Public API: `GET /api/recipes/public/` (paginated list) + `GET /api/recipes/public/{pk}/` (detail), no auth
+- [x] Django HTML views: `/recepty/` (index) + `/recepty/{pk}/{slug}/` (detail) — server-rendered for bots
+- [x] Each recipe: semantic HTML (h1, ingredients ul, instructions ol, nutrition dl) + Schema.org JSON-LD
+- [x] CTA on each: "Chcete cely tyden takovych jidel? Vytvorte si jidelnicek zdarma."
+- [x] Frontend: `PublicRecipePage.tsx` + `RecipeIndexPage.tsx` + App.tsx routes
+- [x] Sitemap: `RecipeSitemap` (dynamic) + `RecipeIndexSitemap` added
+- [x] Landing nav + footer: "Recepty" link added
+- [ ] Content clusters (future): "keto recepty", "vysoko proteinove jidla", "levne zdrave recepty"
+- **Files:** `models.py`, `views.py` (both), `urls.py` (both), `serializers.py`, `sitemaps.py`, `PublicRecipePage.tsx`, `RecipeIndexPage.tsx`, `App.tsx`, `Landing.tsx`
 
 ### P3.4 -- Onboarding Quiz (Noom-style)
 - [ ] 6-8 step quiz before first plan creation:
