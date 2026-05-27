@@ -354,7 +354,7 @@ export const PlanView = () => {
               </div>
 
               <div className="space-y-6 max-h-[440px] overflow-y-auto pr-4 custom-scrollbar mb-14">
-                {plan.shopping_list?.map((item: any, idx: number) => (
+                {(Array.isArray(plan.shopping_list) ? plan.shopping_list : plan.shopping_list?.items || []).map((item: any, idx: number) => (
                   <div key={idx} className="group border-b border-zinc-800 pb-6 last:border-0 last:pb-0">
                     <div className="flex justify-between items-start gap-3 mb-2">
                       <p className="text-base font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
