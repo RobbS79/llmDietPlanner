@@ -66,16 +66,18 @@ export const PlanView = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const { data: statusData } = useQuery({
+  const { data: statusData, error: statusError } = useQuery({
     queryKey: ['taskStatus', id],
     queryFn: () => api.get(`/goals/${id}/task-status/`).then(res => res.data.data),
+    retry: 1,
     refetchInterval: (query: any) =>
       query?.state?.data?.goal_status === 'completed' || query?.state?.data?.goal_status === 'failed' ? false : 2500,
   });
 
-  const { data: goalDetail } = useQuery({
+  const { data: goalDetail, error: goalError } = useQuery({
     queryKey: ['plan', id],
     queryFn: () => api.get(`/goals/${id}/`).then(res => res.data.data),
+    retry: 1,
     enabled: statusData?.goal_status === 'completed',
   });
 
@@ -97,6 +99,19 @@ export const PlanView = () => {
       toast.success(variables.isCooked ? 'Označeno jako uvařeno!' : 'Odznačeno');
     },
   });
+
+  if (statusError || goalError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#09090b] text-white">
+        <div className="w-24 h-24 rounded-3xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 mb-10">
+          <AlertCircle size={48} />
+        </div>
+        <h1 className="text-5xl font-black tracking-tighter uppercase mb-4 leading-none italic">Plán nenalezen<span className="text-rose-600 not-italic">.</span></h1>
+        <p className="text-zinc-600 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed mb-12">Tento plán neexistuje nebo k němu nemáte přístup.</p>
+        <button onClick={() => navigate('/')} className="px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl">Zpět na plány</button>
+      </div>
+    );
+  }
 
   if (statusData?.goal_status === 'failed') {
     return (
@@ -132,7 +147,7 @@ export const PlanView = () => {
               {[
                 { icon: MapPin, text: goalDetail.city },
                 { icon: Timer, text: `${goalDetail.num_days} dní` },
-                { icon: Globe, text: goalDetail.language_code.toUpperCase() },
+                { icon: Globe, text: (goalDetail.language_code || 'CS').toUpperCase() },
               ].map((meta, i) => (
                 <div key={i} className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                   <meta.icon size={14} className="text-emerald-500" /> {meta.text}
