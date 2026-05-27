@@ -2240,3 +2240,73 @@ def generate_mock_llm_response() -> Dict[str, Any]:
             }
         ]
     }
+
+
+@shared_task(bind=True, max_retries=1, default_retry_delay=30)
+def optimize_plan_discounts_task(self, goal_id: int) -> Dict[str, Any]:
+    """
+    Post-generation discount optimization.
+
+    Loads the existing plan, fetches currently discounted products,
+    and asks the LLM to suggest ingredient swaps that save money.
+    Stores suggestions on DietaryPlan.discount_optimization for user review.
+    """
+    try:
+        from diet_planner.models import LeafletOffer
+        goal = DietaryGoal.objects.get(id=goal_id)
+        plan = goal.dietary_plan
+
+        now = timezone.now()
+        discounted_offers = LeafletOffer.objects.filter(
+            shop=goal.shop,
+            country=goal.country,
+            price_type='DISCOUNTED',
+            expires_at__gt=now,
+            price__gt=0,
+        ).order_by('-discount_percentage')[:100]
+
+        if not discounted_offers.exists():
+            plan.discount_optimization = {'swaps': [], 'total_saving': 0, 'message': 'no_discounts'}
+            plan.save(update_fields=['discount_optimization'])
+            return {'status': 'no_discounts', 'goal_id': goal_id}
+
+        lines = []
+        for offer in discounted_offers:
+            disc_pct = f" (-{offer.discount_percentage}%)" if offer.discount_percentage else ""
+            orig = f" (původně {offer.original_price} {goal.currency})" if offer.original_price else ""
+            lines.append(
+                f"#{offer.id} {offer.ingredient_name} — {offer.price} {goal.currency}{disc_pct}{orig}"
+            )
+        discounted_text = "\n".join(lines)
+
+        shopping_list = plan.shopping_list
+        if isinstance(shopping_list, dict):
+            items_for_llm = shopping_list.get('items', [])
+        else:
+            items_for_llm = shopping_list or []
+
+        llm_service = GeminiService()
+        result = llm_service.generate_discount_optimization(
+            current_plan_days=plan.days,
+            current_shopping_list=items_for_llm,
+            discounted_products=discounted_text,
+            goal=goal,
+        )
+
+        optimization = result['response']
+        optimization['llm_cost_usd'] = str(result.get('cost_usd', 0))
+        optimization['generated_at'] = now.isoformat()
+
+        plan.discount_optimization = optimization
+        plan.save(update_fields=['discount_optimization'])
+
+        logger.info(
+            f"Discount optimization for goal {goal_id}: "
+            f"{len(optimization.get('swaps', []))} swaps, "
+            f"saving {optimization.get('total_saving', 0)} {goal.currency}"
+        )
+        return {'status': 'success', 'goal_id': goal_id, 'swaps': len(optimization.get('swaps', []))}
+
+    except Exception as exc:
+        logger.error(f"Discount optimization failed for goal {goal_id}: {exc}", exc_info=True)
+        raise self.retry(exc=exc)

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown, Percent, Loader2, ArrowRight, X } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -119,6 +119,46 @@ export const ShoppingListPage = () => {
   const handlePrint = () => window.print();
   const totalItems = items.length;
   const checkedCount = checked.size;
+  const queryClient = useQueryClient();
+
+  const [optimizing, setOptimizing] = useState(false);
+  const [showOptimization, setShowOptimization] = useState(false);
+
+  const discountOpt = plan.discount_optimization;
+  const hasSwaps = discountOpt?.swaps?.length > 0;
+  const isApplied = plan.discount_optimization_applied;
+
+  const triggerOptimization = useMutation({
+    mutationFn: () => api.post(`/goals/${id}/optimize-discounts/`),
+    onMutate: () => setOptimizing(true),
+    onSuccess: (res) => {
+      if (res.data.data?.swaps) {
+        setOptimizing(false);
+        setShowOptimization(true);
+        queryClient.invalidateQueries({ queryKey: ['plan', id] });
+      } else {
+        const poll = setInterval(async () => {
+          const check = await api.get(`/goals/${id}/optimize-discounts/`);
+          if (check.data.data?.ready) {
+            clearInterval(poll);
+            setOptimizing(false);
+            setShowOptimization(true);
+            queryClient.invalidateQueries({ queryKey: ['plan', id] });
+          }
+        }, 3000);
+        setTimeout(() => { clearInterval(poll); setOptimizing(false); }, 120000);
+      }
+    },
+    onError: () => setOptimizing(false),
+  });
+
+  const applyOptimization = useMutation({
+    mutationFn: () => api.post(`/goals/${id}/apply-optimization/`),
+    onSuccess: () => {
+      setShowOptimization(false);
+      queryClient.invalidateQueries({ queryKey: ['plan', id] });
+    },
+  });
 
   return (
     <MainLayout>
@@ -147,6 +187,114 @@ export const ShoppingListPage = () => {
             <Printer size={16} /> Tisknout
           </button>
         </header>
+
+        {/* Discount optimization button */}
+        {!isApplied && !showOptimization && (
+          <div className="mb-8 print:hidden">
+            <button
+              onClick={() => hasSwaps ? setShowOptimization(true) : triggerOptimization.mutate()}
+              disabled={optimizing}
+              className="w-full flex items-center justify-center gap-3 h-14 bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
+            >
+              {optimizing ? (
+                <><Loader2 size={16} className="animate-spin" /> Hledám akční nabídky...</>
+              ) : hasSwaps ? (
+                <><Percent size={16} /> Zobrazit nalezené slevy ({discountOpt.swaps.length} záměn)</>
+              ) : (
+                <><Percent size={16} /> Optimalizovat podle akčních nabídek</>
+              )}
+            </button>
+          </div>
+        )}
+
+        {isApplied && (
+          <Card className="p-5 mb-8 border-emerald-500/20 text-left print:hidden">
+            <div className="flex items-center gap-3">
+              <Check size={20} className="text-emerald-500 shrink-0" />
+              <div>
+                <p className="text-sm font-black text-emerald-400 uppercase tracking-tight italic">Slevová optimalizace aplikována</p>
+                <p className="text-[10px] font-bold text-zinc-600 mt-0.5">
+                  Ušetřili jste {discountOpt?.total_saving} {plan.currency} díky akčním nabídkám
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Discount optimization comparison panel */}
+        {showOptimization && hasSwaps && !isApplied && (
+          <Card className="p-8 mb-8 border-amber-500/20 text-left print:hidden">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Percent size={20} className="text-amber-400" />
+                <div>
+                  <p className="text-sm font-black text-amber-400 uppercase tracking-tight italic">
+                    Nalezeno {discountOpt.swaps.length} záměn
+                  </p>
+                  <p className="text-[10px] font-bold text-zinc-600 mt-0.5">
+                    Celková úspora: {discountOpt.total_saving} {plan.currency}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowOptimization(false)} className="text-zinc-600 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-8 max-h-[400px] overflow-y-auto">
+              {discountOpt.swaps.map((swap: any, idx: number) => (
+                <div key={idx} className="flex items-center gap-4 p-4 bg-black/30 rounded-xl">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-zinc-500 line-through truncate">{swap.original_ingredient}</p>
+                    <p className="text-xs font-black text-zinc-400 mt-0.5">{swap.original_price} {plan.currency}</p>
+                  </div>
+                  <ArrowRight size={16} className="text-amber-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-white truncate">{swap.replacement_product}</p>
+                    <p className="text-xs font-black text-emerald-400 mt-0.5">{swap.replacement_price} {plan.currency}</p>
+                  </div>
+                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg shrink-0">
+                    -{swap.saving} {plan.currency}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => applyOptimization.mutate()}
+                disabled={applyOptimization.isPending}
+                className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
+              >
+                {applyOptimization.isPending ? (
+                  <><Loader2 size={16} className="animate-spin" /> Aplikuji...</>
+                ) : (
+                  <><Check size={16} /> Použít slevy (ušetřit {discountOpt.total_saving} {plan.currency})</>
+                )}
+              </button>
+              <button
+                onClick={() => setShowOptimization(false)}
+                className="px-6 h-14 border border-zinc-800 text-zinc-500 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
+              >
+                Ponechat původní
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* No discounts found message */}
+        {showOptimization && discountOpt && !hasSwaps && (
+          <Card className="p-5 mb-8 border-zinc-800 text-left print:hidden">
+            <div className="flex items-center gap-3">
+              <Percent size={20} className="text-zinc-600 shrink-0" />
+              <p className="text-sm font-bold text-zinc-500">
+                {discountOpt.message === 'no_discounts'
+                  ? 'V tuto chvíli nejsou k dispozici žádné akční nabídky pro váš obchod.'
+                  : 'Nenalezeny žádné vhodné záměny pro aktuální plán.'}
+              </p>
+            </div>
+          </Card>
+        )}
 
         {/* Cross-store savings banner */}
         {isCrossStore && rawList.savings_vs_single > 0 && (

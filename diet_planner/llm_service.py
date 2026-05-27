@@ -1229,6 +1229,120 @@ Keep all text concise — 3 steps max per recipe, 1 sentence descriptions."""
             raise
 
 
+    def generate_discount_optimization(
+        self,
+        current_plan_days: List[Dict[str, Any]],
+        current_shopping_list: List[Dict[str, Any]],
+        discounted_products: str,
+        goal: Any,
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Suggest ingredient swaps to use currently discounted products.
+
+        Receives the existing plan and a list of discounted products,
+        returns swap suggestions with price comparisons.
+        """
+        model = model or self.default_model
+
+        language_names = {
+            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
+            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
+            'de': 'German', 'en': 'English',
+        }
+        target_language = language_names.get(
+            getattr(goal, 'language_code', 'en') or 'en', 'English'
+        )
+
+        current_plan_json = json.dumps(current_plan_days, ensure_ascii=False, indent=1)
+        current_list_json = json.dumps(current_shopping_list, ensure_ascii=False, indent=1)
+
+        system_prompt = f"""You are a nutrition expert helping optimize a meal plan for cost savings.
+
+RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.
+
+TASK: Review the current meal plan and shopping list. Identify ingredients that can be
+swapped for DISCOUNTED products without significantly changing the meal quality or nutrition.
+
+CURRENT MEAL PLAN:
+{current_plan_json}
+
+CURRENT SHOPPING LIST:
+{current_list_json}
+
+DISCOUNTED PRODUCTS AVAILABLE:
+{discounted_products}
+
+OUTPUT STRUCTURE:
+{{
+  "swaps": [
+    {{
+      "original_ingredient": "ingredient name from current plan",
+      "original_price": 89.90,
+      "replacement_product": "discounted product name",
+      "replacement_catalog_id": 42,
+      "replacement_price": 59.90,
+      "saving": 30.00,
+      "affected_meals": ["Den 1 Oběd: Meal Name", "Den 3 Večeře: Meal Name"],
+      "reason": "Brief explanation why the swap works"
+    }}
+  ],
+  "total_saving": 120.50,
+  "optimized_days": [... modified days array with swaps applied ...],
+  "optimized_shopping_list": [
+    {{"ingredient": "name", "quantity": "500", "unit": "g", "catalog_id": 42, "pantry": false}}
+  ]
+}}
+
+RULES:
+- Only suggest swaps where the discounted product is a sensible substitute
+- Do NOT swap if it would ruin the recipe (e.g., don't replace chicken with tofu in chicken soup)
+- Include the full optimized_days and optimized_shopping_list with all swaps applied
+- Keep the same meal structure — only change ingredients, not meal names or count
+- Preserve nutritional balance as much as possible
+- If no good swaps exist, return {{"swaps": [], "total_saving": 0}}"""
+
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model, system_instruction=system_prompt
+            )
+
+            response = gemini_model.generate_content(
+                "Analyze the current plan and suggest discount-based swaps.",
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.3,
+                    "max_output_tokens": 65536,
+                },
+                request_options={"timeout": 300},
+            )
+
+            content = response.text
+            usage = response.usage_metadata
+
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                cleaned = re.sub(r',\s*}', '}', content)
+                cleaned = re.sub(r',\s*]', ']', cleaned)
+                parsed = json.loads(cleaned)
+
+            return {
+                'response': parsed,
+                'input_tokens': usage.prompt_token_count,
+                'output_tokens': usage.candidates_token_count,
+                'total_tokens': usage.total_token_count,
+                'cost_usd': calculate_cost(
+                    usage.prompt_token_count, usage.candidates_token_count, model
+                ),
+                'model': model,
+            }
+
+        except Exception as e:
+            logger.error(f"Discount optimization generation error: {e}", exc_info=True)
+            raise
+
+
 # Temporary alias for backward compatibility during migration
 # Can be removed after full migration
 OpenAIService = GeminiService

@@ -494,6 +494,16 @@ class DietaryPlan(models.Model):
         help_text="OpenAI model used for generation (e.g., gpt-4o-mini)"
     )
     
+    discount_optimization = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="LLM-suggested discount-based ingredient swaps with before/after comparison"
+    )
+    discount_optimization_applied = models.BooleanField(
+        default=False,
+        help_text="Whether the user has accepted and applied discount optimization"
+    )
+
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -503,13 +513,13 @@ class DietaryPlan(models.Model):
         auto_now=True,
         help_text="When the plan was last updated (ISO-8601)"
     )
-    
+
     class Meta:
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['dietary_goal']),
         ]
-    
+
     def __str__(self) -> str:
         return f"Dietary Plan for Goal {self.dietary_goal.id}"
 

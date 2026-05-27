@@ -89,6 +89,8 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'total_price',
             'currency',
             'llm_usage',
+            'discount_optimization',
+            'discount_optimization_applied',
             'created_at',
             'updated_at',
         ]
@@ -99,6 +101,8 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'total_price',
             'currency',
             'llm_usage',
+            'discount_optimization',
+            'discount_optimization_applied',
             'created_at',
             'updated_at',
         ]
