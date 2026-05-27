@@ -133,7 +133,7 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer with nested dietary plan."""
     dietary_plan = DietaryPlanSerializer(read_only=True, allow_null=True, required=False)
     user = serializers.ReadOnlyField(source='user.username')
-    
+
     class Meta:
         model = DietaryGoal
         fields = [
@@ -150,6 +150,8 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'dinner',
             'small_meals_per_day',
             'snacks_per_day',
+            'shop',
+            'store_mode',
             'created_at',
             'updated_at',
             'completed_at',
@@ -169,6 +171,8 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'dinner',
             'small_meals_per_day',
             'snacks_per_day',
+            'shop',
+            'store_mode',
             'created_at',
             'updated_at',
             'completed_at',

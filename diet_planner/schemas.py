@@ -110,6 +110,10 @@ class DietaryGoalCreateRequest(BaseModel):
         None,
         description="Shop where user wants to source ingredients"
     )
+    store_mode: Optional[StoreModeEnum] = Field(
+        default=StoreModeEnum.SINGLE,
+        description="Shopping mode: single store, mix for cost, or mix for fewer trips"
+    )
 
     @field_validator('prompt')
     @classmethod

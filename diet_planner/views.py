@@ -8,6 +8,7 @@ import logging
 import traceback
 from typing import Dict, Any
 
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,12 +18,13 @@ from .food_categories import guess_category
 from django.utils import timezone
 
 from .models import (
-    DietaryGoal, 
-    DietaryPlan, 
-    Recipe, 
-    MealInstance, 
-    get_currency_for_country, 
-    get_shops_for_country, 
+    DietaryGoal,
+    DietaryPlan,
+    Recipe,
+    MealInstance,
+    GroceryStore,
+    get_currency_for_country,
+    get_shops_for_country,
     SHOP_CHOICES
 )
 from .serializers import (
@@ -101,6 +103,7 @@ class DietaryGoalCreateView(APIView):
                 'small_meals_per_day': schema.small_meals_per_day,
                 'snacks_per_day': schema.snacks_per_day,
                 'shop': schema.shop.value if schema.shop else None,
+                'store_mode': schema.store_mode.value if schema.store_mode else 'single',
                 'status': DietaryGoal.StatusChoices.PENDING,
                 'is_free_generation': is_free_generation,
             }
@@ -274,10 +277,21 @@ class ShopsListView(APIView):
         country = request.query_params.get('country')
         if not country:
             return Response({"status": "error", "error": "Hub ID required"}, status=400)
-        
+
         shop_codes = get_shops_for_country(country)
         shop_choices_dict = dict(SHOP_CHOICES)
-        shops = [{"code": code, "name": shop_choices_dict.get(code, code)} for code in shop_codes]
+
+        db_stores = {s.code: s for s in GroceryStore.objects.filter(code__in=shop_codes, is_active=True)}
+
+        shops = []
+        for code in shop_codes:
+            store = db_stores.get(code)
+            shops.append({
+                "code": code,
+                "name": store.name if store else shop_choices_dict.get(code, code),
+                "is_online_only": store.is_online_only if store else False,
+            })
+
         return Response({"status": "success", "data": {"country": country, "shops": shops}})
 
 

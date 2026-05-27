@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ShoppingCart, ChefHat } from 'lucide-react';
+import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ShoppingCart, ChefHat, Truck, Shuffle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -30,6 +30,7 @@ export const CreatePlan = () => {
     small_meals_per_day: 2,
     snacks_per_day: 1,
     shop: 'ROHLIK',
+    store_mode: 'single' as 'single' | 'mix_cost' | 'mix_trips',
     goal_id: null as number | null,
   });
 
@@ -93,6 +94,7 @@ export const CreatePlan = () => {
       small_meals_per_day: goal.small_meals_per_day ?? prev.small_meals_per_day,
       snacks_per_day: goal.snacks_per_day ?? prev.snacks_per_day,
       shop: goal.shop || prev.shop,
+      store_mode: goal.store_mode || prev.store_mode,
     }));
   };
 
@@ -301,7 +303,7 @@ export const CreatePlan = () => {
               <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferovaný obchod</h2>
             </div>
 
-            <Card className="p-8">
+            <Card className="p-8 space-y-8">
               <div className="grid sm:grid-cols-2 gap-5">
                 {shopsData?.shops?.map((shop: any) => (
                   <button
@@ -313,10 +315,57 @@ export const CreatePlan = () => {
                     }`}
                   >
                     <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupné</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      {shop.is_online_only && (
+                        <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded-md">
+                          <Truck size={10} /> Online doručení
+                        </span>
+                      )}
+                      {!shop.is_online_only && (
+                        <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Kamenný obchod</span>
+                      )}
+                    </div>
                     {formData.shop === shop.code && <div className="absolute top-8 right-8 text-emerald-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
                   </button>
                 ))}
+              </div>
+
+              <div className="pt-6 border-t border-zinc-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <Shuffle size={16} className="text-emerald-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">Nákupní režim</span>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => update('store_mode', 'single')}
+                    className={`flex-1 p-5 rounded-xl border-2 text-left transition-all ${
+                      formData.store_mode === 'single'
+                        ? 'bg-emerald-600/10 border-emerald-600 text-white'
+                        : 'bg-zinc-950 border-transparent text-zinc-600 hover:bg-zinc-900'
+                    }`}
+                  >
+                    <span className="font-black text-xs block uppercase tracking-tight">Jeden obchod</span>
+                    <span className="text-[9px] text-zinc-500 mt-1 block">Vše z jednoho obchodu</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => update('store_mode', 'mix_trips')}
+                    className={`flex-1 p-5 rounded-xl border-2 text-left transition-all ${
+                      formData.store_mode === 'mix_trips'
+                        ? 'bg-emerald-600/10 border-emerald-600 text-white'
+                        : 'bg-zinc-950 border-transparent text-zinc-600 hover:bg-zinc-900'
+                    }`}
+                  >
+                    <span className="font-black text-xs block uppercase tracking-tight">Více obchodů</span>
+                    <span className="text-[9px] text-zinc-500 mt-1 block">Nejlepší ceny z více obchodů</span>
+                  </button>
+                </div>
+                {formData.store_mode === 'mix_trips' && (
+                  <p className="text-[10px] text-zinc-500 mt-3 leading-relaxed">
+                    Systém porovná ceny a vybere nejlevnější položky z různých obchodů. Nákupní seznam bude seskupen podle obchodu.
+                  </p>
+                )}
               </div>
             </Card>
 
@@ -342,6 +391,7 @@ export const CreatePlan = () => {
                 <div>
                   <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Obchod</p>
                   <p className="font-black text-white">{formData.shop}</p>
+                  <p className="text-[9px] text-zinc-500 mt-0.5">{formData.store_mode === 'single' ? 'Jeden obchod' : 'Více obchodů'}</p>
                 </div>
               </div>
             </Card>
