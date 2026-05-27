@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Zap, LayoutDashboard, Sparkles, LogOut, Menu, X } from 'lucide-react';
+import { clearAuthTokens } from '@/lib/auth';
 
 const navLinks = [
   { path: '/', label: 'Moje plány', icon: LayoutDashboard },
@@ -14,7 +15,7 @@ export const Navbar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthTokens();
     navigate('/login');
   };
 

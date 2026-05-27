@@ -20,11 +20,12 @@ import { Onboarding } from '@/pages/Onboarding';
 import { ToastProvider } from '@/components/ui/Toast';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { api } from '@/lib/api';
+import { isAccessTokenValid } from '@/lib/auth';
 
 const queryClient = new QueryClient();
 
 function HomeRoute() {
-  if (!localStorage.getItem('access_token')) return <Landing />;
+  if (!isAccessTokenValid() && !localStorage.getItem('refresh_token')) return <Landing />;
   return <AuthenticatedHome />;
 }
 

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearAuthTokens } from '@/lib/auth';
 
 export const api = axios.create({ baseURL: '/api', withCredentials: true });
 
@@ -24,7 +25,7 @@ api.interceptors.response.use(
           originalRequest.headers['Authorization'] = `Bearer ${access}`;
           return api(originalRequest);
         } catch {
-          localStorage.clear();
+          clearAuthTokens();
           window.location.href = '/login';
         }
       } else {

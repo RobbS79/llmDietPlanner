@@ -147,7 +147,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # --- AUTHENTICATION HARDENING ---
 # Extended lifetimes to account for DigitalOcean latency and long LLM generation wait times
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
