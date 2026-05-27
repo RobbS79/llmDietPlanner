@@ -3,7 +3,7 @@ Django REST Framework serializers for dietary goals and plans.
 """
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance
+from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, HistoricNutritionPlan
 
 
 class DietaryGoalSerializer(serializers.ModelSerializer):
@@ -281,10 +281,26 @@ class MealInstanceSerializer(serializers.ModelSerializer):
 
 class MealInstanceCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer for creating/updating MealInstance (marking as cooked)."""
-    
+
     class Meta:
         model = MealInstance
         fields = [
             'is_cooked',
             'notes',
         ]
+
+
+class HistoricNutritionPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistoricNutritionPlan
+        fields = [
+            'id',
+            'name',
+            'pdf_filename',
+            'pdf_size_bytes',
+            'processing_status',
+            'processing_error',
+            'structured_constraints',
+            'created_at',
+        ]
+        read_only_fields = fields

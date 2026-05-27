@@ -24,6 +24,7 @@ from .models import (
     MealInstance,
     GroceryStore,
     PriceFeedback,
+    HistoricNutritionPlan,
     get_currency_for_country,
     get_shops_for_country,
     SHOP_CHOICES
@@ -34,9 +35,10 @@ from .serializers import (
     RecipeSerializer,
     MealInstanceSerializer,
     MealInstanceCreateUpdateSerializer,
+    HistoricNutritionPlanSerializer,
 )
 from .schemas import DietaryGoalCreateRequest
-from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, optimize_plan_discounts_task
+from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, optimize_plan_discounts_task, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
 
@@ -108,6 +110,20 @@ class DietaryGoalCreateView(APIView):
                 'status': DietaryGoal.StatusChoices.PENDING,
                 'is_free_generation': is_free_generation,
             }
+
+            if schema.historic_plan_id:
+                protocol = HistoricNutritionPlan.objects.filter(
+                    id=schema.historic_plan_id,
+                    user=request.user,
+                    processing_status='completed',
+                ).first()
+                if protocol:
+                    goal_data['historic_plan_reference_id'] = protocol.id
+                else:
+                    return Response(
+                        {"status": "error", "error": "Selected protocol not found or not yet processed"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             # Update existing draft or create new entry
             if goal_id:
@@ -660,3 +676,97 @@ class PriceFeedbackView(APIView):
                 "note": feedback.note,
             }
         })
+
+
+MAX_PDF_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+class ProtocolUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+        pdf_file = request.FILES.get('pdf_file')
+        if not pdf_file:
+            return Response(
+                {"status": "error", "error": "No PDF file provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if pdf_file.size > MAX_PDF_SIZE:
+            return Response(
+                {"status": "error", "error": f"File too large (max {MAX_PDF_SIZE // (1024*1024)} MB)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pdf_bytes = pdf_file.read()
+        if not pdf_bytes[:5].startswith(b'%PDF'):
+            return Response(
+                {"status": "error", "error": "Invalid file — only PDF files are accepted"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        name = request.data.get('name', '') or pdf_file.name or 'Uploaded Protocol'
+
+        plan = HistoricNutritionPlan.objects.create(
+            user=request.user,
+            name=name,
+            pdf_file=pdf_bytes,
+            pdf_filename=pdf_file.name or '',
+            pdf_size_bytes=len(pdf_bytes),
+            processing_status=HistoricNutritionPlan.ProcessingStatus.PENDING,
+        )
+
+        try:
+            process_protocol_pdf_task.delay(plan.id)
+        except Exception as e:
+            logger.error(f"Could not queue protocol processing task: {e}")
+
+        return Response({
+            "status": "success",
+            "data": HistoricNutritionPlanSerializer(plan).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+class ProtocolListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:
+        protocols = HistoricNutritionPlan.objects.filter(user=request.user)
+        return Response({
+            "status": "success",
+            "data": HistoricNutritionPlanSerializer(protocols, many=True).data,
+        })
+
+
+class ProtocolDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, protocol_id: int) -> Response:
+        try:
+            protocol = HistoricNutritionPlan.objects.get(id=protocol_id, user=request.user)
+        except HistoricNutritionPlan.DoesNotExist:
+            return Response(
+                {"status": "error", "error": "Protocol not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        data = HistoricNutritionPlanSerializer(protocol).data
+        if protocol.processing_status == 'completed' and protocol.structured_constraints:
+            try:
+                import json
+                data['structured_constraints'] = json.loads(protocol.structured_constraints)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return Response({"status": "success", "data": data})
+
+    def delete(self, request, protocol_id: int) -> Response:
+        try:
+            protocol = HistoricNutritionPlan.objects.get(id=protocol_id, user=request.user)
+        except HistoricNutritionPlan.DoesNotExist:
+            return Response(
+                {"status": "error", "error": "Protocol not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        protocol.delete()
+        return Response({"status": "success"}, status=status.HTTP_204_NO_CONTENT)

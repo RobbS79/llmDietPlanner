@@ -28,4 +28,8 @@ urlpatterns = [
     # Meal instance endpoints
     path('meals/<str:meal_identifier>/', views.MealInstanceView.as_view(), name='meal-instance'),
     path('meals/cooked/', views.MealInstanceCookedListView.as_view(), name='meal-instance-cooked-list'),
+    # Protocol endpoints
+    path('protocols/', views.ProtocolListView.as_view(), name='protocol-list'),
+    path('protocols/upload/', views.ProtocolUploadView.as_view(), name='protocol-upload'),
+    path('protocols/<int:protocol_id>/', views.ProtocolDetailView.as_view(), name='protocol-detail'),
 ]

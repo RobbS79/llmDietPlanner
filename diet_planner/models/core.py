@@ -109,6 +109,13 @@ class HistoricNutritionPlan(models.Model):
     Allows selection and reuse across different goals.
     GDPR compliant with encrypted content.
     """
+
+    class ProcessingStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        PROCESSING = 'processing', 'Processing'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -120,8 +127,54 @@ class HistoricNutritionPlan(models.Model):
         help_text="A friendly name for this plan (e.g., 'Winter 2024 Clinical Diet')"
     )
     content = EncryptedTextField(
+        blank=True,
+        default='',
         help_text="The actual clinical document or past plan text (encrypted)"
     )
+
+    # PDF upload fields
+    pdf_file = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Raw PDF bytes stored in PostgreSQL"
+    )
+    pdf_filename = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Original uploaded filename"
+    )
+    pdf_size_bytes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="PDF file size in bytes"
+    )
+
+    # Extracted / processed data
+    extracted_text = EncryptedTextField(
+        blank=True,
+        default='',
+        help_text="Raw text extracted from PDF (encrypted)"
+    )
+    structured_constraints = EncryptedTextField(
+        blank=True,
+        default='',
+        help_text="Gemini-summarized JSON of dietary constraints (encrypted)"
+    )
+
+    # Processing state
+    processing_status = models.CharField(
+        max_length=20,
+        choices=ProcessingStatus.choices,
+        default=ProcessingStatus.PENDING,
+        help_text="PDF processing status"
+    )
+    processing_error = models.TextField(
+        blank=True,
+        default='',
+        help_text="Error message if processing failed"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

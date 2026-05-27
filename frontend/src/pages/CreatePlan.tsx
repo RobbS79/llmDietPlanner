@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ShoppingCart, ChefHat, Truck, Shuffle } from 'lucide-react';
+import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ShoppingCart, ChefHat, Truck, Shuffle, FileText, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
+import { ProtocolUpload } from '@/components/ProtocolUpload';
 
 const STEPS = [
   { label: 'Cíle', icon: BrainCircuit },
@@ -17,6 +18,7 @@ export const CreatePlan = () => {
   const location = useLocation();
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
+  const [protocolExpanded, setProtocolExpanded] = useState(false);
   const [formData, setFormData] = useState({
     prompt: '',
     dietary_restrictions: '',
@@ -32,6 +34,7 @@ export const CreatePlan = () => {
     shop: 'ROHLIK',
     store_mode: 'single' as 'single' | 'mix_cost' | 'mix_trips',
     goal_id: null as number | null,
+    historic_plan_id: null as number | null,
   });
 
   const { data: profile } = useQuery({
@@ -230,6 +233,35 @@ export const CreatePlan = () => {
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Město</label>
                   <input type="text" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-600 focus:outline-none" placeholder="např. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
                 </div>
+              </div>
+
+              {/* Protocol upload section */}
+              <div className="pt-8 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setProtocolExpanded(!protocolExpanded)}
+                  className="flex items-center gap-3 w-full text-left group"
+                >
+                  <FileText size={16} className={formData.historic_plan_id ? 'text-emerald-500' : 'text-zinc-600'} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400 transition-colors">
+                    Máte dietní protokol od specialisty?
+                  </span>
+                  {formData.historic_plan_id && (
+                    <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                      Připojeno
+                    </span>
+                  )}
+                  <ChevronDown size={14} className={`text-zinc-600 ml-auto transition-transform ${protocolExpanded ? 'rotate-180' : ''}`} />
+                </button>
+
+                {protocolExpanded && (
+                  <div className="mt-4">
+                    <ProtocolUpload
+                      selectedProtocolId={formData.historic_plan_id}
+                      onProtocolSelect={(id) => update('historic_plan_id', id)}
+                    />
+                  </div>
+                )}
               </div>
             </Card>
           </section>

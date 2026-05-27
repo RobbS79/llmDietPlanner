@@ -41,7 +41,7 @@ import uuid
 from decimal import Decimal
 from collections import Counter
 
-from .models import DietaryGoal, DietaryPlan
+from .models import DietaryGoal, DietaryPlan, HistoricNutritionPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
@@ -796,6 +796,38 @@ def scrape_leaflet_task(self, shop: str, country: str) -> Dict[str, Any]:
         raise self.retry(exc=exc, countdown=60)
 
 
+@shared_task(bind=True, max_retries=2)
+def process_protocol_pdf_task(self, plan_id: int) -> Dict[str, Any]:
+    try:
+        from .services.protocol_processor import ProtocolProcessorService
+        ProtocolProcessorService().process_protocol(plan_id)
+        return {'status': 'success', 'plan_id': plan_id}
+    except Exception as exc:
+        logger.error(f"Error processing protocol PDF {plan_id}: {exc}", exc_info=True)
+        raise self.retry(exc=exc, countdown=30)
+
+
+def _build_protocol_prompt(goal: DietaryGoal) -> str:
+    """Build user_prompt with protocol constraints prepended if a protocol is attached."""
+    user_prompt = goal.prompt
+    if goal.historic_plan_reference_id:
+        try:
+            protocol = HistoricNutritionPlan.objects.get(
+                id=goal.historic_plan_reference_id,
+                processing_status='completed',
+            )
+            constraints = protocol.structured_constraints
+            if constraints:
+                user_prompt = (
+                    f"[PROFESSIONAL DIET PROTOCOL - PRIORITY]\n"
+                    f"The user has a professional diet protocol from a specialist. "
+                    f"The plan MUST respect these constraints:\n{constraints}\n\n"
+                    f"[USER REQUIREMENTS]\n{goal.prompt}"
+                )
+        except HistoricNutritionPlan.DoesNotExist:
+            pass
+    return user_prompt
+
 
 # =============================================================================
 # UNIT CONVERSION FUNCTIONS
@@ -1427,10 +1459,11 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         # TWO LLM CALLS - Step 1: Meal plan, Step 2: Shopping list with prices
         # Split into two calls to avoid 8192 token limit truncation
         llm_service = GeminiService()
+        user_prompt = _build_protocol_prompt(goal)
         logger.info(f"{log_prefix} Calling Gemini (2-step process: meal plan + shopping list)")
-        
+
         llm_result = llm_service.generate_complete_plan_with_shopping_list(
-            user_prompt=goal.prompt,  # Full user prompt/document
+            user_prompt=user_prompt,
             shop_url=shop_url,
             goal=goal
         )
@@ -1920,8 +1953,9 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
 
         # ── Phase 2: Constrained LLM generation (single call) ──
         llm_service = GeminiService()
+        user_prompt = _build_protocol_prompt(goal)
         llm_result = llm_service.generate_catalog_constrained_plan(
-            user_prompt=goal.prompt,
+            user_prompt=user_prompt,
             catalog_text=catalog_text,
             goal=goal,
         )

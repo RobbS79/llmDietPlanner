@@ -114,6 +114,10 @@ class DietaryGoalCreateRequest(BaseModel):
         default=StoreModeEnum.SINGLE,
         description="Shopping mode: single store, mix for cost, or mix for fewer trips"
     )
+    historic_plan_id: Optional[int] = Field(
+        None,
+        description="ID of a completed HistoricNutritionPlan to use as protocol"
+    )
 
     @field_validator('prompt')
     @classmethod
