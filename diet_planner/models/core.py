@@ -799,6 +799,31 @@ class MealInstance(models.Model):
         return f"{self.meal_name} - {cooked_status} (User: {self.user.username})"
 
 
+class PriceFeedback(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='price_feedbacks',
+    )
+    dietary_plan = models.ForeignKey(
+        DietaryPlan,
+        on_delete=models.CASCADE,
+        related_name='price_feedbacks',
+    )
+    estimated_total = models.DecimalField(max_digits=10, decimal_places=2)
+    actual_total = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    note = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        diff = self.actual_total - self.estimated_total
+        return f"Price feedback: {diff:+} {self.currency} (Plan {self.dietary_plan_id})"
+
+
 @receiver(pre_delete, sender=User)
 def handle_user_deletion(sender, instance, **kwargs):
     """

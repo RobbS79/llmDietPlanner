@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown, Percent, Loader2, ArrowRight, X } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown, Percent, Loader2, ArrowRight, X, Info, MessageSquare, Send, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -123,6 +123,26 @@ export const ShoppingListPage = () => {
 
   const [optimizing, setOptimizing] = useState(false);
   const [showOptimization, setShowOptimization] = useState(false);
+
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [actualTotal, setActualTotal] = useState('');
+  const [feedbackNote, setFeedbackNote] = useState('');
+
+  const { data: existingFeedback } = useQuery({
+    queryKey: ['price-feedback', id],
+    queryFn: () => api.get(`/goals/${id}/price-feedback/`).then(res => res.data.data),
+  });
+
+  const submitFeedback = useMutation({
+    mutationFn: () => api.post(`/goals/${id}/price-feedback/`, {
+      actual_total: parseFloat(actualTotal),
+      note: feedbackNote,
+    }),
+    onSuccess: () => {
+      setShowFeedbackForm(false);
+      queryClient.invalidateQueries({ queryKey: ['price-feedback', id] });
+    },
+  });
 
   const discountOpt = plan.discount_optimization;
   const hasSwaps = discountOpt?.swaps?.length > 0;
@@ -395,6 +415,84 @@ export const ShoppingListPage = () => {
             </Card>
           );
         })()}
+
+        {/* Price disclaimer + feedback */}
+        <div className="mt-6 space-y-4 print:hidden">
+          <Card className="p-5 border-amber-500/10 text-left">
+            <div className="flex gap-3">
+              <Info size={18} className="text-amber-500/70 shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-zinc-400 leading-relaxed">
+                  Uvedené ceny jsou <span className="text-amber-400">orientační</span> a vycházejí z dostupných dat obchodů. Skutečná cena nákupu se může lišit v závislosti na aktuální nabídce, velikosti balení a dostupnosti produktů.
+                </p>
+                {existingFeedback ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    <CheckCircle size={14} className="text-emerald-500" />
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                      Zpětná vazba odeslána &middot; Skutečná cena: {existingFeedback.actual_total} {existingFeedback.currency}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowFeedbackForm(v => !v)}
+                    className="flex items-center gap-1.5 text-[10px] font-black text-zinc-500 hover:text-emerald-400 uppercase tracking-widest transition-colors pt-1"
+                  >
+                    <MessageSquare size={12} />
+                    {showFeedbackForm ? 'Skrýt formulář' : 'Zaplatili jste jinou cenu? Dejte nám vědět'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {showFeedbackForm && !existingFeedback && (
+            <Card className="p-6 border-zinc-800 text-left">
+              <p className="text-xs font-black text-white uppercase tracking-widest italic mb-4">
+                Zpětná vazba k ceně
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">
+                    Skutečná cena nákupu ({plan.currency})
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={actualTotal}
+                    onChange={e => setActualTotal(e.target.value)}
+                    placeholder={plan.total_price?.toString() || '0'}
+                    className="w-full h-12 bg-black/50 border border-zinc-800 rounded-xl px-4 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">
+                    Poznámka (volitelné)
+                  </label>
+                  <textarea
+                    value={feedbackNote}
+                    onChange={e => setFeedbackNote(e.target.value)}
+                    placeholder="Např. chyběly 2 položky, cena kuřecích prsou byla vyšší..."
+                    rows={2}
+                    maxLength={1000}
+                    className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors resize-none"
+                  />
+                </div>
+                <button
+                  onClick={() => submitFeedback.mutate()}
+                  disabled={!actualTotal || submitFeedback.isPending}
+                  className="flex items-center justify-center gap-2 w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {submitFeedback.isPending ? (
+                    <><Loader2 size={14} className="animate-spin" /> Odesílám...</>
+                  ) : (
+                    <><Send size={14} /> Odeslat zpětnou vazbu</>
+                  )}
+                </button>
+              </div>
+            </Card>
+          )}
+        </div>
       </div>
     </MainLayout>
   );

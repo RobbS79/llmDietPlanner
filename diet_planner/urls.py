@@ -17,6 +17,7 @@ urlpatterns = [
     path('goals/<int:goal_id>/admin-retry/', views.AdminRetryGoalView.as_view(), name='goal-admin-retry'),
     path('goals/<int:goal_id>/optimize-discounts/', views.DiscountOptimizationView.as_view(), name='goal-optimize-discounts'),
     path('goals/<int:goal_id>/apply-optimization/', views.ApplyDiscountOptimizationView.as_view(), name='goal-apply-optimization'),
+    path('goals/<int:goal_id>/price-feedback/', views.PriceFeedbackView.as_view(), name='goal-price-feedback'),
     path('goals/<int:goal_id>/meal-instances/', views.MealInstanceBatchView.as_view(), name='meal-instance-batch'),
     path('debug/scraper/', views.ScraperDebugView.as_view(), name='scraper-debug'),
     # Public recipe endpoints (no auth)

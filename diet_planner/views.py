@@ -23,6 +23,7 @@ from .models import (
     Recipe,
     MealInstance,
     GroceryStore,
+    PriceFeedback,
     get_currency_for_country,
     get_shops_for_country,
     SHOP_CHOICES
@@ -586,3 +587,76 @@ class PublicRecipeDetailView(APIView):
             return Response({"status": "success", "data": RecipeSerializer(recipe).data})
         except Recipe.DoesNotExist:
             return Response({"status": "error", "error": "Recipe not found"}, status=404)
+
+
+class PriceFeedbackView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, goal_id: int) -> Response:
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+        except DietaryGoal.DoesNotExist:
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
+
+        try:
+            plan = goal.dietary_plan
+        except DietaryPlan.DoesNotExist:
+            return Response({"status": "error", "error": "Plan not found"}, status=404)
+
+        actual_total = request.data.get('actual_total')
+        if actual_total is None:
+            return Response({"status": "error", "error": "actual_total is required"}, status=400)
+
+        try:
+            actual_total = float(actual_total)
+            if actual_total < 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return Response({"status": "error", "error": "actual_total must be a positive number"}, status=400)
+
+        feedback = PriceFeedback.objects.create(
+            user=request.user,
+            dietary_plan=plan,
+            estimated_total=plan.total_price or 0,
+            actual_total=actual_total,
+            currency=plan.currency or '',
+            note=str(request.data.get('note', ''))[:1000],
+        )
+
+        return Response({
+            "status": "success",
+            "data": {
+                "id": feedback.id,
+                "estimated_total": str(feedback.estimated_total),
+                "actual_total": str(feedback.actual_total),
+                "difference": str(feedback.actual_total - feedback.estimated_total),
+                "currency": feedback.currency,
+            }
+        }, status=status.HTTP_201_CREATED)
+
+    def get(self, request, goal_id: int) -> Response:
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+        except DietaryGoal.DoesNotExist:
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
+
+        try:
+            plan = goal.dietary_plan
+        except DietaryPlan.DoesNotExist:
+            return Response({"status": "error", "error": "Plan not found"}, status=404)
+
+        feedback = plan.price_feedbacks.filter(user=request.user).first()
+        if not feedback:
+            return Response({"status": "success", "data": None})
+
+        return Response({
+            "status": "success",
+            "data": {
+                "id": feedback.id,
+                "estimated_total": str(feedback.estimated_total),
+                "actual_total": str(feedback.actual_total),
+                "difference": str(feedback.actual_total - feedback.estimated_total),
+                "currency": feedback.currency,
+                "note": feedback.note,
+            }
+        })

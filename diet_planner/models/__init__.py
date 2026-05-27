@@ -21,6 +21,7 @@ from .core import (  # noqa: F401
     LeafletOffer,
     Recipe,
     MealInstance,
+    PriceFeedback,
 )
 
 from .catalog import (  # noqa: F401
