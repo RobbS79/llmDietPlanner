@@ -165,14 +165,30 @@ class DietaryGoalListView(APIView):
     Optimized with prefetch_related for the 100k user scale.
     """
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request) -> Response:
         goals = DietaryGoal.objects.filter(
             user=request.user
         ).select_related('user').prefetch_related('dietary_plan').order_by('-created_at')
-        
+
         serializer = DietaryGoalSerializer(goals, many=True)
         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+class DietaryGoalBulkDeleteView(APIView):
+    """Bulk delete dietary goals by list of IDs. Only deletes goals owned by the requesting user."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+        goal_ids = request.data.get('goal_ids', [])
+        if not goal_ids or not isinstance(goal_ids, list):
+            return Response({"status": "error", "error": "goal_ids must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
+
+        goals = DietaryGoal.objects.filter(id__in=goal_ids, user=request.user)
+        deleted_count = goals.count()
+        goals.delete()
+
+        return Response({"status": "success", "data": {"deleted": deleted_count}}, status=status.HTTP_200_OK)
 
 
 class DietaryGoalDetailView(APIView):

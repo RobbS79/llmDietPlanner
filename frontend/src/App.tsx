@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -21,6 +22,24 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { api } from '@/lib/api';
 import { isAccessTokenValid } from '@/lib/auth';
+import { AlertCircle } from 'lucide-react';
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: any) { console.error('React crash:', error, info.componentStack); }
+  render() {
+    if (this.state.error) return (
+      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#09090b] text-white min-h-screen">
+        <AlertCircle size={48} className="text-rose-500 mb-6" />
+        <h1 className="text-3xl font-black tracking-tighter uppercase mb-4 italic">Něco se pokazilo<span className="text-rose-600 not-italic">.</span></h1>
+        <p className="text-zinc-500 mb-2 text-sm max-w-md">{this.state.error.message}</p>
+        <button onClick={() => { this.setState({ error: null }); window.location.href = '/'; }} className="mt-8 px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl">Zpět na hlavní stránku</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 const queryClient = new QueryClient();
 
@@ -42,6 +61,7 @@ function AuthenticatedHome() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
       <BrowserRouter>
@@ -66,5 +86,6 @@ export default function App() {
       </BrowserRouter>
       </ToastProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
