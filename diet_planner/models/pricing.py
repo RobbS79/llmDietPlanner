@@ -147,6 +147,24 @@ class PriceRecord(models.Model):
     def is_discount(self):
         return self.source_type == PriceSourceType.LEAFLET_DISCOUNT
 
+    @classmethod
+    def latest_regular_for(cls, store_product_id):
+        """Latest STORE_REGULAR price for a StoreProduct, or None.
+
+        Used by Phase D real-discount math in both single-store
+        (PriceResolver) and cross-store (CrossStoreOptimizer) flows.
+        """
+        return (
+            cls.objects
+            .filter(
+                store_product_id=store_product_id,
+                source_type=PriceSourceType.STORE_REGULAR,
+            )
+            .order_by('-scraped_at')
+            .values_list('price', flat=True)
+            .first()
+        )
+
 
 class PriceFreshnessPolicy(models.Model):
     """Per source-type TTL configuration."""

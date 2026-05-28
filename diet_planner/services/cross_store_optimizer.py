@@ -90,12 +90,26 @@ class CrossStoreOptimizer:
                 record = self._find_best_record(ingredient, shop)
                 if record:
                     is_disc = record.source_type == PriceSourceType.LEAFLET_DISCOUNT
+                    original_price = float(record.original_price) if record.original_price else None
+                    discount_pct = record.discount_percentage
+
+                    # Phase D: when a STORE_REGULAR baseline exists for the
+                    # same StoreProduct, compute the discount from real data
+                    # instead of trusting the leaflet's own marker.
+                    if is_disc:
+                        baseline = PriceRecord.latest_regular_for(record.store_product_id)
+                        if baseline is not None and baseline > record.price:
+                            original_price = float(baseline)
+                            discount_pct = int(round(
+                                (float(baseline) - float(record.price)) / float(baseline) * 100
+                            ))
+
                     matrix[idx][shop] = {
                         'price': float(record.price),
                         'display_name': record.store_product.name,
                         'price_type': 'DISCOUNTED' if is_disc else 'REGULAR',
-                        'original_price': float(record.original_price) if record.original_price else None,
-                        'discount_percentage': record.discount_percentage,
+                        'original_price': original_price,
+                        'discount_percentage': discount_pct,
                     }
                 else:
                     matrix[idx][shop] = None

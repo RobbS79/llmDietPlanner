@@ -24,7 +24,7 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 
 from ..models import GroceryStore, PriceSourceType, ScrapeRun
-from .price_recording import upsert_price_record
+from .price_recording import CONFIDENCE_CATALOG_DIRECT, upsert_price_record
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +58,20 @@ class RohlikCzCatalogScraper:
         "Accept-Language": "cs-CZ,cs;q=0.9,en;q=0.8",
     }
 
-    def __init__(self, *, limit: Optional[int] = None, dry_run: bool = False, batch_size: int = 50):
+    REQUEST_DELAY_SECONDS = 0.3   # be polite — Rohlik product pages
+
+    def __init__(
+        self,
+        *,
+        limit: Optional[int] = None,
+        dry_run: bool = False,
+        batch_size: int = 50,
+        delay_seconds: Optional[float] = None,
+    ):
         self.limit = limit
         self.dry_run = dry_run
         self.batch_size = batch_size
+        self.delay_seconds = self.REQUEST_DELAY_SECONDS if delay_seconds is None else delay_seconds
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
 
@@ -225,6 +235,7 @@ class RohlikCzCatalogScraper:
                         valid_from=valid_from,
                         valid_until=valid_until,
                         scrape_run=scrape_run,
+                        confidence=CONFIDENCE_CATALOG_DIRECT,
                     )
                     recorded += 1
                 except Exception as exc:
@@ -233,6 +244,9 @@ class RohlikCzCatalogScraper:
 
             if idx % self.batch_size == 0:
                 logger.info(f"[rohlik catalog] progress: {idx}/{len(urls)} processed")
+
+            if self.delay_seconds > 0 and idx < len(urls):
+                time.sleep(self.delay_seconds)
 
         duration = time.time() - started
         result = {

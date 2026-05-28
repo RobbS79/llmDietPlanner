@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # is the catalog default; these values override based on the evidence we
 # actually observed during the scrape.
 CONFIDENCE_VERIFIED_DISCOUNT = Decimal('0.90')   # <del>/<s> markup detected
+CONFIDENCE_CATALOG_DIRECT = Decimal('0.85')      # direct from store catalog page (Rohlik, Košík)
 CONFIDENCE_LEAFLET_REGULAR = Decimal('0.70')     # leaflet but no discount markup
 CONFIDENCE_LLM_ONLY = Decimal('0.50')            # extracted by LLM, no HTML cross-check
 
@@ -67,6 +68,7 @@ def upsert_price_record(
     valid_from,
     valid_until,
     scrape_run: Optional[ScrapeRun] = None,
+    confidence: Optional[Decimal] = None,
 ) -> Optional[PriceRecord]:
     """
     Mirror an offer dict (the shape produced by both scrape paths) into the
@@ -115,7 +117,8 @@ def upsert_price_record(
     has_del_evidence = offer_data.get('original_price') is not None and price_type == 'DISCOUNTED'
 
     source_type = _source_type_for(price_type)
-    confidence = _confidence_for(price_type, has_del_evidence)
+    if confidence is None:
+        confidence = _confidence_for(price_type, has_del_evidence)
 
     original_price = _coerce_decimal(offer_data.get('original_price'))
     discount_percentage = offer_data.get('discount_percentage')

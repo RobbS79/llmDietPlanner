@@ -267,7 +267,7 @@ class PriceResolver:
             # StoreProduct over inferred / scraped <del> markup. If we have
             # both leaflet discount + a recent regular record, compute the
             # discount % from data instead of trusting the scrape marker.
-            baseline = self._latest_regular_baseline(store_product.id)
+            baseline = PriceRecord.latest_regular_for(store_product.id)
             if baseline is not None and baseline > record.price:
                 computed_pct = int(round(
                     (float(baseline) - float(record.price)) / float(baseline) * 100
@@ -283,20 +283,6 @@ class PriceResolver:
                 result['valid_until'] = record.valid_until.strftime('%Y-%m-%d')
 
         return result
-
-    def _latest_regular_baseline(self, store_product_id: int):
-        """Return the latest STORE_REGULAR price for this StoreProduct, or None."""
-        record = (
-            PriceRecord.objects
-            .filter(
-                store_product_id=store_product_id,
-                source_type=PriceSourceType.STORE_REGULAR,
-            )
-            .order_by('-scraped_at')
-            .values_list('price', flat=True)
-            .first()
-        )
-        return record
 
     def _build_pantry_result(
         self,
