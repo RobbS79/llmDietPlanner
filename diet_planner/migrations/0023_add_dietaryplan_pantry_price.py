@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('diet_planner', '0021_seed_canonical_staples'),
+        ('diet_planner', '0022_seed_canonical_staples'),
     ]
 
     operations = [

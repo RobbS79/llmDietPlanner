@@ -510,7 +510,7 @@ def unseed_canonical_staples(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('diet_planner', '0020_historic_plan_pdf_fields'),
+        ('diet_planner', '0021_scraperun_catalog_method'),
     ]
 
     operations = [
