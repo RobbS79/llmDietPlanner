@@ -170,7 +170,7 @@ class PriceResolverTest(TestCase):
         """The core guarantee: no price comes from LLM estimation."""
         resolver = PriceResolver(self.goal)
         items = [
-            {'ingredient': 'kuřecí prsa', 'catalog_id': self.offer.pk, 'quantity': 500, 'unit': 'g'},
+            {'ingredient': 'kuřecí prsa', 'catalog_id': self.catalog_id, 'quantity': 500, 'unit': 'g'},
             {'ingredient': 'sůl', 'pantry': True, 'quantity': 10, 'unit': 'g'},
             {'ingredient': 'neexistuje', 'quantity': 100, 'unit': 'g'},
         ]
