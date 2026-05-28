@@ -159,7 +159,7 @@ SIMPLE_JWT = {
 
 REST_USE_JWT = True
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
-ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'login_app.adapters.CustomSocialAccountAdapter'

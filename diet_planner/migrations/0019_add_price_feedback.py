@@ -5,6 +5,25 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def rename_indexes_if_exist(apps, schema_editor):
+    """Rename old auto-truncated index names to new explicit names, skipping any that don't exist."""
+    renames = [
+        ('diet_plann_mealinst_user_idx', 'dp_mealinst_user_idx'),
+        ('diet_plann_mealinst_goal_idx', 'dp_mealinst_goal_idx'),
+        ('diet_plann_mealinst_meal_id_idx', 'dp_mealinst_mealid_idx'),
+        ('diet_plann_mealinst_cook_idx', 'dp_mealinst_cooked_idx'),
+    ]
+    with schema_editor.connection.cursor() as cursor:
+        for old_name, new_name in renames:
+            cursor.execute(
+                "SELECT 1 FROM pg_indexes WHERE indexname = %s", [old_name]
+            )
+            if cursor.fetchone():
+                cursor.execute(
+                    f'ALTER INDEX "{old_name}" RENAME TO "{new_name}"'
+                )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -27,25 +46,37 @@ class Migration(migrations.Migration):
                 'ordering': ['-created_at'],
             },
         ),
-        migrations.RenameIndex(
-            model_name='mealinstance',
-            new_name='dp_mealinst_user_idx',
-            old_name='diet_plann_mealinst_user_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='mealinstance',
-            new_name='dp_mealinst_goal_idx',
-            old_name='diet_plann_mealinst_goal_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='mealinstance',
-            new_name='dp_mealinst_mealid_idx',
-            old_name='diet_plann_mealinst_meal_id_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='mealinstance',
-            new_name='dp_mealinst_cooked_idx',
-            old_name='diet_plann_mealinst_cook_idx',
+        # State+DB split: update Django's model state to know the indexes have
+        # new names (so future `makemigrations` stops re-emitting RenameIndex
+        # ops), while doing the actual rename conditionally — prod DB may
+        # already have the new names from prior 0016/0018 RunPython renames,
+        # or may have been initialised without these indexes at all.
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.RenameIndex(
+                    model_name='mealinstance',
+                    new_name='dp_mealinst_user_idx',
+                    old_name='diet_plann_mealinst_user_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='mealinstance',
+                    new_name='dp_mealinst_goal_idx',
+                    old_name='diet_plann_mealinst_goal_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='mealinstance',
+                    new_name='dp_mealinst_mealid_idx',
+                    old_name='diet_plann_mealinst_meal_id_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='mealinstance',
+                    new_name='dp_mealinst_cooked_idx',
+                    old_name='diet_plann_mealinst_cook_idx',
+                ),
+            ],
+            database_operations=[
+                migrations.RunPython(rename_indexes_if_exist, migrations.RunPython.noop),
+            ],
         ),
         migrations.AddField(
             model_name='pricefeedback',
