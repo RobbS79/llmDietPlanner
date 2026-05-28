@@ -338,11 +338,16 @@ export const ShoppingListPage = () => {
                     <ArrowRight size={16} className="text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-black text-white truncate">{swap.replacement_product}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <p className="text-xs font-black text-emerald-400">{swap.replacement_price} {plan.currency}</p>
                         {swap.source_shop && (
                           <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
                             <Store size={9} /> {shopName}
+                          </span>
+                        )}
+                        {swap.discount_confirmed === true && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/20" title="Potvrzená akce z letáku">
+                            <Tag size={9} /> Akce
                           </span>
                         )}
                       </div>

@@ -126,7 +126,6 @@ class KupiCzScraper(BaseScraper):
             if not name or self._is_skip_title(name):
                 continue
             if offer.get('price') and offer.get('price', 0) > 0:
-                offer.setdefault('price_type', 'DISCOUNTED')
                 filtered.append(offer)
         return filtered
 
@@ -213,6 +212,23 @@ class KupiCzScraper(BaseScraper):
                         offer['currency'] = 'CZK'
                 except (ValueError, AttributeError):
                     pass
+
+        # Detect discount marker: struck-through original price in <del>/<s> tags.
+        # When present, the leaflet is explicitly signaling a price reduction.
+        original_price = None
+        strike_elem = item.find(['del', 's'])
+        if strike_elem:
+            strike_text = strike_elem.get_text(strip=True)
+            orig_match = re.search(r'(\d+[\s,.]?\d*)', strike_text.replace(',', '.').replace(' ', ''))
+            if orig_match:
+                try:
+                    original_price = float(orig_match.group(1))
+                except (ValueError, AttributeError):
+                    original_price = None
+        if original_price and offer.get('price') and original_price > float(offer['price']):
+            offer['original_price'] = Decimal(str(original_price))
+            offer['price_type'] = 'DISCOUNTED'
+            offer['discount_percentage'] = int(round(100 * (original_price - float(offer['price'])) / original_price))
 
         unit_text = item.get_text()
         unit_match = re.search(r'(\d+)\s*(kg|g|ml|l|ks|piece|pieces|bal|balíček)', unit_text, re.I)

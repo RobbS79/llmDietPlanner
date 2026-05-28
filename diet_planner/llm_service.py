@@ -1261,16 +1261,20 @@ Keep all text concise — 3 steps max per recipe, 1 sentence descriptions."""
 
 RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.
 
-TASK: Review the current meal plan and shopping list. Identify ingredients that can be
-swapped for DISCOUNTED products without significantly changing the meal quality or nutrition.
+TASK: Review the current meal plan and shopping list. The candidate offers below were
+extracted from current store leaflets (akce/letáky). Some carry an explicit original
+price (shown as "(původně X Kč)" or "(-N%)") — those are confirmed discounts. Others
+are leaflet-featured items without an explicit original price; treat those as candidates
+only and propose a swap only if the leaflet price is meaningfully LOWER than the user's
+current shopping-list price for the same ingredient.
 
 CURRENT MEAL PLAN:
 {current_plan_json}
 
-CURRENT SHOPPING LIST:
+CURRENT SHOPPING LIST (with each item's current price):
 {current_list_json}
 
-DISCOUNTED PRODUCTS AVAILABLE (each line is prefixed with #id and [SHOP_CODE]):
+CANDIDATE LEAFLET OFFERS (each line: #id [SHOP_CODE] name — price [optional discount markers]):
 {discounted_products}
 
 OUTPUT STRUCTURE:
@@ -1279,11 +1283,12 @@ OUTPUT STRUCTURE:
     {{
       "original_ingredient": "ingredient name from current plan",
       "original_price": 89.90,
-      "replacement_product": "discounted product name",
+      "replacement_product": "leaflet product name",
       "replacement_catalog_id": 42,
       "replacement_price": 59.90,
       "source_shop": "LIDL_CZ",
       "saving": 30.00,
+      "discount_confirmed": true,
       "affected_meals": ["Den 1 Oběd: Meal Name", "Den 3 Večeře: Meal Name"],
       "reason": "Brief explanation why the swap works"
     }}
@@ -1296,13 +1301,14 @@ OUTPUT STRUCTURE:
 }}
 
 RULES:
-- Only suggest swaps where the discounted product is a sensible substitute
-- Do NOT swap if it would ruin the recipe (e.g., don't replace chicken with tofu in chicken soup)
-- Include the full optimized_days and optimized_shopping_list with all swaps applied
-- Keep the same meal structure — only change ingredients, not meal names or count
-- Preserve nutritional balance as much as possible
-- For each swap, set "source_shop" to the [SHOP_CODE] tag from the offer line you selected
-- If no good swaps exist, return {{"swaps": [], "total_saving": 0}}"""
+- Only suggest a swap when the candidate's per-unit price is genuinely lower than the user's current price for that ingredient — never propose a swap that costs the same or more.
+- "discount_confirmed": true when the candidate carried an explicit původně/percentage marker (a real leaflet discount); false when you're inferring savings purely from price comparison.
+- Do NOT swap if it would ruin the recipe (e.g., don't replace chicken with tofu in chicken soup).
+- Include the full optimized_days and optimized_shopping_list with all swaps applied.
+- Keep the same meal structure — only change ingredients, not meal names or count.
+- Preserve nutritional balance as much as possible.
+- For each swap, set "source_shop" to the [SHOP_CODE] tag from the offer line you selected.
+- If no good swaps exist, return {{"swaps": [], "total_saving": 0}}."""
 
         try:
             gemini_model = genai.GenerativeModel(

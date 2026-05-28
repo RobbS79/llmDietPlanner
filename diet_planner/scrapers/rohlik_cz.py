@@ -88,8 +88,6 @@ class RohlikCzScraper(BaseScraper):
         except Exception as e:
             logger.error(f"Error scraping rohlik.cz: {e}", exc_info=True)
 
-        for offer in offers:
-            offer.setdefault('price_type', 'DISCOUNTED')
         return offers
     
     def _parse_product_item(self, item, base_url: str) -> Dict[str, Any]:

@@ -2329,15 +2329,22 @@ def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] 
                 )
 
         now = timezone.now()
-        discounted_offers = LeafletOffer.objects.filter(
+        # Include ALL fresh leaflet offers, not just rows pre-tagged DISCOUNTED.
+        # kupi.cz renders prices in image overlays, so most rows arrive without
+        # an explicit original_price and can't be reliably labelled DISCOUNTED
+        # at scrape time. The downstream LLM compares each candidate's price
+        # against the user's current shopping-list price and only proposes
+        # swaps where the per-unit cost actually drops — let it judge savings.
+        # We still surface BS4-detected original_price/discount_percentage to
+        # the LLM when present so it has the stronger signal.
+        leaflet_offers = LeafletOffer.objects.filter(
             shop__in=target_shops,
             country=country,
-            price_type='DISCOUNTED',
             expires_at__gt=now,
             price__gt=0,
-        ).order_by('-discount_percentage')[:100]
+        ).exclude(price_type='LLM_ESTIMATED').order_by('-discount_percentage', '-scraped_at')[:150]
 
-        if not discounted_offers.exists():
+        if not leaflet_offers.exists():
             plan.discount_optimization = {
                 'swaps': [],
                 'total_saving': 0,
@@ -2349,7 +2356,7 @@ def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] 
             return {'status': 'no_discounts', 'goal_id': goal_id, 'shops_queried': target_shops}
 
         lines = []
-        for offer in discounted_offers:
+        for offer in leaflet_offers:
             disc_pct = f" (-{offer.discount_percentage}%)" if offer.discount_percentage else ""
             orig = f" (původně {offer.original_price} {goal.currency})" if offer.original_price else ""
             lines.append(
