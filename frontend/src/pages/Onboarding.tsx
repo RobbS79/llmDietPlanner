@@ -166,7 +166,7 @@ export const Onboarding = () => {
           >
             Vytvořte si jídelníček <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
+          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
         </div>
       </MainLayout>
     );
@@ -179,7 +179,7 @@ export const Onboarding = () => {
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tighter uppercase italic leading-none">
             O vás<span className="text-emerald-500 not-italic">.</span>
           </h1>
-          <button onClick={() => skipMutation.mutate()} className="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1.5">
+          <button onClick={() => skipMutation.mutate()} className="text-zinc-300 hover:text-zinc-300 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1.5">
             <X size={14} /> Přeskočit
           </button>
         </div>
@@ -193,11 +193,11 @@ export const Onboarding = () => {
                 type="button"
                 onClick={() => { if (i <= step) setStep(i); }}
                 className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  i === step ? 'text-emerald-400' : i < step ? 'text-emerald-400 cursor-pointer' : 'text-zinc-600'
+                  i === step ? 'text-emerald-400' : i < step ? 'text-emerald-400 cursor-pointer' : 'text-zinc-400'
                 }`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black transition-all ${
-                  i === step ? 'bg-emerald-600 text-white shadow-lg' : i < step ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
+                  i === step ? 'bg-emerald-600 text-white shadow-lg' : i < step ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700 text-zinc-400 border border-slate-600'
                 }`}>
                   {i < step ? <Check size={14} /> : i + 1}
                 </div>
@@ -205,10 +205,10 @@ export const Onboarding = () => {
               </button>
             ))}
           </div>
-          <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div className="h-1 bg-slate-600 rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500 ease-out" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
           </div>
-          <p className="text-center text-[10px] font-black text-zinc-500 uppercase tracking-widest mt-3">Krok {step + 1} z {STEPS.length}</p>
+          <p className="text-center text-[10px] font-black text-zinc-300 uppercase tracking-widest mt-3">Krok {step + 1} z {STEPS.length}</p>
         </div>
 
         {/* Step 0: Goal */}
@@ -219,11 +219,11 @@ export const Onboarding = () => {
               {GOALS.map(g => (
                 <button key={g.id} type="button" onClick={() => update('goal', g.id)}
                   className={`p-6 rounded-2xl border-2 transition-all text-left ${
-                    data.goal === g.id ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl shadow-emerald-500/10' : 'bg-zinc-950 border-transparent text-zinc-500 hover:text-zinc-300'
+                    data.goal === g.id ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl shadow-emerald-500/10' : 'bg-slate-900 border-transparent text-zinc-300 hover:text-zinc-300'
                   }`}>
                   <span className="text-2xl mb-3 block">{g.icon}</span>
                   <span className="font-black uppercase text-sm tracking-tight block">{g.label}</span>
-                  <span className="text-xs text-zinc-500 mt-1 block">{g.desc}</span>
+                  <span className="text-xs text-zinc-300 mt-1 block">{g.desc}</span>
                 </button>
               ))}
             </div>
@@ -238,7 +238,7 @@ export const Onboarding = () => {
               {DIETARY_STYLES.map(s => (
                 <button key={s.id} type="button" onClick={() => toggleMulti('dietary_styles', s.id)}
                   className={`px-5 py-3 rounded-xl text-sm font-bold transition-all border ${
-                    data.dietary_styles.includes(s.id) ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                    data.dietary_styles.includes(s.id) ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-600 text-zinc-300 hover:text-zinc-300'
                   }`}>
                   {data.dietary_styles.includes(s.id) && <Check size={14} className="inline mr-2" />}{s.label}
                 </button>
@@ -255,7 +255,7 @@ export const Onboarding = () => {
               {ALLERGIES.map(a => (
                 <button key={a.id} type="button" onClick={() => toggleMulti('allergies', a.id)}
                   className={`px-5 py-3 rounded-xl text-sm font-bold transition-all border ${
-                    data.allergies.includes(a.id) ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                    data.allergies.includes(a.id) ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-600 text-zinc-300 hover:text-zinc-300'
                   }`}>
                   {data.allergies.includes(a.id) && <Check size={14} className="inline mr-2" />}{a.label}
                 </button>
@@ -270,12 +270,12 @@ export const Onboarding = () => {
             <StepHeader num={4} title="Domácnost a rozpočet" />
             <Card className="p-8 space-y-10">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Počet osob v domácnosti</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 block">Počet osob v domácnosti</label>
                 <div className="flex flex-wrap gap-2.5">
                   {[1, 2, 3, 4, 5, 6].map(n => (
                     <button key={n} type="button" onClick={() => update('household_size', n)}
-                      className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-800 ${
-                        data.household_size === n ? 'bg-emerald-600 text-white shadow-lg border-emerald-500' : 'bg-zinc-950 text-zinc-600 hover:text-zinc-400'
+                      className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-slate-600 ${
+                        data.household_size === n ? 'bg-emerald-600 text-white shadow-lg border-emerald-500' : 'bg-slate-900 text-zinc-400 hover:text-zinc-200'
                       }`}>
                       {n}{n === 6 ? '+' : ''}
                     </button>
@@ -284,7 +284,7 @@ export const Onboarding = () => {
               </div>
               <div>
                 <div className="flex justify-between items-end mb-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Týdenní rozpočet na jídlo</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Týdenní rozpočet na jídlo</label>
                   <span className="text-xl font-black text-emerald-500 italic">
                     {data.weekly_budget.toLocaleString('cs-CZ')} {data.country === 'SK' ? 'EUR' : 'CZK'}
                   </span>
@@ -295,9 +295,9 @@ export const Onboarding = () => {
                   step={data.country === 'SK' ? 5 : 100}
                   value={data.weekly_budget}
                   onChange={e => update('weekly_budget', parseInt(e.target.value))}
-                  className="w-full h-2 bg-zinc-800 rounded-full appearance-none accent-emerald-600 cursor-pointer"
+                  className="w-full h-2 bg-slate-600 rounded-full appearance-none accent-emerald-600 cursor-pointer"
                 />
-                <div className="flex justify-between text-[9px] text-zinc-600 mt-2">
+                <div className="flex justify-between text-[9px] text-zinc-400 mt-2">
                   <span>{data.country === 'SK' ? '20 EUR' : '500 CZK'}</span>
                   <span>{data.country === 'SK' ? '200 EUR' : '5 000 CZK'}</span>
                 </div>
@@ -312,26 +312,26 @@ export const Onboarding = () => {
             <StepHeader num={5} title="Jak rádi vaříte?" />
             <Card className="p-8 space-y-10">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Úroveň vaření</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 block">Úroveň vaření</label>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {COOKING_SKILLS.map(s => (
                     <button key={s.id} type="button" onClick={() => update('cooking_skill', s.id)}
                       className={`p-5 rounded-2xl border-2 transition-all text-left ${
-                        data.cooking_skill === s.id ? 'bg-emerald-600/10 border-emerald-600 text-white' : 'bg-zinc-950 border-transparent text-zinc-500 hover:text-zinc-300'
+                        data.cooking_skill === s.id ? 'bg-emerald-600/10 border-emerald-600 text-white' : 'bg-slate-900 border-transparent text-zinc-300 hover:text-zinc-300'
                       }`}>
                       <span className="font-black uppercase text-xs tracking-tight block">{s.label}</span>
-                      <span className="text-[10px] text-zinc-500 mt-1 block">{s.desc}</span>
+                      <span className="text-[10px] text-zinc-300 mt-1 block">{s.desc}</span>
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4 block">Kolik času máte na přípravu jídla?</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 block">Kolik času máte na přípravu jídla?</label>
                 <div className="flex flex-wrap gap-3">
                   {COOKING_TIMES.map(t => (
                     <button key={t.id} type="button" onClick={() => update('cooking_time', t.id)}
                       className={`px-5 py-3 rounded-xl text-sm font-bold transition-all border ${
-                        data.cooking_time === t.id ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                        data.cooking_time === t.id ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-600 text-zinc-300 hover:text-zinc-300'
                       }`}>
                       {t.label}
                     </button>
@@ -348,9 +348,9 @@ export const Onboarding = () => {
             <StepHeader num={6} title="Kde nakupujete?" />
             <Card className="p-8 space-y-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Země</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Země</label>
                 <select value={data.country} onChange={e => { update('country', e.target.value); update('weekly_budget', e.target.value === 'SK' ? 60 : 1500); }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-14 px-5 text-xs font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer">
+                  className="w-full bg-slate-900 border border-slate-600 rounded-xl h-14 px-5 text-xs font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer">
                   <option value="CZ">Česko (CZK)</option>
                   <option value="SK">Slovensko (EUR)</option>
                 </select>
@@ -359,7 +359,7 @@ export const Onboarding = () => {
                 {shopsData?.shops?.map((shop: any) => (
                   <button key={shop.code} type="button" onClick={() => update('shop', shop.code)}
                     className={`p-8 rounded-2xl border-2 text-left transition-all relative overflow-hidden ${
-                      data.shop === shop.code ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl' : 'bg-zinc-950 border-transparent text-zinc-600 hover:bg-zinc-900'
+                      data.shop === shop.code ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl' : 'bg-slate-900 border-transparent text-zinc-400 hover:bg-slate-700'
                     }`}>
                     <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
                     <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupné</span>
@@ -374,7 +374,7 @@ export const Onboarding = () => {
         {/* Desktop navigation */}
         <div className="hidden sm:flex items-center justify-between mt-12 gap-4">
           {step > 0 ? (
-            <button type="button" onClick={back} className="flex items-center gap-3 px-8 h-14 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
+            <button type="button" onClick={back} className="flex items-center gap-3 px-8 h-14 border border-slate-600 text-zinc-200 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
               <ArrowLeft size={16} /> Zpět
             </button>
           ) : <div />}
@@ -385,10 +385,10 @@ export const Onboarding = () => {
         </div>
 
         {/* Mobile sticky bottom bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#09090b]/95 backdrop-blur-lg border-t border-zinc-800 sm:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#1e293b]/95 backdrop-blur-lg border-t border-slate-600 sm:hidden">
           <div className="flex gap-3">
             {step > 0 && (
-              <button type="button" onClick={back} className="flex items-center justify-center w-14 h-14 border border-zinc-800 text-zinc-400 rounded-xl transition-all">
+              <button type="button" onClick={back} className="flex items-center justify-center w-14 h-14 border border-slate-600 text-zinc-200 rounded-xl transition-all">
                 <ArrowLeft size={20} />
               </button>
             )}
@@ -414,8 +414,8 @@ function StepHeader({ num, title }: { num: number; title: string }) {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center py-3 border-b border-zinc-800 last:border-0">
-      <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{label}</span>
+    <div className="flex justify-between items-center py-3 border-b border-slate-600 last:border-0">
+      <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">{label}</span>
       <span className="text-sm font-bold text-white">{value}</span>
     </div>
   );

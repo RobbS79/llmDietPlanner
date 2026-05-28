@@ -4,28 +4,28 @@
 
 @layer base {
   body {
-    @apply bg-[#0a0f1e] text-white font-sans antialiased selection:bg-emerald-500/30;
+    @apply bg-[#1e293b] text-white font-sans antialiased selection:bg-emerald-400/30;
     background-image:
-      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.05) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.08) 0px, transparent 50%);
     background-attachment: fixed;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-[#161d2f]/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+    @apply bg-[#334155]/60 backdrop-blur-xl border border-white/10 shadow-2xl;
   }
-  
+
   .btn-primary {
-    @apply bg-emerald-600 text-white font-black py-4 px-8 rounded-2xl hover:bg-emerald-500
-           transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-[0.98]
+    @apply bg-emerald-500 text-white font-black py-4 px-8 rounded-2xl hover:bg-emerald-400
+           transition-all duration-300 shadow-lg shadow-emerald-900/30 active:scale-[0.98]
            disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3;
   }
 
   .input-field {
-    @apply w-full bg-[#0a0f1e]/50 border border-white/10 rounded-2xl p-4 text-white
-           focus:ring-2 focus:ring-emerald-600 outline-none transition-all placeholder:text-gray-600;
+    @apply w-full bg-[#1e293b]/60 border border-white/15 rounded-2xl p-4 text-white
+           focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder:text-slate-400;
   }
 
   /* Unified shadow scale */
@@ -77,4 +77,4 @@
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { @apply bg-transparent; }
-::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors; }
+::-webkit-scrollbar-thumb { @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors; }

@@ -14,7 +14,7 @@ const PRICE_SOURCE_CONFIG: Record<string, { label: string; color: string; icon: 
   pantry_estimate: { label: 'Odhad', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Sparkles },
   cross_store_match: { label: 'Jiný obchod', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20', icon: Store },
   historical_average: { label: 'Historická', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', icon: Clock },
-  not_available: { label: 'Nedostupná', color: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20', icon: HelpCircle },
+  not_available: { label: 'Nedostupná', color: 'bg-zinc-500/10 text-zinc-300 border-zinc-500/20', icon: HelpCircle },
 };
 
 const PriceSourceBadge = ({ source, detail }: { source?: string; detail?: string }) => {
@@ -43,20 +43,20 @@ const ShoppingItem = ({ item, done, onToggle, staple = false }: { item: any; don
   return (
     <Card
       onClick={onToggle}
-      className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-zinc-800/50' : 'hover:border-emerald-500/20'}`}
+      className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-slate-600/50' : 'hover:border-emerald-500/20'}`}
     >
       <div className="flex items-center gap-4">
-        <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-zinc-700'}`}>
+        <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-slate-500'}`}>
           {done && <Check size={16} className="text-white" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start gap-3">
-            <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-600' : 'text-white'}`}>
+            <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-400' : 'text-white'}`}>
               {item.ingredient}
             </p>
             <div className="flex items-center gap-2 shrink-0">
               {item.original_price != null && item.discount_percentage != null && (
-                <span className="text-[10px] font-bold text-zinc-600 line-through tabular-nums">
+                <span className="text-[10px] font-bold text-zinc-400 line-through tabular-nums">
                   {item.original_price}
                 </span>
               )}
@@ -73,23 +73,23 @@ const ShoppingItem = ({ item, done, onToggle, staple = false }: { item: any; don
           </div>
           <div className="flex justify-between items-center mt-2">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
                 {item.quantity} {item.unit}
               </span>
               <PriceSourceBadge source={item.price_source} detail={item.source_detail} />
             </div>
             {item.matched_product_name && (
-              <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
                 {item.matched_product_name}
               </span>
             )}
           </div>
           {staple && item.pantry_pack_price != null && (
-            <div className="flex justify-between items-center mt-2 pt-2 border-t border-zinc-800/50">
-              <span className="text-[10px] font-bold text-zinc-500 italic">
+            <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-600/50">
+              <span className="text-[10px] font-bold text-zinc-300 italic">
                 {fractionPct != null ? `${fractionPct}% balení` : 'Část balení'}
               </span>
-              <span className="text-[10px] font-bold text-zinc-500 italic">
+              <span className="text-[10px] font-bold text-zinc-300 italic">
                 Plné balení{item.pantry_package_size ? ` (${item.pantry_package_size} ${item.pantry_package_unit || ''})` : ''}:{' '}
                 <span className="text-zinc-300 tabular-nums">{item.pantry_pack_price} {item.currency}</span>
               </span>
@@ -225,7 +225,7 @@ export const ShoppingListPage = () => {
       <div className="max-w-3xl mx-auto px-6 py-12 w-full">
         <button
           onClick={() => navigate(`/plan/${id}`)}
-          className="flex items-center gap-2 text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors print:hidden"
+          className="flex items-center gap-2 text-zinc-300 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors print:hidden"
         >
           <ArrowLeft size={16} /> Zpět na plán
         </button>
@@ -236,13 +236,13 @@ export const ShoppingListPage = () => {
             <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">
               Váš seznam<span className="text-emerald-500 not-italic">.</span>
             </h1>
-            <p className="text-zinc-600 text-sm font-bold italic">
+            <p className="text-zinc-400 text-sm font-bold italic">
               {totalItems} položek &middot; {checkedCount} odškrtnuto
             </p>
           </div>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white px-6 h-12 rounded-xl font-black uppercase text-[10px] tracking-[0.15em] transition-colors print:hidden"
+            className="flex items-center gap-2 bg-slate-700 border border-slate-600 text-zinc-200 hover:text-white px-6 h-12 rounded-xl font-black uppercase text-[10px] tracking-[0.15em] transition-colors print:hidden"
           >
             <Printer size={16} /> Tisknout
           </button>
@@ -266,13 +266,13 @@ export const ShoppingListPage = () => {
             </button>
             {!hasSwaps && availableShops.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Obchody:</span>
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Obchody:</span>
                 <button
                   onClick={() => setSelectedShops(null)}
                   className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors ${
                     !selectedShops || selectedShops.length === 0
                       ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                      : 'border-zinc-800 text-zinc-500 hover:text-white'
+                      : 'border-slate-600 text-zinc-300 hover:text-white'
                   }`}
                 >
                   Všechny
@@ -291,7 +291,7 @@ export const ShoppingListPage = () => {
                       className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors ${
                         active
                           ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                          : 'border-zinc-800 text-zinc-500 hover:text-white'
+                          : 'border-slate-600 text-zinc-300 hover:text-white'
                       }`}
                     >
                       {s.name}
@@ -317,7 +317,7 @@ export const ShoppingListPage = () => {
               <Check size={20} className="text-emerald-500 shrink-0" />
               <div>
                 <p className="text-sm font-black text-emerald-400 uppercase tracking-tight italic">Slevová optimalizace aplikována</p>
-                <p className="text-[10px] font-bold text-zinc-600 mt-0.5">
+                <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
                   Ušetřili jste {discountOpt?.total_saving} {plan.currency} díky akčním nabídkám
                 </p>
               </div>
@@ -335,12 +335,12 @@ export const ShoppingListPage = () => {
                   <p className="text-sm font-black text-amber-400 uppercase tracking-tight italic">
                     Nalezeno {discountOpt.swaps.length} záměn
                   </p>
-                  <p className="text-[10px] font-bold text-zinc-600 mt-0.5">
+                  <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
                     Celková úspora: {discountOpt.total_saving} {plan.currency}
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowOptimization(false)} className="text-zinc-600 hover:text-white transition-colors">
+              <button onClick={() => setShowOptimization(false)} className="text-zinc-400 hover:text-white transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -351,8 +351,8 @@ export const ShoppingListPage = () => {
                 return (
                   <div key={idx} className="flex items-center gap-4 p-4 bg-black/30 rounded-xl">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-zinc-500 line-through truncate">{swap.original_ingredient}</p>
-                      <p className="text-xs font-black text-zinc-400 mt-0.5">{swap.original_price} {plan.currency}</p>
+                      <p className="text-xs font-black text-zinc-300 line-through truncate">{swap.original_ingredient}</p>
+                      <p className="text-xs font-black text-zinc-200 mt-0.5">{swap.original_price} {plan.currency}</p>
                     </div>
                     <ArrowRight size={16} className="text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -393,7 +393,7 @@ export const ShoppingListPage = () => {
               </button>
               <button
                 onClick={() => setShowOptimization(false)}
-                className="px-6 h-14 border border-zinc-800 text-zinc-500 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
+                className="px-6 h-14 border border-slate-600 text-zinc-300 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
               >
                 Ponechat původní
               </button>
@@ -410,13 +410,13 @@ export const ShoppingListPage = () => {
                 <p className="text-sm font-black text-amber-300 uppercase tracking-tight italic">
                   Žádné slevy nenalezeny
                 </p>
-                <p className="text-xs font-bold text-zinc-500 mt-2">
+                <p className="text-xs font-bold text-zinc-300 mt-2">
                   {discountOpt.message === 'no_discounts'
                     ? 'V tuto chvíli nejsou v databázi žádné akční nabídky pro vybrané obchody.'
                     : 'Nenalezeny žádné vhodné záměny pro aktuální plán.'}
                 </p>
                 {discountOpt.shops_queried && discountOpt.shops_queried.length > 0 && (
-                  <p className="text-[10px] font-bold text-zinc-600 mt-2 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold text-zinc-400 mt-2 uppercase tracking-widest">
                     Prohledáno: {discountOpt.shops_queried.join(', ')}
                   </p>
                 )}
@@ -434,7 +434,7 @@ export const ShoppingListPage = () => {
                   </button>
                   <button
                     onClick={() => setShowOptimization(false)}
-                    className="px-4 h-10 text-zinc-500 hover:text-white font-black uppercase text-[10px] tracking-widest transition-colors"
+                    className="px-4 h-10 text-zinc-300 hover:text-white font-black uppercase text-[10px] tracking-widest transition-colors"
                   >
                     Zavřít
                   </button>
@@ -453,7 +453,7 @@ export const ShoppingListPage = () => {
                 <p className="text-sm font-black text-emerald-400 uppercase tracking-tight italic">
                   Ušetříte {rawList.savings_vs_single} {plan.currency}
                 </p>
-                <p className="text-[10px] font-bold text-zinc-600 mt-0.5">
+                <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
                   oproti nákupu v jednom obchodu ({rawList.best_single_store}) &middot; {rawList.num_stores} obchody
                 </p>
               </div>
@@ -470,7 +470,7 @@ export const ShoppingListPage = () => {
                 <div key={storeKey}>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <Store size={16} className="text-zinc-500" />
+                      <Store size={16} className="text-zinc-300" />
                       <h2 className="text-sm font-black text-white uppercase tracking-widest italic">
                         {storeGroup.store_name}
                       </h2>
@@ -507,7 +507,7 @@ export const ShoppingListPage = () => {
               <div className="space-y-10">
                 <div className="space-y-3">
                   {pantry.length > 0 && (
-                    <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest italic mb-3">
+                    <h2 className="text-xs font-black text-zinc-300 uppercase tracking-widest italic mb-3">
                       Potraviny
                     </h2>
                   )}
@@ -526,10 +526,10 @@ export const ShoppingListPage = () => {
                 {pantry.length > 0 && (
                   <div className="space-y-3">
                     <div className="mb-3">
-                      <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest italic">
+                      <h2 className="text-xs font-black text-zinc-300 uppercase tracking-widest italic">
                         Spíž · pouze část balení
                       </h2>
-                      <p className="text-[10px] font-bold text-zinc-600 italic mt-1">
+                      <p className="text-[10px] font-bold text-zinc-400 italic mt-1">
                         Tyto suroviny většinou už máte doma. Účtujeme jen tu část, kterou skutečně použijete.
                       </p>
                     </div>
@@ -564,11 +564,11 @@ export const ShoppingListPage = () => {
                 <div className="flex items-center gap-3">
                   <ShoppingCart size={22} className="text-emerald-500" />
                   <div>
-                    <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">
+                    <p className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em] italic">
                       {hasEstimates ? 'Odhadovaná cena celkem' : 'Cena celkem'}
                     </p>
                     {pantryPrice > 0 && (
-                      <p className="text-[10px] text-zinc-500 font-bold mt-0.5">
+                      <p className="text-[10px] text-zinc-300 font-bold mt-0.5">
                         Včetně {pantryPrice.toFixed(2)} {plan.currency} za poměrnou část spíže
                       </p>
                     )}
@@ -593,7 +593,7 @@ export const ShoppingListPage = () => {
             <div className="flex gap-3">
               <Info size={18} className="text-amber-500/70 shrink-0 mt-0.5" />
               <div className="space-y-2">
-                <p className="text-xs font-bold text-zinc-400 leading-relaxed">
+                <p className="text-xs font-bold text-zinc-200 leading-relaxed">
                   Uvedené ceny jsou <span className="text-amber-400">orientační</span> a vycházejí z dostupných dat obchodů. Skutečná cena nákupu se může lišit v závislosti na aktuální nabídce, velikosti balení a dostupnosti produktů.
                 </p>
                 {existingFeedback ? (
@@ -606,7 +606,7 @@ export const ShoppingListPage = () => {
                 ) : (
                   <button
                     onClick={() => setShowFeedbackForm(v => !v)}
-                    className="flex items-center gap-1.5 text-[10px] font-black text-zinc-500 hover:text-emerald-400 uppercase tracking-widest transition-colors pt-1"
+                    className="flex items-center gap-1.5 text-[10px] font-black text-zinc-300 hover:text-emerald-400 uppercase tracking-widest transition-colors pt-1"
                   >
                     <MessageSquare size={12} />
                     {showFeedbackForm ? 'Skrýt formulář' : 'Zaplatili jste jinou cenu? Dejte nám vědět'}
@@ -617,13 +617,13 @@ export const ShoppingListPage = () => {
           </Card>
 
           {showFeedbackForm && !existingFeedback && (
-            <Card className="p-6 border-zinc-800 text-left">
+            <Card className="p-6 border-slate-600 text-left">
               <p className="text-xs font-black text-white uppercase tracking-widest italic mb-4">
                 Zpětná vazba k ceně
               </p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">
+                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">
                     Skutečná cena nákupu ({plan.currency})
                   </label>
                   <input
@@ -633,11 +633,11 @@ export const ShoppingListPage = () => {
                     value={actualTotal}
                     onChange={e => setActualTotal(e.target.value)}
                     placeholder={plan.total_price?.toString() || '0'}
-                    className="w-full h-12 bg-black/50 border border-zinc-800 rounded-xl px-4 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors tabular-nums"
+                    className="w-full h-12 bg-black/50 border border-slate-600 rounded-xl px-4 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors tabular-nums"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">
+                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">
                     Poznámka (volitelné)
                   </label>
                   <textarea
@@ -646,7 +646,7 @@ export const ShoppingListPage = () => {
                     placeholder="Např. chyběly 2 položky, cena kuřecích prsou byla vyšší..."
                     rows={2}
                     maxLength={1000}
-                    className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors resize-none"
+                    className="w-full bg-black/50 border border-slate-600 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors resize-none"
                   />
                 </div>
                 <button

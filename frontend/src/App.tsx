@@ -30,10 +30,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   componentDidCatch(error: Error, info: any) { console.error('React crash:', error, info.componentStack); }
   render() {
     if (this.state.error) return (
-      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#09090b] text-white min-h-screen">
+      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#1e293b] text-white min-h-screen">
         <AlertCircle size={48} className="text-rose-500 mb-6" />
         <h1 className="text-3xl font-black tracking-tighter uppercase mb-4 italic">Něco se pokazilo<span className="text-rose-600 not-italic">.</span></h1>
-        <p className="text-zinc-500 mb-2 text-sm max-w-md">{this.state.error.message}</p>
+        <p className="text-zinc-300 mb-2 text-sm max-w-md">{this.state.error.message}</p>
         <button onClick={() => { this.setState({ error: null }); window.location.href = '/'; }} className="mt-8 px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl">Zpět na hlavní stránku</button>
       </div>
     );

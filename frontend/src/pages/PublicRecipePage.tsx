@@ -57,10 +57,10 @@ export const PublicRecipePage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+      <div className="min-h-screen bg-[#1e293b] flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 size={48} className="text-emerald-500 animate-spin mx-auto" />
-          <p className="text-zinc-500 text-sm font-bold italic">Načítáme recept...</p>
+          <p className="text-zinc-300 text-sm font-bold italic">Načítáme recept...</p>
         </div>
       </div>
     );
@@ -68,7 +68,7 @@ export const PublicRecipePage = () => {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+      <div className="min-h-screen bg-[#1e293b] flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Recept nenalezen</h2>
           <Link to="/recepty" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">Zpět na recepty</Link>
@@ -80,7 +80,7 @@ export const PublicRecipePage = () => {
   const recipe = data;
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white">
+    <div className="min-h-screen bg-[#1e293b] text-white">
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
         <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
@@ -91,14 +91,14 @@ export const PublicRecipePage = () => {
           </span>
         </Link>
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/recepty')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">Recepty</button>
-          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">Ceník</button>
+          <button onClick={() => navigate('/recepty')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">Recepty</button>
+          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">Ceník</button>
           <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">Začít zdarma</button>
         </div>
       </nav>
 
       <div className="max-w-4xl mx-auto px-6 py-12 w-full">
-        <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 mb-8">
+        <div className="flex items-center gap-2 text-xs font-bold text-zinc-300 mb-8">
           <Link to="/recepty" className="text-emerald-400 hover:text-emerald-300 transition-colors">Recepty</Link>
           <span>/</span>
           <span className="truncate">{recipe.name}</span>
@@ -109,7 +109,7 @@ export const PublicRecipePage = () => {
           return imgUrl ? (
             <div className="relative h-64 sm:h-80 rounded-3xl overflow-hidden mb-12">
               <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f1e] via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1e293b] via-transparent to-transparent" />
             </div>
           ) : null;
         })()}
@@ -119,21 +119,21 @@ export const PublicRecipePage = () => {
             {recipe.name}<span className="text-emerald-500 not-italic">.</span>
           </h1>
           {recipe.description && (
-            <p className="text-zinc-500 text-lg font-medium italic mt-6 max-w-2xl leading-relaxed">"{recipe.description}"</p>
+            <p className="text-zinc-300 text-lg font-medium italic mt-6 max-w-2xl leading-relaxed">"{recipe.description}"</p>
           )}
           <div className="flex flex-wrap gap-4 mt-8">
             {recipe.preparation_time && (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 <Clock size={14} className="text-emerald-500" /> {recipe.preparation_time} min příprava
               </div>
             )}
             {recipe.cooking_time && (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 <Clock size={14} className="text-emerald-500" /> {recipe.cooking_time} min vaření
               </div>
             )}
             {recipe.servings && (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 <Users size={14} className="text-emerald-500" /> {recipe.servings} {recipe.servings > 1 ? 'porcí' : 'porce'}
               </div>
             )}
@@ -142,7 +142,7 @@ export const PublicRecipePage = () => {
 
         <div className="grid md:grid-cols-3 gap-10">
           <Card className="p-8 md:col-span-1 text-left h-fit md:sticky md:top-10">
-            <h2 className="text-lg font-black text-white uppercase tracking-tighter italic mb-6 pb-4 border-b border-zinc-800">Ingredience</h2>
+            <h2 className="text-lg font-black text-white uppercase tracking-tighter italic mb-6 pb-4 border-b border-slate-600">Ingredience</h2>
             <ul className="space-y-3">
               {(recipe.ingredients || []).map((ing: any, idx: number) => (
                 <li key={idx} className="flex items-start gap-3 text-sm">
@@ -151,7 +151,7 @@ export const PublicRecipePage = () => {
                     {typeof ing === 'string' ? ing : (
                       <>
                         <span className="font-bold text-white">{ing.name}</span>
-                        {ing.quantity && <span className="text-zinc-500 ml-1">— {ing.quantity} {ing.unit || ''}</span>}
+                        {ing.quantity && <span className="text-zinc-300 ml-1">— {ing.quantity} {ing.unit || ''}</span>}
                       </>
                     )}
                   </span>
@@ -177,7 +177,7 @@ export const PublicRecipePage = () => {
                 ))}
               </ol>
             ) : (
-              <p className="text-zinc-600 italic">Pro tento recept nejsou k dispozici instrukce.</p>
+              <p className="text-zinc-400 italic">Pro tento recept nejsou k dispozici instrukce.</p>
             )}
 
             {recipe.nutritional_info && Object.keys(recipe.nutritional_info).length > 0 && (
@@ -186,7 +186,7 @@ export const PublicRecipePage = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {Object.entries(recipe.nutritional_info).map(([k, v]: any) => (
                     <div key={k} className="space-y-1">
-                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest italic">{k}</p>
+                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest italic">{k}</p>
                       <p className="text-xl font-black text-zinc-200 italic tracking-tighter">{v}</p>
                     </div>
                   ))}
@@ -198,27 +198,27 @@ export const PublicRecipePage = () => {
 
         <div className="mt-20 bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16 text-center">
           <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Chcete celý týden takových jídel?</h2>
-          <p className="text-zinc-400 text-lg mb-8 max-w-md mx-auto">
+          <p className="text-zinc-200 text-lg mb-8 max-w-md mx-auto">
             AI vytvoří personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
+          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
         </div>
       </div>
 
-      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-zinc-900 mt-12">
+      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-slate-700 mt-12">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Zap size={16} className="text-emerald-500" />
-            <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-600">DietPlanner.</span>
+            <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-400">DietPlanner.</span>
           </div>
           <div className="flex items-center gap-6">
-            <Link to="/recepty" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Recepty</Link>
-            <Link to="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Ceník</Link>
-            <Link to="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zásady ochrany soukromí</Link>
-            <Link to="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodní podmínky</Link>
+            <Link to="/recepty" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Recepty</Link>
+            <Link to="/pricing" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Ceník</Link>
+            <Link to="/privacy" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Zásady ochrany soukromí</Link>
+            <Link to="/terms" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Obchodní podmínky</Link>
           </div>
         </div>
       </footer>

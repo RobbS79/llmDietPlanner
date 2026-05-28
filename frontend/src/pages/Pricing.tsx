@@ -86,7 +86,7 @@ export const Pricing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white">
+    <div className="min-h-screen bg-[#1e293b] text-white">
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
         <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
@@ -102,7 +102,7 @@ export const Pricing = () => {
       </nav>
 
       <main className="max-w-5xl mx-auto px-6 sm:px-12 py-12">
-        <Link to="/" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
+        <Link to="/" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
           <ArrowLeft size={14} /> Zpět na hlavní stránku
         </Link>
 
@@ -111,19 +111,19 @@ export const Pricing = () => {
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase italic leading-[0.85]">
             Jednoduchý <span className="text-emerald-500 not-italic">ceník.</span>
           </h1>
-          <p className="text-zinc-400 text-lg max-w-md mx-auto">
+          <p className="text-zinc-200 text-lg max-w-md mx-auto">
             Začněte zdarma. Upgradujte, až budete připraveni.
           </p>
 
           <div className="flex items-center justify-center gap-4 pt-4">
-            <span className={`text-sm font-bold transition-colors ${!annual ? 'text-white' : 'text-zinc-500'}`}>Měsíčně</span>
+            <span className={`text-sm font-bold transition-colors ${!annual ? 'text-white' : 'text-zinc-300'}`}>Měsíčně</span>
             <button
               onClick={() => setAnnual(!annual)}
-              className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-emerald-600' : 'bg-zinc-800'}`}
+              className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-emerald-600' : 'bg-slate-600'}`}
             >
               <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-transform ${annual ? 'left-8' : 'left-1'}`} />
             </button>
-            <span className={`text-sm font-bold transition-colors ${annual ? 'text-white' : 'text-zinc-500'}`}>
+            <span className={`text-sm font-bold transition-colors ${annual ? 'text-white' : 'text-zinc-300'}`}>
               Ročně
               <span className="ml-2 text-[10px] font-black text-emerald-400 uppercase tracking-widest">-33%</span>
             </span>
@@ -137,7 +137,7 @@ export const Pricing = () => {
               className={`rounded-3xl p-10 transition-all ${
                 plan.highlighted
                   ? 'bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border-2 border-emerald-500/30 shadow-[0_0_60px_rgba(5,150,105,0.1)]'
-                  : 'bg-zinc-900/50 border border-zinc-800'
+                  : 'bg-slate-700/50 border border-slate-600'
               }`}
             >
               {plan.highlighted && (
@@ -147,21 +147,21 @@ export const Pricing = () => {
               )}
 
               <h2 className="text-3xl font-black uppercase italic tracking-tighter mb-2">{plan.name}</h2>
-              <p className="text-zinc-500 text-sm mb-8">{plan.description}</p>
+              <p className="text-zinc-300 text-sm mb-8">{plan.description}</p>
 
               <div className="mb-8">
                 {plan.price.monthly === 0 ? (
                   <p className="text-5xl font-black tracking-tighter">
-                    0 <span className="text-zinc-500 text-lg">CZK</span>
+                    0 <span className="text-zinc-300 text-lg">CZK</span>
                   </p>
                 ) : (
                   <>
                     <p className="text-5xl font-black tracking-tighter">
-                      {annual ? plan.price.annual : plan.price.monthly} <span className="text-zinc-500 text-lg">CZK/měsíc</span>
+                      {annual ? plan.price.annual : plan.price.monthly} <span className="text-zinc-300 text-lg">CZK/měsíc</span>
                     </p>
                     {annual && (
-                      <p className="text-xs text-zinc-500 mt-2">
-                        <span className="line-through text-zinc-600">{plan.price.monthly} CZK</span>
+                      <p className="text-xs text-zinc-300 mt-2">
+                        <span className="line-through text-zinc-400">{plan.price.monthly} CZK</span>
                         <span className="ml-2 text-emerald-400 font-bold">Ušetříte {(plan.price.monthly - plan.price.annual) * 12} CZK/rok</span>
                       </p>
                     )}
@@ -174,7 +174,7 @@ export const Pricing = () => {
                 className={`w-full h-14 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-3 mb-10 ${
                   plan.highlighted
                     ? 'bg-white text-black shadow-2xl hover:shadow-white/10'
-                    : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                    : 'bg-slate-600 text-white hover:bg-zinc-700'
                 }`}
               >
                 {plan.cta} <ArrowRight size={16} />
@@ -188,7 +188,7 @@ export const Pricing = () => {
                     ) : (
                       <X size={16} className="text-zinc-700 shrink-0" />
                     )}
-                    <span className={f.included ? 'text-zinc-300' : 'text-zinc-600'}>{f.text}</span>
+                    <span className={f.included ? 'text-zinc-300' : 'text-zinc-400'}>{f.text}</span>
                   </li>
                 ))}
               </ul>
@@ -197,7 +197,7 @@ export const Pricing = () => {
         </div>
 
         <div className="text-center mb-16">
-          <p className="text-zinc-500 text-sm">
+          <p className="text-zinc-300 text-sm">
             Stojí méně než jedno kafe týdně. Průměrný uživatel ušetří <strong className="text-white">850 CZK měsíčně</strong> na nákupech.
           </p>
         </div>
@@ -211,17 +211,17 @@ export const Pricing = () => {
 
           <div className="space-y-3">
             {FAQ.map((item, i) => (
-              <div key={i} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div key={i} className="bg-slate-700/50 border border-slate-600 rounded-2xl overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="w-full flex items-center justify-between p-6 text-left"
                 >
                   <span className="text-sm font-bold text-white pr-4">{item.q}</span>
-                  <HelpCircle size={18} className={`shrink-0 transition-colors ${openFaq === i ? 'text-emerald-400' : 'text-zinc-600'}`} />
+                  <HelpCircle size={18} className={`shrink-0 transition-colors ${openFaq === i ? 'text-emerald-400' : 'text-zinc-400'}`} />
                 </button>
                 {openFaq === i && (
                   <div className="px-6 pb-6 pt-0">
-                    <p className="text-sm text-zinc-400 leading-relaxed">{item.a}</p>
+                    <p className="text-sm text-zinc-200 leading-relaxed">{item.a}</p>
                   </div>
                 )}
               </div>
@@ -233,7 +233,7 @@ export const Pricing = () => {
         <section className="text-center pb-12">
           <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16">
             <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Připraveni šetřit čas i peníze?</h2>
-            <p className="text-zinc-400 mb-8">Začněte s 10 plány zdarma. Bez kreditní karty.</p>
+            <p className="text-zinc-200 mb-8">Začněte s 10 plány zdarma. Bez kreditní karty.</p>
             <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
               Vytvořit jídelníček zdarma <ArrowRight size={18} />
             </button>
@@ -241,15 +241,15 @@ export const Pricing = () => {
         </section>
       </main>
 
-      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-zinc-900">
+      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-slate-700">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Zap size={16} className="text-emerald-500" />
-            <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-600">DietPlanner.</span>
+            <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-400">DietPlanner.</span>
           </div>
           <div className="flex items-center gap-6">
-            <Link to="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zásady ochrany soukromí</Link>
-            <Link to="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodní podmínky</Link>
+            <Link to="/privacy" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Zásady ochrany soukromí</Link>
+            <Link to="/terms" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Obchodní podmínky</Link>
           </div>
         </div>
       </footer>

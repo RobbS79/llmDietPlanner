@@ -102,7 +102,7 @@ export const Dashboard = () => {
             {profile && (
               <div className="flex items-center gap-2 pt-2">
                 <Sparkles size={14} className="text-emerald-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
                   {profile.free_generations_remaining} plánů zdarma zbývá
                 </span>
               </div>
@@ -112,7 +112,7 @@ export const Dashboard = () => {
             {!selectMode && goals?.length > 0 && (
               <button
                 onClick={() => setSelectMode(true)}
-                className="h-14 px-6 bg-zinc-800 text-zinc-300 font-black uppercase text-[10px] tracking-[0.2em] rounded-xl hover:bg-zinc-700 transition-all flex items-center gap-3 border border-zinc-700"
+                className="h-14 px-6 bg-slate-600 text-zinc-300 font-black uppercase text-[10px] tracking-[0.2em] rounded-xl hover:bg-zinc-700 transition-all flex items-center gap-3 border border-slate-500"
               >
                 <Trash2 size={16} strokeWidth={3} /> Smazat
               </button>
@@ -127,13 +127,13 @@ export const Dashboard = () => {
         </header>
 
         {selectMode && (
-          <div className="mb-8 flex items-center justify-between bg-zinc-900 border border-zinc-700 rounded-2xl px-6 py-4">
+          <div className="mb-8 flex items-center justify-between bg-slate-700 border border-slate-500 rounded-2xl px-6 py-4">
             <div className="flex items-center gap-4">
               <button
                 onClick={exitSelectMode}
-                className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors"
+                className="w-10 h-10 rounded-xl bg-slate-600 hover:bg-zinc-700 flex items-center justify-center transition-colors"
               >
-                <X size={18} className="text-zinc-400" />
+                <X size={18} className="text-zinc-200" />
               </button>
               <span className="text-sm font-bold text-zinc-300">
                 {selected.size} {selected.size === 1 ? 'plán vybrán' : selected.size >= 2 && selected.size <= 4 ? 'plány vybrány' : 'plánů vybráno'}
@@ -173,7 +173,7 @@ export const Dashboard = () => {
                     <p className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter leading-none">
                       {weeklyCost.toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}/týden</span>
                     </p>
-                    <p className="text-xs text-zinc-500 font-bold mt-1 italic">na {shopName}</p>
+                    <p className="text-xs text-zinc-300 font-bold mt-1 italic">na {shopName}</p>
                   </div>
                 </div>
                 {savings > 0 && (
@@ -181,7 +181,7 @@ export const Dashboard = () => {
                     <TrendingDown size={18} className="text-emerald-400" />
                     <div>
                       <p className="text-lg font-black text-emerald-400 italic tracking-tighter leading-none">-{savings.toLocaleString('cs-CZ')} {latestCost.currency}/týden</p>
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">vs. průměrný český nákup</p>
+                      <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">vs. průměrný český nákup</p>
                     </div>
                   </div>
                 )}
@@ -198,10 +198,10 @@ export const Dashboard = () => {
               <CardSkeleton />
             </>
           ) : goals?.length === 0 ? (
-            <div className="col-span-full py-40 flex flex-col items-center justify-center border border-zinc-800 rounded-3xl bg-zinc-900/10 text-center">
-              <Box size={64} className="text-zinc-500 mb-8" />
-              <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatím žádné jídelníčky</p>
-              <p className="text-zinc-500 text-xs mb-10">Vytvořte svůj první plán a zjistíte, kolik ušetříte.</p>
+            <div className="col-span-full py-40 flex flex-col items-center justify-center border border-slate-600 rounded-3xl bg-slate-700/10 text-center">
+              <Box size={64} className="text-zinc-300 mb-8" />
+              <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-4 italic">Zatím žádné jídelníčky</p>
+              <p className="text-zinc-300 text-xs mb-10">Vytvořte svůj první plán a zjistíte, kolik ušetříte.</p>
               <button onClick={() => navigate('/create')} className="text-emerald-500 font-black uppercase text-[10px] tracking-widest hover:underline flex items-center gap-2">
                 Vytvořit první plán <ArrowRight size={14} />
               </button>
@@ -210,7 +210,7 @@ export const Dashboard = () => {
             goals?.map((goal: any) => (
               <Card
                 key={goal.id}
-                className={`p-8 hover:bg-zinc-900 cursor-pointer group flex flex-col h-full text-left transition-all ${
+                className={`p-8 hover:bg-slate-700 cursor-pointer group flex flex-col h-full text-left transition-all ${
                   selectMode && selected.has(goal.id)
                     ? 'border-emerald-500 bg-emerald-500/5'
                     : 'hover:border-emerald-500/30'
@@ -238,7 +238,7 @@ export const Dashboard = () => {
                       {goal.status.replace(/_/g, ' ')}
                     </Badge>
                   </div>
-                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                  <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
                     #{goal.id}
                   </span>
                 </div>
@@ -249,19 +249,19 @@ export const Dashboard = () => {
 
                 {costMap.has(goal.id) && (
                   <div className="mb-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Celkem</span>
+                    <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Celkem</span>
                     <span className="text-lg font-black text-emerald-400 italic tracking-tighter">
                       {Math.round(costMap.get(goal.id)!.total).toLocaleString('cs-CZ')} {costMap.get(goal.id)!.currency}
                     </span>
                   </div>
                 )}
 
-                <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-zinc-800">
-                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-500 italic">
+                <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-slate-600">
+                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-300 italic">
                     <span className="flex items-center gap-2"><MapPin size={12} className="text-emerald-500" /> {goal.city}</span>
-                    <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{goal.num_days} dní</span>
+                    <span className="bg-slate-600 px-2 py-0.5 rounded text-zinc-200">{goal.num_days} dní</span>
                   </div>
-                  <div className="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] pt-1">
+                  <div className="flex justify-between items-center text-[9px] font-black text-zinc-300 uppercase tracking-[0.4em] pt-1">
                     <span>{new Date(goal.created_at).toLocaleDateString()}</span>
                     <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform group-hover:text-emerald-500" />
                   </div>

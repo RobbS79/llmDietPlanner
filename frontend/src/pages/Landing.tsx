@@ -31,7 +31,7 @@ export const Landing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white overflow-hidden pb-20 sm:pb-0">
+    <div className="min-h-screen bg-[#1e293b] text-white overflow-hidden pb-20 sm:pb-0">
       <a href="#main-content" className="skip-to-content">
         Přejít na obsah
       </a>
@@ -46,13 +46,13 @@ export const Landing = () => {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/recepty')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
+          <button onClick={() => navigate('/recepty')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
             Recepty
           </button>
-          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
+          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
             Ceník
           </button>
-          <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">
+          <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors">
             Přihlásit se
           </button>
           <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
@@ -77,17 +77,17 @@ export const Landing = () => {
             <span className="text-emerald-500">i kolik to bude stát.</span>
           </h1>
 
-          <p className="text-lg sm:text-xl text-zinc-400 max-w-xl mb-4 leading-relaxed">
+          <p className="text-lg sm:text-xl text-zinc-200 max-w-xl mb-4 leading-relaxed">
             AI vytvoří personalizovaný jídelníček s recepty, nutričními hodnotami a nákupním seznamem s <strong className="text-white">reálními cenami z vašeho obchodu.</strong>
           </p>
 
-          <p className="text-sm text-zinc-500 mb-12">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
+          <p className="text-sm text-zinc-300 mb-12">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] flex items-center justify-center gap-3">
               Vytvořit jídelníček zdarma <ArrowRight size={18} />
             </button>
-            <a href="#how-it-works" className="border border-zinc-700 text-zinc-300 px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest hover:border-zinc-500 transition-all text-center">
+            <a href="#how-it-works" className="border border-slate-500 text-zinc-300 px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest hover:border-zinc-500 transition-all text-center">
               Jak to funguje
             </a>
           </div>
@@ -104,7 +104,7 @@ export const Landing = () => {
           ].map((stat) => (
             <div key={stat.label}>
               <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{stat.value}</p>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1">{stat.label}</p>
+              <p className="text-xs font-bold text-zinc-300 uppercase tracking-widest mt-1">{stat.label}</p>
             </div>
           ))}
         </div>
@@ -130,7 +130,7 @@ export const Landing = () => {
               location: 'Bratislava',
             },
           ].map((t) => (
-            <div key={t.name} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
+            <div key={t.name} className="bg-slate-700/50 border border-slate-600 rounded-2xl p-8">
               <Quote size={20} className="text-emerald-500/40 mb-4" />
               <p className="text-sm text-zinc-300 leading-relaxed mb-6">{t.quote}</p>
               <div className="flex items-center gap-3">
@@ -139,7 +139,7 @@ export const Landing = () => {
                     <Star key={i} size={12} className="text-amber-500 fill-amber-500" />
                   ))}
                 </div>
-                <span className="text-xs font-bold text-zinc-500">{t.name}, {t.location}</span>
+                <span className="text-xs font-bold text-zinc-300">{t.name}, {t.location}</span>
               </div>
             </div>
           ))}
@@ -159,10 +159,10 @@ export const Landing = () => {
             { icon: Wallet, title: 'Chtějí šetřit za jídlo', desc: 'A vědět přesně, kolik utratí před nákupem' },
             { icon: Lightbulb, title: 'Vaří doma', desc: 'Ale dochází jim nápady na recepty' },
           ].map((item) => (
-            <div key={item.title} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center hover:border-emerald-500/20 transition-all">
+            <div key={item.title} className="bg-slate-700/50 border border-slate-600 rounded-2xl p-8 text-center hover:border-emerald-500/20 transition-all">
               <item.icon size={28} className="text-emerald-500 mx-auto mb-4" />
               <h4 className="font-black text-sm uppercase tracking-tight mb-2">{item.title}</h4>
-              <p className="text-zinc-500 text-xs leading-relaxed">{item.desc}</p>
+              <p className="text-zinc-300 text-xs leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
@@ -196,13 +196,13 @@ export const Landing = () => {
               desc: 'Dostanete nákupní seznam s aktuálními cenami z vašeho obchodu. Víte přesně, co koupit a kolik to bude stát.',
             },
           ].map((item) => (
-            <div key={item.step} className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-10 hover:border-emerald-500/20 transition-all group">
+            <div key={item.step} className="bg-slate-700/50 border border-slate-600 rounded-3xl p-10 hover:border-emerald-500/20 transition-all group">
               <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-2xl font-black italic mb-8 shadow-lg group-hover:shadow-emerald-500/20 transition-shadow">
                 {item.step}
               </div>
               <item.icon size={32} className="text-emerald-500 mb-6" />
               <h3 className="text-xl font-black tracking-tight mb-4">{item.title}</h3>
-              <p className="text-zinc-500 text-sm leading-relaxed">{item.desc}</p>
+              <p className="text-zinc-300 text-sm leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
@@ -210,7 +210,7 @@ export const Landing = () => {
 
       {/* AI transparency */}
       <section className="px-6 sm:px-12 pb-24 max-w-7xl mx-auto">
-        <div className="bg-zinc-900/30 border border-zinc-800 rounded-3xl p-8 sm:p-12">
+        <div className="bg-slate-700/30 border border-slate-600 rounded-3xl p-8 sm:p-12">
           <div className="text-center mb-12">
             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak naše AI funguje</p>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Transparentně a pod vaší kontrolou.</h2>
@@ -227,7 +227,7 @@ export const Landing = () => {
                   <item.icon size={22} className="text-emerald-400" />
                 </div>
                 <h4 className="font-black text-sm tracking-tight mb-2">{item.title}</h4>
-                <p className="text-zinc-500 text-xs leading-relaxed">{item.desc}</p>
+                <p className="text-zinc-300 text-xs leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -243,10 +243,10 @@ export const Landing = () => {
 
         <div className="grid lg:grid-cols-12 gap-8">
           {/* Plan preview */}
-          <div className="lg:col-span-7 bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 sm:p-10">
+          <div className="lg:col-span-7 bg-slate-700/50 border border-slate-600 rounded-3xl p-8 sm:p-10">
             <div className="flex items-center gap-3 mb-8">
               <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black text-emerald-400 uppercase tracking-widest">Ukázkový plán</div>
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">3 dny • Praha</span>
+              <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">3 dny • Praha</span>
             </div>
 
             <div className="space-y-6">
@@ -258,7 +258,7 @@ export const Landing = () => {
                   <div className="flex-1 space-y-2">
                     {day.meals.map((meal, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest w-20 shrink-0">
+                        <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest w-20 shrink-0">
                           {['Snídaně', 'Oběd', 'Večeře'][i]}
                         </span>
                         <span className="text-sm font-bold text-zinc-300">{meal}</span>
@@ -271,28 +271,28 @@ export const Landing = () => {
           </div>
 
           {/* Shopping list preview */}
-          <div className="lg:col-span-5 bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 sm:p-10">
+          <div className="lg:col-span-5 bg-slate-700/50 border border-slate-600 rounded-3xl p-8 sm:p-10">
             <div className="flex items-center gap-3 mb-8">
               <ShoppingCart size={18} className="text-emerald-500" />
               <h3 className="text-lg font-black uppercase tracking-tight italic">Nákupní seznam</h3>
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-auto">{SAMPLE_PLAN.store}</span>
+              <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest ml-auto">{SAMPLE_PLAN.store}</span>
             </div>
 
             <div className="space-y-4 mb-8">
               {SAMPLE_PLAN.shoppingList.map((item) => (
-                <div key={item.name} className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <div key={item.name} className="flex items-center justify-between border-b border-slate-600 pb-3">
                   <div>
                     <p className="text-sm font-bold text-white">{item.name}</p>
-                    <p className="text-[10px] font-bold text-zinc-600">{item.unit}</p>
+                    <p className="text-[10px] font-bold text-zinc-400">{item.unit}</p>
                   </div>
                   <p className="text-sm font-black text-emerald-400 tabular-nums">{item.price} {SAMPLE_PLAN.currency}</p>
                 </div>
               ))}
-              <div className="text-center text-zinc-500 text-xs font-bold">+ 12 dalších položek...</div>
+              <div className="text-center text-zinc-300 text-xs font-bold">+ 12 dalších položek...</div>
             </div>
 
             <div className="pt-6 border-t-2 border-emerald-600/30">
-              <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Odhadovaná cena celkem</p>
+              <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest mb-1">Odhadovaná cena celkem</p>
               <p className="text-4xl font-black tracking-tighter">
                 {SAMPLE_PLAN.total} <span className="text-emerald-500 text-lg">{SAMPLE_PLAN.currency}</span>
               </p>
@@ -310,10 +310,10 @@ export const Landing = () => {
             { icon: ChefHat, title: 'Kompletní recepty', desc: 'Postup přípravy krok za krokem se všemi ingrediencemi' },
             { icon: Check, title: 'Interaktivní seznam', desc: 'Odškrtávejte položky přímo v telefonu při nákupu' },
           ].map((f) => (
-            <div key={f.title} className="bg-zinc-950 border border-zinc-800/50 rounded-2xl p-8 hover:border-zinc-700 transition-all">
+            <div key={f.title} className="bg-slate-900 border border-slate-600/50 rounded-2xl p-8 hover:border-slate-500 transition-all">
               <f.icon size={24} className="text-emerald-500 mb-4" />
               <h4 className="font-black text-sm uppercase tracking-tight mb-2">{f.title}</h4>
-              <p className="text-zinc-600 text-xs leading-relaxed">{f.desc}</p>
+              <p className="text-zinc-400 text-xs leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -325,39 +325,39 @@ export const Landing = () => {
           <h2 className="text-4xl sm:text-5xl font-black tracking-tighter mb-6">
             Připraveni plánovat své jídlo?
           </h2>
-          <p className="text-zinc-400 text-lg mb-10 max-w-md mx-auto">
+          <p className="text-zinc-200 text-lg mb-10 max-w-md mx-auto">
             Začněte s 10 plány zdarma. Bez kreditní karty.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořit můj první plán <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-500 text-xs font-bold mt-6 uppercase tracking-widest">Dostupné v Česku a na Slovensku</p>
+          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">Dostupné v Česku a na Slovensku</p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-zinc-900">
+      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-slate-700">
         <div className="flex flex-col gap-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Zap size={16} className="text-emerald-500" />
-              <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-600">DietPlanner.</span>
+              <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-400">DietPlanner.</span>
             </div>
             <div className="flex items-center gap-6">
-              <a href="/recepty" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Recepty</a>
-              <a href="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Ceník</a>
-              <a href="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zásady ochrany soukromí</a>
-              <a href="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodní podmínky</a>
-              <a href="mailto:admin@kentakin.eu" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Kontakt</a>
+              <a href="/recepty" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Recepty</a>
+              <a href="/pricing" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Ceník</a>
+              <a href="/privacy" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Zásady ochrany soukromí</a>
+              <a href="/terms" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Obchodní podmínky</a>
+              <a href="mailto:admin@kentakin.eu" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Kontakt</a>
             </div>
           </div>
-          <p className="text-xs text-zinc-500 text-center sm:text-left">&copy; {new Date().getFullYear()} DietPlanner. All rights reserved.</p>
+          <p className="text-xs text-zinc-300 text-center sm:text-left">&copy; {new Date().getFullYear()} DietPlanner. All rights reserved.</p>
         </div>
       </footer>
 
       {/* Sticky mobile CTA */}
       {showStickyCta && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#09090b]/95 backdrop-blur-lg border-t border-zinc-800 sm:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#1e293b]/95 backdrop-blur-lg border-t border-slate-600 sm:hidden">
           <button onClick={() => navigate('/login')} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
             Vytvořit jídelníček zdarma <ArrowRight size={16} />
           </button>

@@ -7,8 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0a0f1e',
-        surface: '#161d2f',
+        background: '#1e293b',
+        surface: '#334155',
       },
       borderRadius: {
         '3xl': '1.5rem',

@@ -39,11 +39,11 @@ export const ResetPassword = () => {
 
   if (!uid || !token) {
     return (
-      <div className="h-screen flex items-center justify-center p-6 bg-[#09090b]">
-        <div className="max-w-md w-full text-center bg-zinc-900/50 border border-zinc-800 rounded-3xl p-12">
+      <div className="h-screen flex items-center justify-center p-6 bg-[#1e293b]">
+        <div className="max-w-md w-full text-center bg-slate-700/50 border border-slate-600 rounded-3xl p-12">
           <AlertCircle size={48} className="text-rose-500 mx-auto mb-6" />
           <h1 className="text-2xl font-black text-white mb-4">Neplatný odkaz</h1>
-          <p className="text-zinc-500 text-sm mb-8">Tento odkaz pro obnovu hesla je neplatný nebo vypršel.</p>
+          <p className="text-zinc-300 text-sm mb-8">Tento odkaz pro obnovu hesla je neplatný nebo vypršel.</p>
           <Link to="/forgot-password" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">Požádat o nový odkaz</Link>
         </div>
       </div>
@@ -51,7 +51,7 @@ export const ResetPassword = () => {
   }
 
   return (
-    <div className="h-screen flex items-center justify-center p-6 bg-[#09090b] relative overflow-hidden">
+    <div className="h-screen flex items-center justify-center p-6 bg-[#1e293b] relative overflow-hidden">
       <a href="#reset-form" className="skip-to-content">
         Přejít na formulář
       </a>
@@ -60,7 +60,7 @@ export const ResetPassword = () => {
         <div className="absolute bottom-[-15%] right-[-15%] w-[900px] h-[900px] bg-teal-600/[0.02] blur-[220px] rounded-full animate-pulse delay-1000" />
       </div>
 
-      <div className="max-w-md w-full relative z-10 bg-zinc-900/50 border border-zinc-800 rounded-3xl shadow-deep-full p-12">
+      <div className="max-w-md w-full relative z-10 bg-slate-700/50 border border-slate-600 rounded-3xl shadow-deep-full p-12">
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-400 text-white mb-6 shadow-glow-md">
             <Zap size={32} fill="currentColor" />
@@ -68,7 +68,7 @@ export const ResetPassword = () => {
           <h1 className="text-3xl font-black text-white tracking-tighter leading-none uppercase italic mb-3">
             Nové <span className="text-emerald-500 not-italic">heslo.</span>
           </h1>
-          <p className="text-xs text-zinc-600 font-bold">Zvolte si nové heslo pro svůj účet.</p>
+          <p className="text-xs text-zinc-400 font-bold">Zvolte si nové heslo pro svůj účet.</p>
         </div>
 
         <div aria-live="polite" aria-atomic="true">
@@ -90,9 +90,9 @@ export const ResetPassword = () => {
           <fieldset className="space-y-4 border-0 p-0 m-0">
             <legend className="sr-only">Nastavení nového hesla</legend>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Nové heslo</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nové heslo</label>
             <div className="relative">
-              <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
+              <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 required
                 type={showPassword ? 'text' : 'password'}
@@ -100,18 +100,18 @@ export const ResetPassword = () => {
                 placeholder="Min 8 chars, 1 letter, 1 digit"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-11 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/50"
+                className="w-full bg-slate-900 border border-slate-600 rounded-xl h-12 pl-11 pr-11 text-sm font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50"
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400">
+              <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200">
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Potvrzení hesla</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Potvrzení hesla</label>
             <div className="relative">
-              <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
+              <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 required
                 type={showPassword ? 'text' : 'password'}
@@ -119,7 +119,7 @@ export const ResetPassword = () => {
                 placeholder="Re-enter new password"
                 value={passwordConfirm}
                 onChange={e => setPasswordConfirm(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/50"
+                className="w-full bg-slate-900 border border-slate-600 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50"
               />
             </div>
           </div>
@@ -136,7 +136,7 @@ export const ResetPassword = () => {
         </form>
 
         <div className="text-center mt-8">
-          <Link to="/login" className="text-xs font-bold text-zinc-600 hover:text-emerald-400 transition-colors">
+          <Link to="/login" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors">
             Zpět na přihlášení
           </Link>
         </div>

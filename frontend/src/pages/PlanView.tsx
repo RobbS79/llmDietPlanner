@@ -102,12 +102,12 @@ export const PlanView = () => {
 
   if (statusError || goalError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#09090b] text-white">
+      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#1e293b] text-white">
         <div className="w-24 h-24 rounded-3xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 mb-10">
           <AlertCircle size={48} />
         </div>
         <h1 className="text-5xl font-black tracking-tighter uppercase mb-4 leading-none italic">Plán nenalezen<span className="text-rose-600 not-italic">.</span></h1>
-        <p className="text-zinc-600 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed mb-12">Tento plán neexistuje nebo k němu nemáte přístup.</p>
+        <p className="text-zinc-400 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed mb-12">Tento plán neexistuje nebo k němu nemáte přístup.</p>
         <button onClick={() => navigate('/')} className="px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl">Zpět na plány</button>
       </div>
     );
@@ -115,14 +115,14 @@ export const PlanView = () => {
 
   if (statusData?.goal_status === 'failed') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#09090b] text-white">
+      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#1e293b] text-white">
         <div className="w-24 h-24 rounded-3xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 mb-10 animate-bounce">
           <AlertCircle size={48} />
         </div>
         <h1 className="text-5xl font-black tracking-tighter uppercase mb-4 leading-none italic">Generování selhalo<span className="text-rose-600 not-italic">.</span></h1>
-        <p className={`text-zinc-600 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed ${statusData?.error_message ? 'mb-4' : 'mb-12'}`}>Nepodařilo se vygenerovat jídelníček. Zkuste to prosím znovu s jinými parametry.</p>
+        <p className={`text-zinc-400 max-w-sm font-medium tracking-tight italic opacity-80 leading-relaxed ${statusData?.error_message ? 'mb-4' : 'mb-12'}`}>Nepodařilo se vygenerovat jídelníček. Zkuste to prosím znovu s jinými parametry.</p>
         {statusData?.error_message && (
-          <p className="text-zinc-500 max-w-md mb-12 text-xs font-mono opacity-60 leading-relaxed">{statusData.error_message}</p>
+          <p className="text-zinc-300 max-w-md mb-12 text-xs font-mono opacity-60 leading-relaxed">{statusData.error_message}</p>
         )}
         <button onClick={() => navigate('/')} className="px-10 h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl">Zpět na plány</button>
       </div>
@@ -149,7 +149,7 @@ export const PlanView = () => {
                 { icon: Timer, text: `${goalDetail.num_days} dní` },
                 { icon: Globe, text: (goalDetail.language_code || 'CS').toUpperCase() },
               ].map((meta, i) => (
-                <div key={i} className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                <div key={i} className="flex items-center gap-3 bg-slate-700 border border-slate-600 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
                   <meta.icon size={14} className="text-emerald-500" /> {meta.text}
                 </div>
               ))}
@@ -186,7 +186,7 @@ export const PlanView = () => {
                   <p className="text-5xl sm:text-6xl font-black text-white italic tracking-tighter leading-none">
                     {weeklyCost.toLocaleString('cs-CZ')}<span className="text-emerald-500 text-lg not-italic ml-2 uppercase">{plan.currency}</span>
                   </p>
-                  <p className="text-xs text-zinc-500 font-bold italic">
+                  <p className="text-xs text-zinc-300 font-bold italic">
                     {dailyCost.toLocaleString('cs-CZ')} {plan.currency}/den na {shopName}
                   </p>
                 </div>
@@ -200,7 +200,7 @@ export const PlanView = () => {
                     {estimatedSavings > 0 ? `-${estimatedSavings.toLocaleString('cs-CZ')}` : '0'}<span className="text-emerald-500/60 text-sm not-italic ml-2 uppercase">{plan.currency}/týden</span>
                   </p>
                   {estimatedSavings > 0 && (
-                    <p className="text-xs text-zinc-500 font-bold italic">
+                    <p className="text-xs text-zinc-300 font-bold italic">
                       {savingsPercent}% méně než průměrný český nákup ({avgCzWeekly.toLocaleString('cs-CZ')} {plan.currency}/týden)
                     </p>
                   )}
@@ -208,14 +208,14 @@ export const PlanView = () => {
 
                 <div className="flex flex-col justify-center space-y-2">
                   <div className="flex items-center gap-2 mb-2">
-                    <CalendarDays size={18} className="text-zinc-500" />
-                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em]">Měsíčně ušetříte</p>
+                    <CalendarDays size={18} className="text-zinc-300" />
+                    <p className="text-[9px] font-black text-zinc-300 uppercase tracking-[0.3em]">Měsíčně ušetříte</p>
                   </div>
                   <p className="text-4xl font-black text-white italic tracking-tighter leading-none">
-                    {estimatedSavings > 0 ? `${(estimatedSavings * 4).toLocaleString('cs-CZ')}` : '—'}<span className="text-zinc-500 text-sm not-italic ml-2 uppercase">{estimatedSavings > 0 ? plan.currency : ''}</span>
+                    {estimatedSavings > 0 ? `${(estimatedSavings * 4).toLocaleString('cs-CZ')}` : '—'}<span className="text-zinc-300 text-sm not-italic ml-2 uppercase">{estimatedSavings > 0 ? plan.currency : ''}</span>
                   </p>
                   {estimatedSavings > 0 && (
-                    <p className="text-xs text-zinc-500 font-bold italic">
+                    <p className="text-xs text-zinc-300 font-bold italic">
                       {(estimatedSavings * 52).toLocaleString('cs-CZ')} {plan.currency} za rok
                     </p>
                   )}
@@ -255,8 +255,8 @@ export const PlanView = () => {
                 { label: 'Prům. tuky', value: `${avg.fat}g`, icon: null, color: 'text-blue-400' },
                 { label: 'Uvařeno', value: `${cookedCount}/${totalMeals}`, icon: ChefHat, color: 'text-emerald-400' },
               ].map((stat) => (
-                <div key={stat.label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
-                  <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-2">{stat.label}</p>
+                <div key={stat.label} className="bg-slate-700/50 border border-slate-600 rounded-2xl p-5">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2">{stat.label}</p>
                   <p className={`text-2xl font-black italic tracking-tighter ${stat.color}`}>{stat.value}</p>
                 </div>
               ))}
@@ -281,7 +281,7 @@ export const PlanView = () => {
                     return (
                       <Card
                         key={m}
-                        className={`p-0 hover:bg-zinc-900/80 hover:border-emerald-500/20 group/meal relative overflow-hidden text-left ${isCooked ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}
+                        className={`p-0 hover:bg-slate-700/80 hover:border-emerald-500/20 group/meal relative overflow-hidden text-left ${isCooked ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}
                       >
                         {(() => {
                           const imgUrl = getFoodImageUrl(day[m].food_category, day[m].name);
@@ -290,7 +290,7 @@ export const PlanView = () => {
                               <img src={imgUrl} alt={day[m].name} className="w-full h-full object-cover" loading="lazy"
                                 onError={(e) => { ((e.target as HTMLImageElement).closest('.relative') as HTMLElement).style.display = 'none'; }}
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[#161d2f] via-[#161d2f]/60 to-transparent" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-[#334155] via-[#334155]/60 to-transparent" />
                             </div>
                           ) : (
                             <div className="absolute top-0 right-0 p-8 text-zinc-900 opacity-20 pointer-events-none group-hover/meal:text-emerald-900 transition-colors">
@@ -308,24 +308,24 @@ export const PlanView = () => {
                           <div className="flex items-center gap-3">
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleCooked.mutate({ mealId, isCooked: !isCooked, mealName: day[m].name }); }}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${isCooked ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-400' : 'bg-black/30 border-zinc-800 text-zinc-600 hover:border-emerald-500/30 hover:text-emerald-400'}`}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${isCooked ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-400' : 'bg-black/30 border-slate-600 text-zinc-400 hover:border-emerald-500/30 hover:text-emerald-400'}`}
                             >
                               <ChefHat size={14} /> {isCooked ? 'Zrušit' : 'Označit jako uvařené'}
                             </button>
-                            <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg text-[9px] font-black text-zinc-600 border border-zinc-800 uppercase tracking-widest italic">
+                            <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg text-[9px] font-black text-zinc-400 border border-slate-600 uppercase tracking-widest italic">
                               <Timer size={14} className="text-emerald-500" /> {day[m].preparation_time || 20} min
                             </div>
                           </div>
                         </div>
 
                         <div className="cursor-pointer" onClick={() => navigate(`/plan/${id}/recipe/${mealId}`)}>
-                          <h3 className={`text-4xl font-black mb-6 tracking-tighter leading-tight uppercase italic group-hover/meal:text-emerald-400 transition-colors relative z-10 ${isCooked ? 'text-zinc-500 line-through' : 'text-white'}`}>{day[m].name}</h3>
-                          <p className="text-zinc-500 text-lg font-medium leading-relaxed mb-12 max-w-2xl relative z-10 italic">"{day[m].description}"</p>
+                          <h3 className={`text-4xl font-black mb-6 tracking-tighter leading-tight uppercase italic group-hover/meal:text-emerald-400 transition-colors relative z-10 ${isCooked ? 'text-zinc-300 line-through' : 'text-white'}`}>{day[m].name}</h3>
+                          <p className="text-zinc-300 text-lg font-medium leading-relaxed mb-12 max-w-2xl relative z-10 italic">"{day[m].description}"</p>
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 pt-8 border-t border-zinc-800">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 pt-8 border-t border-slate-600">
                             {Object.entries(day[m].nutritional_info || {}).map(([k, v]: any) => (
                               <div key={k} className="space-y-1.5">
-                                <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest italic leading-none">{k}</p>
+                                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest italic leading-none">{k}</p>
                                 <p className="text-xl font-black text-zinc-200 italic tracking-tighter leading-none">{v}</p>
                               </div>
                             ))}
@@ -346,7 +346,7 @@ export const PlanView = () => {
 
           <aside className="lg:col-span-4 lg:sticky lg:top-10">
             <Card className="p-10 border-emerald-500/10 text-left shadow-deep">
-              <div className="flex items-center gap-4 mb-14 border-b border-zinc-800 pb-10">
+              <div className="flex items-center gap-4 mb-14 border-b border-slate-600 pb-10">
                 <div className="w-12 h-12 rounded-xl bg-emerald-600/10 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
                   <ShoppingCart size={28} />
                 </div>
@@ -355,13 +355,13 @@ export const PlanView = () => {
 
               <div className="space-y-6 max-h-[440px] overflow-y-auto pr-4 custom-scrollbar mb-14">
                 {(Array.isArray(plan.shopping_list) ? plan.shopping_list : plan.shopping_list?.items || []).map((item: any, idx: number) => (
-                  <div key={idx} className="group border-b border-zinc-800 pb-6 last:border-0 last:pb-0">
+                  <div key={idx} className="group border-b border-slate-600 pb-6 last:border-0 last:pb-0">
                     <div className="flex justify-between items-start gap-3 mb-2">
                       <p className="text-base font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
                       <p className="text-sm font-black text-emerald-500 tabular-nums leading-none shrink-0 whitespace-nowrap">{item.price} {item.currency}</p>
                     </div>
-                    <div className="flex justify-between items-center text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
-                      <span className="bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800">{item.quantity} {item.unit}</span>
+                    <div className="flex justify-between items-center text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
+                      <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-600">{item.quantity} {item.unit}</span>
                       <span className="opacity-30 group-hover:opacity-100 transition-opacity max-w-[120px] truncate text-right">{item.matched_product_name}</span>
                     </div>
                   </div>
@@ -370,7 +370,7 @@ export const PlanView = () => {
 
               <div className="pt-10 border-t-2 border-emerald-600/30 space-y-10">
                 <div className="space-y-2 text-left">
-                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em] italic leading-none">Odhadovaná cena celkem</p>
+                  <p className="text-[9px] font-black text-zinc-300 uppercase tracking-[0.3em] italic leading-none">Odhadovaná cena celkem</p>
                   <p className="text-6xl font-black text-white italic tracking-tighter leading-none">
                     {plan.total_price}<span className="text-emerald-500 text-xl not-italic ml-2 uppercase leading-none">{plan.currency}</span>
                   </p>
