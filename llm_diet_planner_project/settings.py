@@ -22,6 +22,15 @@ USE_X_FORWARDED_PORT = True
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
 CORS_ALLOW_CREDENTIALS = True
 
+# --- CSRF ---
+# Defaults to CORS_ALLOWED_ORIGINS since both want scheme://host form;
+# can be overridden via env var if the two lists need to diverge.
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default=','.join(CORS_ALLOWED_ORIGINS),
+    cast=Csv(),
+)
+
 # --- SECURITY HEADERS ---
 if not DEBUG:
     SECURE_SSL_REDIRECT = True

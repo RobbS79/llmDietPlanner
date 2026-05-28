@@ -60,7 +60,7 @@ export const Terms = () => (
 
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">7. Kontakt</h2>
-          <p>Pro dotazy, připomínky a reklamace nás kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-emerald-400 hover:text-emerald-300">support@dietplanner.cz</a>.</p>
+          <p>Pro dotazy, připomínky a reklamace nás kontaktujte na <a href="mailto:admin@kentakin.eu" className="text-emerald-400 hover:text-emerald-300">admin@kentakin.eu</a>.</p>
         </section>
 
         <p className="text-zinc-600 text-xs pt-8 border-t border-zinc-800">Poslední aktualizace: květen 2026</p>

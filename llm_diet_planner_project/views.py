@@ -203,7 +203,7 @@ def public_recipe_index_view(request):
 def security_txt_view(request):
     expires = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%Y-%m-%dT00:00:00.000Z")
     body = (
-        "Contact: mailto:support@dietplanner.cz\n"
+        "Contact: mailto:admin@kentakin.eu\n"
         f"Expires: {expires}\n"
         "Preferred-Languages: cs, en\n"
         "Canonical: https://eatalnicek.eu/.well-known/security.txt\n"

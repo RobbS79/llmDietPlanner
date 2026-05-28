@@ -26,7 +26,7 @@ export const Privacy = () => (
       <div className="prose prose-invert prose-zinc max-w-none space-y-8 text-sm text-zinc-400 leading-relaxed">
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">1. Správce údajů</h2>
-          <p>Správcem vašich osobních údajů je DietPlanner AI. V případě dotazů nás kontaktujte na <a href="mailto:support@dietplanner.cz" className="text-emerald-400 hover:text-emerald-300">support@dietplanner.cz</a>.</p>
+          <p>Správcem vašich osobních údajů je DietPlanner AI. V případě dotazů nás kontaktujte na <a href="mailto:admin@kentakin.eu" className="text-emerald-400 hover:text-emerald-300">admin@kentakin.eu</a>.</p>
         </section>
 
         <section>

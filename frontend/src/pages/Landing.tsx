@@ -348,7 +348,7 @@ export const Landing = () => {
               <a href="/pricing" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Ceník</a>
               <a href="/privacy" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Zásady ochrany soukromí</a>
               <a href="/terms" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Obchodní podmínky</a>
-              <a href="mailto:support@dietplanner.cz" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Kontakt</a>
+              <a href="mailto:admin@kentakin.eu" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">Kontakt</a>
             </div>
           </div>
           <p className="text-xs text-zinc-500 text-center sm:text-left">&copy; {new Date().getFullYear()} DietPlanner. All rights reserved.</p>
