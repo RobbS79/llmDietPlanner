@@ -1660,6 +1660,7 @@ def scrape_store_task(self, shop_code: str) -> Dict[str, Any]:
     import time
     from datetime import timedelta
     from .models import LeafletOffer, GroceryStore, ScrapeRun
+    from .scrapers.price_recording import upsert_price_record
 
     started = time.time()
     log_prefix = f"[SCRAPE:{shop_code}]"
@@ -1727,6 +1728,31 @@ def scrape_store_task(self, shop_code: str) -> Dict[str, Any]:
                 created += 1
             else:
                 updated += 1
+
+            # Phase A dual-write: mirror into PriceRecord + StoreProduct.
+            try:
+                upsert_price_record(
+                    shop_code=shop_code,
+                    offer_data={
+                        'ingredient_name': ingredient_name,
+                        'display_name': product.get('display_name', ingredient_name),
+                        'price': price,
+                        'currency': product.get('currency', currency),
+                        'unit': product.get('unit', ''),
+                        'package_size': product.get('package_size'),
+                        'price_type': product.get('price_type', 'REGULAR'),
+                        'original_price': product.get('original_price'),
+                        'discount_percentage': product.get('discount_percentage'),
+                        'source_url': product.get('source_url', ''),
+                    },
+                    valid_from=now,
+                    valid_until=expires_at,
+                    scrape_run=scrape_run,
+                )
+            except Exception as dual_exc:
+                logger.warning(
+                    f"{log_prefix} PriceRecord dual-write failed for {ingredient_name}: {dual_exc}"
+                )
 
         duration = time.time() - started
         scrape_run.status = ScrapeRun.Status.COMPLETED
@@ -2294,7 +2320,7 @@ def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] 
                       target shop. Use sparingly — this re-runs the LLM extraction.
     """
     try:
-        from diet_planner.models import LeafletOffer, GroceryStore
+        from diet_planner.models import GroceryStore, PriceRecord, PriceSourceType
         goal = DietaryGoal.objects.get(id=goal_id)
         plan = goal.dietary_plan
 
@@ -2329,22 +2355,26 @@ def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] 
                 )
 
         now = timezone.now()
-        # Include ALL fresh leaflet offers, not just rows pre-tagged DISCOUNTED.
-        # kupi.cz renders prices in image overlays, so most rows arrive without
-        # an explicit original_price and can't be reliably labelled DISCOUNTED
-        # at scrape time. The downstream LLM compares each candidate's price
-        # against the user's current shopping-list price and only proposes
-        # swaps where the per-unit cost actually drops — let it judge savings.
-        # We still surface BS4-detected original_price/discount_percentage to
-        # the LLM when present so it has the stronger signal.
-        leaflet_offers = LeafletOffer.objects.filter(
-            shop__in=target_shops,
-            country=country,
-            expires_at__gt=now,
-            price__gt=0,
-        ).exclude(price_type='LLM_ESTIMATED').order_by('-discount_percentage', '-scraped_at')[:150]
+        # Include ALL fresh PriceRecord rows for the target shops. The
+        # downstream LLM compares each candidate's price against the user's
+        # current shopping-list price and proposes swaps where it actually
+        # drops; verified discount markers (original_price /
+        # discount_percentage) are still surfaced when present so the LLM
+        # has the stronger signal.
+        leaflet_offers = list(
+            PriceRecord.objects.current()
+            .filter(
+                store_product__store__code__in=target_shops,
+                store_product__store__country=country,
+                store_product__is_active=True,
+                price__gt=0,
+            )
+            .exclude(source_type=PriceSourceType.LLM_ESTIMATED)
+            .select_related('store_product', 'store_product__store')
+            .order_by('-discount_percentage', '-scraped_at')[:150]
+        )
 
-        if not leaflet_offers.exists():
+        if not leaflet_offers:
             plan.discount_optimization = {
                 'swaps': [],
                 'total_saving': 0,
@@ -2356,11 +2386,12 @@ def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] 
             return {'status': 'no_discounts', 'goal_id': goal_id, 'shops_queried': target_shops}
 
         lines = []
-        for offer in leaflet_offers:
-            disc_pct = f" (-{offer.discount_percentage}%)" if offer.discount_percentage else ""
-            orig = f" (původně {offer.original_price} {goal.currency})" if offer.original_price else ""
+        for record in leaflet_offers:
+            sp = record.store_product
+            disc_pct = f" (-{record.discount_percentage}%)" if record.discount_percentage else ""
+            orig = f" (původně {record.original_price} {goal.currency})" if record.original_price else ""
             lines.append(
-                f"#{offer.id} [{offer.shop}] {offer.ingredient_name} — {offer.price} {goal.currency}{disc_pct}{orig}"
+                f"#{record.id} [{sp.store.code}] {sp.normalized_name} — {record.price} {goal.currency}{disc_pct}{orig}"
             )
         discounted_text = "\n".join(lines)
 
