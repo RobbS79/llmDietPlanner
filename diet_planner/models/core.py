@@ -753,11 +753,29 @@ class Recipe(models.Model):
             models.Index(fields=['is_public', '-created_at'], name='diet_plann_recipe_public_idx'),
         ]
 
+    # A "recipe" with fewer than this many words across its instructions
+    # is not substantive enough to feature publicly — it's a label, not a
+    # cooking guide. Tuned to catch one-liners like "eat a small piece of
+    # chocolate" while letting through real 4–8 step recipes.
+    PUBLISH_MIN_WORDS = 25
+
+    @staticmethod
+    def count_instruction_words(instructions) -> int:
+        if not instructions:
+            return 0
+        return sum(len(str(step).split()) for step in instructions)
+
+    def has_substantive_instructions(self) -> bool:
+        return self.count_instruction_words(self.instructions) >= self.PUBLISH_MIN_WORDS
+
     def save(self, *args, **kwargs):
         from django.utils.text import slugify
         if not self.slug and self.name:
             self.slug = slugify(self.name)[:255]
-        if self.instructions and len(self.instructions) > 0:
+        # Auto-promote to public only when there's enough cooking guidance
+        # to be worth indexing. Never auto-demote — admins / the backfill
+        # command flip is_public off explicitly when they need to.
+        if self.has_substantive_instructions():
             self.is_public = True
         super().save(*args, **kwargs)
 

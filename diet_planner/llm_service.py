@@ -629,22 +629,32 @@ Browse {shop_url} and return complete shopping list with real prices."""
         ingredients_text = ", ".join(ingredients) if ingredients else "standard ingredients"
         description_text = f"\nDescription: {description}" if description else ""
         
-        prompt = f"""Generate detailed, step-by-step cooking instructions for the following meal:
+        prompt = f"""Generate substantive, informative cooking instructions for the following meal:
 
 Meal Name: {meal_name}
 Ingredients: {ingredients_text}{description_text}
 
 Requirements:
-- Provide 4-8 clear, specific cooking steps
-- Each step should be a complete action (e.g., "Heat 1 tablespoon of olive oil in a pan over medium heat")
-- Include specific temperatures, times, and techniques where appropriate
-- Instructions should be practical and easy to follow
-- Write in {language_code} language
+- Provide 4–8 clear cooking steps with real substance — never one-liners
+- Even for trivially-prepared foods (snacks, raw items, single-ingredient meals), produce a useful guide:
+    * Step 1 should explain WHY this food is included — its nutritional or health value (e.g., magnesium, polyphenols, slow-release carbs, protein, fibre — choose what fits)
+    * Subsequent steps cover quality cues when buying or selecting (look for ≥85% cocoa, fresh / firm produce, etc.), portion sizing, and timing or pairing suggestions
+- For cooked dishes: include specific temperatures, times, techniques, and serving notes
+- Each step must be a complete sentence with concrete information, not a vague action
+- Aim for at least 60–80 words across all steps combined
+- Write in {language_code} language, in a confident, practical tone
+
+Avoid output like "Eat a small piece of chocolate." A reader should learn something or be guided to do it better, not just told what they already know.
 
 Return ONLY a JSON object with an "instructions" array of strings:
 {{"instructions": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction", ...]}}"""
 
-        system_prompt = "You are a professional chef providing clear, detailed cooking instructions. Always respond with valid JSON."
+        system_prompt = (
+            "You are a professional chef and nutritionist providing substantive, informative cooking "
+            "and serving guidance. Never produce trivial one-liners — every recipe, even for simple "
+            "snacks, must give the reader real context (nutrition, quality cues, portion, timing). "
+            "Always respond with valid JSON."
+        )
         
         try:
             gemini_model = genai.GenerativeModel(
@@ -680,7 +690,80 @@ Return ONLY a JSON object with an "instructions" array of strings:
             logger.error(f"Error generating recipe instructions: {e}", exc_info=True)
             # Return empty list on error - fallback will be used
             return []
-    
+
+    def expand_thin_recipe_instructions(
+        self,
+        meal_name: str,
+        ingredients: list,
+        thin_instructions: list,
+        description: str = "",
+        language_code: str = "en",
+        model: Optional[str] = None,
+    ) -> list:
+        """
+        Re-generate instructions when the first attempt was too brief.
+
+        Feeds the thin output back to the model with an explicit ask to
+        expand it — nutritional context, quality cues, portion guidance,
+        serving notes. Used as a one-shot retry by the recipe view when
+        the substantive-content gate would otherwise keep the recipe
+        private.
+        """
+        model = model or self.default_model
+        ingredients_text = ", ".join(ingredients) if ingredients else "standard ingredients"
+        description_text = f"\nDescription: {description}" if description else ""
+        thin_text = "\n".join(f"- {step}" for step in thin_instructions) if thin_instructions else "- (none)"
+
+        prompt = f"""The previous attempt at generating instructions for this recipe was too brief and unhelpful. Rewrite it as a substantive guide.
+
+Meal Name: {meal_name}
+Ingredients: {ingredients_text}{description_text}
+
+Previous (too-thin) instructions:
+{thin_text}
+
+Required improvements:
+- 4–8 steps total, at least 60 words combined
+- Open with WHY this food is included — its nutritional or health value (specific nutrients, what they do)
+- Include quality cues for selecting the ingredients (% cocoa, freshness, marbling, etc. — whatever fits)
+- Give a sensible portion size and when to eat it (pre-workout, post-meal, etc.)
+- For cooked dishes, include temperatures, times, and serving suggestions
+- Write in {language_code}, in a confident practical tone
+- Never produce one-liners — every step must teach the reader something concrete
+
+Return ONLY a JSON object: {{"instructions": ["Step 1 ...", "Step 2 ...", ...]}}"""
+
+        system_prompt = (
+            "You are rewriting a too-brief recipe into a substantive cooking and nutrition guide. "
+            "Always respond with valid JSON."
+        )
+
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=system_prompt,
+            )
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.7,
+                },
+                request_options={"timeout": 300},
+            )
+            parsed = json.loads(response.text)
+            if isinstance(parsed, list):
+                return parsed
+            if 'instructions' in parsed:
+                return parsed['instructions']
+            for value in parsed.values():
+                if isinstance(value, list):
+                    return value
+            return []
+        except Exception as e:
+            logger.error(f"Error expanding thin recipe instructions: {e}", exc_info=True)
+            return []
+
     def extract_products_from_html(
         self,
         html_content: str,
