@@ -10,7 +10,12 @@ from typing import Dict, Any, List, Optional
 
 from django.utils import timezone
 
-from diet_planner.models import LeafletOffer, DietaryGoal, COUNTRY_TO_SHOPS
+from diet_planner.models import (
+    COUNTRY_TO_SHOPS,
+    DietaryGoal,
+    PriceRecord,
+    PriceSourceType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -166,47 +171,81 @@ class CatalogService:
     # ─── Internal methods ─────────────────────────────────────────────
 
     def _load_products(self, goal: DietaryGoal) -> List[Dict[str, Any]]:
-        now = timezone.now()
-        filters = {
-            'price__isnull': False,
-            'price__gt': 0,
-        }
-
+        """
+        Pull the freshest PriceRecord per StoreProduct so the LLM sees one
+        catalog row per product (preferring LEAFLET_DISCOUNT over STORE_REGULAR
+        when both are current).
+        """
         if goal.shop:
-            filters['shop'] = goal.shop
-            filters['country'] = goal.country
-
-            offers = LeafletOffer.objects.filter(
-                expires_at__gt=now,
-                **filters,
-            ).order_by('ingredient_name')
-
-            if offers.count() == 0:
-                offers = LeafletOffer.objects.filter(**filters).order_by('-scraped_at')
-                logger.warning(f"No fresh offers for {goal.shop}, using all available ({offers.count()})")
+            records = (
+                PriceRecord.objects.current()
+                .filter(
+                    store_product__store__code=goal.shop,
+                    store_product__store__country=goal.country,
+                    store_product__is_active=True,
+                    price__gt=0,
+                )
+                .select_related('store_product', 'store_product__store')
+                .order_by('store_product_id', 'source_type', 'price')
+            )
+            if not records.exists():
+                # Fall back to expired records so the user still sees something.
+                records = (
+                    PriceRecord.objects
+                    .filter(
+                        store_product__store__code=goal.shop,
+                        store_product__store__country=goal.country,
+                        store_product__is_active=True,
+                        price__gt=0,
+                    )
+                    .select_related('store_product', 'store_product__store')
+                    .order_by('store_product_id', '-scraped_at')
+                )
+                logger.warning(
+                    f"No fresh PriceRecord rows for {goal.shop}, falling back to all available"
+                )
         else:
             shops = COUNTRY_TO_SHOPS.get(goal.country, [])
-            offers = LeafletOffer.objects.filter(
-                shop__in=shops,
-                country=goal.country,
-                expires_at__gt=now,
-                **filters,
-            ).order_by('ingredient_name')
+            records = (
+                PriceRecord.objects.current()
+                .filter(
+                    store_product__store__code__in=shops,
+                    store_product__store__country=goal.country,
+                    store_product__is_active=True,
+                    price__gt=0,
+                )
+                .select_related('store_product', 'store_product__store')
+                .order_by('store_product_id', 'source_type', 'price')
+            )
 
-        products = []
-        for offer in offers:
-            pkg_info = self._extract_package_info(offer.display_name or '', offer.unit or '')
+        # Collapse to one row per StoreProduct (cheapest discounted wins,
+        # else cheapest regular). ORDER BY above puts the winner first.
+        seen_products = set()
+        products: List[Dict[str, Any]] = []
+        for record in records:
+            sp = record.store_product
+            if sp.id in seen_products:
+                continue
+            seen_products.add(sp.id)
+            display_name = sp.name or sp.normalized_name
+            package_unit = sp.package_unit or ''
+            pkg_info = self._extract_package_info(display_name, package_unit)
+            if not pkg_info and sp.package_size:
+                pkg_info = f"{sp.package_size}{package_unit}".strip()
+            discounted = record.source_type == PriceSourceType.LEAFLET_DISCOUNT
             products.append({
-                'id': offer.pk,
-                'name': offer.ingredient_name,
-                'display_name': offer.display_name,
-                'price': float(offer.price),
-                'currency': offer.currency,
-                'unit': offer.unit or '',
+                # `id` here is StoreProduct.id — PriceResolver._lookup_by_id
+                # now expects this so `catalog_id` round-trips cleanly.
+                'id': sp.id,
+                'name': sp.normalized_name,
+                'display_name': display_name,
+                'price': float(record.price),
+                'currency': record.currency,
+                'unit': package_unit,
                 'pkg': pkg_info,
-                'price_type': offer.price_type or 'REGULAR',
-                'discounted': offer.price_type == 'DISCOUNTED',
-                'shop': offer.shop,
+                'price_type': 'DISCOUNTED' if discounted else 'REGULAR',
+                'discounted': discounted,
+                'shop': sp.store.code,
             })
 
         return products

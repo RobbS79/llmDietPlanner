@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from diet_planner.models import DietaryGoal, LeafletOffer
+from diet_planner.models import DietaryGoal, PriceRecord, PriceSourceType
 from diet_planner.llm_service import GeminiService
 
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ class PriceDiscoveryService:
 
     def _lookup_price_in_db(self, ingredient: str) -> Optional[Dict[str, Any]]:
         """
-        Look up ingredient price in the LeafletOffer database.
+        Look up ingredient price in the PriceRecord database.
 
         Args:
             ingredient: Ingredient name to look up
@@ -127,43 +127,47 @@ class PriceDiscoveryService:
         if not ingredient:
             return None
 
-        from django.utils import timezone
-
-        # Normalize ingredient name
         normalized = ingredient.lower().strip()
 
-        # Look for active (non-expired) offers
-        offer = LeafletOffer.objects.filter(
-            ingredient_name__icontains=normalized,
-            shop=self.shop,
-            country=self.country,
-            expires_at__gt=timezone.now()
-        ).order_by('-scraped_at').first()
-
-        if offer:
+        def _format(record: PriceRecord) -> Dict[str, Any]:
+            is_disc = record.source_type == PriceSourceType.LEAFLET_DISCOUNT
             return {
-                'price': offer.price,
-                'currency': offer.currency,
-                'price_type': offer.price_type,
-                'original_price': offer.original_price,
-                'discount_percentage': offer.discount_percentage,
+                'price': record.price,
+                'currency': record.currency,
+                'price_type': 'DISCOUNTED' if is_disc else 'REGULAR',
+                'original_price': record.original_price,
+                'discount_percentage': record.discount_percentage,
             }
+
+        record = (
+            PriceRecord.objects.current()
+            .filter(
+                store_product__normalized_name__icontains=normalized,
+                store_product__store__code=self.shop,
+                store_product__store__country=self.country,
+                store_product__is_active=True,
+            )
+            .select_related('store_product')
+            .order_by('-scraped_at')
+            .first()
+        )
+        if record:
+            return _format(record)
 
         # Try broader search without shop filter
-        offer = LeafletOffer.objects.filter(
-            ingredient_name__icontains=normalized,
-            country=self.country,
-            expires_at__gt=timezone.now()
-        ).order_by('-scraped_at').first()
-
-        if offer:
-            return {
-                'price': offer.price,
-                'currency': offer.currency,
-                'price_type': offer.price_type,
-                'original_price': offer.original_price,
-                'discount_percentage': offer.discount_percentage,
-            }
+        record = (
+            PriceRecord.objects.current()
+            .filter(
+                store_product__normalized_name__icontains=normalized,
+                store_product__store__country=self.country,
+                store_product__is_active=True,
+            )
+            .select_related('store_product')
+            .order_by('-scraped_at')
+            .first()
+        )
+        if record:
+            return _format(record)
 
         return None
 
