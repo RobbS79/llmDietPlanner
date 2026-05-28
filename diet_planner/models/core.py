@@ -510,6 +510,14 @@ class DietaryPlan(models.Model):
         validators=[MinValueValidator(0)],
         help_text="Total price calculated from database (not LLM guess)"
     )
+    pantry_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Pro-rated share of pantry staples included in total_price"
+    )
     currency = models.CharField(
         max_length=3,
         default='PLN',
