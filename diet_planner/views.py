@@ -371,7 +371,10 @@ class RecipeDetailView(APIView):
         if not meal:
             return Response({"status": "error", "error": "Meal not found in plan"}, status=404)
 
-        # Generate cooking instructions via LLM
+        # Generate cooking instructions via LLM. If the first pass comes
+        # back too thin (one-liners like "eat a piece of chocolate"), fire
+        # one expansion retry so the recipe has enough substance to be
+        # published. The Recipe.save() gate enforces this same threshold.
         from .llm_service import GeminiService
         try:
             llm_service = GeminiService()
@@ -388,6 +391,21 @@ class RecipeDetailView(APIView):
                 description=meal.get('description', ''),
                 language_code=goal.language_code,
             )
+
+            if Recipe.count_instruction_words(instructions) < Recipe.PUBLISH_MIN_WORDS:
+                logger.info(
+                    f"Thin recipe instructions ({Recipe.count_instruction_words(instructions)} words) "
+                    f"for {meal_identifier!r}, retrying with expansion prompt."
+                )
+                expanded = llm_service.expand_thin_recipe_instructions(
+                    meal_name=meal.get('name', ''),
+                    ingredients=ingredient_names,
+                    thin_instructions=instructions,
+                    description=meal.get('description', ''),
+                    language_code=goal.language_code,
+                )
+                if Recipe.count_instruction_words(expanded) > Recipe.count_instruction_words(instructions):
+                    instructions = expanded
         except Exception as e:
             logger.error(f"Failed to generate recipe instructions for {meal_identifier}: {e}")
             instructions = []
