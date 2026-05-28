@@ -2,10 +2,10 @@
 Price Resolver Service — database-only price resolution with zero LLM fabrication.
 
 Every price shown to the user is either:
-1. From a real scraped LeafletOffer (LEAFLET_DISCOUNT or STORE_REGULAR)
+1. From a real scraped PriceRecord (LEAFLET_DISCOUNT or STORE_REGULAR)
 2. A pantry staple estimate (PANTRY_ESTIMATE) — cheap basics, clearly labeled
 3. Found in another store (CROSS_STORE_MATCH) — when selected store doesn't carry it
-4. Historical average (HISTORICAL_AVERAGE) — from expired offers
+4. Historical average (HISTORICAL_AVERAGE) — from expired records
 5. Explicitly marked as unavailable (NOT_AVAILABLE)
 
 The LLM never sets prices. Period.
@@ -19,7 +19,12 @@ from typing import Dict, Any, List, Optional
 
 from django.utils import timezone
 
-from diet_planner.models import LeafletOffer, DietaryGoal, COUNTRY_TO_SHOPS
+from diet_planner.models import (
+    COUNTRY_TO_SHOPS,
+    DietaryGoal,
+    PriceRecord,
+    PriceSourceType,
+)
 from diet_planner.services.catalog import PANTRY_STAPLES
 
 logger = logging.getLogger(__name__)
@@ -151,100 +156,147 @@ class PriceResolver:
         return result
 
     # ─── Lookup helpers ───────────────────────────────────────────────
+    # Lookups return PriceRecord rows (via .current()) joined to their
+    # StoreProduct + GroceryStore so _build_result can read display_name,
+    # package, and shop code without extra queries.
 
-    def _lookup_by_id(self, offer_id: int) -> Optional[LeafletOffer]:
-        now = timezone.now()
+    def _lookup_by_id(self, record_id: int) -> Optional[PriceRecord]:
+        """`catalog_id` from the catalog text now refers to StoreProduct.id."""
         try:
-            return LeafletOffer.objects.filter(
-                pk=offer_id,
-                price__isnull=False,
-                price__gt=0,
-                expires_at__gt=now,
-            ).first()
+            return (
+                PriceRecord.objects.current()
+                .filter(store_product_id=record_id, store_product__is_active=True)
+                .select_related('store_product', 'store_product__store')
+                .order_by('source_type', 'price')  # LEAFLET_DISCOUNT < STORE_REGULAR alphabetically
+                .first()
+            )
         except Exception:
             return None
 
-    def _match_by_name(self, ingredient: str, shop: str, country: str) -> Optional[LeafletOffer]:
-        now = timezone.now()
+    def _match_by_name(self, ingredient: str, shop: str, country: str) -> Optional[PriceRecord]:
         normalized = ingredient.lower().strip()
         if not normalized:
             return None
 
-        # Exact match, prefer discounted
-        offer = LeafletOffer.objects.filter(
-            shop=shop, country=country,
-            ingredient_name=normalized,
-            expires_at__gt=now,
-            price__isnull=False, price__gt=0,
-        ).order_by(
-            '-price_type',  # DISCOUNTED sorts after REGULAR alphabetically, but we want it first
-        ).first()
+        base = (
+            PriceRecord.objects.current()
+            .filter(
+                store_product__store__code=shop,
+                store_product__store__country=country,
+                store_product__is_active=True,
+            )
+            .select_related('store_product', 'store_product__store')
+        )
 
-        if offer:
-            return offer
+        # Exact match, prefer discounted
+        record = (
+            base.filter(store_product__normalized_name=normalized)
+            .order_by('source_type', 'price')
+            .first()
+        )
+        if record:
+            return record
 
         # Partial match
         if len(normalized) >= 3:
-            offer = LeafletOffer.objects.filter(
-                shop=shop, country=country,
-                ingredient_name__icontains=normalized,
-                expires_at__gt=now,
-                price__isnull=False, price__gt=0,
-            ).order_by('-scraped_at').first()
-            if offer:
-                return offer
+            record = (
+                base.filter(store_product__normalized_name__icontains=normalized)
+                .order_by('source_type', 'price', '-scraped_at')
+                .first()
+            )
+            if record:
+                return record
 
         return None
 
-    def _match_by_name_historical(self, ingredient: str) -> Optional[LeafletOffer]:
-        """Match against expired offers (historical prices)."""
+    def _match_by_name_historical(self, ingredient: str) -> Optional[PriceRecord]:
+        """Match against any PriceRecord (including expired) for the same country."""
         normalized = ingredient.lower().strip()
         if not normalized or len(normalized) < 3:
             return None
 
-        return LeafletOffer.objects.filter(
-            country=self.country,
-            ingredient_name__icontains=normalized,
-            price__isnull=False, price__gt=0,
-        ).order_by('-scraped_at').first()
+        return (
+            PriceRecord.objects
+            .filter(
+                store_product__store__country=self.country,
+                store_product__normalized_name__icontains=normalized,
+                store_product__is_active=True,
+            )
+            .select_related('store_product', 'store_product__store')
+            .order_by('-scraped_at')
+            .first()
+        )
 
     # ─── Result builders ──────────────────────────────────────────────
 
     def _build_result(
         self,
         result: Dict[str, Any],
-        offer: LeafletOffer,
+        record: PriceRecord,
         quantity: float,
         unit: str,
     ) -> Dict[str, Any]:
-        unit_price = float(offer.price)
-        package_size = self._extract_package_size(offer.display_name or '', offer.unit or '')
-        packages_needed = self._calc_packages_needed(quantity, unit, package_size, offer.unit or '')
+        store_product = record.store_product
+        unit_price = float(record.price)
+        product_unit = store_product.package_unit or ''
+        # Prefer the structured package_size on StoreProduct; fall back to
+        # parsing the display name for legacy rows where it's still NULL.
+        package_size: Optional[float] = (
+            float(store_product.package_size) if store_product.package_size else
+            self._extract_package_size(store_product.name or '', product_unit)
+        )
+        packages_needed = self._calc_packages_needed(quantity, unit, package_size, product_unit)
         price_total = round(unit_price * packages_needed, 2)
 
-        is_discount = offer.price_type == 'DISCOUNTED'
+        is_discount = record.source_type == PriceSourceType.LEAFLET_DISCOUNT
         source = PriceSource.LEAFLET_DISCOUNT if is_discount else PriceSource.STORE_REGULAR
 
         result['price'] = unit_price
         result['price_total'] = price_total
-        result['currency'] = offer.currency
-        result['matched_product_name'] = offer.display_name
+        result['currency'] = record.currency
+        result['matched_product_name'] = store_product.name
         result['package_size'] = package_size
         result['packages_needed'] = packages_needed
         result['price_source'] = source.value
         result['source_detail'] = self._label(source)
         result['estimated'] = False
-        result['shop'] = offer.shop
+        result['shop'] = store_product.store.code
 
         if is_discount:
-            if offer.original_price:
-                result['original_price'] = float(offer.original_price)
-            if offer.discount_percentage:
-                result['discount_percentage'] = offer.discount_percentage
-            if offer.expires_at:
-                result['valid_until'] = offer.expires_at.strftime('%Y-%m-%d')
+            # Phase D: prefer a real STORE_REGULAR baseline for the SAME
+            # StoreProduct over inferred / scraped <del> markup. If we have
+            # both leaflet discount + a recent regular record, compute the
+            # discount % from data instead of trusting the scrape marker.
+            baseline = self._latest_regular_baseline(store_product.id)
+            if baseline is not None and baseline > record.price:
+                computed_pct = int(round(
+                    (float(baseline) - float(record.price)) / float(baseline) * 100
+                ))
+                result['original_price'] = float(baseline)
+                result['discount_percentage'] = computed_pct
+            else:
+                if record.original_price:
+                    result['original_price'] = float(record.original_price)
+                if record.discount_percentage:
+                    result['discount_percentage'] = record.discount_percentage
+            if record.valid_until:
+                result['valid_until'] = record.valid_until.strftime('%Y-%m-%d')
 
         return result
+
+    def _latest_regular_baseline(self, store_product_id: int):
+        """Return the latest STORE_REGULAR price for this StoreProduct, or None."""
+        record = (
+            PriceRecord.objects
+            .filter(
+                store_product_id=store_product_id,
+                source_type=PriceSourceType.STORE_REGULAR,
+            )
+            .order_by('-scraped_at')
+            .values_list('price', flat=True)
+            .first()
+        )
+        return record
 
     def _build_pantry_result(
         self,

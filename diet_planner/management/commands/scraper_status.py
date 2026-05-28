@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand
 from django.db.models import Count, Sum, Max
 from django.utils import timezone
 
-from diet_planner.models import GroceryStore, LeafletOffer, ScrapeRun
+from diet_planner.models import GroceryStore, PriceRecord, ScrapeRun
 
 
 class Command(BaseCommand):
@@ -33,16 +33,25 @@ class Command(BaseCommand):
                 store=store, status='COMPLETED'
             ).order_by('-started_at').first()
 
-            # Active offers
-            active_count = LeafletOffer.objects.filter(
-                shop=store.code, country=store.country,
-                expires_at__gt=now, price__gt=0,
+            # Active priced records
+            active_count = PriceRecord.objects.current().filter(
+                store_product__store=store,
+                store_product__is_active=True,
+                price__gt=0,
             ).count()
 
-            # Freshness breakdown
-            fresh = LeafletOffer.objects.filter(shop=store.code, freshness_state='fresh').count()
-            stale = LeafletOffer.objects.filter(shop=store.code, freshness_state='stale').count()
-            expired = LeafletOffer.objects.filter(shop=store.code, freshness_state='expired').count()
+            # PriceRecord uses valid_until directly; derive fresh/stale/expired
+            # by comparing scraped_at to the store's TTL window.
+            ttl_hours = store.default_price_ttl_hours or 168
+            fresh_cutoff = now - timedelta(hours=ttl_hours / 2)
+            fresh = PriceRecord.objects.current().filter(
+                store_product__store=store, scraped_at__gte=fresh_cutoff,
+            ).count()
+            stale = max(0, active_count - fresh)
+            expired = PriceRecord.objects.filter(
+                store_product__store=store,
+                valid_until__lte=now,
+            ).count()
 
             # Weekly cost
             weekly_cost = ScrapeRun.objects.filter(

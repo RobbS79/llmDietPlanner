@@ -12,9 +12,10 @@ from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth.models import User
 
-from diet_planner.models import DietaryGoal, DietaryPlan, LeafletOffer, GroceryStore
+from diet_planner.models import DietaryGoal, DietaryPlan, GroceryStore, PriceSourceType
 from diet_planner.services.catalog import CatalogService, PANTRY_STAPLES
 from diet_planner.services.price_resolver import PriceResolver, PriceSource
+from diet_planner.tests.factories import make_price
 
 
 class CatalogServiceTest(TestCase):
@@ -31,8 +32,6 @@ class CatalogServiceTest(TestCase):
             shop='LIDL_CZ',
             num_days=3,
         )
-        now = timezone.now()
-        # Seed some real-looking offers
         for name, price in [
             ('kuřecí prsa', 139.90),
             ('rýže basmati', 45.90),
@@ -43,27 +42,22 @@ class CatalogServiceTest(TestCase):
             ('olivový olej extra virgin', 89.90),
             ('mléko polotučné', 22.90),
         ]:
-            LeafletOffer.objects.create(
-                shop='LIDL_CZ',
-                country='CZ',
-                ingredient_name=name,
+            make_price(
+                store_code='LIDL_CZ',
+                normalized_name=name,
                 display_name=name.title(),
-                price=Decimal(str(price)),
-                currency='CZK',
-                price_type='REGULAR',
-                expires_at=now + timedelta(days=7),
+                price=price,
+                source_type=PriceSourceType.STORE_REGULAR,
             )
-        LeafletOffer.objects.create(
-            shop='LIDL_CZ',
-            country='CZ',
-            ingredient_name='banány',
+        make_price(
+            store_code='LIDL_CZ',
+            normalized_name='banány',
             display_name='Banány',
-            price=Decimal('19.90'),
-            currency='CZK',
-            price_type='DISCOUNTED',
-            original_price=Decimal('29.90'),
+            price=19.90,
+            source_type=PriceSourceType.LEAFLET_DISCOUNT,
+            original_price=29.90,
             discount_percentage=33,
-            expires_at=now + timedelta(days=3),
+            valid_for_days=3,
         )
 
     def test_catalog_loads_products(self):
@@ -114,34 +108,31 @@ class PriceResolverTest(TestCase):
             shop='LIDL_CZ',
             num_days=3,
         )
-        now = timezone.now()
-        self.offer = LeafletOffer.objects.create(
-            shop='LIDL_CZ',
-            country='CZ',
-            ingredient_name='kuřecí prsa',
+        self.record = make_price(
+            store_code='LIDL_CZ',
+            normalized_name='kuřecí prsa',
             display_name='Kuřecí prsa bez kosti 1kg',
-            price=Decimal('139.90'),
-            currency='CZK',
-            price_type='DISCOUNTED',
-            original_price=Decimal('169.90'),
+            price=139.90,
+            source_type=PriceSourceType.LEAFLET_DISCOUNT,
+            original_price=169.90,
             discount_percentage=18,
-            expires_at=now + timedelta(days=5),
+            valid_for_days=5,
         )
+        # `catalog_id` now refers to StoreProduct.id (see CatalogService._load_products)
+        self.catalog_id = self.record.store_product_id
         # Albert offer for cross-store test
-        LeafletOffer.objects.create(
-            shop='ALBERT_CZ',
-            country='CZ',
-            ingredient_name='losos filety',
+        make_price(
+            store_code='ALBERT_CZ',
+            normalized_name='losos filety',
             display_name='Losos filety 200g',
-            price=Decimal('99.90'),
-            currency='CZK',
-            price_type='REGULAR',
-            expires_at=now + timedelta(days=5),
+            price=99.90,
+            source_type=PriceSourceType.STORE_REGULAR,
+            valid_for_days=5,
         )
 
     def test_direct_id_match(self):
         resolver = PriceResolver(self.goal)
-        items = [{'ingredient': 'kuřecí prsa', 'catalog_id': self.offer.pk, 'quantity': 500, 'unit': 'g'}]
+        items = [{'ingredient': 'kuřecí prsa', 'catalog_id': self.catalog_id, 'quantity': 500, 'unit': 'g'}]
         resolved = resolver.resolve_shopping_list(items)
         self.assertEqual(len(resolved), 1)
         self.assertEqual(resolved[0]['price_source'], PriceSource.LEAFLET_DISCOUNT.value)

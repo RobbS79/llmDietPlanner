@@ -1,0 +1,20 @@
+# Albert Czech Republic staples. Seed file — expand via Gemini suggester.
+- name: Albert Bio mléko polotučné
+  canonical_slug: semi-skimmed-milk
+  package_size: 1000
+  package_unit: ml
+
+- name: Albert jogurt bílý
+  canonical_slug: white-yogurt
+  package_size: 150
+  package_unit: g
+
+- name: Albert rýže basmati
+  canonical_slug: rice-basmati
+  package_size: 500
+  package_unit: g
+
+- name: Vejce M 10ks
+  canonical_slug: eggs
+  package_size: 10
+  package_unit: ks

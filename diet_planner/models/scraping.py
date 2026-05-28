@@ -23,6 +23,7 @@ class ScrapeRun(models.Model):
         LLM = 'LLM', 'Gemini LLM extraction'
         STRUCTURED = 'STRUCTURED', 'BeautifulSoup/CSS'
         HYBRID = 'HYBRID', 'Structured + LLM fallback'
+        CATALOG = 'CATALOG', 'Full catalog (sitemap-driven)'
 
     store = models.ForeignKey(
         GroceryStore,

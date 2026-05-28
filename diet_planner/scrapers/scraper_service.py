@@ -12,6 +12,8 @@ from .kupi_cz import KupiCzScraper
 from .rohlik_cz import RohlikCzScraper
 from .kupino_sk import KupinoSkScraper
 from .lunys_sk import LunysSkScraper
+from .price_recording import upsert_price_record
+from .rohlik_cz_catalog import RohlikCzCatalogScraper
 from .utils import normalize_ingredient_name
 import requests
 from bs4 import BeautifulSoup
@@ -34,6 +36,78 @@ def get_llm_service():
 CACHE_EXPIRY_HOURS = 24
 
 
+class _OfferAdapter:
+    """
+    Wraps a PriceRecord so legacy callers can still read .price,
+    .ingredient_name, .display_name, .currency, .unit, .price_type,
+    .original_price, .discount_percentage, .expires_at, .scraped_at, .shop
+    without changing every caller in lockstep. Removed once Phase A.3 retires
+    the last LeafletOffer consumer.
+    """
+    __slots__ = ('_r', '_sp')
+
+    def __init__(self, record):
+        self._r = record
+        self._sp = record.store_product
+
+    @property
+    def pk(self):
+        return self._sp.id  # catalog_id round-trips via StoreProduct.id
+
+    @property
+    def price(self):
+        return self._r.price
+
+    @property
+    def currency(self):
+        return self._r.currency
+
+    @property
+    def unit(self):
+        return self._sp.package_unit or ''
+
+    @property
+    def display_name(self):
+        return self._sp.name
+
+    @property
+    def ingredient_name(self):
+        return self._sp.normalized_name
+
+    @property
+    def price_type(self):
+        from ..models import PriceSourceType
+        return 'DISCOUNTED' if self._r.source_type == PriceSourceType.LEAFLET_DISCOUNT else 'REGULAR'
+
+    @property
+    def original_price(self):
+        return self._r.original_price
+
+    @property
+    def discount_percentage(self):
+        return self._r.discount_percentage
+
+    @property
+    def expires_at(self):
+        return self._r.valid_until
+
+    @property
+    def scraped_at(self):
+        return self._r.scraped_at
+
+    @property
+    def shop(self):
+        return self._sp.store.code
+
+    @property
+    def country(self):
+        return self._sp.store.country
+
+    @property
+    def source_url(self):
+        return self._r.source_url or self._sp.source_url
+
+
 class ScraperService:
     """
     Service for managing leaflet scraping and caching.
@@ -42,6 +116,14 @@ class ScraperService:
     triggers scraping if needed, and stores results.
     """
     
+    # Catalog scrapers run on a schedule (not on the user-facing request path)
+    # and write full-catalog StoreProduct + STORE_REGULAR PriceRecord rows.
+    # Distinct from SCRAPER_MAP, which routes on-demand leaflet scrapes.
+    CATALOG_SCRAPER_MAP = {
+        'ROHLIK': RohlikCzCatalogScraper,
+        # 'KOSIK_CZ': KosikCzCatalogScraper,  # added when scraper lands
+    }
+
     # Map shop codes to (scraper_class, constructor_kwargs)
     SCRAPER_MAP = {
         'LIDL_CZ': (KupiCzScraper, {'store_slug': 'lidl'}),
@@ -159,44 +241,50 @@ class ScraperService:
     @classmethod
     def is_cache_valid(cls, shop: str, country: str) -> bool:
         """
-        Check if cached data exists and is still valid.
-        
-        Args:
-            shop: Shop code
-            country: Country code
-            
-        Returns:
-            True if valid cache exists, False otherwise
+        Check if any non-expired PriceRecord rows exist for this shop/country.
         """
-        now = timezone.now()
-        cached_count = LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            expires_at__gt=now
-        ).count()
-        
-        return cached_count > 0
-    
+        from ..models import PriceRecord
+        return PriceRecord.objects.current().filter(
+            store_product__store__code=shop,
+            store_product__store__country=country,
+            store_product__is_active=True,
+            price__gt=0,
+        ).exists()
+
     @classmethod
-    def get_cached_offers(cls, shop: str, country: str) -> List[LeafletOffer]:
+    def get_cached_offers(cls, shop: str, country: str):
         """
-        Get cached offers that are still valid.
-        
-        Args:
-            shop: Shop code
-            country: Country code
-            
-        Returns:
-            List of LeafletOffer instances (with prices)
+        Return the freshest non-expired PriceRecord per StoreProduct.
+
+        Returns PriceRecord instances rather than LeafletOffer; callers
+        previously used `.price`, `.currency`, `.unit`, `.display_name`,
+        `.ingredient_name`, `.expires_at`, `.price_type`. A thin shim
+        adapter keeps that interface stable during the cutover.
         """
-        now = timezone.now()
-        return list(LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            expires_at__gt=now,
-            price__isnull=False,  # Only return offers with prices
-            price__gt=0  # Only return offers with positive prices (exclude zero)
-        ).order_by('ingredient_name'))
+        from ..models import PriceRecord, PriceSourceType
+
+        records = (
+            PriceRecord.objects.current()
+            .filter(
+                store_product__store__code=shop,
+                store_product__store__country=country,
+                store_product__is_active=True,
+                price__gt=0,
+            )
+            .select_related('store_product', 'store_product__store')
+            .order_by('store_product_id', 'source_type', 'price')
+        )
+
+        seen = set()
+        deduped = []
+        for record in records:
+            sp_id = record.store_product_id
+            if sp_id in seen:
+                continue
+            seen.add(sp_id)
+            deduped.append(_OfferAdapter(record))
+        deduped.sort(key=lambda o: o.ingredient_name)
+        return deduped
     
     @classmethod
     def scrape_and_store(cls, shop: str, country: str) -> List[LeafletOffer]:
@@ -378,6 +466,31 @@ class ScraperService:
                     logger.debug(f"Created offer #{idx}: {ingredient_name} - {price} {offer_data.get('currency', currency)}")
                 else:
                     logger.debug(f"Updated offer #{idx}: {ingredient_name} - {price} {offer_data.get('currency', currency)}")
+
+                # Phase A dual-write: mirror into PriceRecord + StoreProduct.
+                # Failure here must not break the legacy write — log and move on.
+                try:
+                    upsert_price_record(
+                        shop_code=shop,
+                        offer_data={
+                            'ingredient_name': ingredient_name,
+                            'display_name': display_name,
+                            'price': price,
+                            'currency': offer_data.get('currency', currency),
+                            'unit': offer_data.get('unit'),
+                            'package_size': offer_data.get('package_size'),
+                            'price_type': offer_data.get('price_type'),
+                            'original_price': offer_data.get('original_price'),
+                            'discount_percentage': offer_data.get('discount_percentage'),
+                            'source_url': offer_data.get('source_url'),
+                        },
+                        valid_from=offer.scraped_at,
+                        valid_until=expires_at,
+                    )
+                except Exception as dual_exc:
+                    logger.warning(
+                        f"PriceRecord dual-write failed for offer #{idx} ({ingredient_name}): {dual_exc}"
+                    )
             except Exception as e:
                 logger.error(f"Error storing offer #{idx} ({ingredient_name}): {e}", exc_info=True)
                 skipped_count += 1
@@ -456,6 +569,45 @@ class ScraperService:
         
         return ingredients
     
+    @classmethod
+    def _query_records(
+        cls,
+        shop: str,
+        country: str,
+        *,
+        exact_name: Optional[str] = None,
+        icontains: Optional[str] = None,
+        only_discounted: bool = False,
+        limit: Optional[int] = None,
+    ):
+        """
+        Internal helper returning _OfferAdapter-wrapped PriceRecord rows that
+        match the legacy LeafletOffer query shape. Used by match_*/find_* below
+        so the historic matching algorithms work on PriceRecord data unchanged.
+        """
+        from ..models import PriceRecord, PriceSourceType
+
+        qs = (
+            PriceRecord.objects.current()
+            .filter(
+                store_product__store__code=shop,
+                store_product__store__country=country,
+                store_product__is_active=True,
+                price__gt=0,
+            )
+            .select_related('store_product', 'store_product__store')
+        )
+        if exact_name is not None:
+            qs = qs.filter(store_product__normalized_name=exact_name)
+        if icontains is not None:
+            qs = qs.filter(store_product__normalized_name__icontains=icontains)
+        if only_discounted:
+            qs = qs.filter(source_type=PriceSourceType.LEAFLET_DISCOUNT)
+        qs = qs.order_by('-scraped_at')
+        if limit:
+            qs = qs[:limit]
+        return [_OfferAdapter(r) for r in qs]
+
     @classmethod
     def match_ingredient_price(cls, ingredient_name: str, shop: str, country: str) -> Optional[Dict[str, Any]]:
         """
@@ -539,50 +691,35 @@ class ScraperService:
         
         # Strategy 1: Exact match on normalized name
         # Prioritize discounted items first, then regular price
-        discounted_offer = LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            ingredient_name=normalized_name,
-            expires_at__gt=current_time,
-            price__isnull=False,
-            price__gt=0,
-            price_type='DISCOUNTED'
-        ).order_by('-scraped_at').first()
-        
+        discounted_results = cls._query_records(
+            shop, country,
+            exact_name=normalized_name,
+            only_discounted=True,
+            limit=1,
+        )
+        discounted_offer = discounted_results[0] if discounted_results else None
+
         if discounted_offer:
             logger.debug(f"Found exact discounted price match: {discounted_offer.display_name} - {discounted_offer.price} {discounted_offer.currency}")
             return format_match_result(discounted_offer)
         
         # Try regular price exact match
-        regular_offer = LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            ingredient_name=normalized_name,
-            expires_at__gt=current_time,
-            price__isnull=False,
-            price__gt=0
-        ).order_by('-scraped_at').first()
-        
+        regular_results = cls._query_records(shop, country, exact_name=normalized_name, limit=1)
+        regular_offer = regular_results[0] if regular_results else None
+
         if regular_offer:
             logger.debug(f"Found exact price match: {regular_offer.display_name} - {regular_offer.price} {regular_offer.currency}")
             return format_match_result(regular_offer)
-        
+
         # Strategy 2: Partial match - scraped ingredient_name contains the search term
         # E.g., search "rajčata" matches "rajčata cherry" or "rajčata červená"
         # BUT: Make it stricter - require the search term to be at least 3 characters
         # and be a complete word boundary to avoid false matches
         if len(normalized_name) >= 3:
-            # Try discounted first
-            partial_query = LeafletOffer.objects.filter(
-                shop=shop,
-                country=country,
-                ingredient_name__icontains=normalized_name,
-                expires_at__gt=current_time,
-                price__isnull=False,
-                price__gt=0
+            discounted_partial_list = cls._query_records(
+                shop, country, icontains=normalized_name, only_discounted=True, limit=1,
             )
-            
-            discounted_partial = partial_query.filter(price_type='DISCOUNTED').order_by('-scraped_at').first()
+            discounted_partial = discounted_partial_list[0] if discounted_partial_list else None
             if discounted_partial:
                 offer_name_lower = discounted_partial.ingredient_name.lower()
                 search_name_lower = normalized_name.lower()
@@ -590,9 +727,11 @@ class ScraperService:
                 if word_boundary_match:
                     logger.debug(f"Found partial discounted price match: {discounted_partial.display_name} - {discounted_partial.price} {discounted_partial.currency}")
                     return format_match_result(discounted_partial)
-            
-            # Try regular price partial match
-            regular_partial = partial_query.order_by('-scraped_at').first()
+
+            regular_partial_list = cls._query_records(
+                shop, country, icontains=normalized_name, limit=1,
+            )
+            regular_partial = regular_partial_list[0] if regular_partial_list else None
             if regular_partial:
                 offer_name_lower = regular_partial.ingredient_name.lower()
                 search_name_lower = normalized_name.lower()
@@ -600,39 +739,18 @@ class ScraperService:
                 if word_boundary_match:
                     logger.debug(f"Found partial price match (scraped contains search): {regular_partial.display_name} - {regular_partial.price} {regular_partial.currency}")
                     return format_match_result(regular_partial)
-        
+
         # Strategy 3: Reverse partial match - search term contains scraped ingredient_name
-        # E.g., search "rajčata cherry" matches "rajčata"
-        # ONLY use this if the search term has multiple words (more likely to be a specific variant)
-        # AND the scraped name is a single meaningful word (not a fragment)
-        # Skip this strategy for very short search terms (likely to cause false matches)
         if len(normalized_name) >= 5 and ' ' in normalized_name:
-            # Try discounted first
-            candidates = LeafletOffer.objects.filter(
-                shop=shop,
-                country=country,
-                expires_at__gt=current_time,
-                price__isnull=False,
-                price__gt=0,
-                price_type='DISCOUNTED'
-            ).order_by('-scraped_at')[:100]
-            
+            candidates = cls._query_records(shop, country, only_discounted=True, limit=100)
             for candidate in candidates:
                 if candidate.ingredient_name.lower() in normalized_name.lower():
                     word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
                     if re.search(word_pattern, normalized_name.lower()) and len(candidate.ingredient_name) >= 3:
                         logger.debug(f"Found reverse partial discounted price match: {candidate.display_name} - {candidate.price} {candidate.currency}")
                         return format_match_result(candidate)
-            
-            # Try regular price reverse partial match
-            candidates_regular = LeafletOffer.objects.filter(
-                shop=shop,
-                country=country,
-                expires_at__gt=current_time,
-                price__isnull=False,
-                price__gt=0
-            ).order_by('-scraped_at')[:100]
-            
+
+            candidates_regular = cls._query_records(shop, country, limit=100)
             for candidate in candidates_regular:
                 if candidate.ingredient_name.lower() in normalized_name.lower():
                     word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
@@ -707,15 +825,8 @@ class ScraperService:
             return None
         
         # Strategy 1: Exact match on normalized name
-        exact_matches = LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            ingredient_name=normalized_name,
-            expires_at__gt=current_time,
-            price__isnull=False,
-            price__gt=0
-        ).order_by('-scraped_at')
-        
+        exact_matches = cls._query_records(shop, country, exact_name=normalized_name)
+
         for offer in exact_matches:
             package_size = extract_package_size_from_offer(offer)
             key = (offer.display_name, str(offer.price), str(package_size) if package_size else 'None')
@@ -729,18 +840,11 @@ class ScraperService:
                     'package_size': package_size,
                     'ingredient_name': offer.ingredient_name,
                 })
-        
+
         # Strategy 2: Partial match - scraped ingredient_name contains the search term
         if len(normalized_name) >= 3:
-            partial_matches = LeafletOffer.objects.filter(
-                shop=shop,
-                country=country,
-                ingredient_name__icontains=normalized_name,
-                expires_at__gt=current_time,
-                price__isnull=False,
-                price__gt=0
-            ).order_by('-scraped_at')
-            
+            partial_matches = cls._query_records(shop, country, icontains=normalized_name)
+
             for offer in partial_matches:
                 # Additional validation: check word boundaries
                 offer_name_lower = offer.ingredient_name.lower()
@@ -763,14 +867,8 @@ class ScraperService:
         
         # Strategy 3: Reverse partial match - search term contains scraped ingredient_name
         if len(normalized_name) >= 5 and ' ' in normalized_name:
-            candidates = LeafletOffer.objects.filter(
-                shop=shop,
-                country=country,
-                expires_at__gt=current_time,
-                price__isnull=False,
-                price__gt=0
-            ).order_by('-scraped_at')[:100]
-            
+            candidates = cls._query_records(shop, country, limit=100)
+
             for candidate in candidates:
                 # More strict: the scraped name should be a complete word in the search term
                 word_pattern = r'\b' + re.escape(candidate.ingredient_name.lower()) + r'\b'
@@ -806,32 +904,36 @@ class ScraperService:
             List of shopping list items with price information added
         """
         logger.info(f"Matching prices for {len(shopping_list)} shopping list items from {shop} ({country})")
-        
-        # Check if we have any offers in the database first
-        current_time = timezone.now()
-        total_offers = LeafletOffer.objects.filter(
-            shop=shop,
-            country=country,
-            expires_at__gt=current_time,
-            price__isnull=False,
-            price__gt=0  # Only count offers with positive prices
-        ).count()
+
+        # Check if we have any priced records in the database first
+        from ..models import PriceRecord
+        sample_records = list(
+            PriceRecord.objects.current()
+            .filter(
+                store_product__store__code=shop,
+                store_product__store__country=country,
+                store_product__is_active=True,
+                price__gt=0,
+            )
+            .select_related('store_product')[:10]
+        )
+        total_offers = (
+            PriceRecord.objects.current()
+            .filter(
+                store_product__store__code=shop,
+                store_product__store__country=country,
+                store_product__is_active=True,
+                price__gt=0,
+            ).count()
+        )
         logger.info(f"Found {total_offers} valid offers with prices in database for {shop} ({country})")
-        
+
         if total_offers == 0:
             logger.warning(f"No offers found in database for {shop} ({country}) - scraping may have failed or returned no data")
         else:
-            # Log sample of available ingredient names from database
-            sample_offers = LeafletOffer.objects.filter(
-                shop=shop,
-                country=country,
-                expires_at__gt=current_time,
-                price__isnull=False,
-                price__gt=0  # Only include offers with positive prices
-            ).values_list('ingredient_name', 'display_name')[:10]
-            sample_names = [name for name, _ in sample_offers]
+            sample_names = [r.store_product.normalized_name for r in sample_records]
             logger.info(f"Sample ingredient names from database (first 10): {sample_names}")
-        
+
         # Log sample of shopping list ingredient names
         shopping_list_ingredients = [item.get('ingredient', '') for item in shopping_list[:10] if item.get('ingredient')]
         logger.info(f"Sample shopping list ingredient names (first 10): {shopping_list_ingredients}")

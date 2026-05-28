@@ -916,7 +916,31 @@ Example format:
                     continue
             
             logger.info(f"Gemini extracted {len(validated_products)} products with prices from {url}")
-            return validated_products
+
+            # Phase E: source-evidence verification — drop items whose name or
+            # price isn't present in the source HTML. Catches hallucinations
+            # from the LLM extraction step before they hit storage.
+            verified = []
+            html_lower = (html_content or '').lower()
+            for product in validated_products:
+                name_token = (product.get('display_name') or product.get('ingredient_name') or '').lower().strip()
+                price_token = str(product.get('price'))
+                # Coerce trailing-zero variants: "34.9", "34.90", "34,90"
+                price_variants = {price_token, price_token.replace('.', ','), price_token.rstrip('0').rstrip('.')}
+                name_seen = bool(name_token) and name_token[:30] in html_lower
+                price_seen = any(v and v in html_content for v in price_variants)
+                if not name_seen or not price_seen:
+                    logger.warning(
+                        f"Dropping unverified product (name_seen={name_seen}, price_seen={price_seen}): "
+                        f"{product.get('display_name')} - {product.get('price')}"
+                    )
+                    continue
+                verified.append(product)
+            if len(verified) != len(validated_products):
+                logger.info(
+                    f"Source-evidence filter: kept {len(verified)}/{len(validated_products)} for {url}"
+                )
+            return verified
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse Gemini JSON response from {url}: {e}")
@@ -1091,6 +1115,124 @@ Příklad pro sůl 500g:
             logger.error(f"Error estimating price for {ingredient_name}: {e}", exc_info=True)
             return None
 
+
+    # ─── Phase 0 / C helpers: staples bootstrap + canonical matching ──
+
+    def suggest_store_staples(
+        self,
+        chain: str,
+        country: str,
+        n: int = 150,
+        model: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Ask Gemini for a candidate list of staple products reliably stocked
+        year-round at `chain` in `country`. Output is meant for offline human
+        review into data/staples/<chain>.yaml — never written directly.
+
+        Mirrors `estimate_product_price` in JSON-mode contract style.
+        """
+        model = model or self.default_model
+        prompt = f"""You are a grocery merchandising analyst familiar with {chain} stores in {country}.
+
+List {n} staple products that {chain} reliably carries year-round (not promotions,
+not seasonal). Cover the main categories: dairy, eggs, meat & poultry, fish, fresh
+produce, grains & pasta, oils, condiments, canned goods, baking.
+
+Return a JSON object with one key "products" containing an array of objects:
+[
+  {{
+    "name": "display name as printed on shelf",
+    "canonical_slug": "english-slug-of-the-canonical-ingredient",
+    "package_size": <number or null>,
+    "package_unit": "g|kg|ml|l|ks",
+    "brand": "private label or brand name or empty"
+  }}
+]
+
+Important: use lowercase hyphenated English slugs for canonical_slug
+(e.g. "white-yogurt", "rice-basmati"). Skip products that are seasonal or
+promotional-only.
+"""
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=(
+                    "You are a Czech/Slovak retail expert. "
+                    "Always respond with valid JSON only (no markdown)."
+                ),
+            )
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.4,
+                },
+                request_options={"timeout": 300},
+            )
+            data = json.loads(response.text)
+            return data.get('products', []) or []
+        except Exception as exc:
+            logger.error(f"suggest_store_staples failed for {chain}: {exc}", exc_info=True)
+            return []
+
+    def match_canonical_ingredients_batch(
+        self,
+        names: List[str],
+        candidates: List[Dict[str, str]],
+        model: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Ask Gemini to map each raw product name to one of the candidate
+        canonical ingredients (by slug) plus a confidence score.
+
+        Used by `manage.py match_canonical_ingredients` for the LLM fallback
+        pass after rule-based matching fails.
+        """
+        if not names:
+            return []
+        model = model or self.default_model
+        prompt = f"""Match each product name to the best canonical ingredient slug.
+
+Product names:
+{json.dumps(names, ensure_ascii=False)}
+
+Candidate canonical ingredients (slug → name, category):
+{json.dumps(candidates, ensure_ascii=False, indent=2)}
+
+Return a JSON object with one key "matches" containing an array, one item per
+product name in the same order:
+[
+  {{
+    "name": "<the input name>",
+    "canonical_slug": "<slug from candidates, or null if no good match>",
+    "confidence": <0.0 to 1.0>
+  }}
+]
+
+Only emit a slug from the candidate list. Use null when nothing fits.
+"""
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=(
+                    "You are a grocery taxonomy expert. "
+                    "Always respond with valid JSON only."
+                ),
+            )
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.1,
+                },
+                request_options={"timeout": 300},
+            )
+            data = json.loads(response.text)
+            return data.get('matches', []) or []
+        except Exception as exc:
+            logger.error(f"match_canonical_ingredients_batch failed: {exc}", exc_info=True)
+            return []
 
     # ─── Catalog-Constrained Generation (Phase 4) ─────────────────────
 
@@ -1288,7 +1430,6 @@ OUTPUT STRUCTURE:
       "replacement_price": 59.90,
       "source_shop": "LIDL_CZ",
       "saving": 30.00,
-      "discount_confirmed": true,
       "affected_meals": ["Den 1 Oběd: Meal Name", "Den 3 Večeře: Meal Name"],
       "reason": "Brief explanation why the swap works"
     }}
@@ -1302,7 +1443,7 @@ OUTPUT STRUCTURE:
 
 RULES:
 - Only suggest a swap when the candidate's per-unit price is genuinely lower than the user's current price for that ingredient — never propose a swap that costs the same or more.
-- "discount_confirmed": true when the candidate carried an explicit původně/percentage marker (a real leaflet discount); false when you're inferring savings purely from price comparison.
+- Real discount detection is computed downstream from STORE_REGULAR baselines, not inferred from your output.
 - Do NOT swap if it would ruin the recipe (e.g., don't replace chicken with tofu in chicken soup).
 - Include the full optimized_days and optimized_shopping_list with all swaps applied.
 - Keep the same meal structure — only change ingredients, not meal names or count.

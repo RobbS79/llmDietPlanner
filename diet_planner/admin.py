@@ -255,13 +255,21 @@ class ScrapeRunAdmin(admin.ModelAdmin):
                 store=store, status='COMPLETED',
             ).order_by('-started_at').first()
 
-            active = LeafletOffer.objects.filter(
-                shop=store.code, country=store.country,
-                expires_at__gt=now, price__gt=0,
+            active = PriceRecord.objects.current().filter(
+                store_product__store=store,
+                store_product__is_active=True,
+                price__gt=0,
             ).count()
 
-            fresh = LeafletOffer.objects.filter(shop=store.code, freshness_state='fresh').count()
-            stale = LeafletOffer.objects.filter(shop=store.code, freshness_state='stale').count()
+            # PriceRecord doesn't carry a tri-state freshness machine; derive
+            # "fresh" as records within half the TTL window of the latest scrape.
+            ttl_hours = store.default_price_ttl_hours or 168
+            fresh_cutoff = now - timedelta(hours=ttl_hours / 2)
+            fresh = PriceRecord.objects.current().filter(
+                store_product__store=store,
+                scraped_at__gte=fresh_cutoff,
+            ).count()
+            stale = max(0, active - fresh)
 
             weekly_cost = ScrapeRun.objects.filter(
                 store=store, started_at__gte=week_ago,

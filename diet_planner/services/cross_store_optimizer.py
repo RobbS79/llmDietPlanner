@@ -15,7 +15,12 @@ from typing import Dict, Any, List, Optional
 
 from django.utils import timezone
 
-from diet_planner.models import LeafletOffer, DietaryGoal, COUNTRY_TO_SHOPS
+from diet_planner.models import (
+    COUNTRY_TO_SHOPS,
+    DietaryGoal,
+    PriceRecord,
+    PriceSourceType,
+)
 from diet_planner.services.price_resolver import PriceResolver, PriceSource
 
 logger = logging.getLogger(__name__)
@@ -68,12 +73,11 @@ class CrossStoreOptimizer:
         items: List[Dict[str, Any]],
     ) -> Dict[int, Dict[str, Optional[Dict[str, Any]]]]:
         """
-        For each item index × store, find the best matching offer.
+        For each item index × store, find the best matching PriceRecord.
 
         Returns:
-            {item_idx: {shop_code: {price, offer, ...} or None}}
+            {item_idx: {shop_code: {price, display_name, ...} or None}}
         """
-        now = timezone.now()
         matrix: Dict[int, Dict[str, Optional[Dict[str, Any]]]] = {}
 
         for idx, item in enumerate(items):
@@ -83,38 +87,47 @@ class CrossStoreOptimizer:
 
             matrix[idx] = {}
             for shop in self.all_shops:
-                offer = self._find_best_offer(ingredient, shop, now)
-                if offer:
+                record = self._find_best_record(ingredient, shop)
+                if record:
+                    is_disc = record.source_type == PriceSourceType.LEAFLET_DISCOUNT
                     matrix[idx][shop] = {
-                        'price': float(offer.price),
-                        'display_name': offer.display_name,
-                        'price_type': offer.price_type,
-                        'original_price': float(offer.original_price) if offer.original_price else None,
-                        'discount_percentage': offer.discount_percentage,
+                        'price': float(record.price),
+                        'display_name': record.store_product.name,
+                        'price_type': 'DISCOUNTED' if is_disc else 'REGULAR',
+                        'original_price': float(record.original_price) if record.original_price else None,
+                        'discount_percentage': record.discount_percentage,
                     }
                 else:
                     matrix[idx][shop] = None
 
         return matrix
 
-    def _find_best_offer(self, ingredient: str, shop: str, now) -> Optional[LeafletOffer]:
-        offer = LeafletOffer.objects.filter(
-            shop=shop, country=self.country,
-            ingredient_name=ingredient,
-            expires_at__gt=now,
-            price__isnull=False, price__gt=0,
-        ).order_by('price').first()
+    def _find_best_record(self, ingredient: str, shop: str) -> Optional[PriceRecord]:
+        base = (
+            PriceRecord.objects.current()
+            .filter(
+                store_product__store__code=shop,
+                store_product__store__country=self.country,
+                store_product__is_active=True,
+                price__gt=0,
+            )
+            .select_related('store_product', 'store_product__store')
+        )
 
-        if offer:
-            return offer
+        record = (
+            base.filter(store_product__normalized_name=ingredient)
+            .order_by('price')
+            .first()
+        )
+        if record:
+            return record
 
         if len(ingredient) >= 3:
-            return LeafletOffer.objects.filter(
-                shop=shop, country=self.country,
-                ingredient_name__icontains=ingredient,
-                expires_at__gt=now,
-                price__isnull=False, price__gt=0,
-            ).order_by('price').first()
+            return (
+                base.filter(store_product__normalized_name__icontains=ingredient)
+                .order_by('price')
+                .first()
+            )
 
         return None
 

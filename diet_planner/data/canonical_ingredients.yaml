@@ -1,0 +1,266 @@
+# Bootstrap CanonicalIngredient list. Loaded by `manage.py seed_canonical_ingredients`.
+#
+# Schema per entry:
+#   name:                  Required. English canonical name.
+#   slug:                  Optional; auto-derived from `name` if absent.
+#   name_cs / name_sk:     Optional localized names.
+#   category:              CanonicalIngredient.Category value (default: other).
+#   default_unit:          Storage unit, default 'g'.
+#   is_pantry_staple:      Always-available flag (no store match required).
+#   estimated_price_czk / estimated_price_eur:
+#                          Fallback prices used when no PriceRecord exists.
+#   aliases:               Optional list of {alias, language_code} for matching.
+#
+# Initial bootstrap is intentionally narrow (pantry staples + the highest-
+# turnover categories). Expand as new StoreProduct rows surface in Phase C
+# matching review.
+
+- name: salt
+  name_cs: sůl
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 15.0
+  estimated_price_eur: 0.60
+
+- name: black pepper
+  name_cs: pepř černý mletý
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+
+- name: sugar
+  name_cs: cukr
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+
+- name: plain flour
+  name_cs: mouka hladká
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 20.0
+  estimated_price_eur: 0.80
+
+- name: olive oil
+  name_cs: olivový olej
+  category: oils
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 80.0
+  estimated_price_eur: 3.50
+
+- name: sunflower oil
+  name_cs: slunečnicový olej
+  category: oils
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 50.0
+  estimated_price_eur: 2.00
+
+- name: butter
+  name_cs: máslo
+  category: dairy
+  default_unit: g
+  estimated_price_czk: 45.0
+  estimated_price_eur: 1.80
+
+- name: chicken breast
+  name_cs: kuřecí prsa
+  category: meat
+  default_unit: g
+  typical_package_sizes: [500, 1000]
+
+- name: chicken thigh
+  name_cs: kuřecí stehna
+  category: meat
+  default_unit: g
+
+- name: beef mince
+  name_cs: hovězí mleté
+  category: meat
+  default_unit: g
+
+- name: pork loin
+  name_cs: vepřová pečeně
+  category: meat
+  default_unit: g
+
+- name: salmon fillet
+  name_cs: losos filé
+  category: fish
+  default_unit: g
+  typical_package_sizes: [200, 400]
+
+- name: tuna canned
+  name_cs: tuňák v konzervě
+  category: canned
+  default_unit: g
+  typical_package_sizes: [120, 160, 185]
+
+- name: eggs
+  name_cs: vejce
+  category: eggs
+  default_unit: ks
+  typical_package_sizes: [10, 15]
+  aliases:
+    - { alias: "vajíčka", language_code: cs }
+
+- name: whole milk
+  name_cs: mléko plnotučné
+  category: dairy
+  default_unit: ml
+  typical_package_sizes: [1000]
+
+- name: semi-skimmed milk
+  name_cs: mléko polotučné
+  category: dairy
+  default_unit: ml
+  typical_package_sizes: [1000]
+
+- name: white yogurt
+  name_cs: jogurt bílý
+  category: dairy
+  default_unit: g
+  typical_package_sizes: [140, 150, 400, 500]
+
+- name: cottage cheese
+  name_cs: tvaroh
+  category: dairy
+  default_unit: g
+
+- name: rice basmati
+  name_cs: rýže basmati
+  category: grains
+  default_unit: g
+  typical_package_sizes: [500, 1000]
+
+- name: rice jasmine
+  name_cs: rýže jasmínová
+  category: grains
+  default_unit: g
+
+- name: pasta spaghetti
+  name_cs: špagety
+  category: grains
+  default_unit: g
+  typical_package_sizes: [500]
+
+- name: pasta penne
+  name_cs: penne
+  category: grains
+  default_unit: g
+  typical_package_sizes: [500]
+
+- name: oats
+  name_cs: ovesné vločky
+  category: grains
+  default_unit: g
+  typical_package_sizes: [500, 1000]
+
+- name: bread loaf
+  name_cs: chléb
+  category: grains
+  default_unit: g
+
+- name: tomatoes
+  name_cs: rajčata
+  category: vegetables
+  default_unit: g
+
+- name: cucumber
+  name_cs: okurka
+  category: vegetables
+  default_unit: ks
+
+- name: bell pepper
+  name_cs: paprika
+  category: vegetables
+  default_unit: ks
+
+- name: spinach
+  name_cs: špenát
+  category: vegetables
+  default_unit: g
+
+- name: broccoli
+  name_cs: brokolice
+  category: vegetables
+  default_unit: g
+
+- name: carrots
+  name_cs: mrkev
+  category: vegetables
+  default_unit: g
+
+- name: potatoes
+  name_cs: brambory
+  category: vegetables
+  default_unit: g
+
+- name: onion
+  name_cs: cibule
+  category: vegetables
+  default_unit: ks
+  is_pantry_staple: true
+  estimated_price_czk: 5.0
+  estimated_price_eur: 0.20
+
+- name: garlic
+  name_cs: česnek
+  category: vegetables
+  default_unit: ks
+  is_pantry_staple: true
+  estimated_price_czk: 10.0
+  estimated_price_eur: 0.40
+
+- name: bananas
+  name_cs: banány
+  category: fruits
+  default_unit: g
+
+- name: apples
+  name_cs: jablka
+  category: fruits
+  default_unit: g
+
+- name: lemons
+  name_cs: citrony
+  category: fruits
+  default_unit: ks
+
+- name: avocado
+  name_cs: avokádo
+  category: fruits
+  default_unit: ks
+
+- name: chickpeas canned
+  name_cs: cizrna v konzervě
+  category: canned
+  default_unit: g
+  typical_package_sizes: [400]
+
+- name: red beans canned
+  name_cs: fazole červené v konzervě
+  category: canned
+  default_unit: g
+  typical_package_sizes: [400]
+
+- name: peanut butter
+  name_cs: arašídové máslo
+  category: condiments
+  default_unit: g
+  typical_package_sizes: [340, 500]
+
+- name: honey
+  name_cs: med
+  category: condiments
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 60.0
+  estimated_price_eur: 2.50
