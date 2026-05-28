@@ -66,3 +66,10 @@ services:
     routes:
       - path: /
     run_command: /app/start.sh
+domains:
+  - domain: eatalnicek.eu
+    type: PRIMARY
+    zone: eatalnicek.eu
+  - domain: www.eatalnicek.eu
+    type: ALIAS
+    zone: eatalnicek.eu

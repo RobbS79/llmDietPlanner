@@ -75,7 +75,7 @@ export const RecipePage = () => {
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Generujeme recept</h2>
-            <p className="text-zinc-600 text-sm italic">Náš kuchař píše postup krok za krokem...</p>
+            <p className="text-zinc-400 text-sm italic">Náš kuchař píše postup krok za krokem...</p>
           </div>
         </div>
       </MainLayout>
@@ -100,7 +100,7 @@ export const RecipePage = () => {
       <div className="max-w-4xl mx-auto px-6 py-12 w-full">
         <button
           onClick={() => navigate(`/plan/${id}`)}
-          className="flex items-center gap-2 text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors"
+          className="flex items-center gap-2 text-zinc-300 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors"
         >
           <ArrowLeft size={16} /> Zpět na plán
         </button>
@@ -121,22 +121,22 @@ export const RecipePage = () => {
             {recipe.name}<span className="text-emerald-500 not-italic">.</span>
           </h1>
           {recipe.description && (
-            <p className="text-zinc-500 text-lg font-medium italic mt-6 max-w-2xl leading-relaxed">"{recipe.description}"</p>
+            <p className="text-zinc-300 text-lg font-medium italic mt-6 max-w-2xl leading-relaxed">"{recipe.description}"</p>
           )}
 
           <div className="flex flex-wrap gap-4 mt-8">
             {recipe.preparation_time && (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 <Clock size={14} className="text-emerald-500" /> {recipe.preparation_time} min prep
               </div>
             )}
             {recipe.cooking_time && (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 <Clock size={14} className="text-emerald-500" /> {recipe.cooking_time} min cook
               </div>
             )}
             {recipe.servings && (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 <Users size={14} className="text-emerald-500" /> {recipe.servings} {recipe.servings > 1 ? 'porcí' : 'porce'}
               </div>
             )}
@@ -146,7 +146,7 @@ export const RecipePage = () => {
         <div className="grid md:grid-cols-3 gap-10">
           {/* Ingredients sidebar */}
           <Card className="p-8 md:col-span-1 text-left h-fit md:sticky md:top-10">
-            <h2 className="text-lg font-black text-white uppercase tracking-tighter italic mb-6 pb-4 border-b border-zinc-800">
+            <h2 className="text-lg font-black text-white uppercase tracking-tighter italic mb-6 pb-4 border-b border-slate-600">
               Ingredience
             </h2>
             <ul className="space-y-3">
@@ -158,7 +158,7 @@ export const RecipePage = () => {
                       <>
                         <span className="font-bold text-white">{ing.name}</span>
                         {ing.quantity && (
-                          <span className="text-zinc-500 ml-1">— {ing.quantity} {ing.unit || ''}</span>
+                          <span className="text-zinc-300 ml-1">— {ing.quantity} {ing.unit || ''}</span>
                         )}
                       </>
                     )}
@@ -187,7 +187,7 @@ export const RecipePage = () => {
                 ))}
               </ol>
             ) : (
-              <p className="text-zinc-600 italic">Pro tento recept nejsou k dispozici instrukce.</p>
+              <p className="text-zinc-400 italic">Pro tento recept nejsou k dispozici instrukce.</p>
             )}
 
             {/* Nutritional info */}
@@ -197,7 +197,7 @@ export const RecipePage = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {Object.entries(recipe.nutritional_info).map(([k, v]: any) => (
                     <div key={k} className="space-y-1">
-                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest italic">{k}</p>
+                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest italic">{k}</p>
                       <p className="text-xl font-black text-zinc-200 italic tracking-tighter">{v}</p>
                     </div>
                   ))}

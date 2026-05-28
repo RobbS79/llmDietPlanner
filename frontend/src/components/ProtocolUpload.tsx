@@ -115,7 +115,7 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
       {/* Previously uploaded protocols */}
       {completedProtocols.length > 0 && (
         <div className="space-y-2">
-          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600">
+          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
             Nahrané protokoly
           </span>
           <div className="space-y-1.5">
@@ -125,25 +125,25 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all cursor-pointer group ${
                   selectedProtocolId === p.id
                     ? 'border-emerald-500 bg-emerald-500/5'
-                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'
+                    : 'border-slate-600 bg-slate-900 hover:border-slate-500'
                 }`}
                 onClick={() => onProtocolSelect(selectedProtocolId === p.id ? null : p.id)}
               >
-                <FileText size={16} className={selectedProtocolId === p.id ? 'text-emerald-500' : 'text-zinc-500'} />
+                <FileText size={16} className={selectedProtocolId === p.id ? 'text-emerald-500' : 'text-zinc-300'} />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-bold truncate ${selectedProtocolId === p.id ? 'text-white' : 'text-zinc-400'}`}>
+                  <p className={`text-xs font-bold truncate ${selectedProtocolId === p.id ? 'text-white' : 'text-zinc-200'}`}>
                     {p.name}
                   </p>
-                  <p className="text-[9px] text-zinc-600">{formatSize(p.pdf_size_bytes)}</p>
+                  <p className="text-[9px] text-zinc-400">{formatSize(p.pdf_size_bytes)}</p>
                 </div>
                 {selectedProtocolId === p.id && (
                   <CheckCircle size={16} className="text-emerald-500 shrink-0" />
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(p.id); }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-800 rounded transition-all shrink-0"
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-600 rounded transition-all shrink-0"
                 >
-                  <Trash2 size={12} className="text-zinc-500 hover:text-rose-400" />
+                  <Trash2 size={12} className="text-zinc-300 hover:text-rose-400" />
                 </button>
               </div>
             ))}
@@ -158,7 +158,7 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
           <span className="text-xs font-bold text-blue-400">
             {processingProtocol.processing_status === 'pending' ? 'Ve frontě...' : 'Zpracovávám PDF...'}
           </span>
-          <span className="text-[9px] text-zinc-500 ml-auto">{processingProtocol.pdf_filename}</span>
+          <span className="text-[9px] text-zinc-300 ml-auto">{processingProtocol.pdf_filename}</span>
         </div>
       )}
 
@@ -168,13 +168,13 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
           <AlertCircle size={14} className="text-rose-500 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-rose-400 truncate">{p.name}</p>
-            <p className="text-[9px] text-zinc-500 truncate">{p.processing_error}</p>
+            <p className="text-[9px] text-zinc-300 truncate">{p.processing_error}</p>
           </div>
           <button
             onClick={() => deleteMutation.mutate(p.id)}
-            className="p-1 hover:bg-zinc-800 rounded transition-all shrink-0"
+            className="p-1 hover:bg-slate-600 rounded transition-all shrink-0"
           >
-            <X size={12} className="text-zinc-500" />
+            <X size={12} className="text-zinc-300" />
           </button>
         </div>
       ))}
@@ -184,7 +184,7 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
         className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
           dragActive
             ? 'border-emerald-500 bg-emerald-500/5'
-            : 'border-zinc-800 hover:border-zinc-600'
+            : 'border-slate-600 hover:border-zinc-600'
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
         onDragLeave={() => setDragActive(false)}
@@ -201,15 +201,15 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
         {uploadMutation.isPending ? (
           <div className="flex items-center justify-center gap-3">
             <Loader2 size={20} className="text-emerald-500 animate-spin" />
-            <span className="text-xs font-bold text-zinc-400">Nahrávám...</span>
+            <span className="text-xs font-bold text-zinc-200">Nahrávám...</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Upload size={20} className={dragActive ? 'text-emerald-500' : 'text-zinc-600'} />
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <Upload size={20} className={dragActive ? 'text-emerald-500' : 'text-zinc-400'} />
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
               {dragActive ? 'Pusťte soubor' : 'Nahrát PDF protokol'}
             </p>
-            <p className="text-[9px] text-zinc-600">PDF, max 10 MB</p>
+            <p className="text-[9px] text-zinc-400">PDF, max 10 MB</p>
           </div>
         )}
       </div>

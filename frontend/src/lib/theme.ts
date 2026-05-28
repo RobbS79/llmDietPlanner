@@ -1,8 +1,8 @@
 export const THEME = {
-  bg: "bg-[#09090b]",
-  surface: "bg-zinc-900/50",
-  border: "border-zinc-800",
+  bg: "bg-[#1e293b]",
+  surface: "bg-slate-700/50",
+  border: "border-slate-600",
   textPrimary: "text-zinc-100",
-  textSecondary: "text-zinc-500",
+  textSecondary: "text-zinc-300",
   accent: "emerald",
 };
