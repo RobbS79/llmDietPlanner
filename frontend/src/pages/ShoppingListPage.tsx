@@ -85,62 +85,37 @@ const ShoppingItem = ({ item, done, onToggle }: { item: any; done: boolean; onTo
 export const ShoppingListPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const storageKey = `shopping-checked-${id}`;
   const [checked, setChecked] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(storageKey);
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
+  const [optimizing, setOptimizing] = useState(false);
+  const [showOptimization, setShowOptimization] = useState(false);
+  const [timeoutError, setTimeoutError] = useState(false);
+  const [selectedShops, setSelectedShops] = useState<string[] | null>(null);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [actualTotal, setActualTotal] = useState('');
+  const [feedbackNote, setFeedbackNote] = useState('');
 
   const { data: goalDetail, isLoading } = useQuery({
     queryKey: ['plan', id],
     queryFn: () => api.get(`/goals/${id}/`).then(res => res.data.data),
   });
 
-  if (isLoading || !goalDetail) return <LoadingScreen message="Loading shopping list..." />;
-
-  const plan = goalDetail.dietary_plan;
-  if (!plan) return <LoadingScreen message="Loading shopping list..." />;
-
-  const rawList = plan.shopping_list || [];
-  const isCrossStore = rawList && !Array.isArray(rawList) && rawList.by_store;
-  const items: any[] = isCrossStore ? (rawList.items || []) : rawList;
-  const byStore: any[] | null = isCrossStore ? rawList.by_store : null;
-
-  const toggleItem = (key: string) => {
-    setChecked(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      localStorage.setItem(storageKey, JSON.stringify([...next]));
-      return next;
-    });
-  };
-
-  const handlePrint = () => window.print();
-  const totalItems = items.length;
-  const checkedCount = checked.size;
-  const queryClient = useQueryClient();
-
-  const [optimizing, setOptimizing] = useState(false);
-  const [showOptimization, setShowOptimization] = useState(false);
-  const [timeoutError, setTimeoutError] = useState(false);
-  const [selectedShops, setSelectedShops] = useState<string[] | null>(null);
-
-  const country = goalDetail?.country || plan?.country;
+  const country = goalDetail?.country;
   const { data: shopsData } = useQuery({
     queryKey: ['shops', country],
     queryFn: () => api.get(`/shops/?country=${country}`).then(res => res.data.data?.shops || []),
     enabled: Boolean(country),
   });
-  const availableShops: Array<{ code: string; name: string }> = shopsData || [];
-
-  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
-  const [actualTotal, setActualTotal] = useState('');
-  const [feedbackNote, setFeedbackNote] = useState('');
 
   const { data: existingFeedback } = useQuery({
     queryKey: ['price-feedback', id],
     queryFn: () => api.get(`/goals/${id}/price-feedback/`).then(res => res.data.data),
+    enabled: Boolean(id),
   });
 
   const submitFeedback = useMutation({
@@ -153,10 +128,6 @@ export const ShoppingListPage = () => {
       queryClient.invalidateQueries({ queryKey: ['price-feedback', id] });
     },
   });
-
-  const discountOpt = plan.discount_optimization;
-  const hasSwaps = discountOpt?.swaps?.length > 0;
-  const isApplied = plan.discount_optimization_applied;
 
   const triggerOptimization = useMutation({
     mutationFn: (opts: { force?: boolean } = {}) => {
@@ -202,6 +173,33 @@ export const ShoppingListPage = () => {
       queryClient.invalidateQueries({ queryKey: ['plan', id] });
     },
   });
+
+  if (isLoading || !goalDetail) return <LoadingScreen message="Loading shopping list..." />;
+
+  const plan = goalDetail.dietary_plan;
+  if (!plan) return <LoadingScreen message="Loading shopping list..." />;
+
+  const rawList = plan.shopping_list || [];
+  const isCrossStore = rawList && !Array.isArray(rawList) && rawList.by_store;
+  const items: any[] = isCrossStore ? (rawList.items || []) : rawList;
+  const byStore: any[] | null = isCrossStore ? rawList.by_store : null;
+  const availableShops: Array<{ code: string; name: string }> = shopsData || [];
+  const discountOpt = plan.discount_optimization;
+  const hasSwaps = discountOpt?.swaps?.length > 0;
+  const isApplied = plan.discount_optimization_applied;
+  const totalItems = items.length;
+  const checkedCount = checked.size;
+
+  const toggleItem = (key: string) => {
+    setChecked(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      localStorage.setItem(storageKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const handlePrint = () => window.print();
 
   return (
     <MainLayout>
