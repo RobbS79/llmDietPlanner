@@ -126,6 +126,7 @@ class KupiCzScraper(BaseScraper):
             if not name or self._is_skip_title(name):
                 continue
             if offer.get('price') and offer.get('price', 0) > 0:
+                offer.setdefault('price_type', 'DISCOUNTED')
                 filtered.append(offer)
         return filtered
 

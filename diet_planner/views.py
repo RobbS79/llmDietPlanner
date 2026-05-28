@@ -522,7 +522,7 @@ class DiscountOptimizationView(APIView):
             if requested_set == cached_set:
                 return Response({"status": "success", "data": plan.discount_optimization})
 
-        task = optimize_plan_discounts_task.delay(goal_id, shops=validated_shops)
+        task = optimize_plan_discounts_task.delay(goal_id, shops=validated_shops, force_scrape=force)
         return Response({
             "status": "success",
             "data": {"task_id": task.id, "message": "Optimization started", "shops_queried": validated_shops}

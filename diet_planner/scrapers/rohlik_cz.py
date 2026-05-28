@@ -82,12 +82,14 @@ class RohlikCzScraper(BaseScraper):
                 logger.info(f"Fallback parsing found {len(offers)} offers")
             
             logger.info(f"Successfully scraped {len(offers)} offers from rohlik.cz")
-            
+
         except requests.RequestException as e:
             logger.error(f"Error fetching rohlik.cz: {e}")
         except Exception as e:
             logger.error(f"Error scraping rohlik.cz: {e}", exc_info=True)
-        
+
+        for offer in offers:
+            offer.setdefault('price_type', 'DISCOUNTED')
         return offers
     
     def _parse_product_item(self, item, base_url: str) -> Dict[str, Any]:

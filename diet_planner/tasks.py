@@ -2277,7 +2277,7 @@ def generate_mock_llm_response() -> Dict[str, Any]:
 
 
 @shared_task(bind=True, max_retries=1, default_retry_delay=30, time_limit=180, soft_time_limit=150)
-def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] = None) -> Dict[str, Any]:
+def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] = None, force_scrape: bool = False) -> Dict[str, Any]:
     """
     Post-generation discount optimization.
 
@@ -2290,6 +2290,8 @@ def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] 
         shops: Optional list of shop codes to query. Defaults to all active stores
                for the goal's country (multi-shop sweep). Pass a single-element
                list to restrict to one shop.
+        force_scrape: When True, ignore cached leaflet data and re-scrape every
+                      target shop. Use sparingly — this re-runs the LLM extraction.
     """
     try:
         from diet_planner.models import LeafletOffer, GroceryStore
@@ -2312,7 +2314,7 @@ def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] 
         now = timezone.now()
         scrape_attempted_at = None
         for shop_code in target_shops:
-            if ScraperService.is_cache_valid(shop_code, country):
+            if not force_scrape and ScraperService.is_cache_valid(shop_code, country):
                 continue
             scrape_attempted_at = timezone.now().isoformat()
             logger.info(
