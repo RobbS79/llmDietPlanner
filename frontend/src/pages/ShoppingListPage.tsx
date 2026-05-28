@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown, Percent, Loader2, ArrowRight, X, Info, MessageSquare, Send, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown, Percent, Loader2, ArrowRight, X, Info, MessageSquare, Send, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -123,6 +123,16 @@ export const ShoppingListPage = () => {
 
   const [optimizing, setOptimizing] = useState(false);
   const [showOptimization, setShowOptimization] = useState(false);
+  const [timeoutError, setTimeoutError] = useState(false);
+  const [selectedShops, setSelectedShops] = useState<string[] | null>(null);
+
+  const country = goalDetail?.country || plan?.country;
+  const { data: shopsData } = useQuery({
+    queryKey: ['shops', country],
+    queryFn: () => api.get(`/shops/?country=${country}`).then(res => res.data.data?.shops || []),
+    enabled: Boolean(country),
+  });
+  const availableShops: Array<{ code: string; name: string }> = shopsData || [];
 
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [actualTotal, setActualTotal] = useState('');
@@ -149,24 +159,37 @@ export const ShoppingListPage = () => {
   const isApplied = plan.discount_optimization_applied;
 
   const triggerOptimization = useMutation({
-    mutationFn: () => api.post(`/goals/${id}/optimize-discounts/`),
-    onMutate: () => setOptimizing(true),
+    mutationFn: (opts: { force?: boolean } = {}) => {
+      const body: { force?: boolean; shops?: string[] } = {};
+      if (opts.force) body.force = true;
+      if (selectedShops && selectedShops.length > 0) body.shops = selectedShops;
+      return api.post(`/goals/${id}/optimize-discounts/`, body);
+    },
+    onMutate: () => { setOptimizing(true); setTimeoutError(false); },
     onSuccess: (res) => {
       if (res.data.data?.swaps) {
         setOptimizing(false);
         setShowOptimization(true);
         queryClient.invalidateQueries({ queryKey: ['plan', id] });
       } else {
+        let resolved = false;
         const poll = setInterval(async () => {
           const check = await api.get(`/goals/${id}/optimize-discounts/`);
           if (check.data.data?.ready) {
+            resolved = true;
             clearInterval(poll);
             setOptimizing(false);
             setShowOptimization(true);
             queryClient.invalidateQueries({ queryKey: ['plan', id] });
           }
         }, 3000);
-        setTimeout(() => { clearInterval(poll); setOptimizing(false); }, 120000);
+        setTimeout(() => {
+          clearInterval(poll);
+          if (!resolved) {
+            setTimeoutError(true);
+            setOptimizing(false);
+          }
+        }, 180000);
       }
     },
     onError: () => setOptimizing(false),
@@ -210,9 +233,9 @@ export const ShoppingListPage = () => {
 
         {/* Discount optimization button */}
         {!isApplied && !showOptimization && (
-          <div className="mb-8 print:hidden">
+          <div className="mb-8 print:hidden space-y-3">
             <button
-              onClick={() => hasSwaps ? setShowOptimization(true) : triggerOptimization.mutate()}
+              onClick={() => hasSwaps ? setShowOptimization(true) : triggerOptimization.mutate({})}
               disabled={optimizing}
               className="w-full flex items-center justify-center gap-3 h-14 bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
             >
@@ -224,6 +247,50 @@ export const ShoppingListPage = () => {
                 <><Percent size={16} /> Optimalizovat podle akčních nabídek</>
               )}
             </button>
+            {!hasSwaps && availableShops.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Obchody:</span>
+                <button
+                  onClick={() => setSelectedShops(null)}
+                  className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors ${
+                    !selectedShops || selectedShops.length === 0
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                      : 'border-zinc-800 text-zinc-500 hover:text-white'
+                  }`}
+                >
+                  Všechny
+                </button>
+                {availableShops.map(s => {
+                  const active = selectedShops?.includes(s.code) ?? false;
+                  return (
+                    <button
+                      key={s.code}
+                      onClick={() => setSelectedShops(prev => {
+                        const set = new Set(prev || []);
+                        set.has(s.code) ? set.delete(s.code) : set.add(s.code);
+                        const next = Array.from(set);
+                        return next.length === 0 ? null : next;
+                      })}
+                      className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors ${
+                        active
+                          ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                          : 'border-zinc-800 text-zinc-500 hover:text-white'
+                      }`}
+                    >
+                      {s.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {timeoutError && (
+              <div className="flex items-center gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                <AlertTriangle size={18} className="text-amber-400 shrink-0" />
+                <p className="text-xs font-bold text-amber-300">
+                  Optimalizace trvá déle než obvykle. Zkuste to za chvíli znovu.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -262,22 +329,32 @@ export const ShoppingListPage = () => {
             </div>
 
             <div className="space-y-3 mb-8 max-h-[400px] overflow-y-auto">
-              {discountOpt.swaps.map((swap: any, idx: number) => (
-                <div key={idx} className="flex items-center gap-4 p-4 bg-black/30 rounded-xl">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-zinc-500 line-through truncate">{swap.original_ingredient}</p>
-                    <p className="text-xs font-black text-zinc-400 mt-0.5">{swap.original_price} {plan.currency}</p>
+              {discountOpt.swaps.map((swap: any, idx: number) => {
+                const shopName = availableShops.find(s => s.code === swap.source_shop)?.name || swap.source_shop;
+                return (
+                  <div key={idx} className="flex items-center gap-4 p-4 bg-black/30 rounded-xl">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-zinc-500 line-through truncate">{swap.original_ingredient}</p>
+                      <p className="text-xs font-black text-zinc-400 mt-0.5">{swap.original_price} {plan.currency}</p>
+                    </div>
+                    <ArrowRight size={16} className="text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-white truncate">{swap.replacement_product}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs font-black text-emerald-400">{swap.replacement_price} {plan.currency}</p>
+                        {swap.source_shop && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
+                            <Store size={9} /> {shopName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg shrink-0">
+                      -{swap.saving} {plan.currency}
+                    </span>
                   </div>
-                  <ArrowRight size={16} className="text-amber-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-white truncate">{swap.replacement_product}</p>
-                    <p className="text-xs font-black text-emerald-400 mt-0.5">{swap.replacement_price} {plan.currency}</p>
-                  </div>
-                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg shrink-0">
-                    -{swap.saving} {plan.currency}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex gap-3">
@@ -304,14 +381,43 @@ export const ShoppingListPage = () => {
 
         {/* No discounts found message */}
         {showOptimization && discountOpt && !hasSwaps && (
-          <Card className="p-5 mb-8 border-zinc-800 text-left print:hidden">
-            <div className="flex items-center gap-3">
-              <Percent size={20} className="text-zinc-600 shrink-0" />
-              <p className="text-sm font-bold text-zinc-500">
-                {discountOpt.message === 'no_discounts'
-                  ? 'V tuto chvíli nejsou k dispozici žádné akční nabídky pro váš obchod.'
-                  : 'Nenalezeny žádné vhodné záměny pro aktuální plán.'}
-              </p>
+          <Card className="p-6 mb-8 border-amber-500/30 text-left print:hidden">
+            <div className="flex items-start gap-4">
+              <Percent size={22} className="text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-black text-amber-300 uppercase tracking-tight italic">
+                  Žádné slevy nenalezeny
+                </p>
+                <p className="text-xs font-bold text-zinc-500 mt-2">
+                  {discountOpt.message === 'no_discounts'
+                    ? 'V tuto chvíli nejsou v databázi žádné akční nabídky pro vybrané obchody.'
+                    : 'Nenalezeny žádné vhodné záměny pro aktuální plán.'}
+                </p>
+                {discountOpt.shops_queried && discountOpt.shops_queried.length > 0 && (
+                  <p className="text-[10px] font-bold text-zinc-600 mt-2 uppercase tracking-widest">
+                    Prohledáno: {discountOpt.shops_queried.join(', ')}
+                  </p>
+                )}
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => triggerOptimization.mutate({ force: true })}
+                    disabled={optimizing}
+                    className="flex items-center gap-2 px-4 h-10 bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 rounded-lg font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
+                  >
+                    {optimizing ? (
+                      <><Loader2 size={14} className="animate-spin" /> Aktualizuji...</>
+                    ) : (
+                      <><RefreshCw size={14} /> Načíst znovu</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowOptimization(false)}
+                    className="px-4 h-10 text-zinc-500 hover:text-white font-black uppercase text-[10px] tracking-widest transition-colors"
+                  >
+                    Zavřít
+                  </button>
+                </div>
+              </div>
             </div>
           </Card>
         )}

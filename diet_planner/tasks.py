@@ -2276,40 +2276,82 @@ def generate_mock_llm_response() -> Dict[str, Any]:
     }
 
 
-@shared_task(bind=True, max_retries=1, default_retry_delay=30)
-def optimize_plan_discounts_task(self, goal_id: int) -> Dict[str, Any]:
+@shared_task(bind=True, max_retries=1, default_retry_delay=30, time_limit=180, soft_time_limit=150)
+def optimize_plan_discounts_task(self, goal_id: int, shops: Optional[List[str]] = None) -> Dict[str, Any]:
     """
     Post-generation discount optimization.
 
-    Loads the existing plan, fetches currently discounted products,
-    and asks the LLM to suggest ingredient swaps that save money.
+    Loads the existing plan, fetches currently discounted products from one or
+    more shops, and asks the LLM to suggest ingredient swaps that save money.
     Stores suggestions on DietaryPlan.discount_optimization for user review.
+
+    Args:
+        goal_id: DietaryGoal ID.
+        shops: Optional list of shop codes to query. Defaults to all active stores
+               for the goal's country (multi-shop sweep). Pass a single-element
+               list to restrict to one shop.
     """
     try:
-        from diet_planner.models import LeafletOffer
+        from diet_planner.models import LeafletOffer, GroceryStore
         goal = DietaryGoal.objects.get(id=goal_id)
         plan = goal.dietary_plan
 
+        country = goal.country
+        active_shop_codes = list(
+            GroceryStore.objects.filter(country=country, is_active=True)
+            .values_list('code', flat=True)
+        )
+
+        if shops:
+            target_shops = [s for s in shops if s in active_shop_codes]
+            if not target_shops:
+                target_shops = [goal.shop] if goal.shop in active_shop_codes else active_shop_codes
+        else:
+            target_shops = active_shop_codes or [goal.shop]
+
+        now = timezone.now()
+        scrape_attempted_at = None
+        for shop_code in target_shops:
+            if ScraperService.is_cache_valid(shop_code, country):
+                continue
+            scrape_attempted_at = timezone.now().isoformat()
+            logger.info(
+                f"[optimize_plan_discounts] No fresh cache for {shop_code}/{country}, "
+                f"running inline scrape (goal={goal_id})"
+            )
+            try:
+                scrape_store_task(shop_code)
+            except Exception as scrape_exc:
+                logger.warning(
+                    f"[optimize_plan_discounts] Inline scrape failed for {shop_code}: {scrape_exc}"
+                )
+
         now = timezone.now()
         discounted_offers = LeafletOffer.objects.filter(
-            shop=goal.shop,
-            country=goal.country,
+            shop__in=target_shops,
+            country=country,
             price_type='DISCOUNTED',
             expires_at__gt=now,
             price__gt=0,
         ).order_by('-discount_percentage')[:100]
 
         if not discounted_offers.exists():
-            plan.discount_optimization = {'swaps': [], 'total_saving': 0, 'message': 'no_discounts'}
+            plan.discount_optimization = {
+                'swaps': [],
+                'total_saving': 0,
+                'message': 'no_discounts',
+                'shops_queried': target_shops,
+                'scrape_attempted_at': scrape_attempted_at,
+            }
             plan.save(update_fields=['discount_optimization'])
-            return {'status': 'no_discounts', 'goal_id': goal_id}
+            return {'status': 'no_discounts', 'goal_id': goal_id, 'shops_queried': target_shops}
 
         lines = []
         for offer in discounted_offers:
             disc_pct = f" (-{offer.discount_percentage}%)" if offer.discount_percentage else ""
             orig = f" (původně {offer.original_price} {goal.currency})" if offer.original_price else ""
             lines.append(
-                f"#{offer.id} {offer.ingredient_name} — {offer.price} {goal.currency}{disc_pct}{orig}"
+                f"#{offer.id} [{offer.shop}] {offer.ingredient_name} — {offer.price} {goal.currency}{disc_pct}{orig}"
             )
         discounted_text = "\n".join(lines)
 
@@ -2330,16 +2372,19 @@ def optimize_plan_discounts_task(self, goal_id: int) -> Dict[str, Any]:
         optimization = result['response']
         optimization['llm_cost_usd'] = str(result.get('cost_usd', 0))
         optimization['generated_at'] = now.isoformat()
+        optimization['shops_queried'] = target_shops
+        if scrape_attempted_at:
+            optimization['scrape_attempted_at'] = scrape_attempted_at
 
         plan.discount_optimization = optimization
         plan.save(update_fields=['discount_optimization'])
 
         logger.info(
-            f"Discount optimization for goal {goal_id}: "
+            f"Discount optimization for goal {goal_id} across shops {target_shops}: "
             f"{len(optimization.get('swaps', []))} swaps, "
             f"saving {optimization.get('total_saving', 0)} {goal.currency}"
         )
-        return {'status': 'success', 'goal_id': goal_id, 'swaps': len(optimization.get('swaps', []))}
+        return {'status': 'success', 'goal_id': goal_id, 'swaps': len(optimization.get('swaps', [])), 'shops_queried': target_shops}
 
     except Exception as exc:
         logger.error(f"Discount optimization failed for goal {goal_id}: {exc}", exc_info=True)

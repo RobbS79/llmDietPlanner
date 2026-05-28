@@ -1270,7 +1270,7 @@ CURRENT MEAL PLAN:
 CURRENT SHOPPING LIST:
 {current_list_json}
 
-DISCOUNTED PRODUCTS AVAILABLE:
+DISCOUNTED PRODUCTS AVAILABLE (each line is prefixed with #id and [SHOP_CODE]):
 {discounted_products}
 
 OUTPUT STRUCTURE:
@@ -1282,6 +1282,7 @@ OUTPUT STRUCTURE:
       "replacement_product": "discounted product name",
       "replacement_catalog_id": 42,
       "replacement_price": 59.90,
+      "source_shop": "LIDL_CZ",
       "saving": 30.00,
       "affected_meals": ["Den 1 Oběd: Meal Name", "Den 3 Večeře: Meal Name"],
       "reason": "Brief explanation why the swap works"
@@ -1300,6 +1301,7 @@ RULES:
 - Include the full optimized_days and optimized_shopping_list with all swaps applied
 - Keep the same meal structure — only change ingredients, not meal names or count
 - Preserve nutritional balance as much as possible
+- For each swap, set "source_shop" to the [SHOP_CODE] tag from the offer line you selected
 - If no good swaps exist, return {{"swaps": [], "total_saving": 0}}"""
 
         try:

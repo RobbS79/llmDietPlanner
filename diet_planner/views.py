@@ -6,7 +6,7 @@ Handles asynchronous task triggering (Celery) and partial "Draft" saves for UI p
 """
 import logging
 import traceback
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 from django.conf import settings
 from rest_framework.views import APIView
@@ -494,13 +494,38 @@ class DiscountOptimizationView(APIView):
         except DietaryPlan.DoesNotExist:
             return Response({"status": "error", "error": "Plan not found"}, status=404)
 
-        if plan.discount_optimization and not request.data.get('force'):
-            return Response({"status": "success", "data": plan.discount_optimization})
+        requested_shops = request.data.get('shops')
+        validated_shops: Optional[List[str]] = None
+        if requested_shops:
+            if not isinstance(requested_shops, list) or not all(isinstance(s, str) for s in requested_shops):
+                return Response(
+                    {"status": "error", "error": "'shops' must be a list of shop codes"},
+                    status=400,
+                )
+            allowed = set(
+                GroceryStore.objects.filter(country=goal.country, is_active=True)
+                .values_list('code', flat=True)
+            )
+            validated_shops = [s for s in requested_shops if s in allowed]
+            if not validated_shops:
+                return Response(
+                    {"status": "error", "error": "No valid shops in selection"},
+                    status=400,
+                )
 
-        task = optimize_plan_discounts_task.delay(goal_id)
+        force = bool(request.data.get('force'))
+        if plan.discount_optimization and not force:
+            cached = plan.discount_optimization if isinstance(plan.discount_optimization, dict) else {}
+            cached_shops = cached.get('shops_queried')
+            requested_set = set(validated_shops) if validated_shops else None
+            cached_set = set(cached_shops) if cached_shops else None
+            if requested_set == cached_set:
+                return Response({"status": "success", "data": plan.discount_optimization})
+
+        task = optimize_plan_discounts_task.delay(goal_id, shops=validated_shops)
         return Response({
             "status": "success",
-            "data": {"task_id": task.id, "message": "Optimization started"}
+            "data": {"task_id": task.id, "message": "Optimization started", "shops_queried": validated_shops}
         }, status=status.HTTP_202_ACCEPTED)
 
     def get(self, request, goal_id: int) -> Response:
