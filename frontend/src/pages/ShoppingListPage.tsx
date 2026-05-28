@@ -33,54 +33,73 @@ const PriceSourceBadge = ({ source, detail }: { source?: string; detail?: string
   );
 };
 
-const ShoppingItem = ({ item, done, onToggle }: { item: any; done: boolean; onToggle: () => void }) => (
-  <Card
-    onClick={onToggle}
-    className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-zinc-800/50' : 'hover:border-emerald-500/20'}`}
-  >
-    <div className="flex items-center gap-4">
-      <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-zinc-700'}`}>
-        {done && <Check size={16} className="text-white" />}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-start gap-3">
-          <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-600' : 'text-white'}`}>
-            {item.ingredient}
-          </p>
-          <div className="flex items-center gap-2 shrink-0">
-            {item.original_price != null && item.discount_percentage != null && (
-              <span className="text-[10px] font-bold text-zinc-600 line-through tabular-nums">
-                {item.original_price}
+const isStapleItem = (item: any): boolean =>
+  item?.is_pantry_staple === true || item?.pantry === true;
+
+const ShoppingItem = ({ item, done, onToggle, staple = false }: { item: any; done: boolean; onToggle: () => void; staple?: boolean }) => {
+  const fractionPct = staple && typeof item.fraction_used === 'number'
+    ? Math.max(1, Math.round(item.fraction_used * 100))
+    : null;
+  return (
+    <Card
+      onClick={onToggle}
+      className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-zinc-800/50' : 'hover:border-emerald-500/20'}`}
+    >
+      <div className="flex items-center gap-4">
+        <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-zinc-700'}`}>
+          {done && <Check size={16} className="text-white" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start gap-3">
+            <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-600' : 'text-white'}`}>
+              {item.ingredient}
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              {item.original_price != null && item.discount_percentage != null && (
+                <span className="text-[10px] font-bold text-zinc-600 line-through tabular-nums">
+                  {item.original_price}
+                </span>
+              )}
+              {item.price_total != null ? (
+                <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
+                  {item.price_total} {item.currency}
+                </p>
+              ) : item.price != null ? (
+                <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
+                  {item.price} {item.currency}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex justify-between items-center mt-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
+                {item.quantity} {item.unit}
+              </span>
+              <PriceSourceBadge source={item.price_source} detail={item.source_detail} />
+            </div>
+            {item.matched_product_name && (
+              <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
+                {item.matched_product_name}
               </span>
             )}
-            {item.price_total != null ? (
-              <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
-                {item.price_total} {item.currency}
-              </p>
-            ) : item.price != null ? (
-              <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
-                {item.price} {item.currency}
-              </p>
-            ) : null}
           </div>
-        </div>
-        <div className="flex justify-between items-center mt-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">
-              {item.quantity} {item.unit}
-            </span>
-            <PriceSourceBadge source={item.price_source} detail={item.source_detail} />
-          </div>
-          {item.matched_product_name && (
-            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
-              {item.matched_product_name}
-            </span>
+          {staple && item.pantry_pack_price != null && (
+            <div className="flex justify-between items-center mt-2 pt-2 border-t border-zinc-800/50">
+              <span className="text-[10px] font-bold text-zinc-500 italic">
+                {fractionPct != null ? `${fractionPct}% balení` : 'Část balení'}
+              </span>
+              <span className="text-[10px] font-bold text-zinc-500 italic">
+                Plné balení{item.pantry_package_size ? ` (${item.pantry_package_size} ${item.pantry_package_unit || ''})` : ''}:{' '}
+                <span className="text-zinc-300 tabular-nums">{item.pantry_pack_price} {item.currency}</span>
+              </span>
+            </div>
           )}
         </div>
       </div>
-    </div>
-  </Card>
-);
+    </Card>
+  );
+};
 
 export const ShoppingListPage = () => {
   const { id } = useParams();
@@ -480,20 +499,57 @@ export const ShoppingListPage = () => {
             })}
           </div>
         ) : (
-          /* Single-store flat list */
-          <div className="space-y-3">
-            {items.map((item: any, idx: number) => {
-              const itemKey = String(idx);
-              return (
-                <ShoppingItem
-                  key={itemKey}
-                  item={item}
-                  done={checked.has(itemKey)}
-                  onToggle={() => toggleItem(itemKey)}
-                />
-              );
-            })}
-          </div>
+          /* Single-store flat list, split into Groceries and Pantry sections */
+          (() => {
+            const groceries = items.filter((i: any) => !isStapleItem(i));
+            const pantry = items.filter((i: any) => isStapleItem(i));
+            return (
+              <div className="space-y-10">
+                <div className="space-y-3">
+                  {pantry.length > 0 && (
+                    <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest italic mb-3">
+                      Potraviny
+                    </h2>
+                  )}
+                  {groceries.map((item: any) => {
+                    const itemKey = `g-${items.indexOf(item)}`;
+                    return (
+                      <ShoppingItem
+                        key={itemKey}
+                        item={item}
+                        done={checked.has(itemKey)}
+                        onToggle={() => toggleItem(itemKey)}
+                      />
+                    );
+                  })}
+                </div>
+                {pantry.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="mb-3">
+                      <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest italic">
+                        Spíž · pouze část balení
+                      </h2>
+                      <p className="text-[10px] font-bold text-zinc-600 italic mt-1">
+                        Tyto suroviny většinou už máte doma. Účtujeme jen tu část, kterou skutečně použijete.
+                      </p>
+                    </div>
+                    {pantry.map((item: any) => {
+                      const itemKey = `p-${items.indexOf(item)}`;
+                      return (
+                        <ShoppingItem
+                          key={itemKey}
+                          item={item}
+                          done={checked.has(itemKey)}
+                          onToggle={() => toggleItem(itemKey)}
+                          staple
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()
         )}
 
         {/* Total */}
@@ -501,6 +557,7 @@ export const ShoppingListPage = () => {
           const estimatedCount = items.filter((i: any) => i.estimated).length;
           const unavailableCount = items.filter((i: any) => i.price_source === 'not_available').length;
           const hasEstimates = estimatedCount > 0 || unavailableCount > 0;
+          const pantryPrice = plan.pantry_price != null ? Number(plan.pantry_price) : 0;
           return (
             <Card className="p-8 mt-10 text-left">
               <div className="flex justify-between items-center">
@@ -510,6 +567,11 @@ export const ShoppingListPage = () => {
                     <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.2em] italic">
                       {hasEstimates ? 'Odhadovaná cena celkem' : 'Cena celkem'}
                     </p>
+                    {pantryPrice > 0 && (
+                      <p className="text-[10px] text-zinc-500 font-bold mt-0.5">
+                        Včetně {pantryPrice.toFixed(2)} {plan.currency} za poměrnou část spíže
+                      </p>
+                    )}
                     {unavailableCount > 0 && (
                       <p className="text-[10px] text-amber-500/80 font-bold mt-0.5">
                         {unavailableCount} {unavailableCount === 1 ? 'položka' : 'položek'} bez ceny

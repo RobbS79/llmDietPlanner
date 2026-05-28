@@ -45,6 +45,7 @@ from .models import DietaryGoal, DietaryPlan, HistoricNutritionPlan
 from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
+from .services.canonical_lookup import resolve_canonical
 
 logger = logging.getLogger(__name__)
 
@@ -1186,12 +1187,17 @@ def parse_numeric(val: Any) -> Optional[Decimal]:
 # PRICE CALCULATION FUNCTIONS
 # =============================================================================
 
-def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", goal_id: int = 0) -> Optional[Decimal]:
+def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", goal_id: int = 0, is_staple: bool = False) -> Optional[Decimal]:
     """
     Calculate total price based on how many full packages are needed.
 
     This function determines the number of packages required to satisfy
     the requested quantity and returns the total price.
+
+    When is_staple=True, returns the pro-rated fraction of one package
+    (no ceil): a recipe using 10ml of a 500ml bottle at 150 CZK is
+    charged 3 CZK, not 150. Pantry display fields are attached to the
+    item dict so the UI can show "your share" vs. "full pack to restock".
 
     Args:
         item: Shopping item dict with keys:
@@ -1202,6 +1208,8 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
             - package_size: Size of package (e.g., 500 for 500g package)
         context_id: Context ID for logging
         goal_id: Goal ID for logging
+        is_staple: When True, pro-rate by fraction consumed instead of
+            rounding up to whole packages.
 
     Returns:
         Total price as Decimal, or None if calculation not possible
@@ -1325,13 +1333,29 @@ def calculate_package_aware_price(item: Dict[str, Any], context_id: str = "", go
             logger.warning(warning_msg)
         return off_price
 
-    # Calculate whole packages needed (round up)
-    num_packages = (req_base / pkg_base).to_integral_value(rounding='ROUND_CEILING')
-    if log_prefix:
-        logger.debug(
-            f"{log_prefix} DETAIL: Packages calculation: {req_base} base units / {pkg_base} base units per package = "
-            f"{req_base / pkg_base} → rounded up to {num_packages} packages"
-        )
+    # Pro-rate by fraction consumed for pantry staples; otherwise round up
+    # to whole packages because you can't buy half a chicken breast.
+    if is_staple:
+        fraction_used = req_base / pkg_base
+        num_packages = fraction_used  # used for total_price below
+        # Stash display fields so the shopping-list UI can show
+        # "your share: X" alongside "full pack: Y to restock".
+        item['fraction_used'] = float(fraction_used)
+        item['pantry_pack_price'] = float(off_price)
+        item['pantry_package_size'] = float(off_pkg_size) if off_pkg_size else None
+        item['pantry_package_unit'] = off_unit
+        if log_prefix:
+            logger.debug(
+                f"{log_prefix} DETAIL: Pantry pro-rate for '{ingredient}': "
+                f"{req_base} / {pkg_base} = {fraction_used} of one pack"
+            )
+    else:
+        num_packages = (req_base / pkg_base).to_integral_value(rounding='ROUND_CEILING')
+        if log_prefix:
+            logger.debug(
+                f"{log_prefix} DETAIL: Packages calculation: {req_base} base units / {pkg_base} base units per package = "
+                f"{req_base / pkg_base} → rounded up to {num_packages} packages"
+            )
 
     # Check if we should look for better package options
     ingredient_name = item.get('ingredient', '')
@@ -1487,21 +1511,30 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         # Backend validation only - validate quantities and enhance with database prices where available
         logger.info(f"{log_prefix} Validating shopping list and enhancing with database prices")
         validated_shopping_list = []
-        total_sum = Decimal('0')
+        total_sum = Decimal('0')    # groceries (full packs you buy for this plan)
+        pantry_sum = Decimal('0')   # pro-rated share of pantry staples
         matched_count = 0
         estimated_count = 0
-        
+
         for item in shopping_list_from_llm:
             # Validate quantities
             validated_item = validate_shopping_item(
-                item, 
-                num_days=goal.num_days, 
-                context_id=context_id, 
+                item,
+                num_days=goal.num_days,
+                context_id=context_id,
                 goal_id=goal_id
             )
-            
+
             # Enhance with database price matching if available (for better package info)
             ingredient_name = validated_item.get('ingredient', '')
+
+            # Resolve to a canonical ingredient so we know whether this is a
+            # pantry staple (oil, salt, spice, ...) that should be pro-rated.
+            canonical = resolve_canonical(ingredient_name)
+            is_staple = bool(canonical and canonical.is_pantry_staple)
+            validated_item['canonical_ingredient_id'] = canonical.id if canonical else None
+            validated_item['is_pantry_staple'] = is_staple
+
             if goal.shop:
                 matched_product = ScraperService.match_ingredient_price(
                     ingredient_name,
@@ -1516,39 +1549,50 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     validated_item['matched_product_name'] = matched_product.get('display_name', validated_item.get('matched_product_name', ingredient_name))
                     validated_item['currency'] = matched_product.get('currency', validated_item.get('currency', goal.currency))
                     validated_item['price_type'] = matched_product.get('price_type', validated_item.get('price_type', 'REGULAR'))
-                    
+
                     if matched_product.get('original_price'):
                         validated_item['original_price'] = float(matched_product.get('original_price'))
                     if matched_product.get('discount_percentage') is not None:
                         validated_item['discount_percentage'] = matched_product.get('discount_percentage')
-                    
+
                     # Convert to purchasable units if needed
                     validated_item = convert_requirement_to_purchasable_units(
                         validated_item, matched_product, context_id=context_id, goal_id=goal_id
                     )
-                    
-                    # Recalculate price with package-aware logic
+
+                    # Recalculate price with package-aware logic (pro-rated for staples)
                     validated_item['price'] = base_price
-                    calculated_price = calculate_package_aware_price(validated_item, context_id, goal_id)
-                    
+                    calculated_price = calculate_package_aware_price(
+                        validated_item, context_id, goal_id, is_staple=is_staple
+                    )
+
                     if calculated_price:
                         validated_item['price_total'] = float(calculated_price)
                         validated_item['price'] = float(calculated_price)
                         validated_item['estimated'] = False
-                        validated_item['price_source'] = 'leaflet_offer'
-                        total_sum += calculated_price
+                        validated_item['price_source'] = 'leaflet_offer_prorated' if is_staple else 'leaflet_offer'
+                        if is_staple:
+                            pantry_sum += calculated_price
+                        else:
+                            total_sum += calculated_price
                         matched_count += 1
                     else:
-                        # Use LLM price if calculation fails
+                        # Use LLM price if calculation fails. We can't pro-rate
+                        # without a known package size, so staples fall back to
+                        # full LLM price routed into pantry_sum.
                         llm_price = validated_item.get('price_total') or validated_item.get('price')
                         if llm_price:
                             validated_item['price_total'] = float(llm_price)
                             validated_item['price'] = float(llm_price)
-                            total_sum += Decimal(str(llm_price))
+                            price_amount = Decimal(str(llm_price))
                         else:
                             validated_item['price_total'] = base_price
                             validated_item['price'] = base_price
-                            total_sum += Decimal(str(base_price))
+                            price_amount = Decimal(str(base_price))
+                        if is_staple:
+                            pantry_sum += price_amount
+                        else:
+                            total_sum += price_amount
                         validated_item['estimated'] = True
                         validated_item['price_source'] = 'leaflet_offer_estimated_quantity'
                         matched_count += 1
@@ -1558,7 +1602,11 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     if llm_price:
                         validated_item['price_total'] = float(llm_price)
                         validated_item['price'] = float(llm_price)
-                        total_sum += Decimal(str(llm_price))
+                        price_amount = Decimal(str(llm_price))
+                        if is_staple:
+                            pantry_sum += price_amount
+                        else:
+                            total_sum += price_amount
                         estimated_count += 1
                         validated_item['estimated'] = validated_item.get('estimated', True)
                         validated_item['price_source'] = validated_item.get('price_source', 'llm_from_shop_url')
@@ -1573,21 +1621,27 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                 if llm_price:
                     validated_item['price_total'] = float(llm_price)
                     validated_item['price'] = float(llm_price)
-                    total_sum += Decimal(str(llm_price))
+                    price_amount = Decimal(str(llm_price))
+                    if is_staple:
+                        pantry_sum += price_amount
+                    else:
+                        total_sum += price_amount
                 validated_item['estimated'] = validated_item.get('estimated', True)
-            
+
             validated_shopping_list.append(validated_item)
-        
-        # Use calculated total (prefer our calculation over LLM)
-        final_total = total_sum if total_sum > 0 else (Decimal(str(total_cost_from_llm)) if total_cost_from_llm else Decimal('0'))
-        
+
+        # Plan total includes pro-rated pantry share. Fall back to the LLM's
+        # estimate only when our own calculation produced nothing at all.
+        calculated_total = total_sum + pantry_sum
+        final_total = calculated_total if calculated_total > 0 else (Decimal(str(total_cost_from_llm)) if total_cost_from_llm else Decimal('0'))
+
         # Warn if totals differ significantly
-        if total_cost_from_llm and total_sum > 0:
-            diff_percent = abs(float(total_cost_from_llm) - float(total_sum)) / float(total_cost_from_llm) * 100
+        if total_cost_from_llm and calculated_total > 0:
+            diff_percent = abs(float(total_cost_from_llm) - float(calculated_total)) / float(total_cost_from_llm) * 100
             if diff_percent > 20:
                 logger.warning(
                     f"{log_prefix} Total cost mismatch: LLM={total_cost_from_llm} {goal.currency}, "
-                    f"Calculated={total_sum} {goal.currency} ({diff_percent:.1f}% difference)"
+                    f"Calculated={calculated_total} {goal.currency} ({diff_percent:.1f}% difference)"
                 )
         
         # Create DietaryPlan
@@ -1596,6 +1650,7 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             days=transformed_days,
             shopping_list=validated_shopping_list,
             total_price=final_total,
+            pantry_price=pantry_sum if pantry_sum > 0 else None,
             currency=goal.currency,
             llm_model_used=llm_result.get('model'),
             llm_input_tokens=llm_result.get('input_tokens'),
