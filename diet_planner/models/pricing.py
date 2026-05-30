@@ -26,8 +26,23 @@ class PriceSourceType(models.TextChoices):
 
 class PriceRecordQuerySet(models.QuerySet):
     def current(self):
+        """Records in effect right now: already started and not yet expired.
+
+        The valid_from clause matters once future-dated (upcoming leaflet)
+        records exist — without it they would leak into live price matching.
+        Existing records are all scraped with valid_from in the past, so this
+        excludes nothing that was previously returned.
+        """
         now = timezone.now()
         return self.filter(
+            Q(valid_from__lte=now)
+            & (Q(valid_until__isnull=True) | Q(valid_until__gt=now))
+        )
+
+    def upcoming(self):
+        """Records that have not started yet but will (future leaflets)."""
+        now = timezone.now()
+        return self.filter(valid_from__gt=now).filter(
             Q(valid_until__isnull=True) | Q(valid_until__gt=now)
         )
 
@@ -59,6 +74,9 @@ class PriceRecordManager(models.Manager):
 
     def current(self):
         return self.get_queryset().current()
+
+    def upcoming(self):
+        return self.get_queryset().upcoming()
 
     def best_price(self):
         return self.get_queryset().best_price()

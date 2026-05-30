@@ -1761,6 +1761,12 @@ def scrape_store_task(self, shop_code: str) -> Dict[str, Any]:
             if not price or float(price) <= 0:
                 continue
 
+            # Honor the leaflet's real validity window when the scraper parsed
+            # one; otherwise fall back to the store's generic TTL. A future
+            # valid_from marks an upcoming (not-yet-active) deal.
+            prod_valid_from = product.get('valid_from') or now
+            prod_valid_until = product.get('valid_until') or expires_at
+
             _, was_created = LeafletOffer.objects.update_or_create(
                 shop=shop_code,
                 country=country,
@@ -1774,7 +1780,7 @@ def scrape_store_task(self, shop_code: str) -> Dict[str, Any]:
                     'original_price': product.get('original_price'),
                     'discount_percentage': product.get('discount_percentage'),
                     'source_url': product.get('source_url', ''),
-                    'expires_at': expires_at,
+                    'expires_at': prod_valid_until,
                     'freshness_state': 'fresh',
                     'stale_at': None,
                 },
@@ -1800,8 +1806,8 @@ def scrape_store_task(self, shop_code: str) -> Dict[str, Any]:
                         'discount_percentage': product.get('discount_percentage'),
                         'source_url': product.get('source_url', ''),
                     },
-                    valid_from=now,
-                    valid_until=expires_at,
+                    valid_from=prod_valid_from,
+                    valid_until=prod_valid_until,
                     scrape_run=scrape_run,
                 )
             except Exception as dual_exc:
