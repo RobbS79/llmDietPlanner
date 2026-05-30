@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ShoppingCart, Printer, Check, Tag, Store, Sparkles, Clock, HelpCircle, TrendingDown, Percent, Loader2, ArrowRight, X, Info, MessageSquare, Send, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Printer, Check, Tag, Store, PiggyBank, Calendar, ChevronDown, Info, MessageSquare, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -8,98 +8,129 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
-const PRICE_SOURCE_CONFIG: Record<string, { label: string; color: string; icon: typeof Tag }> = {
-  leaflet_discount: { label: 'Akce', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', icon: Tag },
-  store_regular: { label: 'Běžná cena', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', icon: Store },
-  pantry_estimate: { label: 'Odhad', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Sparkles },
-  cross_store_match: { label: 'Jiný obchod', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20', icon: Store },
-  historical_average: { label: 'Historická', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', icon: Clock },
-  not_available: { label: 'Nedostupná', color: 'bg-zinc-500/10 text-zinc-300 border-zinc-500/20', icon: HelpCircle },
+// ---- Pricing payload shape (mirrors compute_pricing() in
+// diet_planner/services/shopping_list_pricing.py) ----
+interface PriceRange {
+  low: number;
+  high: number;
+  currency: string;
+  store_low: string;
+  store_low_name: string;
+  store_high: string;
+  store_high_name: string;
+  items_counted: number;
+}
+interface DealItem {
+  ingredient: string;
+  matched_product_name: string;
+  sale: number;
+  original: number | null;
+  savings: number | null;
+}
+interface Deal {
+  store: string;
+  store_name: string;
+  status: 'current' | 'upcoming';
+  valid_from: string | null;
+  valid_until: string | null;
+  currency: string;
+  items: DealItem[];
+  store_total_savings: number;
+}
+interface Pricing {
+  price_range: PriceRange | null;
+  deals: Deal[];
+  pantry_toggles: { basics_on: boolean; fridge_on: boolean };
+}
+
+const EMPTY_DEALS_COPY =
+  'Snažili jsme se, ale pro vaše jídla jsme tento týden žádné slevy nenašli :(';
+
+// Format an ISO datetime into the Czech "DD.MM." leaflet token.
+const fmtDay = (iso: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getDate()}.${d.getMonth() + 1}.`;
 };
 
-const PriceSourceBadge = ({ source, detail }: { source?: string; detail?: string }) => {
-  if (!source) return null;
-  const config = PRICE_SOURCE_CONFIG[source];
-  if (!config) return null;
-  const Icon = config.icon;
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${config.color}`}
-      title={detail || config.label}
-    >
-      <Icon size={9} />
-      {config.label}
-    </span>
-  );
-};
+const fmtMoney = (n: number): string =>
+  Number.isInteger(n) ? String(n) : n.toFixed(1);
 
 const isStapleItem = (item: any): boolean =>
   item?.is_pantry_staple === true || item?.pantry === true;
 
-const ShoppingItem = ({ item, done, onToggle, staple = false }: { item: any; done: boolean; onToggle: () => void; staple?: boolean }) => {
-  const fractionPct = staple && typeof item.fraction_used === 'number'
-    ? Math.max(1, Math.round(item.fraction_used * 100))
-    : null;
-  return (
-    <Card
-      onClick={onToggle}
-      className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-slate-600/50' : 'hover:border-emerald-500/20'}`}
-    >
-      <div className="flex items-center gap-4">
-        <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-slate-500'}`}>
-          {done && <Check size={16} className="text-white" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-start gap-3">
-            <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-400' : 'text-white'}`}>
-              {item.ingredient}
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-              {item.original_price != null && item.discount_percentage != null && (
-                <span className="text-[10px] font-bold text-zinc-400 line-through tabular-nums">
-                  {item.original_price}
-                </span>
-              )}
-              {item.price_total != null ? (
-                <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
-                  {item.price_total} {item.currency}
-                </p>
-              ) : item.price != null ? (
-                <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">
-                  {item.price} {item.currency}
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <div className="flex justify-between items-center mt-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
-                {item.quantity} {item.unit}
-              </span>
-              <PriceSourceBadge source={item.price_source} detail={item.source_detail} />
-            </div>
-            {item.matched_product_name && (
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic opacity-50 max-w-[180px] truncate text-right">
-                {item.matched_product_name}
-              </span>
-            )}
-          </div>
-          {staple && item.pantry_pack_price != null && (
-            <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-600/50">
-              <span className="text-[10px] font-bold text-zinc-300 italic">
-                {fractionPct != null ? `${fractionPct}% balení` : 'Část balení'}
-              </span>
-              <span className="text-[10px] font-bold text-zinc-300 italic">
-                Plné balení{item.pantry_package_size ? ` (${item.pantry_package_size} ${item.pantry_package_unit || ''})` : ''}:{' '}
-                <span className="text-zinc-300 tabular-nums">{item.pantry_pack_price} {item.currency}</span>
-              </span>
-            </div>
-          )}
-        </div>
+const normName = (s: string | undefined | null): string =>
+  (s || '').toLowerCase().trim();
+
+// ---- Simplified list row: checkbox + name + qty (+ optional deal chip) ----
+const ShoppingItem = ({
+  item,
+  done,
+  onToggle,
+  dealStoreName,
+}: {
+  item: any;
+  done: boolean;
+  onToggle: () => void;
+  dealStoreName?: string | null;
+}) => (
+  <Card
+    onClick={onToggle}
+    className={`p-5 cursor-pointer select-none transition-all text-left ${done ? 'opacity-40 border-slate-600/50' : 'hover:border-emerald-500/20'}`}
+  >
+    <div className="flex items-center gap-4">
+      <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${done ? 'bg-emerald-600 border-emerald-600' : 'border-slate-500'}`}>
+        {done && <Check size={16} className="text-white" />}
       </div>
-    </Card>
-  );
-};
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-center gap-3">
+          <p className={`text-base font-black uppercase tracking-tight italic leading-none truncate ${done ? 'line-through text-zinc-400' : 'text-white'}`}>
+            {item.ingredient}
+          </p>
+          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic shrink-0 whitespace-nowrap">
+            {item.quantity} {item.unit}
+          </span>
+        </div>
+        {dealStoreName && (
+          <div className="mt-2">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+              <Tag size={9} /> ★ akce u {dealStoreName}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  </Card>
+);
+
+// ---- Pantry pill toggle ----
+const PantryToggle = ({
+  label,
+  on,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  on: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) => (
+  <button
+    type="button"
+    onClick={() => onChange(!on)}
+    disabled={disabled}
+    aria-pressed={on}
+    className="flex items-center gap-3 w-full text-left disabled:opacity-50"
+  >
+    <span className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${on ? 'bg-emerald-600 border-emerald-600' : 'border-slate-500'}`}>
+      {on && <Check size={14} className="text-white" />}
+    </span>
+    <span className={`text-xs font-bold italic leading-snug ${on ? 'text-zinc-100' : 'text-zinc-300'}`}>
+      {label}
+    </span>
+  </button>
+);
 
 export const ShoppingListPage = () => {
   const { id } = useParams();
@@ -111,24 +142,17 @@ export const ShoppingListPage = () => {
     const saved = localStorage.getItem(storageKey);
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
-  const [optimizing, setOptimizing] = useState(false);
-  const [showOptimization, setShowOptimization] = useState(false);
-  const [timeoutError, setTimeoutError] = useState(false);
-  const [selectedShops, setSelectedShops] = useState<string[] | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [actualTotal, setActualTotal] = useState('');
   const [feedbackNote, setFeedbackNote] = useState('');
+  const [basicsExpanded, setBasicsExpanded] = useState(false);
+  // Optimistic local override for the pantry toggles. Falls back to the
+  // server-persisted values from pricing.pantry_toggles when unset.
+  const [toggleOverride, setToggleOverride] = useState<{ basics_on: boolean; fridge_on: boolean } | null>(null);
 
   const { data: goalDetail, isLoading } = useQuery({
     queryKey: ['plan', id],
     queryFn: () => api.get(`/goals/${id}/`).then(res => res.data.data),
-  });
-
-  const country = goalDetail?.country;
-  const { data: shopsData } = useQuery({
-    queryKey: ['shops', country],
-    queryFn: () => api.get(`/shops/?country=${country}`).then(res => res.data.data?.shops || []),
-    enabled: Boolean(country),
   });
 
   const { data: existingFeedback } = useQuery({
@@ -148,47 +172,19 @@ export const ShoppingListPage = () => {
     },
   });
 
-  const triggerOptimization = useMutation({
-    mutationFn: (opts: { force?: boolean } = {}) => {
-      const body: { force?: boolean; shops?: string[] } = {};
-      if (opts.force) body.force = true;
-      if (selectedShops && selectedShops.length > 0) body.shops = selectedShops;
-      return api.post(`/goals/${id}/optimize-discounts/`, body);
-    },
-    onMutate: () => { setOptimizing(true); setTimeoutError(false); },
-    onSuccess: (res) => {
-      if (res.data.data?.swaps) {
-        setOptimizing(false);
-        setShowOptimization(true);
-        queryClient.invalidateQueries({ queryKey: ['plan', id] });
-      } else {
-        let resolved = false;
-        const poll = setInterval(async () => {
-          const check = await api.get(`/goals/${id}/optimize-discounts/`);
-          if (check.data.data?.ready) {
-            resolved = true;
-            clearInterval(poll);
-            setOptimizing(false);
-            setShowOptimization(true);
-            queryClient.invalidateQueries({ queryKey: ['plan', id] });
-          }
-        }, 3000);
-        setTimeout(() => {
-          clearInterval(poll);
-          if (!resolved) {
-            setTimeoutError(true);
-            setOptimizing(false);
-          }
-        }, 180000);
-      }
-    },
-    onError: () => setOptimizing(false),
-  });
-
-  const applyOptimization = useMutation({
-    mutationFn: () => api.post(`/goals/${id}/apply-optimization/`),
+  // Persist the pantry toggles and re-request pricing with the new values.
+  // Mirrors the PATCH /goals/<id>/ pattern used for other plan settings
+  // (see PlanView meal PATCH + Onboarding profile PATCH).
+  const saveToggles = useMutation({
+    // PATCH /goals/<id>/ persists the toggles as flat booleans
+    // (pantry_basics_on / pantry_fridge_on) on the plan; the recomputed
+    // `pricing` payload (range + deals) comes back on the next refetch.
+    mutationFn: (toggles: { basics_on: boolean; fridge_on: boolean }) =>
+      api.patch(`/goals/${id}/`, {
+        pantry_basics_on: toggles.basics_on,
+        pantry_fridge_on: toggles.fridge_on,
+      }),
     onSuccess: () => {
-      setShowOptimization(false);
       queryClient.invalidateQueries({ queryKey: ['plan', id] });
     },
   });
@@ -198,15 +194,38 @@ export const ShoppingListPage = () => {
   const plan = goalDetail.dietary_plan;
   if (!plan) return <LoadingScreen message="Loading shopping list..." />;
 
+  const pricing: Pricing | null = plan.pricing || null;
+  const priceRange = pricing?.price_range || null;
+  const deals: Deal[] = pricing?.deals || [];
+
+  // Toggle state: optimistic override wins, else server value, else defaults.
+  const serverToggles = pricing?.pantry_toggles || { basics_on: true, fridge_on: false };
+  const toggles = toggleOverride || serverToggles;
+
+  const currency = priceRange?.currency || plan.currency || 'Kč';
+
   const rawList = plan.shopping_list || [];
   const isCrossStore = rawList && !Array.isArray(rawList) && rawList.by_store;
   const items: any[] = isCrossStore ? (rawList.items || []) : rawList;
-  const byStore: any[] | null = isCrossStore ? rawList.by_store : null;
-  const availableShops: Array<{ code: string; name: string }> = shopsData || [];
-  const discountOpt = plan.discount_optimization;
-  const hasSwaps = discountOpt?.swaps?.length > 0;
-  const isApplied = plan.discount_optimization_applied;
-  const totalItems = items.length;
+
+  // Sum of store_total_savings across CURRENT deals only (anchor headline).
+  const currentSavings = deals
+    .filter(d => d.status === 'current')
+    .reduce((acc, d) => acc + (d.store_total_savings || 0), 0);
+
+  // Map plan ingredient name -> store name of a matching deal (for the ★ chip).
+  const dealStoreByIngredient: Record<string, string> = {};
+  deals.forEach(d => {
+    d.items.forEach(di => {
+      const key = normName(di.ingredient);
+      if (key && !dealStoreByIngredient[key]) dealStoreByIngredient[key] = d.store_name;
+    });
+  });
+
+  const groceries = items.filter((i: any) => !isStapleItem(i));
+  const pantry = items.filter((i: any) => isStapleItem(i));
+
+  const totalItems = groceries.length;
   const checkedCount = checked.size;
 
   const toggleItem = (key: string) => {
@@ -218,7 +237,17 @@ export const ShoppingListPage = () => {
     });
   };
 
+  const handleToggleChange = (field: 'basics_on' | 'fridge_on', next: boolean) => {
+    const updated = { ...toggles, [field]: next };
+    setToggleOverride(updated);
+    saveToggles.mutate(updated);
+  };
+
   const handlePrint = () => window.print();
+
+  const scrollToDeals = () => {
+    document.getElementById('deals-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <MainLayout>
@@ -230,7 +259,7 @@ export const ShoppingListPage = () => {
           <ArrowLeft size={16} /> Zpět na plán
         </button>
 
-        <header className="mb-16 flex flex-col sm:flex-row sm:items-end justify-between gap-8 text-left">
+        <header className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-8 text-left">
           <div className="space-y-4">
             <Badge variant="emerald">Nákupní seznam</Badge>
             <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">
@@ -248,346 +277,164 @@ export const ShoppingListPage = () => {
           </button>
         </header>
 
-        {/* Discount optimization button */}
-        {!isApplied && !showOptimization && (
-          <div className="mb-8 print:hidden space-y-3">
-            <button
-              onClick={() => hasSwaps ? setShowOptimization(true) : triggerOptimization.mutate({})}
-              disabled={optimizing}
-              className="w-full flex items-center justify-center gap-3 h-14 bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
-            >
-              {optimizing ? (
-                <><Loader2 size={16} className="animate-spin" /> Hledám akční nabídky...</>
-              ) : hasSwaps ? (
-                <><Percent size={16} /> Zobrazit nalezené slevy ({discountOpt.swaps.length} záměn)</>
-              ) : (
-                <><Percent size={16} /> Optimalizovat podle akčních nabídek</>
-              )}
-            </button>
-            {!hasSwaps && availableShops.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Obchody:</span>
-                <button
-                  onClick={() => setSelectedShops(null)}
-                  className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors ${
-                    !selectedShops || selectedShops.length === 0
-                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                      : 'border-slate-600 text-zinc-300 hover:text-white'
-                  }`}
-                >
-                  Všechny
-                </button>
-                {availableShops.map(s => {
-                  const active = selectedShops?.includes(s.code) ?? false;
-                  return (
-                    <button
-                      key={s.code}
-                      onClick={() => setSelectedShops(prev => {
-                        const set = new Set(prev || []);
-                        set.has(s.code) ? set.delete(s.code) : set.add(s.code);
-                        const next = Array.from(set);
-                        return next.length === 0 ? null : next;
-                      })}
-                      className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors ${
-                        active
-                          ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                          : 'border-slate-600 text-zinc-300 hover:text-white'
-                      }`}
-                    >
-                      {s.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {timeoutError && (
-              <div className="flex items-center gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                <AlertTriangle size={18} className="text-amber-400 shrink-0" />
-                <p className="text-xs font-bold text-amber-300">
-                  Optimalizace trvá déle než obvykle. Zkuste to za chvíli znovu.
+        {/* ---- Sticky top card: range + pantry toggles + savings anchor ---- */}
+        <Card className="p-6 mb-10 text-left sticky top-4 z-20 backdrop-blur supports-[backdrop-filter]:bg-slate-700/70 print:static">
+          {priceRange && (
+            <>
+              <div>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] italic mb-1">
+                  Běžná cena
+                </p>
+                <p className="text-3xl font-black text-white italic tracking-tighter tabular-nums">
+                  {fmtMoney(priceRange.low)}–{fmtMoney(priceRange.high)}
+                  <span className="text-emerald-500 text-base not-italic ml-2 uppercase">{currency}</span>
+                </p>
+                <p className="text-[10px] font-bold text-zinc-400 italic mt-1">
+                  od {priceRange.store_low_name} po {priceRange.store_high_name}
                 </p>
               </div>
-            )}
+              <div className="h-px bg-slate-600/60 my-5" />
+            </>
+          )}
+
+          <div className="space-y-3">
+            <PantryToggle
+              label="Mám doma základy (olej, sůl, koření)"
+              on={toggles.basics_on}
+              onChange={(next) => handleToggleChange('basics_on', next)}
+              disabled={saveToggles.isPending}
+            />
+            <PantryToggle
+              label="Mám doma mléko, máslo, vejce"
+              on={toggles.fridge_on}
+              onChange={(next) => handleToggleChange('fridge_on', next)}
+              disabled={saveToggles.isPending}
+            />
           </div>
-        )}
 
-        {isApplied && (
-          <Card className="p-5 mb-8 border-emerald-500/20 text-left print:hidden">
-            <div className="flex items-center gap-3">
-              <Check size={20} className="text-emerald-500 shrink-0" />
-              <div>
-                <p className="text-sm font-black text-emerald-400 uppercase tracking-tight italic">Slevová optimalizace aplikována</p>
-                <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
-                  Ušetřili jste {discountOpt?.total_saving} {plan.currency} díky akčním nabídkám
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Discount optimization comparison panel */}
-        {showOptimization && hasSwaps && !isApplied && (
-          <Card className="p-8 mb-8 border-amber-500/20 text-left print:hidden">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Percent size={20} className="text-amber-400" />
-                <div>
-                  <p className="text-sm font-black text-amber-400 uppercase tracking-tight italic">
-                    Nalezeno {discountOpt.swaps.length} záměn
-                  </p>
-                  <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
-                    Celková úspora: {discountOpt.total_saving} {plan.currency}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => setShowOptimization(false)} className="text-zinc-400 hover:text-white transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-3 mb-8 max-h-[400px] overflow-y-auto">
-              {discountOpt.swaps.map((swap: any, idx: number) => {
-                const shopName = availableShops.find(s => s.code === swap.source_shop)?.name || swap.source_shop;
-                return (
-                  <div key={idx} className="flex items-center gap-4 p-4 bg-black/30 rounded-xl">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-zinc-300 line-through truncate">{swap.original_ingredient}</p>
-                      <p className="text-xs font-black text-zinc-200 mt-0.5">{swap.original_price} {plan.currency}</p>
-                    </div>
-                    <ArrowRight size={16} className="text-amber-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-white truncate">{swap.replacement_product}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <p className="text-xs font-black text-emerald-400">{swap.replacement_price} {plan.currency}</p>
-                        {swap.source_shop && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
-                            <Store size={9} /> {shopName}
-                          </span>
-                        )}
-                        {swap.discount_confirmed === true && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/20" title="Potvrzená akce z letáku">
-                            <Tag size={9} /> Akce
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg shrink-0">
-                      -{swap.saving} {plan.currency}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex gap-3">
+          {currentSavings > 0 && (
+            <>
+              <div className="h-px bg-slate-600/60 my-5" />
               <button
-                onClick={() => applyOptimization.mutate()}
-                disabled={applyOptimization.isPending}
-                className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
+                onClick={scrollToDeals}
+                className="flex items-center gap-2 text-sm font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-tight italic transition-colors"
               >
-                {applyOptimization.isPending ? (
-                  <><Loader2 size={16} className="animate-spin" /> Aplikuji...</>
-                ) : (
-                  <><Check size={16} /> Použít slevy (ušetřit {discountOpt.total_saving} {plan.currency})</>
-                )}
+                <PiggyBank size={18} />
+                Tento týden ušetříte až ~{Math.round(currentSavings)} {currency}
               </button>
-              <button
-                onClick={() => setShowOptimization(false)}
-                className="px-6 h-14 border border-slate-600 text-zinc-300 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
-              >
-                Ponechat původní
-              </button>
-            </div>
-          </Card>
-        )}
+            </>
+          )}
+        </Card>
 
-        {/* No discounts found message */}
-        {showOptimization && discountOpt && !hasSwaps && (
-          <Card className="p-6 mb-8 border-amber-500/30 text-left print:hidden">
-            <div className="flex items-start gap-4">
-              <Percent size={22} className="text-amber-400 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-black text-amber-300 uppercase tracking-tight italic">
-                  Žádné slevy nenalezeny
-                </p>
-                <p className="text-xs font-bold text-zinc-300 mt-2">
-                  {discountOpt.message === 'no_discounts'
-                    ? 'V tuto chvíli nejsou v databázi žádné akční nabídky pro vybrané obchody.'
-                    : 'Nenalezeny žádné vhodné záměny pro aktuální plán.'}
-                </p>
-                {discountOpt.shops_queried && discountOpt.shops_queried.length > 0 && (
-                  <p className="text-[10px] font-bold text-zinc-400 mt-2 uppercase tracking-widest">
-                    Prohledáno: {discountOpt.shops_queried.join(', ')}
-                  </p>
-                )}
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={() => triggerOptimization.mutate({ force: true })}
-                    disabled={optimizing}
-                    className="flex items-center gap-2 px-4 h-10 bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 rounded-lg font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
-                  >
-                    {optimizing ? (
-                      <><Loader2 size={14} className="animate-spin" /> Aktualizuji...</>
-                    ) : (
-                      <><RefreshCw size={14} /> Načíst znovu</>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setShowOptimization(false)}
-                    className="px-4 h-10 text-zinc-300 hover:text-white font-black uppercase text-[10px] tracking-widest transition-colors"
-                  >
-                    Zavřít
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Cross-store savings banner */}
-        {isCrossStore && rawList.savings_vs_single > 0 && (
-          <Card className="p-5 mb-8 border-emerald-500/20 text-left">
-            <div className="flex items-center gap-3">
-              <TrendingDown size={20} className="text-emerald-500 shrink-0" />
-              <div>
-                <p className="text-sm font-black text-emerald-400 uppercase tracking-tight italic">
-                  Ušetříte {rawList.savings_vs_single} {plan.currency}
-                </p>
-                <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
-                  oproti nákupu v jednom obchodu ({rawList.best_single_store}) &middot; {rawList.num_stores} obchody
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Cross-store grouped view */}
-        {byStore ? (
-          <div className="space-y-10">
-            {byStore.map((storeGroup: any) => {
-              const storeKey = storeGroup.store || 'unavailable';
-              return (
-                <div key={storeKey}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
+        {/* ---- AKCE TENTO TÝDEN ---- */}
+        <div id="deals-section" className="mb-10">
+          <h2 className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em] italic mb-4">
+            Akce tento týden
+          </h2>
+          {deals.length === 0 ? (
+            <Card className="p-6 text-left">
+              <p className="text-sm font-bold text-zinc-300 italic leading-relaxed">
+                {EMPTY_DEALS_COPY}
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-5">
+              {deals.map((deal, di) => (
+                <Card key={`${deal.store}-${deal.status}-${di}`} className="p-5 text-left">
+                  <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Store size={16} className="text-zinc-300" />
-                      <h2 className="text-sm font-black text-white uppercase tracking-widest italic">
-                        {storeGroup.store_name}
-                      </h2>
+                      <h3 className="text-sm font-black text-white uppercase tracking-widest italic">
+                        {deal.store_name}
+                      </h3>
+                      {deal.status === 'upcoming' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-amber-500/10 text-amber-400 border-amber-500/20">
+                          <Calendar size={9} /> [od {fmtDay(deal.valid_from)}]
+                        </span>
+                      )}
+                      {(deal.valid_from || deal.valid_until) && (
+                        <span className="text-[10px] font-bold text-zinc-400 italic">
+                          {fmtDay(deal.valid_from)}–{fmtDay(deal.valid_until)}
+                        </span>
+                      )}
                     </div>
-                    {storeGroup.subtotal > 0 && (
-                      <span className="text-sm font-black text-emerald-500 tabular-nums">
-                        {storeGroup.subtotal} {plan.currency}
+                    {deal.store_total_savings > 0 && (
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic">
+                        ušetříte {Math.round(deal.store_total_savings)} {deal.currency}
                       </span>
                     )}
                   </div>
                   <div className="space-y-3">
-                    {storeGroup.items.map((item: any, idx: number) => {
-                      const itemKey = `${storeKey}-${idx}`;
-                      return (
-                        <ShoppingItem
-                          key={itemKey}
-                          item={item}
-                          done={checked.has(itemKey)}
-                          onToggle={() => toggleItem(itemKey)}
-                        />
-                      );
-                    })}
+                    {deal.items.map((it, ii) => (
+                      <div key={ii} className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-bold text-zinc-200 truncate min-w-0">
+                          {it.matched_product_name || it.ingredient}
+                        </p>
+                        <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                          {it.original != null && (
+                            <span className="text-[10px] font-bold text-zinc-400 line-through">
+                              {fmtMoney(it.original)}
+                            </span>
+                          )}
+                          <span className="text-sm font-black text-emerald-500">
+                            {fmtMoney(it.sale)} {deal.currency}
+                          </span>
+                          {it.savings != null && it.savings > 0 && (
+                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg">
+                              −{Math.round(it.savings)} {deal.currency}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ---- NÁKUPNÍ SEZNAM (main list) ---- */}
+        <div className="mb-10">
+          <h2 className="text-xs font-black text-zinc-300 uppercase tracking-[0.25em] italic mb-4">
+            Nákupní seznam
+          </h2>
+          <div className="space-y-3">
+            {groceries.map((item: any) => {
+              const itemKey = `g-${items.indexOf(item)}`;
+              const dealStore = dealStoreByIngredient[normName(item.ingredient)] || null;
+              return (
+                <ShoppingItem
+                  key={itemKey}
+                  item={item}
+                  done={checked.has(itemKey)}
+                  onToggle={() => toggleItem(itemKey)}
+                  dealStoreName={dealStore}
+                />
               );
             })}
           </div>
-        ) : (
-          /* Single-store flat list, split into Groceries and Pantry sections */
-          (() => {
-            const groceries = items.filter((i: any) => !isStapleItem(i));
-            const pantry = items.filter((i: any) => isStapleItem(i));
-            return (
-              <div className="space-y-10">
-                <div className="space-y-3">
-                  {pantry.length > 0 && (
-                    <h2 className="text-xs font-black text-zinc-300 uppercase tracking-widest italic mb-3">
-                      Potraviny
-                    </h2>
-                  )}
-                  {groceries.map((item: any) => {
-                    const itemKey = `g-${items.indexOf(item)}`;
-                    return (
-                      <ShoppingItem
-                        key={itemKey}
-                        item={item}
-                        done={checked.has(itemKey)}
-                        onToggle={() => toggleItem(itemKey)}
-                      />
-                    );
-                  })}
-                </div>
-                {pantry.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="mb-3">
-                      <h2 className="text-xs font-black text-zinc-300 uppercase tracking-widest italic">
-                        Spíž · pouze část balení
-                      </h2>
-                      <p className="text-[10px] font-bold text-zinc-400 italic mt-1">
-                        Tyto suroviny většinou už máte doma. Účtujeme jen tu část, kterou skutečně použijete.
-                      </p>
-                    </div>
-                    {pantry.map((item: any) => {
-                      const itemKey = `p-${items.indexOf(item)}`;
-                      return (
-                        <ShoppingItem
-                          key={itemKey}
-                          item={item}
-                          done={checked.has(itemKey)}
-                          onToggle={() => toggleItem(itemKey)}
-                          staple
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })()
+        </div>
+
+        {/* ---- ZÁKLADY (quiet collapsed pantry section) ---- */}
+        {pantry.length > 0 && (
+          <div className="mb-10 print:hidden">
+            <button
+              onClick={() => setBasicsExpanded(v => !v)}
+              className="flex items-center gap-2 text-[10px] font-black text-zinc-400 hover:text-zinc-200 uppercase tracking-widest italic transition-colors"
+            >
+              <ChevronDown size={14} className={`transition-transform ${basicsExpanded ? 'rotate-180' : ''}`} />
+              Základy (předpokládáme, že máte)
+            </button>
+            {basicsExpanded && (
+              <p className="mt-3 text-xs font-bold text-zinc-500 italic leading-relaxed">
+                {pantry.map((i: any) => i.ingredient).join(', ')}
+              </p>
+            )}
+          </div>
         )}
 
-        {/* Total */}
-        {(() => {
-          const estimatedCount = items.filter((i: any) => i.estimated).length;
-          const unavailableCount = items.filter((i: any) => i.price_source === 'not_available').length;
-          const hasEstimates = estimatedCount > 0 || unavailableCount > 0;
-          const pantryPrice = plan.pantry_price != null ? Number(plan.pantry_price) : 0;
-          return (
-            <Card className="p-8 mt-10 text-left">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <ShoppingCart size={22} className="text-emerald-500" />
-                  <div>
-                    <p className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em] italic">
-                      {hasEstimates ? 'Odhadovaná cena celkem' : 'Cena celkem'}
-                    </p>
-                    {pantryPrice > 0 && (
-                      <p className="text-[10px] text-zinc-300 font-bold mt-0.5">
-                        Včetně {pantryPrice.toFixed(2)} {plan.currency} za poměrnou část spíže
-                      </p>
-                    )}
-                    {unavailableCount > 0 && (
-                      <p className="text-[10px] text-amber-500/80 font-bold mt-0.5">
-                        {unavailableCount} {unavailableCount === 1 ? 'položka' : 'položek'} bez ceny
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <p className="text-4xl font-black text-white italic tracking-tighter">
-                  {plan.total_price}<span className="text-emerald-500 text-base not-italic ml-2 uppercase">{plan.currency}</span>
-                </p>
-              </div>
-            </Card>
-          );
-        })()}
-
-        {/* Price disclaimer + feedback */}
+        {/* ---- Price disclaimer + feedback ---- */}
         <div className="mt-6 space-y-4 print:hidden">
           <Card className="p-5 border-amber-500/10 text-left">
             <div className="flex gap-3">
@@ -624,7 +471,7 @@ export const ShoppingListPage = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">
-                    Skutečná cena nákupu ({plan.currency})
+                    Skutečná cena nákupu ({currency})
                   </label>
                   <input
                     type="number"
@@ -632,7 +479,7 @@ export const ShoppingListPage = () => {
                     step="0.01"
                     value={actualTotal}
                     onChange={e => setActualTotal(e.target.value)}
-                    placeholder={plan.total_price?.toString() || '0'}
+                    placeholder={priceRange ? String(priceRange.low) : '0'}
                     className="w-full h-12 bg-black/50 border border-slate-600 rounded-xl px-4 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors tabular-nums"
                   />
                 </div>

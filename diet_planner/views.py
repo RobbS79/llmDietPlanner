@@ -221,6 +221,36 @@ class DietaryGoalDetailView(APIView):
         except DietaryGoal.DoesNotExist:
             return Response({"status": "error", "error": "Object not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    def patch(self, request, goal_id: int) -> Response:
+        """Persist the shopping-list pantry toggles on the goal's plan.
+
+        Accepts `pantry_basics_on` and/or `pantry_fridge_on` (booleans). These
+        feed the honest price-range computation (pantry items the user already
+        has are excluded from the range).
+        """
+        try:
+            goal = DietaryGoal.objects.select_related('user', 'dietary_plan').get(id=goal_id, user=request.user)
+        except DietaryGoal.DoesNotExist:
+            return Response({"status": "error", "error": "Object not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            plan = goal.dietary_plan
+        except DietaryPlan.DoesNotExist:
+            plan = None
+        if plan is None:
+            return Response({"status": "error", "error": "No plan for this goal"}, status=status.HTTP_404_NOT_FOUND)
+
+        update_fields = []
+        for field in ('pantry_basics_on', 'pantry_fridge_on'):
+            if field in request.data:
+                setattr(plan, field, bool(request.data[field]))
+                update_fields.append(field)
+
+        if update_fields:
+            plan.save(update_fields=update_fields)
+
+        return Response({"status": "success", "data": DietaryGoalDetailSerializer(goal).data})
+
 
 class DietaryGoalTaskStatusView(APIView):
     """
