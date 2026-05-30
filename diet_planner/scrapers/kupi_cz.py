@@ -13,8 +13,14 @@ import re
 from urllib.parse import urljoin
 
 from .base import BaseScraper
+from .utils import parse_validity_window
 
 logger = logging.getLogger(__name__)
+
+# How many leaflets to crawl per store. The listing lists the current weekly
+# food leaflet plus seasonal/upcoming ones; we want upcoming food deals too,
+# but cap the crawl so a store can't balloon into dozens of HTTP fetches.
+MAX_LEAFLETS_PER_STORE = 5
 
 # kupi.cz slugs and leaflet URL prefixes per store
 KUPI_CZ_STORES = {
@@ -85,14 +91,16 @@ class KupiCzScraper(BaseScraper):
                 offers = self._parse_akcni_zbozi_section(soup, response.url)
                 all_offers.extend(offers)
             else:
-                leaflet_url = leaflet_links[0]
-                try:
-                    logger.info(f"[kupi.cz/{self.store_slug}] Scraping leaflet: {leaflet_url}")
-                    leaflet_offers = self._scrape_leaflet_page(leaflet_url, headers)
-                    all_offers.extend(leaflet_offers)
-                    logger.info(f"[kupi.cz/{self.store_slug}] Found {len(leaflet_offers)} products")
-                except Exception as e:
-                    logger.error(f"[kupi.cz/{self.store_slug}] Error scraping leaflet {leaflet_url}: {e}", exc_info=True)
+                # Crawl every leaflet (capped), not just the first. Upcoming
+                # leaflets carry a future validity window and surface future deals.
+                for leaflet_url, link_text in leaflet_links[:MAX_LEAFLETS_PER_STORE]:
+                    try:
+                        logger.info(f"[kupi.cz/{self.store_slug}] Scraping leaflet: {leaflet_url}")
+                        leaflet_offers = self._scrape_leaflet_page(leaflet_url, headers, link_text)
+                        all_offers.extend(leaflet_offers)
+                        logger.info(f"[kupi.cz/{self.store_slug}] Found {len(leaflet_offers)} products in {leaflet_url}")
+                    except Exception as e:
+                        logger.error(f"[kupi.cz/{self.store_slug}] Error scraping leaflet {leaflet_url}: {e}", exc_info=True)
 
             filtered = self._filter_offers(all_offers)
             logger.info(f"[kupi.cz/{self.store_slug}] {len(all_offers)} raw -> {len(filtered)} valid offers")
@@ -105,14 +113,24 @@ class KupiCzScraper(BaseScraper):
 
         return all_offers
 
-    def _extract_leaflet_links(self, soup: BeautifulSoup, base_url: str) -> List[str]:
+    def _extract_leaflet_links(self, soup: BeautifulSoup, base_url: str) -> List[tuple]:
+        """Return [(full_url, link_text), ...] for each distinct leaflet link.
+
+        The link text (e.g. "Lidl leták od čtvrtka platí do neděle 31. 5.")
+        is a fallback source for the validity window when the leaflet detail
+        page header can't be parsed.
+        """
         links = []
+        seen = set()
         for link in soup.find_all('a', href=True):
             href = link.get('href', '')
             if href.startswith(self.leaflet_prefix) or (self.leaflet_prefix in href):
                 full_url = urljoin(base_url, href)
-                if full_url not in links:
-                    links.append(full_url)
+                if full_url in seen:
+                    continue
+                seen.add(full_url)
+                link_text = ' '.join(link.get_text(' ', strip=True).split())
+                links.append((full_url, link_text))
         return links
 
     def _is_skip_title(self, text: str) -> bool:
@@ -129,7 +147,7 @@ class KupiCzScraper(BaseScraper):
                 filtered.append(offer)
         return filtered
 
-    def _scrape_leaflet_page(self, leaflet_url: str, headers: Dict[str, str]) -> List[Dict[str, Any]]:
+    def _scrape_leaflet_page(self, leaflet_url: str, headers: Dict[str, str], link_text: str = '') -> List[Dict[str, Any]]:
         offers = []
         try:
             response = requests.get(leaflet_url, headers=headers, timeout=15)
@@ -137,6 +155,11 @@ class KupiCzScraper(BaseScraper):
             response.encoding = 'utf-8'
 
             soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Validity window: the detail-page H1 carries the full range
+            # (e.g. "Lidl leták od čtvrtka, čt 28. 5. – ne 31. 5."). Fall back
+            # to the listing link text, which usually has the "do <date>" end.
+            valid_from, valid_until = self._extract_validity_window(soup, link_text)
 
             product_items = soup.find_all(['div', 'article', 'li'], class_=re.compile(r'product|item|offer|card', re.I))
 
@@ -162,12 +185,36 @@ class KupiCzScraper(BaseScraper):
             if not offers:
                 offers = self._parse_fallback_text(soup, leaflet_url)
 
+            # Stamp the leaflet's validity window onto every offer it produced,
+            # so the price-recording layer can store real valid_from/valid_until
+            # (and bucket current vs. upcoming deals) instead of a generic TTL.
+            if valid_from is not None or valid_until is not None:
+                for offer in offers:
+                    if valid_from is not None:
+                        offer['valid_from'] = valid_from
+                    if valid_until is not None:
+                        offer['valid_until'] = valid_until
+
         except requests.RequestException as e:
             logger.error(f"[kupi.cz/{self.store_slug}] Error fetching leaflet {leaflet_url}: {e}")
         except Exception as e:
             logger.error(f"[kupi.cz/{self.store_slug}] Error parsing leaflet {leaflet_url}: {e}", exc_info=True)
 
         return offers
+
+    def _extract_validity_window(self, soup: BeautifulSoup, link_text: str = ''):
+        """Derive (valid_from, valid_until) for a leaflet.
+
+        Prefers the detail-page H1 (carries the full "od <from> – <until>"
+        range); falls back to the listing link text (typically just the
+        "do <until>" end). Returns (None, None) when neither parses.
+        """
+        h1 = soup.find('h1')
+        if h1:
+            valid_from, valid_until = parse_validity_window(h1.get_text(' ', strip=True))
+            if valid_from is not None or valid_until is not None:
+                return valid_from, valid_until
+        return parse_validity_window(link_text)
 
     def _parse_product_item(self, item, base_url: str) -> Dict[str, Any]:
         offer = {}
