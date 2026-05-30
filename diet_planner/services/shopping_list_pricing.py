@@ -27,6 +27,7 @@ from diet_planner.models import (
     GroceryStore,
     PriceRecord,
     PriceSourceType,
+    StoreProduct,
 )
 from diet_planner.services.canonical_lookup import resolve_canonical
 
@@ -116,33 +117,78 @@ def qualify_deal(deal_price: Decimal, cheapest_elsewhere: Optional[Decimal]) -> 
 
 # --------------------------------------------------------------------------- #
 # DB layer — load live prices for the plan's ingredients.
+#
+# The store products that represent one shopping-list item are resolved ONCE
+# per item (see `resolve_store_products`) and reused for both the range and the
+# deals. Resolution prefers the catalog identity the LLM actually chose
+# (`catalog_id` -> StoreProduct -> canonical ingredient -> the same canonical
+# at every store), which is what makes a real cross-store range possible, and
+# only falls back to fuzzy name matching when there is no catalog linkage. The
+# old name-only matching missed catalog-constrained plans entirely, because the
+# free-text ingredient name ("lesní plody") is not a substring of the scraped
+# product name.
 # --------------------------------------------------------------------------- #
 
-def _ingredient_names(items: List[Dict[str, Any]]) -> List[str]:
-    names = []
-    for item in items:
-        name = (item.get('ingredient') or '').lower().strip()
-        if name:
-            names.append(name)
-    return names
+def resolve_store_products(
+    catalog_id: Optional[int],
+    canonical,
+    name: str,
+    shops: List[str],
+    country: str,
+) -> List[int]:
+    """Resolve the StoreProduct ids (across the country's stores) that stand for
+    one shopping-list item, in priority order:
 
+    1. the exact product the LLM picked (`catalog_id`), and
+    2. every product mapped to that item's canonical ingredient — from the
+       picked product's canonical, else from `resolve_canonical(name)`;
+    3. failing both, fuzzy name match on `normalized_name`.
+    """
+    base = StoreProduct.objects.filter(
+        store__code__in=shops,
+        store__country=country,
+        is_active=True,
+    )
 
-def _best_current_per_store(ingredient: str, shops: List[str], country: str) -> Dict[str, Decimal]:
-    """Cheapest currently-valid price for `ingredient` at each store."""
-    base = (
-        PriceRecord.objects.current()
-        .filter(
-            store_product__store__code__in=shops,
-            store_product__store__country=country,
-            store_product__is_active=True,
-            price__gt=0,
+    ids = set()
+    canonical_id = None
+    if catalog_id:
+        row = (
+            StoreProduct.objects
+            .filter(id=catalog_id)
+            .values('id', 'canonical_ingredient_id')
+            .first()
         )
+        if row:
+            ids.add(row['id'])  # the exact product the user is buying
+            canonical_id = row['canonical_ingredient_id']
+
+    if canonical_id is None and canonical is not None:
+        canonical_id = canonical.id
+
+    if canonical_id is not None:
+        ids.update(
+            base.filter(canonical_ingredient_id=canonical_id).values_list('id', flat=True)
+        )
+
+    if not ids:
+        name_ids = list(base.filter(normalized_name=name).values_list('id', flat=True))
+        if not name_ids and len(name) >= 3:
+            name_ids = list(base.filter(normalized_name__icontains=name).values_list('id', flat=True))
+        ids.update(name_ids)
+
+    return list(ids)
+
+
+def _best_current_per_store(product_ids: List[int]) -> Dict[str, Decimal]:
+    """Cheapest currently-valid price at each store, over the given products."""
+    if not product_ids:
+        return {}
+    rows = (
+        PriceRecord.objects.current()
+        .filter(store_product_id__in=product_ids, price__gt=0)
         .select_related('store_product', 'store_product__store')
     )
-    rows = list(base.filter(store_product__normalized_name=ingredient))
-    if not rows and len(ingredient) >= 3:
-        rows = list(base.filter(store_product__normalized_name__icontains=ingredient))
-
     cheapest: Dict[str, Decimal] = {}
     for r in rows:
         code = r.store_product.store.code
@@ -151,20 +197,18 @@ def _best_current_per_store(ingredient: str, shops: List[str], country: str) -> 
     return cheapest
 
 
-def _discount_records(ingredient: str, shops: List[str], country: str, bucket: str):
-    """Current or upcoming LEAFLET_DISCOUNT records for an ingredient."""
+def _discount_records(product_ids: List[int], bucket: str):
+    """Current or upcoming LEAFLET_DISCOUNT records over the given products."""
+    if not product_ids:
+        return []
     qs = PriceRecord.objects.upcoming() if bucket == 'upcoming' else PriceRecord.objects.current()
-    qs = qs.filter(
-        source_type=PriceSourceType.LEAFLET_DISCOUNT,
-        store_product__store__code__in=shops,
-        store_product__store__country=country,
-        store_product__is_active=True,
-        price__gt=0,
-    ).select_related('store_product', 'store_product__store')
-    rows = list(qs.filter(store_product__normalized_name=ingredient))
-    if not rows and len(ingredient) >= 3:
-        rows = list(qs.filter(store_product__normalized_name__icontains=ingredient))
-    return rows
+    return list(
+        qs.filter(
+            source_type=PriceSourceType.LEAFLET_DISCOUNT,
+            store_product_id__in=product_ids,
+            price__gt=0,
+        ).select_related('store_product', 'store_product__store')
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -188,7 +232,9 @@ def compute_pricing(
         GroceryStore.objects.filter(code__in=shops).values_list('code', 'name')
     )
 
-    # Resolve + classify each item once.
+    # Resolve + classify each item once. `product_ids` are the StoreProducts
+    # that represent this item across the country's stores (catalog identity
+    # first, name match as a fallback) — reused for both the range and deals.
     resolved = []
     for item in items:
         name = (item.get('ingredient') or '').lower().strip()
@@ -196,14 +242,19 @@ def compute_pricing(
             continue
         canonical = resolve_canonical(name)
         level = classify_pantry_level(name, canonical)
-        resolved.append({'name': name, 'level': level, 'item': item})
+        product_ids = resolve_store_products(
+            item.get('catalog_id'), canonical, name, shops, country
+        )
+        resolved.append({
+            'name': name, 'level': level, 'item': item, 'product_ids': product_ids,
+        })
 
     # ---- Range: per-store baskets over non-excluded items ----
     basket_entries = []
     for r in resolved:
         if item_is_excluded(r['level'], basics_on, fridge_on):
             continue
-        by_store = _best_current_per_store(r['name'], shops, country)
+        by_store = _best_current_per_store(r['product_ids'])
         if not by_store:
             continue
         avg = sum(by_store.values()) / Decimal(len(by_store))
@@ -212,12 +263,21 @@ def compute_pricing(
     price_range = _build_range(basket_entries, shops, store_names, currency)
 
     # ---- Deals: current + upcoming, cheapest-source, grouped by store ----
-    deals = _build_deals(resolved, shops, country, store_names, currency)
+    deals = _build_deals(resolved, store_names, currency)
+
+    # Which pantry categories are actually in this plan. A toggle for a category
+    # with no matching items is meaningless (it can't change the range), so the
+    # frontend only renders a toggle when its category is present here.
+    pantry_present = {
+        'basics': any(r['level'] == 'dry' for r in resolved),
+        'fridge': any(r['level'] == 'fridge' for r in resolved),
+    }
 
     return {
         'price_range': price_range,
         'deals': deals,
         'pantry_toggles': {'basics_on': basics_on, 'fridge_on': fridge_on},
+        'pantry_present': pantry_present,
     }
 
 
@@ -247,17 +307,15 @@ def _build_range(basket_entries, shops, store_names, currency) -> Optional[Dict[
     }
 
 
-def _build_deals(resolved, shops, country, store_names, currency) -> List[Dict[str, Any]]:
+def _build_deals(resolved, store_names, currency) -> List[Dict[str, Any]]:
     # store -> bucket -> list of item deals
     grouped: Dict[tuple, Dict[str, Any]] = {}
 
     for r in resolved:
-        ingredient = r['name']
-        current_prices = _best_current_per_store(ingredient, shops, country)
-        cheapest_current = min(current_prices.values()) if current_prices else None
+        current_prices = _best_current_per_store(r['product_ids'])
 
         for bucket in ('current', 'upcoming'):
-            for rec in _discount_records(ingredient, shops, country, bucket):
+            for rec in _discount_records(r['product_ids'], bucket):
                 shop = rec.store_product.store.code
                 # "Cheapest source" compares against the cheapest price at any
                 # OTHER store (a discount being the cheapest in its own store is
@@ -286,7 +344,7 @@ def _build_deals(resolved, shops, country, store_names, currency) -> List[Dict[s
                     }
                 group = grouped[key]
                 group['items'].append({
-                    'ingredient': r['item'].get('ingredient', ingredient),
+                    'ingredient': r['item'].get('ingredient', r['name']),
                     'matched_product_name': rec.store_product.name,
                     'sale': float(rec.price.quantize(Decimal('0.01'))),
                     'original': float(baseline.quantize(Decimal('0.01'))) if baseline else None,
