@@ -41,6 +41,9 @@ interface Pricing {
   price_range: PriceRange | null;
   deals: Deal[];
   pantry_toggles: { basics_on: boolean; fridge_on: boolean };
+  // Which pantry categories the plan actually contains. A toggle is only shown
+  // when its category is present (an absent category can't affect the range).
+  pantry_present?: { basics: boolean; fridge: boolean };
 }
 
 const EMPTY_DEALS_COPY =
@@ -202,6 +205,10 @@ export const ShoppingListPage = () => {
   const serverToggles = pricing?.pantry_toggles || { basics_on: true, fridge_on: false };
   const toggles = toggleOverride || serverToggles;
 
+  // Only offer a pantry toggle when the plan actually has items of that kind.
+  // Older payloads without `pantry_present` fall back to showing both.
+  const pantryPresent = pricing?.pantry_present || { basics: true, fridge: true };
+
   const currency = priceRange?.currency || plan.currency || 'Kč';
 
   const rawList = plan.shopping_list || [];
@@ -297,20 +304,26 @@ export const ShoppingListPage = () => {
             </>
           )}
 
-          <div className="space-y-3">
-            <PantryToggle
-              label="Mám doma základy (olej, sůl, koření)"
-              on={toggles.basics_on}
-              onChange={(next) => handleToggleChange('basics_on', next)}
-              disabled={saveToggles.isPending}
-            />
-            <PantryToggle
-              label="Mám doma mléko, máslo, vejce"
-              on={toggles.fridge_on}
-              onChange={(next) => handleToggleChange('fridge_on', next)}
-              disabled={saveToggles.isPending}
-            />
-          </div>
+          {(pantryPresent.basics || pantryPresent.fridge) && (
+            <div className="space-y-3">
+              {pantryPresent.basics && (
+                <PantryToggle
+                  label="Mám doma základy (olej, sůl, koření)"
+                  on={toggles.basics_on}
+                  onChange={(next) => handleToggleChange('basics_on', next)}
+                  disabled={saveToggles.isPending}
+                />
+              )}
+              {pantryPresent.fridge && (
+                <PantryToggle
+                  label="Mám doma mléko, máslo, vejce"
+                  on={toggles.fridge_on}
+                  onChange={(next) => handleToggleChange('fridge_on', next)}
+                  disabled={saveToggles.isPending}
+                />
+              )}
+            </div>
+          )}
 
           {currentSavings > 0 && (
             <>

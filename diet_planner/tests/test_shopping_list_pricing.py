@@ -332,3 +332,68 @@ class ComputePricingTest(TestCase):
         # All 'current' entries sort before any 'upcoming' entry.
         if 'current' in statuses and 'upcoming' in statuses:
             self.assertLess(statuses.index('current'), statuses.index('upcoming'))
+
+
+class ResolveStoreProductsTest(TestCase):
+    """The catalog-identity resolution that powers a real cross-store range.
+
+    Regression guard for the bug where compute_pricing matched only by free-text
+    ingredient name and so found nothing for catalog-constrained plans (whose
+    item names — e.g. "lesní plody" — are not substrings of the scraped product
+    name). Items carry a `catalog_id` (= StoreProduct.id); resolution must reach
+    every store's product for that item's canonical ingredient.
+    """
+
+    def setUp(self):
+        from diet_planner.models import (
+            CanonicalIngredient, GroceryStore, StoreProduct, PriceRecord,
+            PriceSourceType,
+        )
+        self.StoreProduct = StoreProduct
+        now = timezone.now()
+
+        self.canon = CanonicalIngredient.objects.create(name='banana')
+        lidl = GroceryStore.objects.create(
+            code='LIDL_CZ', name='Lidl', chain='LIDL', country='CZ',
+            currency='CZK', is_active=True)
+        rohlik = GroceryStore.objects.create(
+            code='ROHLIK', name='Rohlík', chain='ROHLIK', country='CZ',
+            currency='CZK', is_active=True)
+
+        # Two stores stock the same canonical under DIFFERENT product names that
+        # do NOT contain the shopping-list term "banán" — so name matching alone
+        # would miss both. Only canonical resolution finds them.
+        self.lidl_prod = StoreProduct.objects.create(
+            store=lidl, name='Banány Chiquita 1kg', normalized_name='banány chiquita 1kg',
+            canonical_ingredient=self.canon, is_active=True)
+        self.rohlik_prod = StoreProduct.objects.create(
+            store=rohlik, name='Banán volně', normalized_name='banán volně',
+            canonical_ingredient=self.canon, is_active=True)
+        for sp, price in ((self.lidl_prod, '29.90'), (self.rohlik_prod, '24.90')):
+            PriceRecord.objects.create(
+                store_product=sp, price=Decimal(price), currency='CZK',
+                source_type=PriceSourceType.STORE_REGULAR,
+                valid_from=now - dt.timedelta(days=1),
+                valid_until=now + dt.timedelta(days=7), scraped_at=now)
+
+    def test_catalog_id_resolves_canonical_across_stores(self):
+        from diet_planner.services.shopping_list_pricing import resolve_store_products
+        shops = ['LIDL_CZ', 'ROHLIK']
+        # The LLM picked the Lidl product (catalog_id); resolution should also
+        # pull in the Rohlík product via the shared canonical ingredient.
+        ids = resolve_store_products(
+            self.lidl_prod.id, None, 'banán', shops, 'CZ')
+        self.assertCountEqual(ids, [self.lidl_prod.id, self.rohlik_prod.id])
+
+    def test_range_built_for_catalog_constrained_item(self):
+        from diet_planner.services.shopping_list_pricing import compute_pricing
+        # Single catalog-constrained item -> a real (cheapest..priciest) range
+        # spanning both stores, which the old name-only matching produced as null.
+        result = compute_pricing(
+            [{'ingredient': 'banán', 'catalog_id': self.lidl_prod.id}],
+            country='CZ', currency='CZK')
+        pr = result['price_range']
+        self.assertIsNotNone(pr)
+        self.assertEqual(pr['low'], 24.90)
+        self.assertEqual(pr['high'], 29.90)
+        self.assertEqual(pr['store_low'], 'ROHLIK')
