@@ -6,7 +6,13 @@ from django.db import migrations, models
 
 
 def rename_indexes_if_exist(apps, schema_editor):
-    """Rename old auto-truncated index names to new explicit names, skipping any that don't exist."""
+    """Rename old auto-truncated index names to new explicit names, skipping any that don't exist.
+
+    The lookup uses ``pg_indexes`` (PostgreSQL-only); on other backends such as
+    SQLite there is nothing to rename, so skip rather than crash.
+    """
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     renames = [
         ('diet_plann_mealinst_user_idx', 'dp_mealinst_user_idx'),
         ('diet_plann_mealinst_goal_idx', 'dp_mealinst_goal_idx'),
