@@ -21,7 +21,7 @@ const routes = [
     path: '/',
     outFile: 'index.html',
     title: 'DietPlanner AI — Jidelnicek na miru s cenami z vasich obchodu',
-    description: 'Zadejte sve cile, AI vytvori jidelnicek s recepty a nakupnim seznamem s cenami z Rohliku ci Kauflandu. 10 planu zdarma, bez karty. Hotovo za 60s.',
+    description: 'Zadejte sve cile, AI vytvori jidelnicek s recepty a nakupnim seznamem s cenami z Rohliku ci Kauflandu. 2 jidelnicky zdarma, bez karty. Hotovo za 60s.',
     canonical: '/',
   },
   {
@@ -35,8 +35,15 @@ const routes = [
     path: '/pricing',
     outFile: 'pricing/index.html',
     title: 'Cenik — DietPlanner AI',
-    description: 'DietPlanner AI je zdarma pro 10 planu. Pro plan od 99 CZK/mesic s neomezenymi jidelniky, realnimi cenami a exportem.',
+    description: 'DietPlanner AI je zdarma pro 2 jidelnicky. Placene tarify Standard (99 CZK) a Premium (199 CZK) s vice jidelnicky a akcnimi cenami z obchodu.',
     canonical: '/pricing',
+  },
+  {
+    path: '/o-nas',
+    outFile: 'o-nas/index.html',
+    title: 'O nas — DietPlanner',
+    description: 'DietPlanner postavil Robert Soroka — planuje zdrava jidla a ukaze, kolik budou stat v obchodech kolem vas. Pribeh zakladatele.',
+    canonical: '/o-nas',
   },
   {
     path: '/privacy',

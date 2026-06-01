@@ -130,11 +130,11 @@ export const PlanView = () => {
   }
 
   if (statusData?.goal_status !== 'completed') {
-    return <LoadingScreen message="Generating your personalized meal plan with real store prices..." status={statusData} goalId={id} />;
+    return <LoadingScreen message="Vytváříme váš personalizovaný jídelníček s reálnými cenami z obchodu..." status={statusData} goalId={id} />;
   }
 
   const plan = goalDetail?.dietary_plan;
-  if (!plan) return <LoadingScreen message="Loading plan details..." />;
+  if (!plan) return <LoadingScreen message="Načítáme detaily plánu..." />;
 
   return (
     <MainLayout>

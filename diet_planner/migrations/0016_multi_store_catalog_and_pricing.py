@@ -7,7 +7,14 @@ from django.db import migrations, models
 
 
 def safe_rename_indexes(apps, schema_editor):
-    """Rename indexes only if they exist; skip silently otherwise."""
+    """Rename indexes only if they exist; skip silently otherwise.
+
+    The lookup uses ``pg_indexes``, which only exists on PostgreSQL. On other
+    backends (e.g. SQLite in local dev) there is nothing to rename, so skip
+    entirely rather than crash on the missing system table.
+    """
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     renames = [
         ('diet_plann_mealinst_user_idx', 'dp_mealinst_user_idx'),
         ('diet_plann_mealinst_goal_idx', 'dp_mealinst_goal_idx'),

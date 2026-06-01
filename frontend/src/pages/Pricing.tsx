@@ -5,44 +5,55 @@ import { Zap, Check, X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
 const PLANS = [
   {
     name: 'Zdarma',
-    price: { monthly: 0, annual: 0 },
-    description: 'Pro začátek',
+    price: 0,
+    description: 'Pro vyzkoušení',
     cta: 'Začít zdarma',
     highlighted: false,
     features: [
-      { text: '10 AI jídelníků', included: true },
-      { text: 'Základní recepty', included: true },
+      { text: '2 jídelníčky', included: true },
+      { text: '3 úpravy každého jídelníčku', included: true },
       { text: 'Nákupní seznam', included: true },
       { text: 'Nutriční hodnoty', included: true },
-      { text: 'Reálné ceny z obchodů', included: false },
-      { text: 'Export do PDF', included: false },
-      { text: 'Porovnání obchodů', included: false },
-      { text: 'Prioritní generování', included: false },
+      { text: 'Akční ceny z obchodů', included: false },
+      { text: 'Akční ceny ze všech obchodů', included: false },
     ],
   },
   {
-    name: 'Pro',
-    price: { monthly: 149, annual: 99 },
+    name: 'Standard',
+    price: 99,
     description: 'Pro aktivní plánování',
-    cta: 'Upgradovat na Pro',
+    cta: 'Vybrat Standard',
     highlighted: true,
     features: [
-      { text: 'Neomezené jídelníčky', included: true },
-      { text: 'Kompletní recepty', included: true },
+      { text: '7 jídelníčků', included: true },
+      { text: '10 úprav jídelníčku', included: true },
       { text: 'Nákupní seznam', included: true },
       { text: 'Nutriční hodnoty', included: true },
-      { text: 'Reálné ceny z obchodů', included: true },
-      { text: 'Export do PDF', included: true },
-      { text: 'Porovnání obchodů', included: true },
-      { text: 'Prioritní generování', included: true },
+      { text: 'Akční ceny z jednoho obchodu', included: true },
+      { text: 'Akční ceny ze všech obchodů', included: false },
+    ],
+  },
+  {
+    name: 'Premium',
+    price: 199,
+    description: 'Pro maximum úspor',
+    cta: 'Vybrat Premium',
+    highlighted: false,
+    features: [
+      { text: '30 jídelníčků', included: true },
+      { text: '5 úprav u každého jídelníčku', included: true },
+      { text: 'Nákupní seznam', included: true },
+      { text: 'Nutriční hodnoty', included: true },
+      { text: 'Akční ceny z jednoho obchodu', included: true },
+      { text: 'Akční ceny ze všech obchodů', included: true },
     ],
   },
 ];
 
 const FAQ = [
   {
-    q: 'Kolik jídelníků mohu zdarma vygenerovat?',
-    a: 'Každý uživatel dostane 10 bezplatných generování. Každé generování vytvoří kompletní vícedenný jídelníček s recepty a nákupním seznamem.',
+    q: 'Kolik jídelníčků mohu zdarma vygenerovat?',
+    a: 'V bezplatném tarifu vytvoříte 2 jídelníčky, každý s možností 3 úprav. Každý jídelníček obsahuje kompletní vícedenné menu s recepty a nákupním seznamem.',
   },
   {
     q: 'Jak přesné jsou ceny z obchodů?',
@@ -50,11 +61,11 @@ const FAQ = [
   },
   {
     q: 'Mohu plán kdykoliv zrušit?',
-    a: 'Ano, předplatné můžete zrušit kdykoliv. Přístup k Pro funkcím vám zůstane do konce zaplaceného období.',
+    a: 'Ano, předplatné můžete zrušit kdykoliv. Přístup k placeným funkcím vám zůstane do konce zaplaceného období.',
   },
   {
     q: 'Podporujete dietní omezení?',
-    a: 'Ano, AI zohledí veškerá omezení — bezlepkové, veganské, keto, vysoko proteinové, alergie a další. Stačí je popsat při vytváření plánu.',
+    a: 'Ano, zohledníme veškerá omezení — bezlepkové, veganské, keto, vysoko proteinové, alergie a další. Stačí je popsat při vytváření plánu.',
   },
   {
     q: 'V jakých obchodech jsou dostupné ceny?',
@@ -64,7 +75,6 @@ const FAQ = [
 
 export const Pricing = () => {
   const navigate = useNavigate();
-  const [annual, setAnnual] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
@@ -101,7 +111,7 @@ export const Pricing = () => {
         </button>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-6 sm:px-12 py-12">
+      <main className="max-w-6xl mx-auto px-6 sm:px-12 py-12">
         <Link to="/" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
           <ArrowLeft size={14} /> Zpět na hlavní stránku
         </Link>
@@ -114,27 +124,13 @@ export const Pricing = () => {
           <p className="text-zinc-200 text-lg max-w-md mx-auto">
             Začněte zdarma. Upgradujte, až budete připraveni.
           </p>
-
-          <div className="flex items-center justify-center gap-4 pt-4">
-            <span className={`text-sm font-bold transition-colors ${!annual ? 'text-white' : 'text-zinc-300'}`}>Měsíčně</span>
-            <button
-              onClick={() => setAnnual(!annual)}
-              className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-emerald-600' : 'bg-slate-600'}`}
-            >
-              <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-transform ${annual ? 'left-8' : 'left-1'}`} />
-            </button>
-            <span className={`text-sm font-bold transition-colors ${annual ? 'text-white' : 'text-zinc-300'}`}>
-              Ročně
-              <span className="ml-2 text-[10px] font-black text-emerald-400 uppercase tracking-widest">-33%</span>
-            </span>
-          </div>
         </header>
 
-        <div className="grid sm:grid-cols-2 gap-8 mb-24">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-24">
           {PLANS.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-3xl p-10 transition-all ${
+              className={`rounded-3xl p-8 transition-all ${
                 plan.highlighted
                   ? 'bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border-2 border-emerald-500/30 shadow-[0_0_60px_rgba(5,150,105,0.1)]'
                   : 'bg-slate-700/50 border border-slate-600'
@@ -150,22 +146,14 @@ export const Pricing = () => {
               <p className="text-zinc-300 text-sm mb-8">{plan.description}</p>
 
               <div className="mb-8">
-                {plan.price.monthly === 0 ? (
+                {plan.price === 0 ? (
                   <p className="text-5xl font-black tracking-tighter">
                     0 <span className="text-zinc-300 text-lg">CZK</span>
                   </p>
                 ) : (
-                  <>
-                    <p className="text-5xl font-black tracking-tighter">
-                      {annual ? plan.price.annual : plan.price.monthly} <span className="text-zinc-300 text-lg">CZK/měsíc</span>
-                    </p>
-                    {annual && (
-                      <p className="text-xs text-zinc-300 mt-2">
-                        <span className="line-through text-zinc-400">{plan.price.monthly} CZK</span>
-                        <span className="ml-2 text-emerald-400 font-bold">Ušetříte {(plan.price.monthly - plan.price.annual) * 12} CZK/rok</span>
-                      </p>
-                    )}
-                  </>
+                  <p className="text-5xl font-black tracking-tighter">
+                    {plan.price} <span className="text-zinc-300 text-lg">CZK/měsíc</span>
+                  </p>
                 )}
               </div>
 
@@ -233,7 +221,7 @@ export const Pricing = () => {
         <section className="text-center pb-12">
           <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16">
             <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Připraveni šetřit čas i peníze?</h2>
-            <p className="text-zinc-200 mb-8">Začněte s 10 plány zdarma. Bez kreditní karty.</p>
+            <p className="text-zinc-200 mb-8">Začněte se 2 jídelníčky zdarma. Bez kreditní karty.</p>
             <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
               Vytvořit jídelníček zdarma <ArrowRight size={18} />
             </button>
