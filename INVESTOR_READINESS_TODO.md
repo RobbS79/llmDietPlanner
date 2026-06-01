@@ -6,29 +6,28 @@ Last updated: 2026-06-01
 
 ---
 
-## 1. Pricing — move from 2 tiers to 3  ⬜ TODO
+## 1. Pricing — move from 2 tiers to 3  ✅ DONE (2026-06-01, marketing page only)
 
-**Current** (`frontend/src/pages/Pricing.tsx`, `PLANS`):
-- **Zdarma** — 0 CZK, 10 plans, no real prices / PDF / store comparison
-- **Pro** — 149 CZK/mo (99 CZK/mo billed annually), all features
+Implemented in `frontend/src/pages/Pricing.tsx`. Decisions Robert made:
 
-**Target structure:**
-| Tier | Price | Notes |
-|---|---|---|
-| Free | 0 CZK/mo | **Keep exactly as-is** (10 plans, current feature set) |
-| Mid | **99 CZK/mo** | new middle tier |
-| Top | **199 CZK/mo** | new top tier |
+| Tier | Price | Jídelníčky | Úpravy | Akční ceny |
+|---|---|---|---|---|
+| **Zdarma** | 0 CZK/mo | 2 | 3 / jídelníček | none |
+| **Standard** | 99 CZK/mo *(highlighted)* | 7 | 10 | 1 store |
+| **Premium** | 199 CZK/mo | 30 | 5 / jídelníček | all stores |
 
-**Open decisions before implementing (need Robert's input):**
-- [ ] **Tier names** (CZ) — e.g. Free / Pro / Premium? Confirm naming.
-- [ ] **Feature split between 99 and 199.** What does 199 unlock that 99 doesn't? Candidate levers already in the codebase: unlimited vs capped plans, multi-store price *comparison* (vs single store), priority generation, PDF export, history/saved plans, # of stores compared, family/household profiles. Need a deliberate good/better/best ladder, not a guess.
-- [ ] **Annual billing** — current toggle shows an annual discount (149→99). Decide annual prices for the new 99 and 199 tiers, or drop annual for now.
-- [ ] **Existing "Pro" users / grandfathering** — N/A in dev phase, but note for launch.
+- **Names:** Zdarma / Standard / Premium.
+- **Differentiator ladder:** the lever is *akční (sale/leaflet) ceny* — Free none, Standard one store, Premium all stores — plus plan count and edit count.
+- **Billing:** monthly only (annual toggle removed). Revisit annual once payments are wired.
+- **Free credit:** backend `free_generations_remaining` default 10→2 (migration `login_app/0005`); all "X plánů zdarma" hooks across the site now say "2 jídelníčky" (Landing, Pricing, Onboarding, RecipeIndex, PublicRecipe, Terms, prerender meta).
 
-**Implementation touchpoints when ready:**
-- `frontend/src/pages/Pricing.tsx` — `PLANS` array + the monthly/annual toggle logic
-- Stripe/payment price IDs (wherever subscription tiers map to payment products)
-- Any backend entitlement/feature-gating that currently checks free-vs-Pro
+**⚠️ Still NOT built — payments & enforcement:** there is no payment integration and no tier entitlement gating in the backend. The page is marketing-only; CTAs route to `/login`. The 2/7/30 plan caps and per-tier edit limits are **displayed but not enforced**.
+
+**Payment path — integrate via Shopify** (intended approach, TBD): reuse the existing `shopifyin` app rather than adding Stripe. Open questions to resolve when building:
+- Does Shopify support the recurring 99/199 CZK **subscription** model we need (Shopify Subscriptions / selling-plans), or is it only set up for one-off meal-prep-box orders today? Confirm before committing to it.
+- Map Standard/Premium → Shopify products/selling-plans; on purchase/webhook, set a subscription/tier field on the user.
+- Build gating that enforces plan counts, edit counts, and akční-ceny store scope per tier.
+- Webhook handling already exists in `shopifyin/webhooks.py` — extend it for subscription create/cancel/renew events.
 
 ---
 
@@ -40,9 +39,11 @@ Repositioned messaging around the real differentiator — **real store prices / 
 
 ---
 
-## 3. Team page / founder presence  ⬜ DEFERRED (pre-fundraise)
+## 3. Team page / founder presence  ✅ DONE (2026-06-01)
 
-Not a dev-phase task. Belongs on the "before fundraise or public launch" checklist. At seed stage investors underwrite the founder; an anonymous site ("© 2026 DietPlanner", no name) is a yellow flag and also depresses *consumer* trust for a money+health product. Cheapest fix on the list — one name, photo, two-sentence bio, a "why I built this."
+Built `/o-nas` (`frontend/src/pages/About.tsx`): founder name (Robert Soroka), initials-avatar placeholder, short blurb + full first-person bio (CZ), CTA to pricing. Routed in `App.tsx`, added to the public footer (Landing), prerendered (`prerender.mjs`), and added to the sitemap (`sitemaps.py` → `AboutSitemap`). Used the drafted CZ bio with the neutral mental-health phrasing.
+
+**Open (Robert):** drop a real photo at `frontend/public/founder.jpg` and swap out the "RS" initials placeholder; decide whether to strengthen the mental-health line; optional EN version.
 
 **Founder bio — full version (informal but professional, first-person):**
 

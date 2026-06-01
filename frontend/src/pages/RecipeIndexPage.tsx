@@ -123,7 +123,7 @@ export const RecipeIndexPage = () => {
           <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
+          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">2 jídelníčky zdarma. Bez kreditní karty.</p>
         </div>
       </div>
 

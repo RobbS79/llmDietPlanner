@@ -326,7 +326,7 @@ export const Landing = () => {
             Připraveni plánovat své jídlo?
           </h2>
           <p className="text-zinc-200 text-lg mb-10 max-w-md mx-auto">
-            Začněte s 10 plány zdarma. Bez kreditní karty.
+            Začněte se 2 jídelníčky zdarma. Bez kreditní karty.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořit můj první plán <ArrowRight size={18} />
@@ -346,6 +346,7 @@ export const Landing = () => {
             <div className="flex items-center gap-6">
               <a href="/recepty" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Recepty</a>
               <a href="/pricing" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Ceník</a>
+              <a href="/o-nas" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">O nás</a>
               <a href="/privacy" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Zásady ochrany soukromí</a>
               <a href="/terms" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Obchodní podmínky</a>
               <a href="mailto:admin@kentakin.eu" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Kontakt</a>

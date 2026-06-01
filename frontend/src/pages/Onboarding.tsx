@@ -166,7 +166,7 @@ export const Onboarding = () => {
           >
             Vytvořte si jídelníček <ArrowRight size={18} />
           </button>
-          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">10 plánů zdarma. Bez kreditní karty.</p>
+          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">2 jídelníčky zdarma. Bez kreditní karty.</p>
         </div>
       </MainLayout>
     );

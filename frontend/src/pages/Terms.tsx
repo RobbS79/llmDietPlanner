@@ -36,7 +36,7 @@ export const Terms = () => (
 
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">3. Bezplatné použití</h2>
-          <p>Každý uživatel má nárok na 10 bezplatných generování jídelníků. Po vyčerpání bezplatných generování je možné zakoupit další kredity.</p>
+          <p>Každý uživatel má nárok na 2 bezplatná generování jídelníčků. Po vyčerpání bezplatných generování je možné přejít na placený tarif.</p>
         </section>
 
         <section>
