@@ -40,7 +40,7 @@ export const RecipeIndexPage = () => {
             Prozkoumejte <span className="text-emerald-500 not-italic">recepty.</span>
           </h1>
           <p className="text-zinc-200 text-lg mt-4 max-w-xl">
-            Recepty generované AI s nutričními hodnotami, podrobnými postupy a ingrediencemi.
+            Recepty s nutričními hodnotami, podrobnými postupy a ingrediencemi.
           </p>
         </header>
 
@@ -118,7 +118,7 @@ export const RecipeIndexPage = () => {
         <div className="mt-20 bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16 text-center">
           <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Chcete vlastní jídelníček na míru?</h2>
           <p className="text-zinc-200 text-lg mb-8 max-w-md mx-auto">
-            AI vytvoří personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami z vašeho obchodu.
+            Vytvoříme personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami z vašeho obchodu.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />

@@ -10,7 +10,7 @@ const PLANS = [
     cta: 'Začít zdarma',
     highlighted: false,
     features: [
-      { text: '10 AI jídelníků', included: true },
+      { text: '10 jídelníků', included: true },
       { text: 'Základní recepty', included: true },
       { text: 'Nákupní seznam', included: true },
       { text: 'Nutriční hodnoty', included: true },
@@ -54,7 +54,7 @@ const FAQ = [
   },
   {
     q: 'Podporujete dietní omezení?',
-    a: 'Ano, AI zohledí veškerá omezení — bezlepkové, veganské, keto, vysoko proteinové, alergie a další. Stačí je popsat při vytváření plánu.',
+    a: 'Ano, zohledníme veškerá omezení — bezlepkové, veganské, keto, vysoko proteinové, alergie a další. Stačí je popsat při vytváření plánu.',
   },
   {
     q: 'V jakých obchodech jsou dostupné ceny?',

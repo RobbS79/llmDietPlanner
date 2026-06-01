@@ -199,7 +199,7 @@ export const PublicRecipePage = () => {
         <div className="mt-20 bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16 text-center">
           <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Chcete celý týden takových jídel?</h2>
           <p className="text-zinc-200 text-lg mb-8 max-w-md mx-auto">
-            AI vytvoří personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami.
+            Vytvoříme personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />
