@@ -69,7 +69,7 @@ export const Landing = () => {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 bg-emerald-600/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-8">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">AI jídelníček s cenami z obchodu</span>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Jídelníček s reálnými cenami z obchodu</span>
           </div>
 
           <h1 className="text-5xl sm:text-7xl font-black tracking-tighter leading-[0.9] mb-8">
@@ -78,7 +78,7 @@ export const Landing = () => {
           </h1>
 
           <p className="text-lg sm:text-xl text-zinc-200 max-w-xl mb-4 leading-relaxed">
-            AI vytvoří personalizovaný jídelníček s recepty, nutričními hodnotami a nákupním seznamem s <strong className="text-white">reálními cenami z vašeho obchodu.</strong>
+            Získáte personalizovaný jídelníček s recepty, nutričními hodnotami a nákupním seznamem s <strong className="text-white">reálními cenami z vašeho obchodu.</strong>
           </p>
 
           <p className="text-sm text-zinc-300 mb-12">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
@@ -125,7 +125,7 @@ export const Landing = () => {
               location: 'Brno',
             },
             {
-              quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. AI mi přesně spočítá kalorie a vybere recepty, co mě baví.',
+              quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. Aplikace mi přesně spočítá kalorie a vybere recepty, co mě baví.',
               name: 'Tomáš K.',
               location: 'Bratislava',
             },
@@ -186,8 +186,8 @@ export const Landing = () => {
             {
               step: '2',
               icon: ChefHat,
-              title: 'AI vytvoří plán',
-              desc: 'Naše AI vygeneruje kompletní vícedenní jídelníček se snídaní, obědem, večeří, recepty a nutričními hodnotami.',
+              title: 'Sestavíme váš plán',
+              desc: 'Vygenerujeme kompletní vícedenní jídelníček se snídaní, obědem, večeří, recepty a nutričními hodnotami.',
             },
             {
               step: '3',
@@ -208,11 +208,11 @@ export const Landing = () => {
         </div>
       </section>
 
-      {/* AI transparency */}
+      {/* How the plan is made */}
       <section className="px-6 sm:px-12 pb-24 max-w-7xl mx-auto">
         <div className="bg-slate-700/30 border border-slate-600 rounded-3xl p-8 sm:p-12">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak naše AI funguje</p>
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak vzniká váš jídelníček</p>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Transparentně a pod vaší kontrolou.</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -326,7 +326,7 @@ export const Landing = () => {
             Připraveni plánovat své jídlo?
           </h2>
           <p className="text-zinc-200 text-lg mb-10 max-w-md mx-auto">
-            Začněte s 10 plány zdarma. Bez kreditní karty.
+            Začněte se 2 jídelníčky zdarma. Bez kreditní karty.
           </p>
           <button onClick={() => navigate('/login')} className="bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořit můj první plán <ArrowRight size={18} />
@@ -346,6 +346,7 @@ export const Landing = () => {
             <div className="flex items-center gap-6">
               <a href="/recepty" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Recepty</a>
               <a href="/pricing" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Ceník</a>
+              <a href="/o-nas" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">O nás</a>
               <a href="/privacy" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Zásady ochrany soukromí</a>
               <a href="/terms" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Obchodní podmínky</a>
               <a href="mailto:admin@kentakin.eu" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Kontakt</a>

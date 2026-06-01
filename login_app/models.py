@@ -26,7 +26,7 @@ class UserProfile(models.Model):
         related_name='profile'
     )
     free_generations_remaining = models.IntegerField(
-        default=10,
+        default=2,
         help_text="Number of free meal plan generations remaining (lifetime limit)"
     )
     total_generations = models.IntegerField(

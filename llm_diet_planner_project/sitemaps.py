@@ -40,6 +40,19 @@ class PricingSitemap(Sitemap):
         return item
 
 
+class AboutSitemap(Sitemap):
+    """About / founder page."""
+    protocol = "https"
+    changefreq = "monthly"
+    priority = 0.6
+
+    def items(self):
+        return ["/o-nas"]
+
+    def location(self, item):
+        return item
+
+
 class LegalSitemap(Sitemap):
     """Privacy and terms pages — rarely change."""
     protocol = "https"
@@ -101,6 +114,7 @@ class RecipeSitemap(Sitemap):
 sitemaps = {
     "landing": LandingSitemap,
     "pricing": PricingSitemap,
+    "about": AboutSitemap,
     "legal": LegalSitemap,
     "auth": AuthSitemap,
     "recipe-index": RecipeIndexSitemap,
