@@ -16,6 +16,7 @@ PRERENDERED_ROUTES = {
     '/': 'index.html',
     '/login': 'login/index.html',
     '/pricing': 'pricing/index.html',
+    '/o-nas': 'o-nas/index.html',
     '/privacy': 'privacy/index.html',
     '/terms': 'terms/index.html',
     '/forgot-password': 'forgot-password/index.html',
