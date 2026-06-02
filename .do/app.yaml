@@ -16,6 +16,12 @@ services:
       - key: SECRET_KEY
         scope: RUN_TIME
         type: SECRET
+      # Bootstrap admin password for start.sh's createsuperuser step.
+      # Set this as an encrypted SECRET in the DO dashboard; never commit a
+      # literal (incident 2026-06-02-dbminer). If unset, superuser is skipped.
+      - key: DJANGO_SUPERUSER_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
       - key: FIELD_ENCRYPTION_KEY
         scope: RUN_TIME
         type: SECRET

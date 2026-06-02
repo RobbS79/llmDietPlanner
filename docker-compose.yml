@@ -8,16 +8,23 @@ services:
     environment:
       - POSTGRES_DB=llm_diet_planner
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"
+      # Sourced from gitignored .env (POSTGRES_PASSWORD). NEVER hard-code a weak
+      # default here, and NEVER publish 5432 to the host — see incident
+      # 2026-06-02-dbminer. Other services reach `db` over the compose network.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # No `ports:` mapping: postgres is internal-only (reachable as `db:5432`
+    # from other compose services). Do not expose to 0.0.0.0.
+    security_opt:
+      - no-new-privileges:true
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    # No `ports:` mapping: redis is internal-only (reachable as `redis:6379`).
+    # Publishing an unauthenticated redis to 0.0.0.0 is a remote-RCE vector.
     volumes:
       - redis_data:/data
+    security_opt:
+      - no-new-privileges:true
 
   web:
     build: .
@@ -25,19 +32,25 @@ services:
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      # Dev server bound to loopback only — NEVER expose Django's runserver to
+      # the internet. Reach it via SSH tunnel or localhost.
+      - "127.0.0.1:8000:8000"
     environment:
       - DEBUG=True
       - SECRET_KEY=dev-only-insecure-key-do-not-use-in-production
       - FIELD_ENCRYPTION_KEY=dev-only-32-char-encryption-key!
       - ALLOWED_HOSTS=localhost,127.0.0.1,web
       - CORS_ALLOWED_ORIGINS=http://localhost:5173
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/llm_diet_planner
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/llm_diet_planner
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - db
       - redis
+    # See incident 2026-06-02-dbminer: cheap, no-downside hardening so a future
+    # web-process compromise can't escalate privileges inside the container.
+    security_opt:
+      - no-new-privileges:true
 
   celery:
     build: .
@@ -48,12 +61,16 @@ services:
       - DEBUG=True
       - SECRET_KEY=dev-only-insecure-key-do-not-use-in-production
       - FIELD_ENCRYPTION_KEY=dev-only-32-char-encryption-key!
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/llm_diet_planner
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/llm_diet_planner
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - db
       - redis
+    # See incident 2026-06-02-dbminer. Celery executes scraper/LLM workloads
+    # (incl. headless browsers) and is a likely target — block privesc.
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   postgres_data:
