@@ -31,6 +31,9 @@ services:
   #   docker-compose --profile slack up -d slackbot
   slackbot:
     profiles: ["slack"]
+    # tini as PID 1 reaps orphaned headless-chrome helper processes spawned by
+    # the inner Claude Code / Playwright, which otherwise pile up as zombies.
+    init: true
     build:
       context: .
       dockerfile: Dockerfile
