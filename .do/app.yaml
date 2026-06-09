@@ -53,12 +53,12 @@ services:
       - key: EMAIL_USE_TLS
         value: "True"
       - key: EMAIL_HOST_USER
-        value: "admin@kentain.eu"
+        value: "admin@kentakin.eu"
       - key: EMAIL_HOST_PASSWORD
         scope: RUN_TIME
         type: SECRET
       - key: DEFAULT_FROM_EMAIL
-        value: "DietPlanner <admin@kentain.eu>"
+        value: "DietPlanner <admin@kentakin.eu>"
       - key: CELERY_BROKER_URL
         value: "redis://127.0.0.1:6379/0"
       - key: CELERY_RESULT_BACKEND
