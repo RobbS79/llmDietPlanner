@@ -63,8 +63,10 @@ export const Landing = () => {
 
       {/* Hero */}
       <section id="main-content" className="relative px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">
-        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-600/[0.06] blur-[180px] rounded-full" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-teal-600/[0.03] blur-[220px] rounded-full" />
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-600/[0.06] blur-[180px] rounded-full" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-teal-600/[0.03] blur-[220px] rounded-full" />
+        </div>
 
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 bg-emerald-600/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-8">
