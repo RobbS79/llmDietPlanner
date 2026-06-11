@@ -384,7 +384,19 @@ CRITICAL RULES:
 - Keep instructions VERY BRIEF: 3 steps maximum per meal
 - Keep descriptions to 1 sentence
 - Browse {shop_url} for context but don't list prices
-- {getattr(goal, 'num_days', 7)} days total"""
+- {getattr(goal, 'num_days', 7)} days total
+
+INGREDIENT CONSISTENCY (production-critical, do not violate):
+- The `ingredients[]` array MUST list ONLY raw items the user has to buy
+  fresh at the store for THIS meal. It is the shopping basket for the meal.
+- NEVER list an ingredient in `ingredients[]` if the `description` or
+  `instructions` say the item is "already prepared", "already cooked",
+  "leftover", "from yesterday", "from the previous day/meal", or
+  "pre-cooked" (in ANY language). Either omit it entirely OR keep it and
+  rewrite the description so it no longer claims the item is pre-prepared.
+- A meal that reuses a leftover from another day MUST exclude that
+  leftover from `ingredients[]`. The user already has it; charging them
+  for it again is a bug, not a feature."""
 
         full_prompt = f"""{user_prompt}
 

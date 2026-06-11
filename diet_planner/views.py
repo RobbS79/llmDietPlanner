@@ -38,6 +38,7 @@ from .serializers import (
     HistoricNutritionPlanSerializer,
 )
 from .schemas import DietaryGoalCreateRequest
+from .services.recipe_coherence import filter_pre_prepared
 from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, optimize_plan_discounts_task, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
@@ -369,7 +370,20 @@ class RecipeDetailView(APIView):
         # Return existing recipe if available
         try:
             recipe = Recipe.objects.get(meal_identifier=meal_identifier, dietary_goal__user=request.user)
-            return Response({"status": "success", "data": RecipeSerializer(recipe).data})
+            data = RecipeSerializer(recipe).data
+            # Re-apply the coherence filter on read so previously-cached
+            # recipes that were saved before the fix (e.g. plan 108
+            # recipe 108:1:dinner:0) no longer show "buy klizka" when the
+            # description says the beef is already prepared.
+            filtered = filter_pre_prepared({
+                'description': data.get('description') or '',
+                'instructions': data.get('instructions') or [],
+                'ingredients': data.get('ingredients') or [],
+            })
+            data['ingredients'] = filtered.get('ingredients', data.get('ingredients'))
+            if filtered.get('pre_prepared_ingredients'):
+                data['pre_prepared_ingredients'] = filtered['pre_prepared_ingredients']
+            return Response({"status": "success", "data": data})
         except Recipe.DoesNotExist:
             pass
 
@@ -400,6 +414,14 @@ class RecipeDetailView(APIView):
                 break
         if not meal:
             return Response({"status": "error", "error": "Meal not found in plan"}, status=404)
+
+        # Coherence pass: if the meal's description / instructions say an
+        # ingredient is "already prepared / leftover / from yesterday", do
+        # NOT list it among the ingredients the user has to buy. Production
+        # bug (plan 108, recipe 108:1:dinner:0): recipe said "the beef
+        # (klizka) is already prepared" while the shopping list charged for
+        # 300 g klizka. See diet_planner/services/recipe_coherence.py.
+        meal = filter_pre_prepared(meal)
 
         # Generate cooking instructions via LLM. If the first pass comes
         # back too thin (one-liners like "eat a piece of chocolate"), fire

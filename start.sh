@@ -30,11 +30,19 @@ echo "Synchronizing Schema..."
 python manage.py migrate --noinput
 
 # 2b. Ensure superuser exists
+# SECURITY (incident 2026-06-02-dbminer): the superuser password must NEVER be
+# hard-coded here — this file is committed to git, so any literal becomes a
+# leaked production admin credential. Source it from a DO App Platform SECRET
+# env var (DJANGO_SUPERUSER_PASSWORD). If the secret is absent we skip creation
+# rather than fall back to a known/default password.
 echo "Ensuring superuser..."
-DJANGO_SUPERUSER_USERNAME=admin \
-DJANGO_SUPERUSER_EMAIL=soroka.robert8@gmail.com \
-DJANGO_SUPERUSER_PASSWORD=DietAdmin2026! \
-python manage.py createsuperuser --noinput 2>/dev/null || echo "Superuser already exists"
+if [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+  DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}" \
+  DJANGO_SUPERUSER_EMAIL="${DJANGO_SUPERUSER_EMAIL:-soroka.robert8@gmail.com}" \
+  python manage.py createsuperuser --noinput 2>/dev/null || echo "Superuser already exists"
+else
+  echo "DJANGO_SUPERUSER_PASSWORD not set — skipping superuser bootstrap."
+fi
 
 # 3. Static Asset Aggregation
 echo "Collecting UI Assets..."

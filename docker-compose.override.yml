@@ -6,10 +6,18 @@ services:
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
+    # WARNING (incident 2026-06-02-dbminer): this publishes the Vite dev server
+    # to the droplet's public IP on :5173 so it can be reached at
+    # 157.230.123.199.nip.io:5173. A dev server is NOT hardened for the public
+    # internet. The droplet MUST gate :5173 behind a firewall (ufw / DO cloud
+    # firewall) that only allows your own IP, or front it via SSH tunnel.
+    # Do not assume this port is safe just because it isn't postgres/redis.
     ports:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://157.230.123.199.nip.io:8000
+    security_opt:
+      - no-new-privileges:true
 
   web:
     env_file:
@@ -31,6 +39,9 @@ services:
   #   docker-compose --profile slack up -d slackbot
   slackbot:
     profiles: ["slack"]
+    # tini as PID 1 reaps orphaned headless-chrome helper processes spawned by
+    # the inner Claude Code / Playwright, which otherwise pile up as zombies.
+    init: true
     build:
       context: .
       dockerfile: Dockerfile
@@ -45,13 +56,15 @@ services:
     environment:
       - SECRET_KEY=e2e-only-not-a-real-secret-key-do-not-ship
       - FIELD_ENCRYPTION_KEY=F4VaYcd599E5eHNB0j76wiES9NL2ZL9P1SNRfcy_6n8=
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/llm_diet_planner
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/llm_diet_planner
       - SLACKBOT_WORKING_DIR=/app
       - PYTHONUNBUFFERED=1
     depends_on:
       - db
       - redis
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   frontend_node_modules:
