@@ -12,6 +12,11 @@ from django.conf import settings
 from diet_planner.models import DietaryGoal
 from diet_planner.llm_service import GeminiService
 
+from .recipe_coherence import (
+    detect_pre_prepared_ingredient_names,
+    _is_explicitly_pre_prepared_flag,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -214,13 +219,25 @@ CRITICAL RULES:
                     if not isinstance(meal, dict):
                         continue
 
+                    # Skip ingredients that the recipe itself describes as
+                    # already-prepared / leftover. Otherwise the LLM will
+                    # happily add them to the shopping list and the user
+                    # ends up paying for meat the recipe says they
+                    # already have. See recipe_coherence.py.
+                    flagged = detect_pre_prepared_ingredient_names(meal)
+
                     for ingredient in meal.get('ingredients', []):
+                        if _is_explicitly_pre_prepared_flag(ingredient):
+                            continue
                         if isinstance(ingredient, dict):
                             name = ingredient.get('name', ingredient.get('ingredient', ''))
                             quantity = ingredient.get('quantity', '')
                         else:
                             name = str(ingredient)
                             quantity = ''
+
+                        if name and name.lower().strip() in flagged:
+                            continue
 
                         if name:
                             name_lower = name.lower().strip()

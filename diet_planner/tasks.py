@@ -1644,6 +1644,44 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
                     f"Calculated={calculated_total} {goal.currency} ({diff_percent:.1f}% difference)"
                 )
         
+        # Coherence validation (advisory). Runs the deterministic recipe /
+        # shopping-list checks AND the cross-model "simulated human" judge
+        # (Gemini wrote the plan; Claude grades it) over the finished plan +
+        # priced shopping list. Observability-only for now: we log every
+        # error and warning so QA can watch them, but we do NOT block plan
+        # creation or change the goal status on a failure. Promotion to a
+        # hard checkout gate is tracked in
+        # docs/qa-recipe-shopping-coherence.md §7. Fail-open: the judge is
+        # gated + never raises, so a disabled/keyless judge costs nothing.
+        try:
+            from .services.validation import MealPlanValidator
+
+            validation_result = MealPlanValidator().validate(
+                {"days": transformed_days},
+                validated_shopping_list,
+                {"num_days": goal.num_days, "language": goal.language_code},
+            )
+            if validation_result.errors:
+                logger.warning(
+                    f"{log_prefix} Coherence validation found "
+                    f"{len(validation_result.errors)} error(s) (advisory, not "
+                    f"blocking): {validation_result.errors[:5]}"
+                )
+            if validation_result.warnings:
+                logger.info(
+                    f"{log_prefix} Coherence validation warnings "
+                    f"({len(validation_result.warnings)}): "
+                    f"{validation_result.warnings[:5]}"
+                )
+            judge_stats = validation_result.stats.get('human_judge')
+            if judge_stats:
+                logger.info(f"{log_prefix} Human-judge verdict: {judge_stats}")
+        except Exception as val_exc:
+            # Validation/judging must never break fulfilment.
+            logger.warning(
+                f"{log_prefix} Coherence validation skipped (error): {val_exc}"
+            )
+
         # Create DietaryPlan
         plan = DietaryPlan.objects.create(
             dietary_goal=goal,
