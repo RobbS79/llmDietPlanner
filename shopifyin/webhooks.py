@@ -165,7 +165,27 @@ def shopify_order_cancelled_webhook(request: HttpRequest) -> HttpResponse:
     Webhook for order cancellation events.
     """
     try:
-        data = json.loads(request.body)
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            logger.error("Shopify cancel webhook: Invalid JSON body")
+            return HttpResponse("Invalid JSON", status=400)
+
+        shop_domain = request.headers.get('X-Shopify-Shop-Domain', '')
+        store = ShopifyStore.objects.filter(
+            store_domain__icontains=shop_domain.replace('.myshopify.com', ''),
+            is_active=True
+        ).first()
+
+        if not store:
+            logger.warning(f"No active store found for domain: {shop_domain}")
+            return HttpResponse("Store not found", status=404)
+
+        # HMAC verification is mandatory
+        if not verify_shopify_webhook(request, store):
+            logger.error(f"Shopify cancel webhook HMAC verification failed for store: {store.name}")
+            return HttpResponse("Unauthorized", status=401)
+
         order_id = data.get('id')
 
         logger.info(f"Received order-cancelled webhook for order {order_id}")
