@@ -41,3 +41,7 @@ from .pricing import (  # noqa: F401
 from .scraping import (  # noqa: F401
     ScrapeRun,
 )
+
+from .curated import (  # noqa: F401
+    CuratedRecipe,
+)

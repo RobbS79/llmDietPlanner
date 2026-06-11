@@ -12,7 +12,9 @@ from .models import (
     DietaryGoal, DietaryPlan, HistoricNutritionPlan, LeafletOffer, Recipe, MealInstance,
     GroceryStore, CanonicalIngredient, IngredientAlias, IngredientSubstitute,
     StoreProduct, PriceRecord, PriceFreshnessPolicy, ScrapeRun,
+    CuratedRecipe,
 )
+from django.utils.html import format_html
 
 
 @admin.register(DietaryGoal)
@@ -318,3 +320,51 @@ class ScrapeRunAdmin(admin.ModelAdmin):
             'total_active_offers': sum(s['active_offers'] for s in store_data),
         }
         return TemplateResponse(request, 'admin/scraper_dashboard.html', context)
+
+
+@admin.register(CuratedRecipe)
+class CuratedRecipeAdmin(admin.ModelAdmin):
+    list_display = [
+        'name_cs', 'status', 'cuisine', 'difficulty',
+        'meal_types', 'mapped', 'source_link', 'usage_count', 'updated_at',
+    ]
+    list_filter = ['status', 'cuisine', 'difficulty']
+    search_fields = ['name_cs', 'name_en', 'source_name', 'source_url']
+    prepopulated_fields = {'slug': ('name_cs',)}
+    readonly_fields = ['created_at', 'updated_at', 'usage_count', 'source_link']
+    actions = ['mark_vetted', 'mark_published', 'mark_draft']
+    fieldsets = (
+        (None, {'fields': ('slug', 'name_cs', 'name_en', 'description', 'status')}),
+        ('Classification', {'fields': ('meal_types', 'cuisine', 'difficulty', 'dietary_tags')}),
+        ('Content', {'fields': ('ingredients', 'instructions', 'base_servings',
+                                'base_nutrition', 'prep_time', 'cook_time')}),
+        ('Provenance', {'fields': ('source_url', 'source_link', 'source_name',
+                                   'source_author', 'license_note')}),
+        ('Quality', {'fields': ('quality_score', 'usage_count', 'created_at', 'updated_at')}),
+    )
+
+    @admin.display(boolean=True, description='Mapped')
+    def mapped(self, obj):
+        return obj.is_catalog_mapped()
+
+    @admin.display(description='Source')
+    def source_link(self, obj):
+        if not obj.source_url:
+            return '—'
+        return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>',
+                           obj.source_url, obj.source_name or obj.source_url)
+
+    @admin.action(description='Mark selected as vetted')
+    def mark_vetted(self, request, queryset):
+        n = queryset.update(status=CuratedRecipe.Status.VETTED)
+        self.message_user(request, f"{n} recipe(s) marked vetted.")
+
+    @admin.action(description='Mark selected as published')
+    def mark_published(self, request, queryset):
+        n = queryset.update(status=CuratedRecipe.Status.PUBLISHED)
+        self.message_user(request, f"{n} recipe(s) published.")
+
+    @admin.action(description='Mark selected as draft')
+    def mark_draft(self, request, queryset):
+        n = queryset.update(status=CuratedRecipe.Status.DRAFT)
+        self.message_user(request, f"{n} recipe(s) moved to draft.")
