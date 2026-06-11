@@ -299,6 +299,16 @@ if not GEMINI_API_KEY:
     import logging as _log
     _log.getLogger(__name__).warning("GEMINI_API_KEY is not set")
 
+# --- 9b. ANTHROPIC / CLAUDE (cross-model coherence judge) ---
+# Gemini writes the meal plan; Claude grades it. Used by the semantic
+# "simulated human" coherence judge (diet_planner/services/recipe_human_judge.py)
+# to catch recipe/shopping-list incoherence a regex can't. Advisory and
+# fail-open: when the flag is off or no key is set, the judge never runs and
+# nothing else changes. See docs/qa-recipe-shopping-coherence.md.
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', config('ANTHROPIC_API_KEY', default=None))
+RECIPE_HUMAN_JUDGE_ENABLED = config('RECIPE_HUMAN_JUDGE_ENABLED', default=False, cast=bool)
+RECIPE_HUMAN_JUDGE_MODEL = config('RECIPE_HUMAN_JUDGE_MODEL', default='claude-opus-4-8')
+
 # --- 10. EMAIL BACKEND ---
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='')

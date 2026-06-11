@@ -7,6 +7,9 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from .recipe_coherence import find_coherence_issues
+from .recipe_human_judge import judge_plan_coherence
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,9 +71,56 @@ class MealPlanValidator:
         warnings.extend(shopping_warnings)
         stats.update(shopping_stats)
 
-        # Validate coherence between meal plan and shopping list
+        # Validate coverage coherence between meal plan and shopping list.
         coherence_warnings = self._validate_coherence(meal_plan, shopping_list)
         warnings.extend(coherence_warnings)
+
+        # Hard coherence: recipe text says an ingredient is "already
+        # prepared / leftover / from yesterday" but the shopping list
+        # still charges the user for it. This is the production-blocker
+        # class of bug — refuse to publish self-contradictory plans.
+        recipe_conflicts = find_coherence_issues(
+            meal_plan.get('days', []), shopping_list
+        )
+        if recipe_conflicts:
+            stats['recipe_shopping_conflicts'] = len(recipe_conflicts)
+            stats['recipe_shopping_conflicts_sample'] = recipe_conflicts[:5]
+            for issue in recipe_conflicts[:10]:
+                errors.append(
+                    "Recipe / shopping list mismatch: meal "
+                    f"\"{issue.get('meal_name', '')}\" (day "
+                    f"{issue.get('day_number')}, {issue.get('meal_type')}) "
+                    f"describes ingredient \"{issue.get('ingredient', '')}\" "
+                    "as already prepared, yet it is on the shopping list."
+                )
+
+        # Semantic "simulated human" coherence judge (advisory).
+        # A different model family (Gemini writes the plan, Claude grades it)
+        # reads the plan, recipes, and shopping list the way a paying
+        # customer would and flags what a regex can't: recipes that don't
+        # explain how to cook, "eat 1 piece of chocolate bar" non-meals,
+        # absurd quantities, ingredients missing from / orphaned on the
+        # shopping list. Findings are surfaced as WARNINGS only for now so
+        # we can measure the false-positive rate before promoting any of it
+        # to a hard checkout gate (see docs/qa-recipe-shopping-coherence.md
+        # §7). Fail-open: a disabled/keyless/erroring judge changes nothing.
+        judge_language = goal_config.get('language') if goal_config else None
+        verdict = judge_plan_coherence(
+            meal_plan, shopping_list, language=judge_language
+        )
+        if verdict.ran:
+            stats['human_judge'] = verdict.as_stats()
+            stats['human_judge_summary'] = verdict.summary
+            for issue in verdict.issues[:15]:
+                warnings.append(
+                    "Human-judge ({sev}/{cat}) at {loc}: {expl} [quote: \"{quote}\"]".format(
+                        sev=issue.get('severity', '?'),
+                        cat=issue.get('category', '?'),
+                        loc=issue.get('location', '?'),
+                        expl=issue.get('explanation', ''),
+                        quote=issue.get('quote', ''),
+                    )
+                )
 
         passed = len(errors) == 0
 
