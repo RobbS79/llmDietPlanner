@@ -1507,7 +1507,16 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         # Transform days to standard format
         logger.info(f"{log_prefix} Transforming days to standard format")
         transformed_days = transform_days_to_new_format(days, goal)
-        
+
+        # Recipe grounding (B3): overlay vetted real recipes from the curated
+        # corpus onto covered slots; uncovered slots keep the generated meal.
+        from diet_planner.services.recipe_retrieval import grounding_enabled, overlay_curated_recipes
+        if grounding_enabled():
+            result = overlay_curated_recipes(transformed_days, goal)
+            transformed_days = result['days']
+            cov = result['coverage']
+            logger.info(f"{log_prefix} Recipe grounding: {cov['filled']}/{cov['total']} slots curated")
+
         # Backend validation only - validate quantities and enhance with database prices where available
         logger.info(f"{log_prefix} Validating shopping list and enhancing with database prices")
         validated_shopping_list = []
@@ -2091,6 +2100,17 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
 
         # Transform days to standard format
         transformed_days = transform_days_to_new_format(days, goal)
+
+        # Recipe grounding (B3): overlay vetted real recipes from the curated
+        # corpus onto covered slots; uncovered slots keep the generated meal.
+        from diet_planner.services.recipe_retrieval import grounding_enabled, overlay_curated_recipes
+        if grounding_enabled():
+            _grounded = overlay_curated_recipes(transformed_days, goal)
+            transformed_days = _grounded['days']
+            logger.info(
+                f"{log_prefix} Recipe grounding: "
+                f"{_grounded['coverage']['filled']}/{_grounded['coverage']['total']} slots curated"
+            )
 
         # ── Phase 3: Aggregate ingredients into shopping list ──
         shopping_items = aggregate_ingredients_from_meals(

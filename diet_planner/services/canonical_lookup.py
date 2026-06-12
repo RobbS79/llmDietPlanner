@@ -1,22 +1,119 @@
 """
 Resolve free-text ingredient names (as emitted by the LLM or scraped) to a
 CanonicalIngredient row. Used by the pricing pipeline to read the
-is_pantry_staple flag and other catalog-level metadata for a shopping-list line.
+is_pantry_staple flag and other catalog-level metadata for a shopping-list line,
+and by the recipe-grounding curation pipeline to decide whether a curated
+ingredient maps to a buyable catalog ingredient.
 
-Matching order:
-  1. CanonicalIngredient.name / name_cs / name_sk  (case-insensitive)
-  2. IngredientAlias.alias                          (case-insensitive)
+Matching strategy (first hit wins):
+  1. Exact (case-insensitive) on CanonicalIngredient.name / name_cs / name_sk.
+  2. Exact (case-insensitive) on IngredientAlias.alias.
+  3. Normalized match: scraped/LLM names carry prep + quality descriptors that
+     defeat exact matching ("olivový olej, kvalitní", "čerstvě mletý černý pepř",
+     "kuřecí prsa nebo stehna", "smetana ke šlehání 33%"). We strip those down to
+     a base key and compare against the same key computed for every canonical
+     name + alias. The normalized index is built once per process and cached.
 
-Returns None if no match — callers must handle that as "not a staple,
-treat as a normal grocery item".
+Returns None if no match — callers must handle that as "not a staple / not
+catalog-mapped, treat as a normal grocery item".
 """
 from __future__ import annotations
 
-from typing import Optional
+import re
+from functools import lru_cache
+from typing import Dict, Optional
 
 from django.db.models import Q
 
 from diet_planner.models import CanonicalIngredient, IngredientAlias
+
+
+# Prep / quality / state words that describe an ingredient without changing what
+# you buy. Stripped (as whole tokens) when normalizing for the fallback match.
+# Covers the Czech gender/number variants we actually see from the rewrite step.
+_MODIFIER_WORDS = {
+    # freshness / state
+    "čerstvý", "čerstvá", "čerstvé", "čerstvě", "čerstvého", "čerstvou",
+    "sušený", "sušená", "sušené", "sušeného",
+    "mražený", "mražená", "mražené",
+    "vařený", "vařená", "vařené", "vychlazený", "vychlazená", "vychlazené",
+    "pečený", "pečená", "pečené", "pražený", "pražená", "pražené",
+    "uzený", "uzená", "uzené",
+    "nakládaný", "nakládaná", "nakládané", "sterilovaný", "sterilovaná", "sterilovaný",
+    # cut / form
+    "mletý", "mletá", "mleté", "mletého", "mleně",
+    "celý", "celá", "celé", "celého",
+    "drcený", "drcená", "drcené",
+    "krájený", "krájená", "krájené", "nakrájený", "nakrájená", "nakrájené",
+    "sekaný", "sekaná", "sekané", "nasekaný", "nasekaná", "nasekané",
+    "strouhaný", "strouhaná", "strouhané",
+    "plátky", "kostky", "nudličky", "vločky",  # only when trailing; harmless as tokens
+    # fat / quality / size
+    "plnotučný", "plnotučná", "plnotučné", "polotučný", "polotučná", "polotučné",
+    "kvalitní", "extra", "panenský", "panenská", "panenské", "pevný", "pevná", "pevné",
+    "jemný", "jemná", "jemné", "velký", "velká", "velké", "malý", "malá", "malé",
+    "kvašený", "kvašená", "kvašené", "křupavý", "křupavá", "křupavé",
+    # generic head-nouns that don't change identity
+    "maso", "koření",
+    # bare connectors that survive a list ("rýže vařená a vychlazená")
+    "a", "i", "s", "se", "z",
+    # english fall-throughs
+    "fresh", "dried", "ground", "whole", "chopped", "sliced", "minced", "grated",
+    "large", "small", "extra", "virgin", "fine", "frozen", "cooked",
+}
+
+# Prepositional / descriptor tails: everything from these markers onward is a
+# preparation note, not part of the ingredient identity.
+#   "olej na smažení" -> "olej",  "smetana ke šlehání" -> "smetana"
+_TAIL_MARKERS = re.compile(
+    r"\s+(?:na\s|ke\s|ku\s|k\s|z\s+konzervy|z\s+plechovky|do\s)",
+)
+
+
+def _strip_descriptors(raw: str) -> str:
+    """Reduce a free-text ingredient name to an order-independent base key.
+
+    Czech grocery names appear in both word orders ("černý pepř" vs
+    "pepř černý mletý", "hladká mouka" vs "mouka hladká"), so after stripping
+    descriptors we sort the remaining tokens — the key is a multiset of content
+    words, not a phrase. This makes the match robust to word order.
+    """
+    s = raw.lower().strip()
+    s = re.sub(r"\(.*?\)", " ", s)            # drop parentheticals
+    s = s.split(",")[0]                        # drop post-comma descriptor
+    s = re.split(r"\bnebo\b|\bor\b|/", s)[0]   # "x nebo y" -> first option
+    s = _TAIL_MARKERS.split(s)[0]              # drop prepositional tails
+    s = re.sub(r"\s*\d+([.,]\d+)?\s*%?", " ", s)  # drop quantities / percentages
+    tokens = [t for t in re.split(r"[\s]+", s.strip()) if t and t not in _MODIFIER_WORDS]
+    return " ".join(sorted(tokens)).strip()
+
+
+@lru_cache(maxsize=1)
+def _normalized_index() -> Dict[str, int]:
+    """Map normalized-key -> CanonicalIngredient id, over all names + aliases.
+
+    Built once per process; call `clear_cache()` after seeding new rows in the
+    same process. More-specific names are inserted first so a shorter alias
+    cannot clobber a better key (dict keeps the first writer via setdefault).
+    """
+    index: Dict[str, int] = {}
+
+    def add(text: str, ci_id: int) -> None:
+        key = _strip_descriptors(text or "")
+        if key:
+            index.setdefault(key, ci_id)
+
+    for ci in CanonicalIngredient.objects.all().values("id", "name", "name_cs", "name_sk"):
+        for field in ("name_cs", "name", "name_sk"):
+            add(ci[field], ci["id"])
+    for al in IngredientAlias.objects.all().values("canonical_ingredient_id", "alias"):
+        add(al["alias"], al["canonical_ingredient_id"])
+    return index
+
+
+def clear_cache() -> None:
+    """Drop the cached normalized index (call after seeding canonical rows)."""
+    _normalized_index.cache_clear()
 
 
 def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
@@ -26,6 +123,7 @@ def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
     if not needle:
         return None
 
+    # 1 + 2: exact match on canonical names, then aliases (fast path).
     ci = CanonicalIngredient.objects.filter(
         Q(name__iexact=needle)
         | Q(name_cs__iexact=needle)
@@ -40,4 +138,15 @@ def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
         .filter(alias__iexact=needle)
         .first()
     )
-    return alias.canonical_ingredient if alias is not None else None
+    if alias is not None:
+        return alias.canonical_ingredient
+
+    # 3: normalized fallback — strip prep/quality descriptors and match on the
+    # base key against the cached normalized index.
+    key = _strip_descriptors(needle)
+    if not key:
+        return None
+    ci_id = _normalized_index().get(key)
+    if ci_id is not None:
+        return CanonicalIngredient.objects.filter(pk=ci_id).first()
+    return None

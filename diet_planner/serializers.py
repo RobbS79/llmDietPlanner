@@ -278,6 +278,10 @@ class RecipeSerializer(serializers.ModelSerializer):
             'cooking_time',
             'servings',
             'nutritional_info',
+            'source_name',
+            'source_url',
+            'source_author',
+            'curated_recipe_slug',
             'created_at',
             'updated_at',
         ]

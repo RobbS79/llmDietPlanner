@@ -776,6 +776,114 @@ Return ONLY a JSON object: {{"instructions": ["Step 1 ...", "Step 2 ...", ...]}}
             logger.error(f"Error expanding thin recipe instructions: {e}", exc_info=True)
             return []
 
+    def curate_recipe_to_czech(
+        self,
+        source_title: str,
+        source_material: str,
+        source_url: str = "",
+        source_lang_hint: str = "",
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Turn a real, attributed source recipe into a curated, novice-clear
+        Czech record (Direction B — recipe grounding, see
+        docs/recipe-grounding-plan.md §4 step 3).
+
+        `source_material` is either a JSON-LD `schema.org/Recipe` blob (dumped
+        to a string) or the cleaned page text when no structured data exists —
+        the model extracts the real ingredients/method/timing/yield from
+        whichever it's given, then *paraphrases* (never copies verbatim) into
+        our schema, rewriting the steps for a beginner cook and translating
+        everything into Czech.
+
+        Returns a dict shaped to the `CuratedRecipe` content fields:
+            {name_cs, name_en, description, meal_types, cuisine, difficulty,
+             dietary_tags, ingredients:[{name, quantity, unit, optional}],
+             instructions:[{text, time_min?, tip?}], base_servings,
+             base_nutrition:{calories, protein, carbs, fat},
+             prep_time, cook_time}
+        Ingredient catalog mapping (catalog_id/canonical) is added afterwards
+        by the deterministic resolver, not by the model.
+
+        Returns {} on failure so the caller can skip the entry without raising.
+        """
+        model = model or self.default_model
+        lang_note = f" The source appears to be in {source_lang_hint}." if source_lang_hint else ""
+        url_note = f"\nSource URL (for your context only): {source_url}" if source_url else ""
+
+        system_prompt = (
+            "You are a Czech recipe editor curating a library of real, "
+            "attributed dishes for a meal-planning app. You take a real source "
+            "recipe and rewrite it into clear, beginner-friendly Czech — "
+            "paraphrasing in your own words, never copying the source text "
+            "verbatim. You preserve the real dish (ingredients, proportions, "
+            "method, timing) but make the steps teach a novice how to cook it. "
+            "Always respond with valid JSON only (no markdown, no code blocks)."
+        )
+
+        prompt = f"""Curate this real source recipe into our schema.{lang_note}
+
+Source dish name: {source_title}{url_note}
+
+Source material (structured JSON-LD or raw page text — extract the real
+ingredients, method, servings and timing from it):
+---
+{source_material}
+---
+
+Produce a JSON object with EXACTLY these keys:
+
+- "name_cs": the dish name in Czech (a real, named dish — not a description).
+- "name_en": a short English gloss of the name (may be empty if obvious).
+- "description": 1-2 appetizing sentences in Czech.
+- "meal_types": array, any of ["breakfast","lunch","dinner","snack","small_meal"]
+  — which slots this dish realistically fills.
+- "cuisine": one lowercase word, e.g. "czech","italian","asian","mediterranean","mexican","american".
+- "difficulty": "easy" or "medium" only (cap at medium; skip anything harder).
+- "dietary_tags": array drawn from ["vegetarian","vegan","gluten_free","dairy_free","high_protein","low_carb"] — only tags that are actually TRUE for the dish.
+- "ingredients": array of {{"name","quantity","unit","optional"}} in Czech.
+  * "name": the ingredient in Czech, normalized & lowercase (e.g. "kuřecí prsa", "olivový olej").
+  * "quantity": a number (grams/ml/pieces as appropriate); use null if truly to-taste.
+  * "unit": one of "g","ml","ks","lžíce","lžička","špetka" (prefer g/ml/ks).
+  * "optional": true for garnishes / to-taste extras, else false.
+- "instructions": array of {{"text","time_min","tip"}} — 4 to 8 steps, in Czech.
+  * "text": one clear step. Teach the novice: technique, pan/oven temperature,
+    times, and doneness cues ("until golden", "until the juices run clear").
+  * "time_min": integer minutes this step takes, or null.
+  * "tip": a short optional helper tip in Czech, or null.
+- "base_servings": integer — how many portions the quantities/nutrition below describe.
+- "base_nutrition": {{"calories","protein","carbs","fat"}} per base_servings (numbers, grams for macros). Estimate from the ingredients if the source omits it.
+- "prep_time": integer minutes of hands-on prep, or null.
+- "cook_time": integer minutes of cooking, or null.
+
+Rules:
+- Paraphrase the method in your own words; do NOT reproduce the source's sentences.
+- Keep the dish faithful — same ingredients and proportions as the real recipe.
+- Everything user-facing (name_cs, description, ingredients, instructions) MUST be in Czech.
+- Return ONLY the JSON object."""
+
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model,
+                system_instruction=system_prompt,
+            )
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.4,
+                },
+                request_options={"timeout": 300},
+            )
+            parsed = json.loads(response.text)
+            if not isinstance(parsed, dict):
+                logger.error("curate_recipe_to_czech: model returned non-object JSON")
+                return {}
+            return parsed
+        except Exception as e:
+            logger.error(f"Error curating recipe '{source_title}': {e}", exc_info=True)
+            return {}
+
     def extract_products_from_html(
         self,
         html_content: str,

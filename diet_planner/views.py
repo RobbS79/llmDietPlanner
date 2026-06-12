@@ -423,44 +423,56 @@ class RecipeDetailView(APIView):
         # 300 g klizka. See diet_planner/services/recipe_coherence.py.
         meal = filter_pre_prepared(meal)
 
-        # Generate cooking instructions via LLM. If the first pass comes
-        # back too thin (one-liners like "eat a piece of chocolate"), fire
-        # one expansion retry so the recipe has enough substance to be
-        # published. The Recipe.save() gate enforces this same threshold.
-        from .llm_service import GeminiService
-        try:
-            llm_service = GeminiService()
-            ingredient_names = []
-            for ing in meal.get('ingredients', []):
-                if isinstance(ing, dict):
-                    ingredient_names.append(ing.get('name', str(ing)))
-                else:
-                    ingredient_names.append(str(ing))
+        # Recipe grounding (B4): if this meal was served from the curated
+        # corpus, it already has novice-clear, vetted steps — use them as-is
+        # and skip the LLM regeneration entirely.
+        is_curated = bool(meal.get('source') == 'curated' and meal.get('instructions'))
+        if is_curated:
+            instructions = [
+                s if isinstance(s, str) else (s.get('text') or '')
+                for s in meal.get('instructions', [])
+            ]
 
-            instructions = llm_service.generate_recipe_instructions(
-                meal_name=meal.get('name', ''),
-                ingredients=ingredient_names,
-                description=meal.get('description', ''),
-                language_code=goal.language_code,
-            )
+        # Generate cooking instructions via LLM (only when not curated). If the
+        # first pass comes back too thin (one-liners like "eat a piece of
+        # chocolate"), fire one expansion retry so the recipe has enough
+        # substance to be published. The Recipe.save() gate enforces this same
+        # threshold.
+        if not is_curated:
+            from .llm_service import GeminiService
+            try:
+                llm_service = GeminiService()
+                ingredient_names = []
+                for ing in meal.get('ingredients', []):
+                    if isinstance(ing, dict):
+                        ingredient_names.append(ing.get('name', str(ing)))
+                    else:
+                        ingredient_names.append(str(ing))
 
-            if Recipe.count_instruction_words(instructions) < Recipe.PUBLISH_MIN_WORDS:
-                logger.info(
-                    f"Thin recipe instructions ({Recipe.count_instruction_words(instructions)} words) "
-                    f"for {meal_identifier!r}, retrying with expansion prompt."
-                )
-                expanded = llm_service.expand_thin_recipe_instructions(
+                instructions = llm_service.generate_recipe_instructions(
                     meal_name=meal.get('name', ''),
                     ingredients=ingredient_names,
-                    thin_instructions=instructions,
                     description=meal.get('description', ''),
                     language_code=goal.language_code,
                 )
-                if Recipe.count_instruction_words(expanded) > Recipe.count_instruction_words(instructions):
-                    instructions = expanded
-        except Exception as e:
-            logger.error(f"Failed to generate recipe instructions for {meal_identifier}: {e}")
-            instructions = []
+
+                if Recipe.count_instruction_words(instructions) < Recipe.PUBLISH_MIN_WORDS:
+                    logger.info(
+                        f"Thin recipe instructions ({Recipe.count_instruction_words(instructions)} words) "
+                        f"for {meal_identifier!r}, retrying with expansion prompt."
+                    )
+                    expanded = llm_service.expand_thin_recipe_instructions(
+                        meal_name=meal.get('name', ''),
+                        ingredients=ingredient_names,
+                        thin_instructions=instructions,
+                        description=meal.get('description', ''),
+                        language_code=goal.language_code,
+                    )
+                    if Recipe.count_instruction_words(expanded) > Recipe.count_instruction_words(instructions):
+                        instructions = expanded
+            except Exception as e:
+                logger.error(f"Failed to generate recipe instructions for {meal_identifier}: {e}")
+                instructions = []
 
         # Store recipe for future requests
         recipe = Recipe.objects.create(
@@ -473,6 +485,10 @@ class RecipeDetailView(APIView):
             ingredients=meal.get('ingredients', []),
             preparation_time=meal.get('preparation_time'),
             nutritional_info=meal.get('nutritional_info', {}),
+            source_name=meal.get('source_name', '') or '',
+            source_url=meal.get('source_url', '') or '',
+            source_author=meal.get('source_author', '') or '',
+            curated_recipe_slug=meal.get('curated_recipe_slug', '') or '',
         )
         return Response({"status": "success", "data": RecipeSerializer(recipe).data})
 

@@ -754,6 +754,12 @@ class Recipe(models.Model):
     servings = models.IntegerField(default=1, validators=[MinValueValidator(1)])
     nutritional_info = models.JSONField(default=dict, blank=True)
     is_public = models.BooleanField(default=False, db_index=True, help_text="Visible on public recipe pages")
+    # Recipe-grounding (B3/B4): provenance when this meal was served from the
+    # curated real-recipe corpus. Blank for LLM-generated meals.
+    source_name = models.CharField(max_length=200, blank=True, default='', help_text="Source site/creator for attribution")
+    source_url = models.URLField(max_length=500, blank=True, default='', help_text="Linked source recipe (credit/backlink)")
+    source_author = models.CharField(max_length=200, blank=True, default='', help_text="Original author if known")
+    curated_recipe_slug = models.SlugField(max_length=255, blank=True, default='', help_text="CuratedRecipe.slug this was sourced from")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
