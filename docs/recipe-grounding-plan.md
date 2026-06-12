@@ -117,11 +117,11 @@ Modify `tasks.py:process_dietary_goal_task` → step 1 (`generate_meal_plan_only
 
 ## 8. Phased checklist
 
-- **B0 — Pilot (de-risk, ~30 recipes):** hand-pick 30 source URLs across breakfast/lunch/dinner/snack; run the full pipeline; wire retrieve→scale→coherent single test plan. *Goal: prove the architecture before investing in volume.* (Target stays 300–500; this just front-loads the risk.)
-- **B1 — Model + pipeline:** `CuratedRecipe` model + migration + admin; `build_curated_recipes` command (fetch→extract→rewrite→map→attribute); clarity/coherence judge gate.
+- **B0 — Pilot (de-risk, ~30 recipes): ✅ DONE (2026-06-12).** 30 real source URLs curated; pipeline proven (curated=30 errors=0, all JSON-LD). Surfaced + FIXED the mapping blocker (25%→99%, 28/30 pass catalog gate) via resolver normalization + canonical dict 62→164 + `remap_curated_recipes`.
+- **B1 — Model + pipeline: ✅ DONE.** `CuratedRecipe` model + migration 0026 + admin; `build_curated_recipes` (fetch→extract→rewrite→map→attribute); clarity/coherence judge gate.
 - **B2 — Scale corpus to 300–500:** compile the source-URL index (broad coverage: all meal types × main dietary tags × a cuisine mix — CZ staples + popular Italian/Asian/Mediterranean/Mexican/American, all catalog-buyable); run pipeline; vet/publish.
-- **B3 — Retrieval + planner swap:** `select_recipes_for_plan` + integrate into generation with the generated-slot fallback.
-- **B4 — Frontend:** attribution/badges/source links.
+- **B3 — Retrieval + planner swap: ✅ DONE (2026-06-12).** `recipe_retrieval.py`: `select_recipes_for_plan` (hard catalog/meal/diet gate + soft variety/macro rank + greedy assembly) + `scale_recipe_to_meal` + `overlay_curated_recipes`, wired into `tasks.py` behind `RECIPE_GROUNDING_ENABLED`. Overlay model (LLM full plan + curated overlay on covered slots) — retrieval-first cost cut deferred to post-B2. 14 tests; smoke 42/42 coverage on pilot.
+- **B4 — Frontend:** attribution/badges/source links. *(meal object now carries source_name/source_url/source_author; RecipePage.tsx render still TODO.)*
 - **B5 — QA + prod:** clarity, cultural fit, recipe↔shopping coherence (klizka-style), macro tolerance (±10%), no-repeat; Playwright on prod per QA workflow.
 
 ---
