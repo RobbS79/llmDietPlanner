@@ -1,0 +1,13 @@
+[
+  {
+    "dish_name": "Kuřecí guláš",
+    "source_url": "https://example-recipes.test/chicken-goulash",
+    "source_name": "Example Recipes",
+    "source_author": ""
+  },
+  {
+    "dish_name": "Ovesná kaše s borůvkami",
+    "source_url": "https://example-recipes.test/blueberry-oatmeal",
+    "source_name": "Example Recipes"
+  }
+]

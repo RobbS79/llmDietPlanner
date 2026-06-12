@@ -91,7 +91,8 @@ class ResolveCanonicalTest(TestCase):
         self.assertTrue(ci.is_pantry_staple)
 
     def test_match_by_slovak_name(self):
-        ci = resolve_canonical('Mletá rasca')
+        # Cumin's Slovak name is "Rímska rasca"; bare "rasca" is caraway.
+        ci = resolve_canonical('Rímska rasca')
         self.assertIsNotNone(ci)
         self.assertEqual(ci.slug, 'cumin')
 
@@ -120,3 +121,32 @@ class ResolveCanonicalTest(TestCase):
 
     def test_whitespace_is_stripped(self):
         self.assertIsNotNone(resolve_canonical('  Olive oil  '))
+
+    # --- normalized fallback (recipe-grounding): scraped/LLM names carry prep
+    # and quality descriptors that must not defeat the match. ---
+
+    def test_strips_quality_descriptor_after_comma(self):
+        ci = resolve_canonical('Olivový olej, kvalitní')
+        self.assertIsNotNone(ci)
+        self.assertEqual(ci.slug, 'olive-oil')
+
+    def test_match_is_word_order_independent(self):
+        # black pepper is seeded as "Mletý černý pepř"; recipes say "černý pepř".
+        ci = resolve_canonical('čerstvě mletý černý pepř')
+        self.assertIsNotNone(ci)
+        self.assertEqual(ci.slug, 'black-pepper')
+
+    def test_strips_parenthetical(self):
+        ci = resolve_canonical('olivový olej (extra panenský)')
+        self.assertIsNotNone(ci)
+        self.assertEqual(ci.slug, 'olive-oil')
+
+    def test_disjunction_takes_first_option(self):
+        ci = resolve_canonical('olivový olej nebo řepkový olej')
+        self.assertIsNotNone(ci)
+        self.assertEqual(ci.slug, 'olive-oil')
+
+    def test_strips_prepositional_tail(self):
+        ci = resolve_canonical('olivový olej na smažení')
+        self.assertIsNotNone(ci)
+        self.assertEqual(ci.slug, 'olive-oil')

@@ -309,6 +309,12 @@ ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', config('ANTHROPIC_API_KE
 RECIPE_HUMAN_JUDGE_ENABLED = config('RECIPE_HUMAN_JUDGE_ENABLED', default=False, cast=bool)
 RECIPE_HUMAN_JUDGE_MODEL = config('RECIPE_HUMAN_JUDGE_MODEL', default='claude-opus-4-8')
 
+# Recipe grounding (Direction B, B3): when enabled, the meal-plan generator
+# overlays vetted real recipes from the CuratedRecipe corpus onto covered slots
+# (uncovered slots keep the LLM-generated meal). Off by default so the corpus
+# can be populated/promoted in prod before retrieval goes live.
+RECIPE_GROUNDING_ENABLED = config('RECIPE_GROUNDING_ENABLED', default=False, cast=bool)
+
 # --- 10. EMAIL BACKEND ---
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='')
