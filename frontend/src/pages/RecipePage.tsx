@@ -116,7 +116,10 @@ export const RecipePage = () => {
         })()}
 
         <header className="mb-16 text-left">
-          <Badge variant="emerald">Recept</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="emerald">Recept</Badge>
+            {recipe.source_url && <Badge variant="emerald">Ověřený recept</Badge>}
+          </div>
           <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9] mt-6">
             {recipe.name}<span className="text-emerald-500 not-italic">.</span>
           </h1>
@@ -141,6 +144,21 @@ export const RecipePage = () => {
               </div>
             )}
           </div>
+
+          {recipe.source_url && recipe.source_name && (
+            <p className="text-zinc-400 text-xs mt-6">
+              Inspirováno receptem z{' '}
+              <a
+                href={recipe.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-2 font-semibold"
+              >
+                {recipe.source_name}
+              </a>
+              {recipe.source_author ? ` (${recipe.source_author})` : ''}.
+            </p>
+          )}
         </header>
 
         <div className="grid md:grid-cols-3 gap-10">
