@@ -38,6 +38,10 @@
   is_pantry_staple: true
   estimated_price_czk: 25.0
   estimated_price_eur: 1.00
+  aliases:
+    - { alias: "cukr krupice", language_code: cs }
+    - { alias: "krupicový cukr", language_code: cs }
+    - { alias: "cukr krystal", language_code: cs }
 
 - name: plain flour
   name_cs: mouka hladká
@@ -46,6 +50,9 @@
   is_pantry_staple: true
   estimated_price_czk: 20.0
   estimated_price_eur: 0.80
+  aliases:
+    - { alias: "hrubá mouka", language_code: cs }
+    - { alias: "polohrubá mouka", language_code: cs }
 
 - name: olive oil
   name_cs: olivový olej
@@ -62,6 +69,9 @@
   is_pantry_staple: true
   estimated_price_czk: 50.0
   estimated_price_eur: 2.00
+  aliases:
+    - { alias: "olej", language_code: cs }
+    - { alias: "rostlinný olej", language_code: cs }
 
 - name: butter
   name_cs: máslo
@@ -75,6 +85,11 @@
   category: meat
   default_unit: g
   typical_package_sizes: [500, 1000]
+  aliases:
+    - { alias: "kuřecí maso", language_code: cs }
+    - { alias: "kuřecí", language_code: cs }
+    - { alias: "kuřecí prsíčka", language_code: cs }
+    - { alias: "kuřecí řízek", language_code: cs }
 
 - name: chicken thigh
   name_cs: kuřecí stehna
@@ -96,6 +111,9 @@
   category: fish
   default_unit: g
   typical_package_sizes: [200, 400]
+  aliases:
+    - { alias: "losos", language_code: cs }
+    - { alias: "losos čerstvý", language_code: cs }
 
 - name: tuna canned
   name_cs: tuňák v konzervě
@@ -133,12 +151,19 @@
   name_cs: tvaroh
   category: dairy
   default_unit: g
+  aliases:
+    - { alias: "měkký tvaroh", language_code: cs }
+    - { alias: "tvrdý tvaroh", language_code: cs }
 
 - name: rice basmati
   name_cs: rýže basmati
   category: grains
   default_unit: g
   typical_package_sizes: [500, 1000]
+  aliases:
+    - { alias: "rýže", language_code: cs }
+    - { alias: "rýže dlouhozrnná", language_code: cs }
+    - { alias: "rýže kulatozrnná", language_code: cs }
 
 - name: rice jasmine
   name_cs: rýže jasmínová
@@ -172,6 +197,12 @@
   name_cs: rajčata
   category: vegetables
   default_unit: g
+  aliases:
+    - { alias: "rajče", language_code: cs }
+    - { alias: "cherry rajčata", language_code: cs }
+    - { alias: "rajčata krájená", language_code: cs }
+    - { alias: "drcená rajčata", language_code: cs }
+    - { alias: "loupaná rajčata", language_code: cs }
 
 - name: cucumber
   name_cs: okurka
@@ -182,6 +213,11 @@
   name_cs: paprika
   category: vegetables
   default_unit: ks
+  aliases:
+    - { alias: "červená paprika", language_code: cs }
+    - { alias: "žlutá paprika", language_code: cs }
+    - { alias: "zelená paprika", language_code: cs }
+    - { alias: "paprika kapie", language_code: cs }
 
 - name: spinach
   name_cs: špenát
@@ -202,6 +238,8 @@
   name_cs: brambory
   category: vegetables
   default_unit: g
+  aliases:
+    - { alias: "brambor", language_code: cs }
 
 - name: onion
   name_cs: cibule
@@ -210,6 +248,11 @@
   is_pantry_staple: true
   estimated_price_czk: 5.0
   estimated_price_eur: 0.20
+  aliases:
+    - { alias: "žlutá cibule", language_code: cs }
+    - { alias: "bílá cibule", language_code: cs }
+    - { alias: "červená cibule", language_code: cs }
+    - { alias: "kuchyňská cibule", language_code: cs }
 
 - name: garlic
   name_cs: česnek
@@ -233,6 +276,10 @@
   name_cs: citrony
   category: fruits
   default_unit: ks
+  aliases:
+    - { alias: "citron", language_code: cs }
+    - { alias: "citronová šťáva", language_code: cs }
+    - { alias: "citronová kůra", language_code: cs }
 
 - name: avocado
   name_cs: avokádo
@@ -264,3 +311,547 @@
   is_pantry_staple: true
   estimated_price_czk: 60.0
   estimated_price_eur: 2.50
+
+# ---------------------------------------------------------------------------
+# Recipe-grounding expansion (B0 pilot, 2026-06-12).
+# Fresh/perishable + common international ingredients the curated real-recipe
+# corpus needs, plus a handful of missing pantry staples. Aliases absorb the
+# singular/plural and synonym variants the rewrite step emits; the resolver
+# also strips prep/quality descriptors and is word-order independent, so we
+# only need one alias per genuinely distinct surface form.
+# ---------------------------------------------------------------------------
+
+# --- Dairy & cheese ---
+- name: mozzarella
+  name_cs: mozzarella
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "mozarella", language_code: cs }
+
+- name: parmesan
+  name_cs: parmazán
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "parmezán", language_code: cs }
+    - { alias: "tvrdý sýr", language_code: cs }
+    - { alias: "strouhaný sýr", language_code: cs }
+
+- name: cheese
+  name_cs: sýr
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "eidam", language_code: cs }
+    - { alias: "gouda", language_code: cs }
+    - { alias: "plátkový sýr", language_code: cs }
+
+- name: feta cheese
+  name_cs: sýr feta
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "feta", language_code: cs }
+    - { alias: "balkánský sýr", language_code: cs }
+
+- name: cream
+  name_cs: smetana
+  category: dairy
+  default_unit: ml
+  aliases:
+    - { alias: "smetana ke šlehání", language_code: cs }
+    - { alias: "smetana na vaření", language_code: cs }
+    - { alias: "šlehačka", language_code: cs }
+
+- name: sour cream
+  name_cs: zakysaná smetana
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "kysaná smetana", language_code: cs }
+
+# --- Meat ---
+- name: beef
+  name_cs: hovězí maso
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "hovězí", language_code: cs }
+    - { alias: "hovězí zadní", language_code: cs }
+    - { alias: "hovězí kližka", language_code: cs }
+    - { alias: "hovězí přední", language_code: cs }
+
+- name: pork
+  name_cs: vepřové maso
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "vepřové", language_code: cs }
+    - { alias: "vepřová krkovice", language_code: cs }
+    - { alias: "vepřová kýta", language_code: cs }
+    - { alias: "vepřový bok", language_code: cs }
+
+- name: bacon
+  name_cs: slanina
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "anglická slanina", language_code: cs }
+    - { alias: "uzená slanina", language_code: cs }
+
+- name: ham
+  name_cs: šunka
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "dušená šunka", language_code: cs }
+
+- name: lard
+  name_cs: sádlo
+  category: oils
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 40.0
+  estimated_price_eur: 1.60
+  aliases:
+    - { alias: "vepřové sádlo", language_code: cs }
+
+# --- Vegetables ---
+- name: spring onion
+  name_cs: jarní cibulka
+  category: vegetables
+  default_unit: ks
+  aliases:
+    - { alias: "jarní cibule", language_code: cs }
+    - { alias: "mladá cibulka", language_code: cs }
+
+- name: zucchini
+  name_cs: cuketa
+  category: vegetables
+  default_unit: ks
+
+- name: eggplant
+  name_cs: lilek
+  category: vegetables
+  default_unit: ks
+  aliases:
+    - { alias: "baklažán", language_code: cs }
+
+- name: mushrooms
+  name_cs: žampiony
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "houby", language_code: cs }
+    - { alias: "hřiby", language_code: cs }
+
+- name: celery root
+  name_cs: celer
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "bulvový celer", language_code: cs }
+    - { alias: "řapíkatý celer", language_code: cs }
+    - { alias: "kořenová zelenina", language_code: cs }
+
+- name: parsley
+  name_cs: petrželka
+  category: vegetables
+  default_unit: svazek
+  aliases:
+    - { alias: "petržel", language_code: cs }
+    - { alias: "plocholistá petrželka", language_code: cs }
+    - { alias: "hladkolistá petrželka", language_code: cs }
+    - { alias: "nať petržele", language_code: cs }
+    - { alias: "bylinky", language_code: cs }
+
+- name: lettuce
+  name_cs: hlávkový salát
+  category: vegetables
+  default_unit: ks
+  aliases:
+    - { alias: "salát", language_code: cs }
+    - { alias: "ledový salát", language_code: cs }
+    - { alias: "římský salát", language_code: cs }
+
+- name: arugula
+  name_cs: rukola
+  category: vegetables
+  default_unit: g
+
+- name: cabbage
+  name_cs: zelí
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "bílé zelí", language_code: cs }
+    - { alias: "hlávkové zelí", language_code: cs }
+
+- name: kale
+  name_cs: kapusta
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "kadeřávek", language_code: cs }
+    - { alias: "kapusta kadeřavá", language_code: cs }
+
+- name: peas
+  name_cs: hrášek
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "zelený hrášek", language_code: cs }
+    - { alias: "mražený hrášek", language_code: cs }
+    - { alias: "sterilovaný hrášek", language_code: cs }
+
+- name: snap peas
+  name_cs: cukrový hrášek
+  category: vegetables
+  default_unit: g
+
+- name: chili pepper
+  name_cs: chilli paprička
+  category: vegetables
+  default_unit: ks
+  aliases:
+    - { alias: "chilli papričky", language_code: cs }
+    - { alias: "feferonka", language_code: cs }
+    - { alias: "jalapeño", language_code: cs }
+    - { alias: "jalapeño paprička", language_code: cs }
+    - { alias: "thajská chilli", language_code: cs }
+
+- name: ginger
+  name_cs: zázvor
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "zázvor čerstvý", language_code: cs }
+
+- name: sweet potato
+  name_cs: batáty
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "batát", language_code: cs }
+    - { alias: "sladké brambory", language_code: cs }
+
+# --- Canned / preserved ---
+- name: corn
+  name_cs: kukuřice
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "kukuřice sladká", language_code: cs }
+    - { alias: "kukuřice z konzervy", language_code: cs }
+
+- name: pickles
+  name_cs: nakládané okurky
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "kyselé okurky", language_code: cs }
+    - { alias: "kvašáky", language_code: cs }
+
+- name: olives
+  name_cs: olivy
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "kalamata", language_code: cs }
+    - { alias: "olivy kalamata", language_code: cs }
+    - { alias: "černé olivy", language_code: cs }
+    - { alias: "zelené olivy", language_code: cs }
+
+- name: sauerkraut
+  name_cs: kysané zelí
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "kyselé zelí", language_code: cs }
+
+- name: coconut milk
+  name_cs: kokosové mléko
+  category: canned
+  default_unit: ml
+  aliases:
+    - { alias: "plnotučné kokosové mléko", language_code: cs }
+
+- name: chopped tomatoes canned
+  name_cs: konzervovaná rajčata
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "rajčata z konzervy", language_code: cs }
+    - { alias: "rajčata z plechovky", language_code: cs }
+
+# --- Fruits ---
+- name: lime
+  name_cs: limetka
+  category: fruits
+  default_unit: ks
+  aliases:
+    - { alias: "limetková šťáva", language_code: cs }
+
+- name: raspberries
+  name_cs: maliny
+  category: fruits
+  default_unit: g
+
+- name: blueberries
+  name_cs: borůvky
+  category: fruits
+  default_unit: g
+
+- name: cranberries
+  name_cs: brusinky
+  category: fruits
+  default_unit: g
+  aliases:
+    - { alias: "sušené brusinky", language_code: cs }
+
+# --- Grains ---
+- name: pasta
+  name_cs: těstoviny
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "fusilli", language_code: cs }
+    - { alias: "kolínka", language_code: cs }
+    - { alias: "vřetena", language_code: cs }
+
+- name: tortilla
+  name_cs: tortilly
+  category: grains
+  default_unit: ks
+  aliases:
+    - { alias: "tortilla", language_code: cs }
+    - { alias: "pšeničná tortilla", language_code: cs }
+
+- name: pita bread
+  name_cs: pita chléb
+  category: grains
+  default_unit: ks
+  aliases:
+    - { alias: "pita", language_code: cs }
+    - { alias: "pita chleba", language_code: cs }
+
+- name: breadcrumbs
+  name_cs: strouhanka
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 20.0
+  estimated_price_eur: 0.80
+  aliases:
+    - { alias: "italská strouhanka", language_code: cs }
+
+# --- Legumes ---
+- name: lentils
+  name_cs: čočka
+  category: legumes
+  default_unit: g
+  aliases:
+    - { alias: "červená čočka", language_code: cs }
+    - { alias: "zelená čočka", language_code: cs }
+    - { alias: "hnědá čočka", language_code: cs }
+
+- name: chickpeas
+  name_cs: cizrna
+  category: legumes
+  default_unit: g
+  aliases:
+    - { alias: "sušená cizrna", language_code: cs }
+    - { alias: "vařená cizrna", language_code: cs }
+
+- name: beans
+  name_cs: fazole
+  category: legumes
+  default_unit: g
+  aliases:
+    - { alias: "bílé fazole", language_code: cs }
+    - { alias: "červené fazole", language_code: cs }
+
+- name: tofu
+  name_cs: tofu
+  category: legumes
+  default_unit: g
+  aliases:
+    - { alias: "pevné tofu", language_code: cs }
+    - { alias: "uzené tofu", language_code: cs }
+
+- name: tempeh
+  name_cs: tempeh
+  category: legumes
+  default_unit: g
+
+# --- Nuts & seeds ---
+- name: cashews
+  name_cs: kešu ořechy
+  category: nuts
+  default_unit: g
+  aliases:
+    - { alias: "kešu", language_code: cs }
+    - { alias: "kešu oříšky", language_code: cs }
+
+- name: sesame seeds
+  name_cs: sezamová semínka
+  category: nuts
+  default_unit: g
+  aliases:
+    - { alias: "sezam", language_code: cs }
+    - { alias: "sezamové semínko", language_code: cs }
+
+- name: chia seeds
+  name_cs: chia semínka
+  category: nuts
+  default_unit: g
+  aliases:
+    - { alias: "chia", language_code: cs }
+
+# --- Condiments & sauces ---
+- name: vinegar
+  name_cs: ocet
+  category: condiments
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 20.0
+  estimated_price_eur: 0.80
+  aliases:
+    - { alias: "kvasný ocet", language_code: cs }
+    - { alias: "lihový ocet", language_code: cs }
+    - { alias: "kvasný lihový ocet", language_code: cs }
+    - { alias: "červený vinný ocet", language_code: cs }
+    - { alias: "vinný ocet", language_code: cs }
+
+- name: tomato sauce
+  name_cs: rajčatová omáčka
+  category: condiments
+  default_unit: g
+  aliases:
+    - { alias: "marinara omáčka", language_code: cs }
+    - { alias: "marinara", language_code: cs }
+    - { alias: "passata", language_code: cs }
+
+- name: salsa
+  name_cs: salsa
+  category: condiments
+  default_unit: g
+
+- name: tahini
+  name_cs: tahini
+  category: condiments
+  default_unit: g
+  aliases:
+    - { alias: "tahini omáčka", language_code: cs }
+    - { alias: "sezamová pasta", language_code: cs }
+
+- name: green curry paste
+  name_cs: kari pasta
+  category: condiments
+  default_unit: g
+  aliases:
+    - { alias: "thajská zelená kari pasta", language_code: cs }
+    - { alias: "červená kari pasta", language_code: cs }
+
+- name: mayonnaise
+  name_cs: majonéza
+  category: condiments
+  default_unit: g
+
+- name: jam
+  name_cs: marmeláda
+  category: condiments
+  default_unit: g
+  aliases:
+    - { alias: "džem", language_code: cs }
+
+- name: tamari
+  name_cs: tamari
+  category: condiments
+  default_unit: ml
+  aliases:
+    - { alias: "tamari omáčka", language_code: cs }
+
+- name: vegetable stock
+  name_cs: zeleninový vývar
+  category: condiments
+  default_unit: ml
+  aliases:
+    - { alias: "zeleninový bujón", language_code: cs }
+
+- name: chicken stock
+  name_cs: kuřecí vývar
+  category: condiments
+  default_unit: ml
+  aliases:
+    - { alias: "kuřecí bujón", language_code: cs }
+
+- name: beef stock
+  name_cs: hovězí vývar
+  category: condiments
+  default_unit: ml
+  aliases:
+    - { alias: "hovězí bujón", language_code: cs }
+
+# --- Spices & seasonings (pantry staples) ---
+- name: allspice
+  name_cs: nové koření
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+
+- name: marjoram
+  name_cs: majoránka
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+
+- name: cloves
+  name_cs: hřebíček
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+
+- name: chives
+  name_cs: pažitka
+  category: spices
+  default_unit: svazek
+  aliases:
+    - { alias: "čerstvá pažitka", language_code: cs }
+
+- name: dill
+  name_cs: kopr
+  category: spices
+  default_unit: svazek
+  aliases:
+    - { alias: "čerstvý kopr", language_code: cs }
+
+- name: soup seasoning
+  name_cs: polévkové koření
+  category: spices
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 30.0
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "maggi", language_code: cs }
+
+# --- Other ---
+- name: water
+  name_cs: voda
+  category: beverages
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 0.0
+  estimated_price_eur: 0.0
+  aliases:
+    - { alias: "ledová voda", language_code: cs }
+    - { alias: "vlažná voda", language_code: cs }
+    - { alias: "horká voda", language_code: cs }
