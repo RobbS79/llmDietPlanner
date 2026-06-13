@@ -165,3 +165,94 @@ def _split_sentences(text: str) -> list[str]:
     if buf:
         out.append("".join(buf))
     return out
+
+
+# Per-tag prefixes that mark an otherwise-forbidden token as legitimate.
+# Substring match, case-folded. Order doesn't matter; presence does.
+COMPLIANCE_MODIFIERS: dict[str, tuple[str, ...]] = {
+    "gluten_free":  ("bezlepk", "gluten-free", "gluten free", " gf "),
+    "lactose_free": ("bezlaktóz", "lactose-free", "lactose free"),
+    "dairy_free":   ("bez mlék", "dairy-free", "dairy free"),
+    "vegan":        ("veganské", "veganská", "veganský", "vegan"),
+    "vegetarian":   ("vegetariánsk",),
+}
+
+
+@dataclass(frozen=True)
+class Violation:
+    meal_key: str             # 'day_2.lunch' set by caller; '' from validator
+    matched_keyword: str
+    matched_in: str           # 'ingredients' | 'instructions'
+    ingredient_name: str | None
+    source_text: str          # the offending string for debug
+
+
+def validate_meal_against_exclusions(
+    meal: dict,
+    exclusion_keywords: frozenset[str],
+    *,
+    meal_key: str = "",
+) -> list[Violation]:
+    """Scan a meal dict for any forbidden keyword.
+
+    A keyword is suppressed if the string under inspection contains a
+    compliance modifier for ANY supported tag at any position before the
+    keyword. Substring match, case-folded.
+    """
+    if not exclusion_keywords:
+        return []
+
+    violations: list[Violation] = []
+
+    for ing in meal.get("ingredients", []) or []:
+        name = (ing.get("name") if isinstance(ing, dict) else "") or ""
+        text = name.lower()
+        for kw in exclusion_keywords:
+            if kw not in text:
+                continue
+            if _is_compliance_modified(text, kw):
+                continue
+            violations.append(
+                Violation(
+                    meal_key=meal_key,
+                    matched_keyword=kw,
+                    matched_in="ingredients",
+                    ingredient_name=name,
+                    source_text=name,
+                )
+            )
+
+    for line in meal.get("instructions", []) or []:
+        if not isinstance(line, str):
+            continue
+        text = line.lower()
+        for kw in exclusion_keywords:
+            if kw not in text:
+                continue
+            if _is_compliance_modified(text, kw):
+                continue
+            violations.append(
+                Violation(
+                    meal_key=meal_key,
+                    matched_keyword=kw,
+                    matched_in="instructions",
+                    ingredient_name=None,
+                    source_text=line,
+                )
+            )
+
+    return violations
+
+
+def _is_compliance_modified(text_lower: str, keyword: str) -> bool:
+    """True iff some compliance modifier appears in `text_lower` before
+    `keyword`. Uses the first occurrence of `keyword`."""
+    kw_pos = text_lower.find(keyword)
+    if kw_pos < 0:
+        return False
+    head = text_lower[:kw_pos]
+    for mods in COMPLIANCE_MODIFIERS.values():
+        for m in mods:
+            if m in head:
+                return True
+    return False

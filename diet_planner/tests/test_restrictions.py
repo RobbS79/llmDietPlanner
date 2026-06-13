@@ -87,3 +87,73 @@ class TestRestrictionResolverFreeform:
             _goal(prompt="Allergic to xylophone")
         )
         assert result.freeform_allergens == frozenset()
+
+
+from diet_planner.services.restrictions import (
+    COMPLIANCE_MODIFIERS,
+    Violation,
+    validate_meal_against_exclusions,
+)
+
+
+def _meal(name="Test meal", ingredients=None, instructions=None):
+    return {
+        "name": name,
+        "ingredients": ingredients or [],
+        "instructions": instructions or [],
+    }
+
+
+class TestValidator:
+    def test_compliant_meal_has_no_violations(self):
+        meal = _meal(
+            ingredients=[{"name": "kuřecí prsa", "quantity": 200, "unit": "g"}],
+            instructions=["Osol kuře a opeč."],
+        )
+        violations = validate_meal_against_exclusions(meal, frozenset({"mouka", "flour"}))
+        assert violations == []
+
+    def test_flour_in_ingredients_is_flagged(self):
+        meal = _meal(
+            ingredients=[{"name": "pšeničná mouka", "quantity": 100, "unit": "g"}],
+        )
+        violations = validate_meal_against_exclusions(meal, frozenset({"mouka"}))
+        assert len(violations) == 1
+        assert violations[0].matched_keyword == "mouka"
+        assert violations[0].matched_in == "ingredients"
+
+    def test_flour_in_instructions_is_flagged(self):
+        meal = _meal(
+            ingredients=[{"name": "máslo", "quantity": 50, "unit": "g"}],
+            instructions=["Smíchej s moukou."],
+        )
+        violations = validate_meal_against_exclusions(meal, frozenset({"mouk"}))
+        assert len(violations) == 1
+        assert violations[0].matched_in == "instructions"
+
+    def test_compliance_modifier_suppresses_match(self):
+        # 'bezlepková mouka' contains 'mouka' but the bezlepk- modifier
+        # legitimises it — no violation.
+        meal = _meal(
+            ingredients=[{"name": "bezlepková mouka", "quantity": 100, "unit": "g"}],
+        )
+        violations = validate_meal_against_exclusions(meal, frozenset({"mouka"}))
+        assert violations == []
+
+    def test_compliance_modifier_only_suppresses_for_modified_token(self):
+        # 'bezlepková mouka, obyčejná mouka' — second one MUST still flag.
+        meal = _meal(
+            ingredients=[
+                {"name": "bezlepková mouka", "quantity": 100, "unit": "g"},
+                {"name": "obyčejná mouka", "quantity": 100, "unit": "g"},
+            ],
+        )
+        violations = validate_meal_against_exclusions(meal, frozenset({"mouka"}))
+        assert len(violations) == 1
+        assert violations[0].ingredient_name == "obyčejná mouka"
+
+    def test_compliance_modifiers_constant_exists(self):
+        # Smoke test: every supported tag has a modifier list.
+        for tag in ("gluten_free", "lactose_free", "vegan"):
+            assert tag in COMPLIANCE_MODIFIERS
+            assert len(COMPLIANCE_MODIFIERS[tag]) >= 1
