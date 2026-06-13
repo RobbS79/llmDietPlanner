@@ -533,113 +533,91 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
     
     def generate_shopping_list_with_prices(
         self,
-        meal_plan_days: List[Dict],
+        aggregated_items: List[Dict[str, Any]],
         shop_url: str,
         goal: Any,
-        model: Optional[str] = None
+        model: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Generate shopping list with prices based on meal plan.
-        This is the second call - separate to avoid token limits.
+        """Price-match a pre-aggregated shopping list against a shop catalog.
+
+        The aggregated list is the SOURCE OF TRUTH — Gemini must price every
+        item and may not drop or add anything. Parity with recipe ingredients
+        is guaranteed by the caller, not by Gemini.
         """
         model = model or self.default_model
-        
+
         language_names = {
-            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
-            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
-            'de': 'German', 'en': 'English',
+            "cs": "Czech", "sk": "Slovak", "pl": "Polish",
+            "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian",
+            "de": "German", "en": "English",
         }
-        target_language = language_names.get(getattr(goal, 'language_code', 'en') or 'en', 'English')
-        currency_map = {'CZ': 'CZK', 'SK': 'EUR', 'PL': 'PLN', 'HU': 'HUF'}
-        currency = currency_map.get(getattr(goal, 'country', 'CZ'), 'CZK')
-        
-        # Extract ingredients summary for prompt
-        import json as json_module
-        days_summary = json_module.dumps(meal_plan_days, ensure_ascii=False)[:5000]  # Limit prompt size
-        
-        system_prompt = f"""You are a shopping assistant. Create shopping list with prices from {shop_url}.
+        target_language = language_names.get(
+            getattr(goal, "language_code", "en") or "en", "English"
+        )
+        currency_map = {"CZ": "CZK", "SK": "EUR", "PL": "PLN", "HU": "HUF"}
+        currency = currency_map.get(getattr(goal, "country", "CZ"), "CZK")
 
-RESPONSE FORMAT: Valid JSON only, all text in {target_language}
+        system_prompt = (
+            f"You are a shopping assistant. Price each item below from {shop_url}.\n\n"
+            f"RESPONSE FORMAT: Valid JSON only, all text in {target_language}\n\n"
+            "OUTPUT:\n"
+            '{\n  "shopping_list": [\n'
+            '    {\n'
+            '      "ingredient": "name",\n'
+            '      "quantity": 500,\n'
+            '      "unit": "g",\n'
+            '      "matched_product_name": "actual product",\n'
+            '      "price": 89.90,\n'
+            '      "price_total": 89.90,\n'
+            f'      "currency": "{currency}",\n'
+            '      "package_size": 500,\n'
+            '      "product_unit": "g",\n'
+            '      "price_type": "REGULAR",\n'
+            '      "estimated": false\n'
+            '    }\n  ],\n  "total_cost": 2345.67\n}\n\n'
+            "RULES:\n"
+            f"1. Browse {shop_url} for ACTUAL prices\n"
+            "2. Convert weights to pieces when needed (200g avocado -> 2 pieces)\n"
+            "3. Round UP to purchasable packages (300ml oil -> 500ml bottle)\n"
+            "4. Mark estimated: true only if product not found\n"
+            "5. EVERY input item must appear in shopping_list — do not drop any."
+        )
 
-OUTPUT:
-{{
-  "shopping_list": [
-    {{
-      "ingredient": "name",
-      "quantity": 500,
-      "unit": "g",
-      "matched_product_name": "actual product from {shop_url}",
-      "price": 89.90,
-      "price_total": 89.90,
-      "currency": "{currency}",
-      "package_size": 500,
-      "product_unit": "g",
-      "price_type": "REGULAR",
-      "estimated": false
-    }}
-  ],
-  "total_cost": 2345.67
-}}
+        items_block = "\n".join(
+            f"- {it.get('ingredient', '')}: {it.get('quantity', '')} {it.get('unit', '')}"
+            for it in aggregated_items
+        )
+        prompt = (
+            f"Price every item below from {shop_url}.\n"
+            f"Input items ({len(aggregated_items)} total):\n{items_block}\n\n"
+            f"Return shopping_list with one entry per input item."
+        )
 
-RULES:
-1. Browse {shop_url} for ACTUAL prices
-2. Convert weights to pieces when needed (200g avocado → 2 pieces)
-3. Round UP to purchasable packages (300ml oil → 500ml bottle)
-4. Mark estimated: true only if product not found"""
-
-        prompt = f"""Based on this meal plan, create shopping list with prices from {shop_url}.
-
-Meal plan (summary):
-{days_summary}
-
-Browse {shop_url} and return complete shopping list with real prices."""
-
-        try:
-            gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
-            max_tokens = getattr(settings, 'GEMINI_MAX_OUTPUT_TOKENS', 65536)
-
-            response = gemini_model.generate_content(
-                prompt,
-                generation_config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.3,
-                    "max_output_tokens": max_tokens,
-                },
-                request_options={"timeout": 300}
-            )
-
-            if response.candidates and hasattr(response.candidates[0], 'finish_reason'):
-                finish_reason = response.candidates[0].finish_reason
-                if finish_reason.name == 'MAX_TOKENS':
-                    logger.error(f"Shopping list response truncated at {max_tokens} tokens")
-                    raise ValueError(f"Response truncated: output exceeded {max_tokens} tokens")
-
-            content = response.text
-            usage = response.usage_metadata
-
-            try:
-                parsed_response = json.loads(content)
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse shopping list JSON: {e}")
-                try:
-                    cleaned = re.sub(r',\s*}', '}', content)
-                    cleaned = re.sub(r',\s*]', ']', cleaned)
-                    parsed_response = json.loads(cleaned)
-                except json.JSONDecodeError:
-                    raise ValueError(f"Invalid JSON from shopping list generation: {e}")
-
-            return {
-                'response': parsed_response,
-                'input_tokens': usage.prompt_token_count,
-                'output_tokens': usage.candidates_token_count,
-                'total_tokens': usage.total_token_count,
-                'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
-                'model': model,
-            }
-
-        except Exception as e:
-            logger.error(f"Shopping list generation error: {e}", exc_info=True)
-            raise
+        gemini_model = genai.GenerativeModel(
+            model_name=model, system_instruction=system_prompt
+        )
+        max_tokens = getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536)
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config={
+                "response_mime_type": "application/json",
+                "temperature": 0.3,
+                "max_output_tokens": max_tokens,
+            },
+            request_options={"timeout": 300},
+        )
+        if response.candidates and hasattr(response.candidates[0], "finish_reason"):
+            finish = response.candidates[0].finish_reason
+            if finish.name == "MAX_TOKENS":
+                raise ValueError(f"Shopping list response truncated at {max_tokens} tokens")
+        parsed = json.loads(response.text)
+        usage = response.usage_metadata
+        return {
+            "response": parsed,
+            "input_tokens": getattr(usage, "prompt_token_count", 0),
+            "output_tokens": getattr(usage, "candidates_token_count", 0),
+            "cost_usd": 0.0,
+        }
     
     def generate_complete_plan_with_shopping_list(
         self,

@@ -177,3 +177,43 @@ class TestRegenerateMeal:
         assert "days" not in result
         assert result["name"] == "GF Risotto"
         assert all(i["name"] != "mouka" for i in result["ingredients"])
+
+
+class TestShoppingListUsesAggregatedList:
+    def test_user_prompt_lists_every_aggregated_item(self, monkeypatch):
+        svc = GeminiService()
+        captured = {}
+
+        class FakeModel:
+            def __init__(self, model_name, system_instruction):
+                captured["system_instruction"] = system_instruction
+            def generate_content(self, prompt, *a, **kw):
+                captured["prompt"] = prompt
+                resp = MagicMock()
+                resp.candidates = [MagicMock(finish_reason=MagicMock(name="OK"))]
+                resp.text = '{"shopping_list": [], "total_cost": 0}'
+                resp.usage_metadata = MagicMock(
+                    prompt_token_count=1, candidates_token_count=1
+                )
+                return resp
+
+        import diet_planner.llm_service as llm_mod
+        monkeypatch.setattr(llm_mod.genai, "GenerativeModel", FakeModel)
+
+        aggregated = [
+            {"ingredient": "rýže", "quantity": 200, "unit": "g"},
+            {"ingredient": "kuřecí prsa", "quantity": 800, "unit": "g"},
+            # 40 more items to ensure no [:5000] truncation drops them
+            *[
+                {"ingredient": f"item_{i}", "quantity": 10, "unit": "g"}
+                for i in range(40)
+            ],
+        ]
+        svc.generate_shopping_list_with_prices(
+            aggregated_items=aggregated,
+            shop_url="https://x.example",
+            goal=_goal(),
+        )
+        # Every aggregated item must appear verbatim in the user prompt
+        for item in aggregated:
+            assert item["ingredient"] in captured["prompt"]
