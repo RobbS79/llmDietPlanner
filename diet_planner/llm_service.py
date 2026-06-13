@@ -418,6 +418,46 @@ EXAMPLE INGREDIENT FORMAT:
             "  be REJECTED.\n\n"
         )
 
+    def regenerate_meal(
+        self,
+        original_meal: Dict[str, Any],
+        goal: Any,
+        exclusions: "ResolvedRestrictions",
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Re-prompt Gemini for ONE replacement meal that honors restrictions.
+
+        Returns a single meal dict (not wrapped in a days array). Used by the
+        repair loop when the validator finds a forbidden ingredient.
+        """
+        model = model or self.default_model
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal, exclusions=exclusions, shop_url=None, single_meal=True,
+        )
+        meal_brief = (
+            f"Slot: {original_meal.get('food_category', 'meal')}\n"
+            f"Replace this meal because it violated restrictions:\n"
+            f"  name: {original_meal.get('name', '?')}\n"
+            f"  ingredients: "
+            f"{[i.get('name') for i in (original_meal.get('ingredients') or []) if isinstance(i, dict)]}\n"
+            f"Produce a compliant replacement for the same slot."
+        )
+        gemini_model = genai.GenerativeModel(
+            model_name=model, system_instruction=system_prompt
+        )
+        response = gemini_model.generate_content(
+            meal_brief,
+            generation_config={
+                "response_mime_type": "application/json",
+                "temperature": 0.7,
+                "max_output_tokens": getattr(
+                    settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536
+                ),
+            },
+            request_options={"timeout": 120},
+        )
+        return json.loads(response.text)
+
     def generate_meal_plan_only(
         self,
         user_prompt: str,

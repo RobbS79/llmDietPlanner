@@ -132,3 +132,48 @@ class TestGenerateCatalogConstrainedPlanUsesExclusions:
         )
         assert "DIETARY RESTRICTIONS" in captured["system_instruction"]
         assert "kuřecí" in captured["system_instruction"]
+
+
+class TestRegenerateMeal:
+    def test_returns_single_meal_dict(self, monkeypatch):
+        svc = GeminiService()
+
+        class FakeModel:
+            def __init__(self, model_name, system_instruction):
+                self.system_instruction = system_instruction
+            def generate_content(self, *a, **kw):
+                resp = MagicMock()
+                resp.candidates = [MagicMock(finish_reason=MagicMock(name="OK"))]
+                resp.text = (
+                    '{"name": "GF Risotto", "description": "Compliant.",'
+                    '"food_category": "lunch_main_dish", "preparation_time": 20,'
+                    '"ingredients": [{"name": "rýže", "quantity": 100, "unit": "g"}],'
+                    '"instructions": ["Vař rýži."],'
+                    '"nutritional_info": {"calories": 350}}'
+                )
+                resp.usage_metadata = MagicMock(
+                    prompt_token_count=1, candidates_token_count=1
+                )
+                return resp
+
+        import diet_planner.llm_service as llm_mod
+        monkeypatch.setattr(llm_mod.genai, "GenerativeModel", FakeModel)
+
+        original = {
+            "name": "Wheat-based lunch",
+            "ingredients": [{"name": "mouka", "quantity": 100, "unit": "g"}],
+            "instructions": ["mix flour"],
+            "food_category": "lunch_main_dish",
+        }
+        exclusions = ResolvedRestrictions(
+            tags=frozenset({"gluten_free"}),
+            exclusion_keywords=frozenset({"mouka", "flour"}),
+            freeform_allergens=frozenset(),
+        )
+        result = svc.regenerate_meal(
+            original_meal=original, goal=_goal(), exclusions=exclusions,
+        )
+        # Must be a SINGLE meal dict, not a days envelope
+        assert "days" not in result
+        assert result["name"] == "GF Risotto"
+        assert all(i["name"] != "mouka" for i in result["ingredients"])
