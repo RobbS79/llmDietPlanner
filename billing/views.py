@@ -68,6 +68,10 @@ class CheckoutView(APIView):
             session = stripe.checkout.Session.create(
                 mode='subscription',
                 customer=customer_id,
+                # Force card explicitly instead of relying on dashboard-configured
+                # dynamic payment methods — a fresh account has none enabled for
+                # CZK, which fails with "No valid payment method types".
+                payment_method_types=['card'],
                 line_items=[{'price': price_id, 'quantity': 1}],
                 client_reference_id=str(request.user.id),
                 metadata={'user_id': str(request.user.id), 'tier': tier},
