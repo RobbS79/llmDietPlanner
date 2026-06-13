@@ -256,3 +256,67 @@ def _is_compliance_modified(text_lower: str, keyword: str) -> bool:
             if m in head:
                 return True
     return False
+
+
+# Map of (tag -> {forbidden_keyword -> compliant_replacement_phrase}).
+# Replacement phrases MUST include a COMPLIANCE_MODIFIERS[tag] prefix so the
+# validator does not re-flag them — the anti-rot test enforces this.
+DETERMINISTIC_SWAPS: dict[str, dict[str, str]] = {
+    "gluten_free": {
+        "mouka":      "bezlepková mouka",
+        "těstoviny":  "bezlepkové těstoviny",
+        "chléb":      "bezlepkový chléb",
+        "rohlík":     "bezlepkový rohlík",
+        "houska":     "bezlepková houska",
+        "pečivo":     "bezlepkové pečivo",
+        "flour":      "gluten-free flour",
+        "pasta":      "gluten-free pasta",
+        "bread":      "gluten-free bread",
+        "roll":       "gluten-free roll",
+    },
+    "lactose_free": {
+        "mléko":      "bezlaktózové mléko",
+        "smetana":    "bezlaktózová smetana",
+        "jogurt":     "bezlaktózový jogurt",
+        "tvaroh":     "bezlaktózový tvaroh",
+        "milk":       "lactose-free milk",
+        "cream":      "lactose-free cream",
+        "yogurt":     "lactose-free yogurt",
+    },
+    # vegan / vegetarian: no clean 1:1 swap (chicken -> ??). Re-prompt path.
+}
+
+
+def try_deterministic_swap(
+    meal: dict,
+    violation: Violation,
+    *,
+    tags: frozenset[str],
+) -> dict | None:
+    """Return a patched meal if a clean 1:1 swap applies, else None.
+
+    Only works for `ingredients[]` violations. Instruction violations
+    always go through the LLM re-prompt path — we won't rewrite prose.
+    """
+    if violation.matched_in != "ingredients":
+        return None
+    if violation.ingredient_name is None:
+        return None
+
+    for tag in tags:
+        mapping = DETERMINISTIC_SWAPS.get(tag)
+        if not mapping:
+            continue
+        replacement = mapping.get(violation.matched_keyword)
+        if not replacement:
+            continue
+        patched = dict(meal)
+        patched["ingredients"] = [
+            ({**ing, "name": replacement}
+             if isinstance(ing, dict) and ing.get("name") == violation.ingredient_name
+             else ing)
+            for ing in (meal.get("ingredients") or [])
+        ]
+        return patched
+
+    return None
