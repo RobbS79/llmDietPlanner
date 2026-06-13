@@ -62,3 +62,73 @@ class TestBuildMealSystemPrompt:
         )
         # In single-meal mode we expect a single meal object, not a days array
         assert "days" not in prompt.lower() or "single meal" in prompt.lower()
+
+
+class TestGenerateMealPlanOnlyUsesExclusions:
+    def test_passes_restriction_block_via_system_instruction(self, monkeypatch):
+        svc = GeminiService()
+        captured = {}
+
+        class FakeModel:
+            def __init__(self, model_name, system_instruction):
+                captured["system_instruction"] = system_instruction
+            def generate_content(self, *a, **kw):
+                resp = MagicMock()
+                resp.candidates = [MagicMock(finish_reason=MagicMock(name="OK"))]
+                resp.text = '{"days": []}'
+                resp.usage_metadata = MagicMock(
+                    prompt_token_count=1, candidates_token_count=1
+                )
+                return resp
+
+        import diet_planner.llm_service as llm_mod
+        monkeypatch.setattr(llm_mod.genai, "GenerativeModel", FakeModel)
+
+        exclusions = ResolvedRestrictions(
+            tags=frozenset({"gluten_free"}),
+            exclusion_keywords=frozenset({"mouka", "flour"}),
+            freeform_allergens=frozenset(),
+        )
+        svc.generate_meal_plan_only(
+            user_prompt="bezlepkový týden",
+            shop_url="https://x.example",
+            goal=_goal(),
+            exclusions=exclusions,
+        )
+        assert "DIETARY RESTRICTIONS" in captured["system_instruction"]
+        assert "mouka" in captured["system_instruction"]
+
+
+class TestGenerateCatalogConstrainedPlanUsesExclusions:
+    def test_passes_restriction_block_via_system_instruction(self, monkeypatch):
+        svc = GeminiService()
+        captured = {}
+
+        class FakeModel:
+            def __init__(self, model_name, system_instruction):
+                captured["system_instruction"] = system_instruction
+            def generate_content(self, *a, **kw):
+                resp = MagicMock()
+                resp.candidates = [MagicMock(finish_reason=MagicMock(name="OK"))]
+                resp.text = '{"days": []}'
+                resp.usage_metadata = MagicMock(
+                    prompt_token_count=1, candidates_token_count=1
+                )
+                return resp
+
+        import diet_planner.llm_service as llm_mod
+        monkeypatch.setattr(llm_mod.genai, "GenerativeModel", FakeModel)
+
+        exclusions = ResolvedRestrictions(
+            tags=frozenset({"vegan"}),
+            exclusion_keywords=frozenset({"kuřecí", "chicken"}),
+            freeform_allergens=frozenset(),
+        )
+        svc.generate_catalog_constrained_plan(
+            user_prompt="vegan",
+            catalog_text="#1 rice\n#2 beans",
+            goal=_goal(),
+            exclusions=exclusions,
+        )
+        assert "DIETARY RESTRICTIONS" in captured["system_instruction"]
+        assert "kuřecí" in captured["system_instruction"]

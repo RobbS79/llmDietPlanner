@@ -423,76 +423,21 @@ EXAMPLE INGREDIENT FORMAT:
         user_prompt: str,
         shop_url: str,
         goal: Any,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        exclusions: "Optional[ResolvedRestrictions]" = None,
     ) -> Dict[str, Any]:
         """
         Generate meal plan ONLY (no shopping list) to avoid token limits.
         This is the first call in a two-step process.
         """
         model = model or self.default_model
-        
-        # Language and currency setup
-        language_names = {
-            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
-            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
-            'de': 'German', 'en': 'English',
-        }
-        target_language = language_names.get(getattr(goal, 'language_code', 'en') or 'en', 'English')
-        
-        currency_map = {'CZ': 'CZK', 'SK': 'EUR', 'PL': 'PLN', 'HU': 'HUF'}
-        country = getattr(goal, 'country', 'CZ')
-        currency = currency_map.get(country, 'CZK')
-        
-        system_prompt = f"""You are a nutrition expert creating meal plans.
 
-RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}
-
-TASK:
-1. Browse {shop_url} to see available products
-2. Create meal plan with recipes (step-by-step instructions)
-3. DO NOT generate shopping list - that will be done separately
-
-OUTPUT STRUCTURE:
-{{
-  "days": [
-    {{
-      "day_number": 1,
-      "breakfast": {{
-        "name": "meal name",
-        "description": "brief 1 sentence",
-        "food_category": "one of the allowed slugs below",
-        "preparation_time": 15,
-        "ingredients": [{{"name": "ingredient", "quantity": 200, "unit": "g"}}],
-        "instructions": ["Step 1", "Step 2", "Step 3"],
-        "nutritional_info": {{"calories": 450, "protein": "30g", "carbs": "25g", "fat": "20g"}}
-      }},
-      "lunch": {{...}},
-      "dinner": {{...}},
-      "small_meals": [{{...}}],
-      "snacks": [{{...}}]
-    }}
-  ]
-}}
-
-FOOD_CATEGORY must be exactly one of: {', '.join(CATEGORY_SLUGS)}
-
-CRITICAL RULES:
-- Keep instructions VERY BRIEF: 3 steps maximum per meal
-- Keep descriptions to 1 sentence
-- Browse {shop_url} for context but don't list prices
-- {getattr(goal, 'num_days', 7)} days total
-
-INGREDIENT CONSISTENCY (production-critical, do not violate):
-- The `ingredients[]` array MUST list ONLY raw items the user has to buy
-  fresh at the store for THIS meal. It is the shopping basket for the meal.
-- NEVER list an ingredient in `ingredients[]` if the `description` or
-  `instructions` say the item is "already prepared", "already cooked",
-  "leftover", "from yesterday", "from the previous day/meal", or
-  "pre-cooked" (in ANY language). Either omit it entirely OR keep it and
-  rewrite the description so it no longer claims the item is pre-prepared.
-- A meal that reuses a leftover from another day MUST exclude that
-  leftover from `ingredients[]`. The user already has it; charging them
-  for it again is a bug, not a feature."""
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal,
+            exclusions=exclusions,
+            shop_url=shop_url,
+            single_meal=False,
+        )
 
         full_prompt = f"""{user_prompt}
 
@@ -1541,6 +1486,7 @@ Only emit a slug from the candidate list. Use null when nothing fits.
         catalog_text: str,
         goal: Any,
         model: Optional[str] = None,
+        exclusions: "Optional[ResolvedRestrictions]" = None,
     ) -> Dict[str, Any]:
         """
         Generate a meal plan constrained to a real product catalog.
@@ -1560,61 +1506,12 @@ Only emit a slug from the candidate list. Use null when nothing fits.
         """
         model = model or self.default_model
 
-        language_names = {
-            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
-            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
-            'de': 'German', 'en': 'English',
-        }
-        target_language = language_names.get(
-            getattr(goal, 'language_code', 'en') or 'en', 'English'
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal,
+            exclusions=exclusions,
+            catalog_text=catalog_text,
+            single_meal=False,
         )
-
-        system_prompt = f"""You are a nutrition expert creating meal plans.
-
-RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.
-
-CRITICAL CONSTRAINT: You MUST use ONLY ingredients from the AVAILABLE PRODUCTS
-list below, plus items from PANTRY STAPLES. Do NOT invent ingredients that are
-not in either list.
-
-For each ingredient, include "catalog_id" — the # number from the product list.
-For pantry staples, set "catalog_id": null and "pantry": true.
-
-AVAILABLE PRODUCTS:
-{catalog_text}
-
-OUTPUT STRUCTURE:
-{{
-  "days": [
-    {{
-      "day_number": 1,
-      "breakfast": {{
-        "name": "meal name",
-        "description": "brief 1 sentence",
-        "food_category": "one of: {', '.join(CATEGORY_SLUGS)}",
-        "preparation_time": 15,
-        "ingredients": [
-          {{"name": "kuřecí prsa", "catalog_id": 42, "quantity": 200, "unit": "g"}},
-          {{"name": "sůl", "catalog_id": null, "quantity": 5, "unit": "g", "pantry": true}}
-        ],
-        "instructions": ["Step 1", "Step 2", "Step 3"],
-        "nutritional_info": {{"calories": 450, "protein": "30g", "carbs": "25g", "fat": "20g"}}
-      }},
-      "lunch": {{...}},
-      "dinner": {{...}},
-      "small_meals": [{{...}}],
-      "snacks": [{{...}}]
-    }}
-  ]
-}}
-
-RULES:
-- {getattr(goal, 'num_days', 7)} days total
-- Keep instructions BRIEF: 3 steps max per meal
-- Keep descriptions to 1 sentence
-- Ensure variety across days — do not repeat the same meal
-- Every ingredient MUST reference a product # from the list or be a pantry staple
-- DO NOT generate a shopping list or prices — the system handles that"""
 
         full_prompt = f"""{user_prompt}
 
