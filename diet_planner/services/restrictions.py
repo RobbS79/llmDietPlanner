@@ -16,6 +16,64 @@ if TYPE_CHECKING:
     from diet_planner.models import DietaryGoal
 
 
+# Same shape as recipe_retrieval._DIETARY_KEYWORDS but consolidated here so
+# the catalog filter, the validator, and recipe retrieval can't drift apart.
+# Substring match, case-folded, Czech + English.
+_TAG_KEYWORDS: dict[str, str] = {
+    "vegan": "vegan", "vegán": "vegan", "rostlinn": "vegan",
+    "vegetari": "vegetarian", "bezmas": "vegetarian",
+    "gluten": "gluten_free", "lepk": "gluten_free", "bezlepk": "gluten_free",
+    "celiak": "gluten_free",
+    "lakt": "lactose_free", "lactose": "lactose_free",
+    "dairy": "lactose_free", "bez mlék": "lactose_free", "mléčn": "lactose_free",
+}
+
+# Fixed allergen vocabulary. Each entry maps a recognised phrasing fragment
+# to (canonical_allergen, ingredient_keywords_to_block). We deliberately keep
+# this small and explicit — this is NOT a general NLU.
+_ALLERGEN_VOCAB: dict[str, tuple[str, tuple[str, ...]]] = {
+    # peanuts
+    "arašíd":   ("peanut", ("arašíd", "peanut")),
+    "burský":   ("peanut", ("arašíd", "peanut")),
+    "peanut":   ("peanut", ("arašíd", "peanut")),
+    # tree nuts
+    "ořech":    ("nuts", ("ořech", "nut", "mandle", "almond", "kešu", "cashew")),
+    "nut":      ("nuts", ("ořech", "nut", "mandle", "almond", "kešu", "cashew")),
+    "mandle":   ("nuts", ("ořech", "nut", "mandle", "almond")),
+    "almond":   ("nuts", ("ořech", "nut", "mandle", "almond")),
+    # soy
+    "sója":     ("soy", ("sója", "soja", "soy", "tofu")),
+    "soja":     ("soy", ("sója", "soja", "soy", "tofu")),
+    "soy":      ("soy", ("sója", "soja", "soy", "tofu")),
+    # sesame
+    "sezam":    ("sesame", ("sezam", "sesame", "tahini")),
+    "sesame":   ("sesame", ("sezam", "sesame", "tahini")),
+    # eggs (separate from dairy/lactose)
+    "vejce":    ("egg", ("vejce", "vajíčk", "egg")),
+    "vajíčk":   ("egg", ("vejce", "vajíčk", "egg")),
+    "egg":      ("egg", ("vejce", "vajíčk", "egg")),
+    # shellfish / fish
+    "krevet":   ("shellfish", ("krevet", "shrimp", "garnát", "humra", "lobster")),
+    "shellfish":("shellfish", ("krevet", "shrimp", "garnát", "humra", "lobster")),
+    "shrimp":   ("shellfish", ("krevet", "shrimp", "garnát", "humra", "lobster")),
+    # fish
+    "ryb":      ("fish", ("ryb", "fish", "losos", "salmon", "tuňák", "tuna")),
+    "fish":     ("fish", ("ryb", "fish", "losos", "salmon", "tuňák", "tuna")),
+}
+
+# Phrase patterns that announce an allergy/avoidance. Tokens following these
+# (in the same sentence) are checked against _ALLERGEN_VOCAB.
+_ALLERGY_TRIGGERS: tuple[str, ...] = (
+    "alergi",          # "alergie na X", "alergický na X"
+    "intoleran",       # "intolerance na X"
+    "bez ",            # "bez ořechů" — only when followed by allergen vocab
+    "allergic",        # "allergic to X"
+    "allergy",         # "X allergy"
+    "intolerant",      # "intolerant to X"
+    "-free",           # "soy-free" (suffix trigger handled separately)
+)
+
+
 @dataclass(frozen=True)
 class ResolvedRestrictions:
     """Normalized dietary restrictions for one DietaryGoal.
@@ -39,18 +97,71 @@ class RestrictionResolver:
         tags: set[str] = set()
 
         structured = (getattr(goal, "dietary_restrictions", "") or "").lower()
+        prompt = (getattr(goal, "prompt", "") or "").lower()
+        combined_for_tags = f"{structured} {prompt}"
+
+        for needle, tag in _TAG_KEYWORDS.items():
+            if needle in combined_for_tags:
+                tags.add(tag)
         for tag in DIETARY_EXCLUSIONS.keys():
             if tag in structured:
                 tags.add(tag)
+
+        allergens, allergen_keywords = self._parse_freeform_allergens(prompt)
 
         exclusion_keywords: set[str] = set()
         for tag in tags:
             exclusion_keywords.update(
                 kw.lower() for kw in DIETARY_EXCLUSIONS[tag]
             )
+        exclusion_keywords.update(allergen_keywords)
 
         return ResolvedRestrictions(
             tags=frozenset(tags),
             exclusion_keywords=frozenset(exclusion_keywords),
-            freeform_allergens=frozenset(),
+            freeform_allergens=frozenset(allergens),
         )
+
+    @staticmethod
+    def _parse_freeform_allergens(text: str) -> tuple[set[str], set[str]]:
+        """Return (canonical_allergens, ingredient_keywords) for prompt prose.
+
+        Only words mentioned NEAR an allergy/avoidance trigger word are
+        considered — bare 'eggs' in a recipe-style prompt is not an allergy.
+        """
+        if not text:
+            return set(), set()
+
+        allergens: set[str] = set()
+        keywords: set[str] = set()
+
+        # 1. Sentence-level proximity: split on sentence-ish boundaries.
+        for chunk in _split_sentences(text):
+            if not any(trig in chunk for trig in _ALLERGY_TRIGGERS):
+                continue
+            for needle, (canonical, kws) in _ALLERGEN_VOCAB.items():
+                if needle in chunk:
+                    allergens.add(canonical)
+                    keywords.update(kws)
+
+        # 2. "<X>-free" suffix anywhere.
+        for needle, (canonical, kws) in _ALLERGEN_VOCAB.items():
+            if f"{needle}-free" in text or f"{needle} free" in text:
+                allergens.add(canonical)
+                keywords.update(kws)
+
+        return allergens, keywords
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Cheap sentence-ish splitter. Good enough for prose; not a real NLP."""
+    out: list[str] = []
+    buf: list[str] = []
+    for ch in text:
+        buf.append(ch)
+        if ch in ".!?;\n":
+            out.append("".join(buf))
+            buf = []
+    if buf:
+        out.append("".join(buf))
+    return out
