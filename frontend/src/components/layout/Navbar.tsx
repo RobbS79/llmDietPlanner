@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Zap, LayoutDashboard, Sparkles, LogOut, Menu, X } from 'lucide-react';
+import { Zap, LayoutDashboard, Sparkles, Crown, LogOut, Menu, X } from 'lucide-react';
 import { clearAuthTokens } from '@/lib/auth';
 
 const navLinks = [
   { path: '/', label: 'Moje plány', icon: LayoutDashboard },
   { path: '/create', label: 'Nový plán', icon: Sparkles },
+  { path: '/pricing', label: 'Ceník', icon: Crown },
 ];
 
 export const Navbar = () => {
