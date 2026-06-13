@@ -46,3 +46,7 @@ claude-agent-sdk>=0.1.0
 # (Gemini writes meal plans; Claude grades them). See
 # diet_planner/services/recipe_human_judge.py
 anthropic>=0.70.0
+
+# Stripe Billing — recurring subscriptions (Standard/Premium tiers).
+# See docs/stripe-billing-plan.md and the billing/ app.
+stripe>=10.0.0

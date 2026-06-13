@@ -42,6 +42,7 @@ from .services.recipe_coherence import filter_pre_prepared
 from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, optimize_plan_discounts_task, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
+from billing.entitlements import active_subscription
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +89,24 @@ class DietaryGoalCreateView(APIView):
             # Auto-determine currency from Hub selection
             currency = get_currency_for_country(schema.country.value)
 
-            # Verification of generation credits
+            # Verification of generation credits / paid entitlement.
+            # Paid path: an active subscription still within its monthly quota.
+            # Free path: the lifetime free-generation counter (unchanged).
+            # Neither -> hard 402 (the paywall that did not exist before).
             profile, _ = UserProfile.objects.get_or_create(user=request.user)
-            is_free_generation = profile.has_free_generations()
+            subscription = active_subscription(request.user)
+            is_paid_generation = bool(subscription and subscription.within_monthly_quota())
+            is_free_generation = (not is_paid_generation) and profile.has_free_generations()
+
+            if not is_paid_generation and not is_free_generation:
+                return Response(
+                    {
+                        "status": "error",
+                        "code": "PAYMENT_REQUIRED",
+                        "error": "Vyčerpali jste své generování. Vyberte si předplatné.",
+                    },
+                    status=status.HTTP_402_PAYMENT_REQUIRED,
+                )
 
             # Mapping validated schema to model fields
             goal_data = {
@@ -138,8 +154,12 @@ class DietaryGoalCreateView(APIView):
             else:
                 dietary_goal = DietaryGoal.objects.create(user=request.user, **goal_data)
 
-            # Decrement credits only on full successful creation
-            if is_free_generation:
+            # Account usage only on full successful creation.
+            # Paid path consumes monthly quota; free path decrements the counter.
+            if is_paid_generation:
+                subscription.plans_used_this_period += 1
+                subscription.save(update_fields=['plans_used_this_period', 'updated_at'])
+            elif is_free_generation:
                 profile.use_free_generation()
 
             # Trigger Background Synthesis
