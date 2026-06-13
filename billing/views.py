@@ -80,10 +80,14 @@ class CheckoutView(APIView):
             )
         except stripe.error.StripeError as exc:
             logger.exception('Stripe checkout creation failed')
+            # 400, not 502: App Platform replaces upstream 5xx bodies with its
+            # own branded error page, so a 502 here hides our JSON from the SPA
+            # (which then can't show its friendly message). This is a
+            # request/config problem from our side anyway, not a gateway outage.
             return Response(
                 {'status': 'error', 'error': 'Could not start checkout.',
                  'detail': str(getattr(exc, 'user_message', '') or '')},
-                status=status.HTTP_502_BAD_GATEWAY,
+                status=status.HTTP_400_BAD_REQUEST,
             )
         return Response({'url': session['url']})
 

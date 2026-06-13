@@ -49,10 +49,33 @@ def tier_for_price_id(price_id: str) -> str | None:
 
 # --- customer ------------------------------------------------------------------
 
+def _customer_is_usable(customer_id: str) -> bool:
+    """
+    True if the stored Stripe customer still exists and isn't deleted.
+
+    A stored id can go stale — the customer was deleted, or it belongs to a
+    different account/mode (e.g. a test-mode customer minted before the env was
+    switched to live keys). Stripe answers those with InvalidRequestError; we
+    treat any such case as "mint a fresh one".
+    """
+    if not customer_id:
+        return False
+    try:
+        cust = as_dict(stripe.Customer.retrieve(customer_id))
+    except stripe.error.InvalidRequestError:
+        return False
+    return not cust.get('deleted', False)
+
+
 def get_or_create_customer(user: User) -> str:
-    """Return the user's Stripe Customer id, creating one if needed."""
+    """
+    Return the user's Stripe Customer id, creating one if needed.
+
+    Self-heals a stale stored id (deleted / wrong account or mode) by creating
+    a fresh customer instead of handing checkout an id Stripe will reject.
+    """
     existing = StripeCustomer.objects.filter(user=user).first()
-    if existing:
+    if existing and _customer_is_usable(existing.stripe_customer_id):
         return existing.stripe_customer_id
 
     customer = stripe.Customer.create(

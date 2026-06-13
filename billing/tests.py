@@ -17,8 +17,12 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework.test import APIClient
 
+from . import services
 from .entitlements import allow_generation, active_subscription
-from .models import Subscription, SubscriptionPlan, Tier, ProcessedWebhookEvent
+from .models import (
+    Subscription, SubscriptionPlan, Tier, ProcessedWebhookEvent, StripeCustomer,
+)
+import stripe as stripe_lib
 
 
 def _make_sub(user, *, status=Subscription.Status.ACTIVE, period_days=15,
@@ -71,6 +75,40 @@ class EntitlementTests(TestCase):
     def test_past_due_not_entitled(self):
         _make_sub(self.user, status=Subscription.Status.PAST_DUE)
         self.assertIsNone(active_subscription(self.user))
+
+
+class CustomerSelfHealTests(TestCase):
+    """get_or_create_customer must not hand checkout a stale/invalid id."""
+
+    def setUp(self):
+        self.user = User.objects.create_user('carol', 'c@x.com', 'pw')
+
+    @patch('billing.services.stripe.Customer.retrieve')
+    def test_usable_existing_customer_is_reused(self, mock_retrieve):
+        StripeCustomer.objects.create(user=self.user, stripe_customer_id='cus_live_ok')
+        mock_retrieve.return_value = {'id': 'cus_live_ok', 'deleted': False}
+        with patch('billing.services.stripe.Customer.create') as mock_create:
+            cid = services.get_or_create_customer(self.user)
+        self.assertEqual(cid, 'cus_live_ok')
+        mock_create.assert_not_called()
+
+    @patch('billing.services.stripe.Customer.retrieve')
+    def test_stale_customer_is_replaced(self, mock_retrieve):
+        # leftover test-mode id that the live key can't resolve
+        StripeCustomer.objects.create(user=self.user, stripe_customer_id='cus_stale_test')
+        mock_retrieve.side_effect = stripe_lib.error.InvalidRequestError(
+            "No such customer: 'cus_stale_test'", param='customer',
+        )
+        with patch('billing.services.stripe.Customer.create') as mock_create:
+            mock_create.return_value = {'id': 'cus_fresh_live'}
+            cid = services.get_or_create_customer(self.user)
+        self.assertEqual(cid, 'cus_fresh_live')
+        mock_create.assert_called_once()
+        # mapping overwritten with the fresh id
+        self.assertEqual(
+            StripeCustomer.objects.get(user=self.user).stripe_customer_id,
+            'cus_fresh_live',
+        )
 
 
 def _sign(payload: str, secret: str) -> str:
