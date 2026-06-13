@@ -28,7 +28,7 @@ Costs are stored in DietaryPlan.llm_cost_usd for billing/monitoring.
 - Look for "estimated price" logs for price estimation calls
 - Token counts help identify prompt optimization opportunities
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 import json
 import logging
 import re
@@ -38,6 +38,9 @@ from django.conf import settings
 import google.generativeai as genai
 
 from .food_categories import CATEGORY_SLUGS
+
+if TYPE_CHECKING:
+    from diet_planner.services.restrictions import ResolvedRestrictions
 
 logger = logging.getLogger(__name__)
 
@@ -322,6 +325,99 @@ EXAMPLE INGREDIENT FORMAT:
             logger.error(f"Gemini API error: {e}", exc_info=True)
             raise
     
+    def _build_meal_system_prompt(
+        self,
+        *,
+        goal: Any,
+        exclusions: "Optional[ResolvedRestrictions]",
+        shop_url: Optional[str] = None,
+        catalog_text: Optional[str] = None,
+        single_meal: bool = False,
+    ) -> str:
+        """Build the system prompt for meal generation.
+
+        Shared by generate_meal_plan_only (URL browsing), generate_catalog_
+        constrained_plan (catalog text), and regenerate_meal (single-meal
+        repair). The restriction block is injected when exclusions is non-
+        empty; this is the ONE place the rule lives.
+        """
+        language_names = {
+            "cs": "Czech", "sk": "Slovak", "pl": "Polish",
+            "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian",
+            "de": "German", "en": "English",
+        }
+        target_language = language_names.get(
+            getattr(goal, "language_code", "en") or "en", "English"
+        )
+        num_days = getattr(goal, "num_days", 7)
+
+        restriction_block = self._format_restriction_block(exclusions)
+
+        if single_meal:
+            schema_hint = (
+                "OUTPUT: a SINGLE meal JSON object with keys "
+                "name, description, food_category, preparation_time, "
+                "ingredients[], instructions[], nutritional_info."
+            )
+            scope_line = "TASK: produce ONE replacement meal honoring all rules."
+        else:
+            schema_hint = (
+                'OUTPUT: {"days": [{"day_number": 1, "breakfast": {...}, '
+                '"lunch": {...}, "dinner": {...}, "small_meals": [...], '
+                '"snacks": [...]}, ...]}'
+            )
+            scope_line = f"TASK: generate a {num_days}-day meal plan."
+
+        source_line = (
+            f"Browse {shop_url} for context but don't list prices."
+            if shop_url
+            else f"Use ONLY the AVAILABLE PRODUCTS list below.\n\n{catalog_text or ''}"
+        )
+
+        return (
+            f"You are a nutrition expert creating meal plans.\n\n"
+            f"RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.\n\n"
+            f"{scope_line}\n"
+            f"{schema_hint}\n\n"
+            f"{source_line}\n\n"
+            f"{restriction_block}"
+            f"CRITICAL RULES:\n"
+            f"- Keep instructions VERY BRIEF: 3 steps maximum per meal\n"
+            f"- Keep descriptions to 1 sentence\n"
+            f"\n"
+            f"INGREDIENT CONSISTENCY (production-critical, do not violate):\n"
+            f"- ingredients[] MUST list ONLY raw items the user has to buy fresh\n"
+            f"  at the store for THIS meal.\n"
+            f"- A meal that reuses a leftover from another day MUST exclude that\n"
+            f"  leftover from ingredients[]."
+        )
+
+    @staticmethod
+    def _format_restriction_block(
+        exclusions: "Optional[ResolvedRestrictions]",
+    ) -> str:
+        if exclusions is None or not exclusions.exclusion_keywords:
+            return ""
+        tags_str = ", ".join(sorted(exclusions.tags)) or "(none)"
+        allergens_line = ""
+        if exclusions.freeform_allergens:
+            allergens_line = (
+                "- The user has reported ALLERGIES to: "
+                f"{', '.join(sorted(exclusions.freeform_allergens))}.\n"
+            )
+        kw_str = ", ".join(sorted(exclusions.exclusion_keywords))
+        return (
+            "DIETARY RESTRICTIONS (non-negotiable, hard rule):\n"
+            f"- The user requires: {tags_str}.\n"
+            f"{allergens_line}"
+            f"- The following ingredient keywords are FORBIDDEN in ingredients[]\n"
+            f"  AND instructions[] for ALL meals: {kw_str}.\n"
+            "- If a traditional recipe would require a forbidden ingredient,\n"
+            "  substitute a compliant alternative (e.g. bezlepková mouka instead\n"
+            "  of mouka). Generated meals containing any forbidden keyword will\n"
+            "  be REJECTED.\n\n"
+        )
+
     def generate_meal_plan_only(
         self,
         user_prompt: str,
