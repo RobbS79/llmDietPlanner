@@ -74,7 +74,11 @@ class CheckoutView(APIView):
                 subscription_data={
                     'metadata': {'user_id': str(request.user.id), 'tier': tier},
                 },
-                success_url=_frontend_url('/?sub=success'),
+                # Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder
+                # on redirect so the success page can look up / log the session.
+                success_url=_frontend_url(
+                    '/billing/success?session_id={CHECKOUT_SESSION_ID}'
+                ),
                 cancel_url=_frontend_url('/pricing?sub=cancelled'),
                 allow_promotion_codes=True,
             )

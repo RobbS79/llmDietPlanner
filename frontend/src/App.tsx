@@ -15,6 +15,7 @@ import { Landing } from '@/pages/Landing';
 import { Privacy } from '@/pages/Privacy';
 import { Terms } from '@/pages/Terms';
 import { Pricing } from '@/pages/Pricing';
+import { BillingSuccess } from '@/pages/BillingSuccess';
 import { About } from '@/pages/About';
 import { RecipeIndexPage } from '@/pages/RecipeIndexPage';
 import { PublicRecipePage } from '@/pages/PublicRecipePage';
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/billing/success" element={<ProtectedRoute><BillingSuccess /></ProtectedRoute>} />
           <Route path="/o-nas" element={<About />} />
           <Route path="/recepty" element={<RecipeIndexPage />} />
           <Route path="/recepty/:id/:slug" element={<PublicRecipePage />} />
