@@ -46,8 +46,38 @@ from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
 from .services.canonical_lookup import resolve_canonical
+from .services.restrictions import RepairBudgetExhausted
 
 logger = logging.getLogger(__name__)
+
+
+def _mark_goal_restriction_failed(goal_id, exc: RepairBudgetExhausted) -> None:
+    """Terminally fail a goal whose restriction repair budget was exhausted.
+
+    Mirrors the generic failure handler's payment logic (REFUND_ELIGIBLE when
+    already paid) but records a restriction-specific message. Callers must NOT
+    retry after this — shipping a restriction-violating plan is never acceptable
+    and the repair budget is already spent.
+    """
+    logger.error(
+        f"Restriction enforcement failed for goal {goal_id} at "
+        f"{exc.meal_key}: {exc}",
+        exc_info=True,
+    )
+    try:
+        goal = DietaryGoal.objects.get(id=goal_id)
+        goal.error_message = f"Could not satisfy dietary restrictions at {exc.meal_key}"
+        if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
+            goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
+            logger.warning(
+                f"Goal {goal_id} restriction-failed after payment - marked "
+                f"REFUND_ELIGIBLE (order {goal.shopify_order_id})"
+            )
+        else:
+            goal.status = DietaryGoal.StatusChoices.FAILED
+        goal.save(update_fields=['status', 'error_message'])
+    except Exception as inner_exc:
+        logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
 
 
 # =============================================================================
@@ -1727,6 +1757,14 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         )
         return {'status': 'success', 'plan_id': plan.id}
 
+    except RepairBudgetExhausted as exc:
+        # Restriction enforcement could not make every meal compliant. Never
+        # ship a plan that violates the user's dietary restrictions, and do NOT
+        # retry: we already spent the deterministic swap + re-prompt budget, so
+        # a fresh full-plan attempt is expensive and unlikely to help.
+        _mark_goal_restriction_failed(goal_id, exc)
+        return {'status': 'failed', 'reason': 'dietary_restrictions_unsatisfiable'}
+
     except Exception as exc:
         logger.error(f"Task failed for goal {goal_id}: {str(exc)}", exc_info=True)
         try:
@@ -2208,6 +2246,11 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             f"LLM cost=${llm_result.get('cost_usd', 0)}"
         )
         return {'status': 'success', 'plan_id': plan.id}
+
+    except RepairBudgetExhausted as exc:
+        # See the protocol-path handler: terminal failure, no retry.
+        _mark_goal_restriction_failed(goal_id, exc)
+        return {'status': 'failed', 'reason': 'dietary_restrictions_unsatisfiable'}
 
     except Exception as exc:
         logger.error(f"Catalog task failed for goal {goal_id}: {str(exc)}", exc_info=True)

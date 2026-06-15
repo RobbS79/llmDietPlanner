@@ -458,6 +458,43 @@ EXAMPLE INGREDIENT FORMAT:
         )
         return json.loads(response.text)
 
+    def _resolve_exclusions(self, goal: Any, exclusions):
+        """Resolve restrictions from the goal when a caller didn't pass them.
+
+        Callers may pass pre-resolved exclusions (e.g. tests), but the normal
+        generation path leaves them None and lets the goal drive resolution so
+        the restriction block in the system prompt and the post-generation
+        repair loop always agree.
+        """
+        if exclusions is not None:
+            return exclusions
+        from diet_planner.services.restrictions import RestrictionResolver
+        return RestrictionResolver().resolve(goal)
+
+    def _enforce_restrictions(self, parsed: Dict[str, Any], goal: Any, exclusions) -> None:
+        """Repair restriction violations in parsed['days'] in place.
+
+        Runs the deterministic-swap + re-prompt loop over every meal. A no-op
+        when there are no exclusion keywords. Propagates RepairBudgetExhausted
+        so the calling task can mark the goal FAILED rather than ship a plan
+        that violates the user's dietary restrictions.
+        """
+        if exclusions is None:
+            return
+        days = parsed.get('days')
+        if not isinstance(days, list) or not days:
+            return
+        from diet_planner.services.restrictions import repair_meals_with_violations
+        outcome = repair_meals_with_violations(
+            days=days, goal=goal, exclusions=exclusions, llm=self,
+        )
+        parsed['days'] = outcome.days
+        if outcome.swaps or outcome.reprompts:
+            logger.info(
+                "restriction-repair: %d swap(s), %d re-prompt(s) applied",
+                outcome.swaps, outcome.reprompts,
+            )
+
     def generate_meal_plan_only(
         self,
         user_prompt: str,
@@ -471,6 +508,7 @@ EXAMPLE INGREDIENT FORMAT:
         This is the first call in a two-step process.
         """
         model = model or self.default_model
+        exclusions = self._resolve_exclusions(goal, exclusions)
 
         system_prompt = self._build_meal_system_prompt(
             goal=goal,
@@ -517,6 +555,8 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
                     parsed_response = json.loads(cleaned)
                 except json.JSONDecodeError:
                     raise ValueError(f"Invalid JSON from meal plan generation: {e}")
+
+            self._enforce_restrictions(parsed_response, goal, exclusions)
 
             return {
                 'response': parsed_response,
@@ -1523,6 +1563,7 @@ Only emit a slug from the candidate list. Use null when nothing fits.
             Dict with 'response' (parsed JSON), token counts, cost
         """
         model = model or self.default_model
+        exclusions = self._resolve_exclusions(goal, exclusions)
 
         system_prompt = self._build_meal_system_prompt(
             goal=goal,
@@ -1568,6 +1609,8 @@ Keep all text concise — 3 steps max per recipe, 1 sentence descriptions."""
                 cleaned = re.sub(r',\s*}', '}', content)
                 cleaned = re.sub(r',\s*]', ']', cleaned)
                 parsed = json.loads(cleaned)
+
+            self._enforce_restrictions(parsed, goal, exclusions)
 
             return {
                 'response': parsed,

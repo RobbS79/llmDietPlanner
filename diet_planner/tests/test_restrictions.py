@@ -367,3 +367,84 @@ class TestRepairLoop:
                 max_reprompts_per_meal=2, max_reprompts_per_plan=6,
             )
         assert llm.calls == 6
+
+
+from diet_planner.llm_service import GeminiService
+
+
+class TestGeminiServiceEnforcement:
+    """The wiring that hooks the repair loop into meal-plan generation."""
+
+    def _svc(self):
+        # Bypass __init__ so no API key / client is required for these units.
+        return GeminiService.__new__(GeminiService)
+
+    def _gf_exclusions(self):
+        return ResolvedRestrictions(
+            tags=frozenset({"gluten_free"}),
+            exclusion_keywords=frozenset({"mouka", "mouk"}),
+            freeform_allergens=frozenset(),
+        )
+
+    def test_resolve_exclusions_passthrough(self):
+        svc = self._svc()
+        pre = self._gf_exclusions()
+        assert svc._resolve_exclusions(MagicMock(), pre) is pre
+
+    def test_resolve_exclusions_from_goal_when_none(self):
+        svc = self._svc()
+        # A goal carrying a structured gluten_free restriction resolves to a
+        # non-empty exclusion set even though the caller passed None.
+        resolved = svc._resolve_exclusions(
+            _goal(dietary_restrictions="gluten_free"), None
+        )
+        assert "gluten_free" in resolved.tags
+        assert "mouka" in resolved.exclusion_keywords
+
+    def test_enforce_applies_deterministic_swap(self):
+        svc = self._svc()
+        parsed = {"days": [{
+            "day_number": 1,
+            "lunch": _meal(ingredients=[
+                {"name": "pšeničná mouka", "quantity": 100, "unit": "g"}
+            ]),
+        }]}
+        svc._enforce_restrictions(parsed, MagicMock(), self._gf_exclusions())
+        assert parsed["days"][0]["lunch"]["ingredients"][0]["name"] == "bezlepková mouka"
+
+    def test_enforce_noop_when_no_exclusion_keywords(self):
+        svc = self._svc()
+        parsed = {"days": [{
+            "day_number": 1,
+            "lunch": _meal(ingredients=[{"name": "mouka", "quantity": 1, "unit": "g"}]),
+        }]}
+        empty = ResolvedRestrictions(
+            tags=frozenset(), exclusion_keywords=frozenset(),
+            freeform_allergens=frozenset(),
+        )
+        svc._enforce_restrictions(parsed, MagicMock(), empty)
+        # No keywords -> nothing inspected or changed.
+        assert parsed["days"][0]["lunch"]["ingredients"][0]["name"] == "mouka"
+
+    def test_enforce_handles_missing_days_key(self):
+        svc = self._svc()
+        parsed = {}  # e.g. a malformed/empty LLM response
+        svc._enforce_restrictions(parsed, MagicMock(), self._gf_exclusions())
+        assert parsed == {}
+
+    def test_enforce_propagates_budget_exhausted(self):
+        svc = self._svc()
+        # Instruction-only violation has no swap; stub re-prompt to keep failing.
+        svc.regenerate_meal = lambda **kw: _meal(
+            ingredients=[{"name": "máslo", "quantity": 1, "unit": "g"}],
+            instructions=["Smíchej s moukou."],
+        )
+        parsed = {"days": [{
+            "day_number": 1,
+            "lunch": _meal(
+                ingredients=[{"name": "máslo", "quantity": 1, "unit": "g"}],
+                instructions=["Smíchej s moukou."],
+            ),
+        }]}
+        with pytest.raises(RepairBudgetExhausted):
+            svc._enforce_restrictions(parsed, MagicMock(), self._gf_exclusions())
