@@ -133,6 +133,46 @@ def _resolve_user(sub_obj, customer_id: str) -> User | None:
     return mapping.user if mapping else None
 
 
+def retrieve_subscription(sub_id: str) -> dict:
+    """Fetch a subscription from Stripe as a plain dict (price expanded)."""
+    return as_dict(stripe.Subscription.retrieve(sub_id, expand=['items.data.price']))
+
+
+def upsert_subscription(user: User, sub_obj: dict, customer_id: str, *,
+                        tier: str | None = None) -> Subscription | None:
+    """
+    Create-or-update the user's entitlement row from a Stripe subscription.
+
+    The single source of provisioning truth, shared by every webhook handler and
+    the reconcile command, so a subscription entitles regardless of *which*
+    event (checkout / created / updated) reached us first or at all.
+
+    Deliberately does NOT touch `plans_used_this_period`: a new row defaults to 0,
+    and an existing row's usage must survive arbitrary `subscription.updated`
+    events — only a renewal (`invoice.paid`) resets it.
+    """
+    tier = tier or _tier_from_subscription(sub_obj)
+    if tier not in (Tier.STANDARD, Tier.PREMIUM):
+        logger.error('Unknown tier for subscription %s', sub_obj.get('id'))
+        return None
+
+    StripeCustomer.objects.update_or_create(
+        user=user, defaults={'stripe_customer_id': customer_id},
+    )
+    sub, _created = Subscription.objects.update_or_create(
+        user=user,
+        defaults={
+            'tier': tier,
+            'status': _STATUS_MAP.get(sub_obj.get('status'), Subscription.Status.ACTIVE),
+            'stripe_customer_id': customer_id,
+            'stripe_subscription_id': sub_obj.get('id'),
+            'current_period_end': _period_end(sub_obj),
+            'cancel_at_period_end': bool(sub_obj.get('cancel_at_period_end')),
+        },
+    )
+    return sub
+
+
 # --- webhook handlers (idempotent; called after signature verification) --------
 
 def handle_checkout_completed(event) -> None:
@@ -154,25 +194,8 @@ def handle_checkout_completed(event) -> None:
         return
 
     tier = (session.get('metadata') or {}).get('tier') or _tier_from_subscription(sub_obj)
-    if tier not in (Tier.STANDARD, Tier.PREMIUM):
-        logger.error('Unknown tier for subscription %s', sub_id)
+    if upsert_subscription(user, sub_obj, customer_id, tier=tier) is None:
         return
-
-    StripeCustomer.objects.update_or_create(
-        user=user, defaults={'stripe_customer_id': customer_id},
-    )
-    Subscription.objects.update_or_create(
-        user=user,
-        defaults={
-            'tier': tier,
-            'status': _STATUS_MAP.get(sub_obj.get('status'), Subscription.Status.ACTIVE),
-            'stripe_customer_id': customer_id,
-            'stripe_subscription_id': sub_id,
-            'current_period_end': _period_end(sub_obj),
-            'cancel_at_period_end': bool(sub_obj.get('cancel_at_period_end')),
-            'plans_used_this_period': 0,
-        },
-    )
     logger.info('Provisioned %s subscription for user %s', tier, user.id)
     _send_welcome_email(user, tier)
 
@@ -203,20 +226,31 @@ def handle_payment_failed(event) -> None:
     sub.save(update_fields=['status', 'updated_at'])
 
 
+def handle_subscription_created(event) -> None:
+    """A subscription was created (incl. directly in the Stripe dashboard, which
+    never emits checkout.session.completed). Provision so it still entitles."""
+    _provision_from_subscription_event(event, 'customer.subscription.created')
+
+
 def handle_subscription_updated(event) -> None:
+    """Sync status/period/tier — and create the row if it's missing, so an
+    `updated` that races ahead of (or replaces) the checkout event still
+    provisions instead of silently dropping the paying user."""
+    _provision_from_subscription_event(event, 'customer.subscription.updated')
+
+
+def _provision_from_subscription_event(event, label: str) -> None:
     sub_obj = event['data']['object']
-    sub = Subscription.objects.filter(
+    customer_id = sub_obj.get('customer')
+    existing = Subscription.objects.filter(
         stripe_subscription_id=sub_obj.get('id')
     ).first()
-    if not sub:
+    user = existing.user if existing else _resolve_user(sub_obj, customer_id)
+    if user is None:
+        logger.error('%s: cannot resolve user for subscription %s',
+                     label, sub_obj.get('id'))
         return
-    sub.status = _STATUS_MAP.get(sub_obj.get('status'), sub.status)
-    sub.current_period_end = _period_end(sub_obj) or sub.current_period_end
-    sub.cancel_at_period_end = bool(sub_obj.get('cancel_at_period_end'))
-    new_tier = _tier_from_subscription(sub_obj)
-    if new_tier:
-        sub.tier = new_tier
-    sub.save()
+    upsert_subscription(user, sub_obj, customer_id)
 
 
 def handle_subscription_deleted(event) -> None:
@@ -235,6 +269,7 @@ HANDLERS = {
     'checkout.session.completed': handle_checkout_completed,
     'invoice.paid': handle_invoice_paid,
     'invoice.payment_failed': handle_payment_failed,
+    'customer.subscription.created': handle_subscription_created,
     'customer.subscription.updated': handle_subscription_updated,
     'customer.subscription.deleted': handle_subscription_deleted,
 }
