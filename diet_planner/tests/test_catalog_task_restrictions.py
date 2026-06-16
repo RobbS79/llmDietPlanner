@@ -72,8 +72,17 @@ class CatalogTaskDietaryFilterTest(TestCase):
 
         def _capture(self_llm, *, user_prompt, catalog_text, goal, **kw):
             captured["catalog_text"] = catalog_text
+            # A minimal non-empty plan: this test only checks catalog filtering,
+            # but the task now guards against empty plans (see test_plan_completeness).
             return {
-                "response": {"days": []},
+                "response": {"days": [{
+                    "day_number": 1,
+                    "lunch": {
+                        "name": "Rýže",
+                        "ingredients": [{"name": "rýže basmati", "quantity": 100, "unit": "g"}],
+                        "instructions": ["uvařit"],
+                    },
+                }]},
                 "input_tokens": 1, "output_tokens": 1, "total_tokens": 2,
                 "cost_usd": 0.0, "model": "gemini-test",
             }

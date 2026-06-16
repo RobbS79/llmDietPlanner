@@ -80,6 +80,42 @@ def _mark_goal_restriction_failed(goal_id, exc: RepairBudgetExhausted) -> None:
         logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
 
 
+def _assert_plan_has_content(transformed_days, goal, log_prefix: str = "") -> None:
+    """Refuse to ship a degenerate plan to a (paying) user.
+
+    A truncated or malformed LLM response can yield zero days, or days whose
+    meals carry no ingredients. Without this guard the task would still create a
+    DietaryPlan and mark the goal COMPLETED — i.e. the user pays for an empty
+    plan. Raising routes into the task's failure handler, which marks the goal
+    FAILED (or REFUND_ELIGIBLE when payment is pending).
+    """
+    if not transformed_days:
+        raise ValueError(f"Generated meal plan is empty (0 days) for goal {goal.id}")
+
+    total_ingredients = 0
+    for day in transformed_days:
+        for meal_type in ('breakfast', 'lunch', 'dinner', 'small_meals', 'snacks'):
+            meals = day.get(meal_type)
+            if not meals:
+                continue
+            if isinstance(meals, dict):
+                meals = [meals]
+            for meal in meals:
+                if isinstance(meal, dict):
+                    total_ingredients += len(meal.get('ingredients') or [])
+
+    if total_ingredients == 0:
+        raise ValueError(
+            f"Generated meal plan has no ingredients across {len(transformed_days)} "
+            f"day(s) for goal {goal.id}"
+        )
+
+    logger.info(
+        f"{log_prefix} Plan completeness OK: {len(transformed_days)} day(s), "
+        f"{total_ingredients} ingredient line(s)"
+    )
+
+
 # =============================================================================
 # INGREDIENT PACKAGE KNOWLEDGE BASE
 # =============================================================================
@@ -1547,6 +1583,9 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             cov = result['coverage']
             logger.info(f"{log_prefix} Recipe grounding: {cov['filled']}/{cov['total']} slots curated")
 
+        # Never ship an empty/degenerate plan as COMPLETED.
+        _assert_plan_has_content(transformed_days, goal, log_prefix)
+
         # Backend validation only - validate quantities and enhance with database prices where available
         logger.info(f"{log_prefix} Validating shopping list and enhancing with database prices")
         validated_shopping_list = []
@@ -2158,6 +2197,9 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
                 f"{log_prefix} Recipe grounding: "
                 f"{_grounded['coverage']['filled']}/{_grounded['coverage']['total']} slots curated"
             )
+
+        # Never ship an empty/degenerate plan as COMPLETED.
+        _assert_plan_has_content(transformed_days, goal, log_prefix)
 
         # ── Phase 3: Aggregate ingredients into shopping list ──
         shopping_items = aggregate_ingredients_from_meals(
