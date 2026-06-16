@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Zap, Check, X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
+import { startCheckout, type BillingTier } from '@/lib/billing';
+import { isAccessTokenValid } from '@/lib/auth';
 
 const PLANS = [
   {
@@ -20,6 +22,7 @@ const PLANS = [
   },
   {
     name: 'Standard',
+    tier: 'standard' as const,
     price: 99,
     description: 'Pro aktivní plánování',
     cta: 'Vybrat Standard',
@@ -35,6 +38,7 @@ const PLANS = [
   },
   {
     name: 'Premium',
+    tier: 'premium' as const,
     price: 199,
     description: 'Pro maximum úspor',
     cta: 'Vybrat Premium',
@@ -76,6 +80,29 @@ const FAQ = [
 export const Pricing = () => {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [checkoutTier, setCheckoutTier] = useState<BillingTier | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // CTA: free tier -> signup; paid tier -> Stripe Checkout if logged in,
+  // otherwise login first and bounce back here to buy.
+  const handleSelectPlan = async (tier?: BillingTier) => {
+    if (!tier) {
+      navigate('/login');
+      return;
+    }
+    if (!isAccessTokenValid()) {
+      navigate('/login?next=/pricing');
+      return;
+    }
+    setCheckoutError(null);
+    setCheckoutTier(tier);
+    try {
+      await startCheckout(tier); // redirects to Stripe on success
+    } catch {
+      setCheckoutError('Platbu se nepodařilo zahájit. Zkuste to prosím znovu.');
+      setCheckoutTier(null);
+    }
+  };
 
   useEffect(() => {
     const schema = {
@@ -126,6 +153,12 @@ export const Pricing = () => {
           </p>
         </header>
 
+        {checkoutError && (
+          <div className="max-w-md mx-auto mb-8 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm text-red-300">
+            {checkoutError}
+          </div>
+        )}
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-24">
           {PLANS.map((plan) => (
             <div
@@ -158,14 +191,18 @@ export const Pricing = () => {
               </div>
 
               <button
-                onClick={() => navigate('/login')}
-                className={`w-full h-14 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-3 mb-10 ${
+                onClick={() => handleSelectPlan((plan as { tier?: BillingTier }).tier)}
+                disabled={checkoutTier !== null}
+                className={`w-full h-14 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-3 mb-10 disabled:opacity-60 disabled:cursor-not-allowed ${
                   plan.highlighted
                     ? 'bg-white text-black shadow-2xl hover:shadow-white/10'
                     : 'bg-slate-600 text-white hover:bg-zinc-700'
                 }`}
               >
-                {plan.cta} <ArrowRight size={16} />
+                {checkoutTier === (plan as { tier?: BillingTier }).tier
+                  ? 'Přesměrování…'
+                  : plan.cta}{' '}
+                <ArrowRight size={16} />
               </button>
 
               <ul className="space-y-4">

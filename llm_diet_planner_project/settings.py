@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     "login_app",
     "shopifyin",
     "slack_bot",
+    "billing",
 ]
 
 # --- 5. MIDDLEWARE ---
@@ -314,6 +315,19 @@ RECIPE_HUMAN_JUDGE_MODEL = config('RECIPE_HUMAN_JUDGE_MODEL', default='claude-op
 # (uncovered slots keep the LLM-generated meal). Off by default so the corpus
 # can be populated/promoted in prod before retrieval goes live.
 RECIPE_GROUNDING_ENABLED = config('RECIPE_GROUNDING_ENABLED', default=False, cast=bool)
+
+# --- 9b. STRIPE BILLING ---
+# Subscriptions run on Stripe Billing (not Shopify; decided 2026-06-10).
+# Sandbox/test keys in dev; live keys are set as encrypted env vars on DO App
+# Platform. STRIPE_SECRET_KEY should be a restricted key (rk_) in production.
+# Webhook secret comes from the endpoint (or `stripe listen`) — empty until set.
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', config('STRIPE_SECRET_KEY', default=None))
+STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
+STRIPE_PRICE_STANDARD = config('STRIPE_PRICE_STANDARD', default='')
+STRIPE_PRICE_PREMIUM = config('STRIPE_PRICE_PREMIUM', default='')
+# Pin Stripe API version (empty = use the SDK's bundled default).
+STRIPE_API_VERSION = config('STRIPE_API_VERSION', default='')
 
 # --- 10. EMAIL BACKEND ---
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')

@@ -13,6 +13,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    // Paywall: a 402 from the generation gate means the user is out of
+    // entitlement — send them to the pricing page to subscribe.
+    if (error.response?.status === 402) {
+      if (window.location.pathname !== '/pricing') {
+        window.location.href = '/pricing?reason=quota';
+      }
+      return Promise.reject(error);
+    }
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('refresh_token');

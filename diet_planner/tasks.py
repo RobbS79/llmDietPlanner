@@ -46,8 +46,74 @@ from .schemas import DietaryPlanResponse, MealIdea, ShoppingListItem
 from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
 from .services.canonical_lookup import resolve_canonical
+from .services.restrictions import RepairBudgetExhausted
 
 logger = logging.getLogger(__name__)
+
+
+def _mark_goal_restriction_failed(goal_id, exc: RepairBudgetExhausted) -> None:
+    """Terminally fail a goal whose restriction repair budget was exhausted.
+
+    Mirrors the generic failure handler's payment logic (REFUND_ELIGIBLE when
+    already paid) but records a restriction-specific message. Callers must NOT
+    retry after this — shipping a restriction-violating plan is never acceptable
+    and the repair budget is already spent.
+    """
+    logger.error(
+        f"Restriction enforcement failed for goal {goal_id} at "
+        f"{exc.meal_key}: {exc}",
+        exc_info=True,
+    )
+    try:
+        goal = DietaryGoal.objects.get(id=goal_id)
+        goal.error_message = f"Could not satisfy dietary restrictions at {exc.meal_key}"
+        if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
+            goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
+            logger.warning(
+                f"Goal {goal_id} restriction-failed after payment - marked "
+                f"REFUND_ELIGIBLE (order {goal.shopify_order_id})"
+            )
+        else:
+            goal.status = DietaryGoal.StatusChoices.FAILED
+        goal.save(update_fields=['status', 'error_message'])
+    except Exception as inner_exc:
+        logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
+
+
+def _assert_plan_has_content(transformed_days, goal, log_prefix: str = "") -> None:
+    """Refuse to ship a degenerate plan to a (paying) user.
+
+    A truncated or malformed LLM response can yield zero days, or days whose
+    meals carry no ingredients. Without this guard the task would still create a
+    DietaryPlan and mark the goal COMPLETED — i.e. the user pays for an empty
+    plan. Raising routes into the task's failure handler, which marks the goal
+    FAILED (or REFUND_ELIGIBLE when payment is pending).
+    """
+    if not transformed_days:
+        raise ValueError(f"Generated meal plan is empty (0 days) for goal {goal.id}")
+
+    total_ingredients = 0
+    for day in transformed_days:
+        for meal_type in ('breakfast', 'lunch', 'dinner', 'small_meals', 'snacks'):
+            meals = day.get(meal_type)
+            if not meals:
+                continue
+            if isinstance(meals, dict):
+                meals = [meals]
+            for meal in meals:
+                if isinstance(meal, dict):
+                    total_ingredients += len(meal.get('ingredients') or [])
+
+    if total_ingredients == 0:
+        raise ValueError(
+            f"Generated meal plan has no ingredients across {len(transformed_days)} "
+            f"day(s) for goal {goal.id}"
+        )
+
+    logger.info(
+        f"{log_prefix} Plan completeness OK: {len(transformed_days)} day(s), "
+        f"{total_ingredients} ingredient line(s)"
+    )
 
 
 # =============================================================================
@@ -1517,6 +1583,9 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             cov = result['coverage']
             logger.info(f"{log_prefix} Recipe grounding: {cov['filled']}/{cov['total']} slots curated")
 
+        # Never ship an empty/degenerate plan as COMPLETED.
+        _assert_plan_has_content(transformed_days, goal, log_prefix)
+
         # Backend validation only - validate quantities and enhance with database prices where available
         logger.info(f"{log_prefix} Validating shopping list and enhancing with database prices")
         validated_shopping_list = []
@@ -1726,6 +1795,14 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             f"total: {final_total} {goal.currency} (matched: {matched_count}, estimated: {estimated_count})"
         )
         return {'status': 'success', 'plan_id': plan.id}
+
+    except RepairBudgetExhausted as exc:
+        # Restriction enforcement could not make every meal compliant. Never
+        # ship a plan that violates the user's dietary restrictions, and do NOT
+        # retry: we already spent the deterministic swap + re-prompt budget, so
+        # a fresh full-plan attempt is expensive and unlikely to help.
+        _mark_goal_restriction_failed(goal_id, exc)
+        return {'status': 'failed', 'reason': 'dietary_restrictions_unsatisfiable'}
 
     except Exception as exc:
         logger.error(f"Task failed for goal {goal_id}: {str(exc)}", exc_info=True)
@@ -2067,10 +2144,18 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
         goal.save(update_fields=['status'])
         logger.info(f"{log_prefix} Starting catalog-constrained generation for {goal.num_days} days")
 
-        # ── Phase 1: Build catalog ──
+        # ── Phase 0: Resolve dietary restrictions ──
+        # Resolve once and thread the same set through the catalog filter, the
+        # generation system prompt, and the post-generation repair loop so all
+        # three agree. Without this the catalog handed to the LLM still listed
+        # forbidden products (e.g. chicken for a vegetarian).
+        from diet_planner.services.restrictions import RestrictionResolver
+        exclusions = RestrictionResolver().resolve(goal)
+
+        # ── Phase 1: Build catalog (filtered by the resolved restrictions) ──
         from diet_planner.services.catalog import CatalogService
         catalog_service = CatalogService()
-        catalog = catalog_service.build_catalog_for_prompt(goal)
+        catalog = catalog_service.build_catalog_for_prompt(goal, exclusions=exclusions)
         catalog_text = catalog_service.build_compact_prompt_text(catalog, goal)
 
         if catalog['total_products'] < 10:
@@ -2092,6 +2177,7 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             user_prompt=user_prompt,
             catalog_text=catalog_text,
             goal=goal,
+            exclusions=exclusions,
         )
 
         llm_response = llm_result['response']
@@ -2111,6 +2197,9 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
                 f"{log_prefix} Recipe grounding: "
                 f"{_grounded['coverage']['filled']}/{_grounded['coverage']['total']} slots curated"
             )
+
+        # Never ship an empty/degenerate plan as COMPLETED.
+        _assert_plan_has_content(transformed_days, goal, log_prefix)
 
         # ── Phase 3: Aggregate ingredients into shopping list ──
         shopping_items = aggregate_ingredients_from_meals(
@@ -2208,6 +2297,11 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             f"LLM cost=${llm_result.get('cost_usd', 0)}"
         )
         return {'status': 'success', 'plan_id': plan.id}
+
+    except RepairBudgetExhausted as exc:
+        # See the protocol-path handler: terminal failure, no retry.
+        _mark_goal_restriction_failed(goal_id, exc)
+        return {'status': 'failed', 'reason': 'dietary_restrictions_unsatisfiable'}
 
     except Exception as exc:
         logger.error(f"Catalog task failed for goal {goal_id}: {str(exc)}", exc_info=True)
@@ -2309,116 +2403,6 @@ def _find_matching_product(
             best_match = product
 
     return best_match
-
-
-def generate_mock_llm_response() -> Dict[str, Any]:
-    """
-    Placeholder function for LLM response.
-    Replace this with actual LLM API integration.
-    """
-    return {
-        'days': [
-            {
-                'day_number': 1,
-                'breakfast': {
-                    'name': 'Greek Yogurt with Berries',
-                    'description': 'Protein-rich breakfast option',
-                    'ingredients': ['greek yogurt', 'mixed berries', 'honey'],
-                    'preparation_time': 5,
-                    'nutritional_info': {
-                        'calories': 200,
-                        'protein': '15g',
-                        'carbs': '25g',
-                        'fat': '5g'
-                    }
-                },
-                'lunch': {
-                    'name': 'Grilled Chicken Salad',
-                    'description': 'Healthy salad with grilled chicken breast',
-                    'ingredients': ['chicken breast', 'lettuce', 'tomatoes', 'cucumber', 'olive oil'],
-                    'preparation_time': 30,
-                    'nutritional_info': {
-                        'calories': 450,
-                        'protein': '35g',
-                        'carbs': '15g',
-                        'fat': '25g'
-                    }
-                },
-                'dinner': {
-                    'name': 'Baked Salmon with Vegetables',
-                    'description': 'Nutritious dinner with omega-3 rich salmon',
-                    'ingredients': ['salmon fillet', 'broccoli', 'sweet potato', 'lemon', 'olive oil'],
-                    'preparation_time': 35,
-                    'nutritional_info': {
-                        'calories': 500,
-                        'protein': '40g',
-                        'carbs': '30g',
-                        'fat': '22g'
-                    }
-                },
-                'small_meals': [
-                    {
-                        'name': 'Protein Smoothie',
-                        'description': 'Quick protein boost',
-                        'ingredients': ['protein powder', 'banana', 'almond milk'],
-                        'preparation_time': 3,
-                        'nutritional_info': {
-                            'calories': 180,
-                            'protein': '20g',
-                            'carbs': '15g',
-                            'fat': '3g'
-                        }
-                    }
-                ],
-                'snacks': [
-                    {
-                        'name': 'Apple with Almonds',
-                        'description': 'Healthy afternoon snack',
-                        'ingredients': ['apple', 'almonds'],
-                        'preparation_time': 2,
-                        'nutritional_info': {
-                            'calories': 150,
-                            'protein': '5g',
-                            'carbs': '20g',
-                            'fat': '8g'
-                        }
-                    }
-                ]
-            }
-        ],
-        'shopping_list': [
-            {
-                'ingredient': 'chicken breast',
-                'quantity': '500',
-                'unit': 'g',
-                'notes': 'Fresh, skinless'
-            },
-            {
-                'ingredient': 'lettuce',
-                'quantity': '1',
-                'unit': 'head',
-                'notes': None
-            },
-            {
-                'ingredient': 'tomatoes',
-                'quantity': '300',
-                'unit': 'g',
-                'notes': None
-            },
-            {
-                'ingredient': 'tofu',
-                'quantity': '400',
-                'unit': 'g',
-                'notes': 'Firm tofu'
-            },
-            {
-                'ingredient': 'broccoli',
-                'quantity': '500',
-                'unit': 'g',
-                'notes': None
-            }
-        ]
-    }
 
 
 @shared_task(bind=True, max_retries=1, default_retry_delay=30, time_limit=180, soft_time_limit=150)
