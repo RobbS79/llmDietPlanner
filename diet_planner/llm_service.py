@@ -656,7 +656,9 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
             "response": parsed,
             "input_tokens": getattr(usage, "prompt_token_count", 0),
             "output_tokens": getattr(usage, "candidates_token_count", 0),
-            "cost_usd": 0.0,
+            # Decimal (not float) so callers can sum this with calculate_cost()
+            # results without a Decimal + float TypeError.
+            "cost_usd": Decimal("0.0"),
         }
     
     def generate_complete_plan_with_shopping_list(
@@ -687,7 +689,16 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
         days = meal_plan_result['response'].get('days', [])
         
         logger.info(f"Meal plan generated: {len(days)} days. Generating shopping list (step 2/2)...")
-        shopping_list_result = self.generate_shopping_list_with_prices(days, shop_url, goal, model)
+        # Deterministically aggregate every recipe ingredient into a flat list
+        # before pricing. generate_shopping_list_with_prices treats this list as
+        # the source of truth, so this guarantees recipe/shopping-list parity.
+        # Imported lazily to avoid a circular import (tasks imports this module).
+        from .tasks import aggregate_ingredients_from_meals
+
+        aggregated_items = aggregate_ingredients_from_meals(days)
+        shopping_list_result = self.generate_shopping_list_with_prices(
+            aggregated_items, shop_url, goal, model
+        )
         shopping_data = shopping_list_result['response']
         
         # Combine results
