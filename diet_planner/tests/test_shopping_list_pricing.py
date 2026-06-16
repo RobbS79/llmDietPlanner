@@ -209,10 +209,16 @@ class ComputePricingTest(TestCase):
 
     def _store(self, code, name):
         from diet_planner.models import GroceryStore
-        return GroceryStore.objects.create(
-            code=code, name=name, chain=code.split('_')[0],
-            country='CZ', currency='CZK', is_active=True,
+        # get_or_create: migration 0017 seeds these stores into the test DB, so
+        # a plain create() would collide on the unique `code`.
+        store, _ = GroceryStore.objects.get_or_create(
+            code=code,
+            defaults=dict(
+                name=name, chain=code.split('_')[0],
+                country='CZ', currency='CZK', is_active=True,
+            ),
         )
+        return store
 
     def _product(self, store, name, normalized):
         from diet_planner.models import StoreProduct
@@ -353,12 +359,15 @@ class ResolveStoreProductsTest(TestCase):
         now = timezone.now()
 
         self.canon = CanonicalIngredient.objects.create(name='banana')
-        lidl = GroceryStore.objects.create(
-            code='LIDL_CZ', name='Lidl', chain='LIDL', country='CZ',
-            currency='CZK', is_active=True)
-        rohlik = GroceryStore.objects.create(
-            code='ROHLIK', name='Rohlík', chain='ROHLIK', country='CZ',
-            currency='CZK', is_active=True)
+        # get_or_create: these stores are seeded by migration 0017.
+        lidl, _ = GroceryStore.objects.get_or_create(
+            code='LIDL_CZ',
+            defaults=dict(name='Lidl', chain='LIDL', country='CZ',
+                          currency='CZK', is_active=True))
+        rohlik, _ = GroceryStore.objects.get_or_create(
+            code='ROHLIK',
+            defaults=dict(name='Rohlík', chain='ROHLIK', country='CZ',
+                          currency='CZK', is_active=True))
 
         # Two stores stock the same canonical under DIFFERENT product names that
         # do NOT contain the shopping-list term "banán" — so name matching alone
