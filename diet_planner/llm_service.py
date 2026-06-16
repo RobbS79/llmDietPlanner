@@ -28,7 +28,7 @@ Costs are stored in DietaryPlan.llm_cost_usd for billing/monitoring.
 - Look for "estimated price" logs for price estimation calls
 - Token counts help identify prompt optimization opportunities
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 import json
 import logging
 import re
@@ -38,6 +38,9 @@ from django.conf import settings
 import google.generativeai as genai
 
 from .food_categories import CATEGORY_SLUGS
+
+if TYPE_CHECKING:
+    from diet_planner.services.restrictions import ResolvedRestrictions
 
 logger = logging.getLogger(__name__)
 
@@ -322,81 +325,197 @@ EXAMPLE INGREDIENT FORMAT:
             logger.error(f"Gemini API error: {e}", exc_info=True)
             raise
     
+    def _build_meal_system_prompt(
+        self,
+        *,
+        goal: Any,
+        exclusions: "Optional[ResolvedRestrictions]",
+        shop_url: Optional[str] = None,
+        catalog_text: Optional[str] = None,
+        single_meal: bool = False,
+    ) -> str:
+        """Build the system prompt for meal generation.
+
+        Shared by generate_meal_plan_only (URL browsing), generate_catalog_
+        constrained_plan (catalog text), and regenerate_meal (single-meal
+        repair). The restriction block is injected when exclusions is non-
+        empty; this is the ONE place the rule lives.
+        """
+        language_names = {
+            "cs": "Czech", "sk": "Slovak", "pl": "Polish",
+            "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian",
+            "de": "German", "en": "English",
+        }
+        target_language = language_names.get(
+            getattr(goal, "language_code", "en") or "en", "English"
+        )
+        num_days = getattr(goal, "num_days", 7)
+
+        restriction_block = self._format_restriction_block(exclusions)
+
+        if single_meal:
+            schema_hint = (
+                "OUTPUT: a SINGLE meal JSON object with keys "
+                "name, description, food_category, preparation_time, "
+                "ingredients[], instructions[], nutritional_info."
+            )
+            scope_line = "TASK: produce ONE replacement meal honoring all rules."
+        else:
+            schema_hint = (
+                'OUTPUT: {"days": [{"day_number": 1, "breakfast": {...}, '
+                '"lunch": {...}, "dinner": {...}, "small_meals": [...], '
+                '"snacks": [...]}, ...]}'
+            )
+            scope_line = f"TASK: generate a {num_days}-day meal plan."
+
+        source_line = (
+            f"Browse {shop_url} for context but don't list prices."
+            if shop_url
+            else f"Use ONLY the AVAILABLE PRODUCTS list below.\n\n{catalog_text or ''}"
+        )
+
+        return (
+            f"You are a nutrition expert creating meal plans.\n\n"
+            f"RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.\n\n"
+            f"{scope_line}\n"
+            f"{schema_hint}\n\n"
+            f"{source_line}\n\n"
+            f"{restriction_block}"
+            f"CRITICAL RULES:\n"
+            f"- Keep instructions VERY BRIEF: 3 steps maximum per meal\n"
+            f"- Keep descriptions to 1 sentence\n"
+            f"\n"
+            f"INGREDIENT CONSISTENCY (production-critical, do not violate):\n"
+            f"- ingredients[] MUST list ONLY raw items the user has to buy fresh\n"
+            f"  at the store for THIS meal.\n"
+            f"- A meal that reuses a leftover from another day MUST exclude that\n"
+            f"  leftover from ingredients[]."
+        )
+
+    @staticmethod
+    def _format_restriction_block(
+        exclusions: "Optional[ResolvedRestrictions]",
+    ) -> str:
+        if exclusions is None or not exclusions.exclusion_keywords:
+            return ""
+        tags_str = ", ".join(sorted(exclusions.tags)) or "(none)"
+        allergens_line = ""
+        if exclusions.freeform_allergens:
+            allergens_line = (
+                "- The user has reported ALLERGIES to: "
+                f"{', '.join(sorted(exclusions.freeform_allergens))}.\n"
+            )
+        kw_str = ", ".join(sorted(exclusions.exclusion_keywords))
+        return (
+            "DIETARY RESTRICTIONS (non-negotiable, hard rule):\n"
+            f"- The user requires: {tags_str}.\n"
+            f"{allergens_line}"
+            f"- The following ingredient keywords are FORBIDDEN in ingredients[]\n"
+            f"  AND instructions[] for ALL meals: {kw_str}.\n"
+            "- If a traditional recipe would require a forbidden ingredient,\n"
+            "  substitute a compliant alternative (e.g. bezlepková mouka instead\n"
+            "  of mouka). Generated meals containing any forbidden keyword will\n"
+            "  be REJECTED.\n\n"
+        )
+
+    def regenerate_meal(
+        self,
+        original_meal: Dict[str, Any],
+        goal: Any,
+        exclusions: "ResolvedRestrictions",
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Re-prompt Gemini for ONE replacement meal that honors restrictions.
+
+        Returns a single meal dict (not wrapped in a days array). Used by the
+        repair loop when the validator finds a forbidden ingredient.
+        """
+        model = model or self.default_model
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal, exclusions=exclusions, shop_url=None, single_meal=True,
+        )
+        meal_brief = (
+            f"Slot: {original_meal.get('food_category', 'meal')}\n"
+            f"Replace this meal because it violated restrictions:\n"
+            f"  name: {original_meal.get('name', '?')}\n"
+            f"  ingredients: "
+            f"{[i.get('name') for i in (original_meal.get('ingredients') or []) if isinstance(i, dict)]}\n"
+            f"Produce a compliant replacement for the same slot."
+        )
+        gemini_model = genai.GenerativeModel(
+            model_name=model, system_instruction=system_prompt
+        )
+        response = gemini_model.generate_content(
+            meal_brief,
+            generation_config={
+                "response_mime_type": "application/json",
+                "temperature": 0.7,
+                "max_output_tokens": getattr(
+                    settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536
+                ),
+            },
+            request_options={"timeout": 120},
+        )
+        return json.loads(response.text)
+
+    def _resolve_exclusions(self, goal: Any, exclusions):
+        """Resolve restrictions from the goal when a caller didn't pass them.
+
+        Callers may pass pre-resolved exclusions (e.g. tests), but the normal
+        generation path leaves them None and lets the goal drive resolution so
+        the restriction block in the system prompt and the post-generation
+        repair loop always agree.
+        """
+        if exclusions is not None:
+            return exclusions
+        from diet_planner.services.restrictions import RestrictionResolver
+        return RestrictionResolver().resolve(goal)
+
+    def _enforce_restrictions(self, parsed: Dict[str, Any], goal: Any, exclusions) -> None:
+        """Repair restriction violations in parsed['days'] in place.
+
+        Runs the deterministic-swap + re-prompt loop over every meal. A no-op
+        when there are no exclusion keywords. Propagates RepairBudgetExhausted
+        so the calling task can mark the goal FAILED rather than ship a plan
+        that violates the user's dietary restrictions.
+        """
+        if exclusions is None:
+            return
+        days = parsed.get('days')
+        if not isinstance(days, list) or not days:
+            return
+        from diet_planner.services.restrictions import repair_meals_with_violations
+        outcome = repair_meals_with_violations(
+            days=days, goal=goal, exclusions=exclusions, llm=self,
+        )
+        parsed['days'] = outcome.days
+        if outcome.swaps or outcome.reprompts:
+            logger.info(
+                "restriction-repair: %d swap(s), %d re-prompt(s) applied",
+                outcome.swaps, outcome.reprompts,
+            )
+
     def generate_meal_plan_only(
         self,
         user_prompt: str,
         shop_url: str,
         goal: Any,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        exclusions: "Optional[ResolvedRestrictions]" = None,
     ) -> Dict[str, Any]:
         """
         Generate meal plan ONLY (no shopping list) to avoid token limits.
         This is the first call in a two-step process.
         """
         model = model or self.default_model
-        
-        # Language and currency setup
-        language_names = {
-            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
-            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
-            'de': 'German', 'en': 'English',
-        }
-        target_language = language_names.get(getattr(goal, 'language_code', 'en') or 'en', 'English')
-        
-        currency_map = {'CZ': 'CZK', 'SK': 'EUR', 'PL': 'PLN', 'HU': 'HUF'}
-        country = getattr(goal, 'country', 'CZ')
-        currency = currency_map.get(country, 'CZK')
-        
-        system_prompt = f"""You are a nutrition expert creating meal plans.
+        exclusions = self._resolve_exclusions(goal, exclusions)
 
-RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}
-
-TASK:
-1. Browse {shop_url} to see available products
-2. Create meal plan with recipes (step-by-step instructions)
-3. DO NOT generate shopping list - that will be done separately
-
-OUTPUT STRUCTURE:
-{{
-  "days": [
-    {{
-      "day_number": 1,
-      "breakfast": {{
-        "name": "meal name",
-        "description": "brief 1 sentence",
-        "food_category": "one of the allowed slugs below",
-        "preparation_time": 15,
-        "ingredients": [{{"name": "ingredient", "quantity": 200, "unit": "g"}}],
-        "instructions": ["Step 1", "Step 2", "Step 3"],
-        "nutritional_info": {{"calories": 450, "protein": "30g", "carbs": "25g", "fat": "20g"}}
-      }},
-      "lunch": {{...}},
-      "dinner": {{...}},
-      "small_meals": [{{...}}],
-      "snacks": [{{...}}]
-    }}
-  ]
-}}
-
-FOOD_CATEGORY must be exactly one of: {', '.join(CATEGORY_SLUGS)}
-
-CRITICAL RULES:
-- Keep instructions VERY BRIEF: 3 steps maximum per meal
-- Keep descriptions to 1 sentence
-- Browse {shop_url} for context but don't list prices
-- {getattr(goal, 'num_days', 7)} days total
-
-INGREDIENT CONSISTENCY (production-critical, do not violate):
-- The `ingredients[]` array MUST list ONLY raw items the user has to buy
-  fresh at the store for THIS meal. It is the shopping basket for the meal.
-- NEVER list an ingredient in `ingredients[]` if the `description` or
-  `instructions` say the item is "already prepared", "already cooked",
-  "leftover", "from yesterday", "from the previous day/meal", or
-  "pre-cooked" (in ANY language). Either omit it entirely OR keep it and
-  rewrite the description so it no longer claims the item is pre-prepared.
-- A meal that reuses a leftover from another day MUST exclude that
-  leftover from `ingredients[]`. The user already has it; charging them
-  for it again is a bug, not a feature."""
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal,
+            exclusions=exclusions,
+            shop_url=shop_url,
+            single_meal=False,
+        )
 
         full_prompt = f"""{user_prompt}
 
@@ -437,6 +556,8 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
                 except json.JSONDecodeError:
                     raise ValueError(f"Invalid JSON from meal plan generation: {e}")
 
+            self._enforce_restrictions(parsed_response, goal, exclusions)
+
             return {
                 'response': parsed_response,
                 'input_tokens': usage.prompt_token_count,
@@ -452,113 +573,93 @@ Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
     
     def generate_shopping_list_with_prices(
         self,
-        meal_plan_days: List[Dict],
+        aggregated_items: List[Dict[str, Any]],
         shop_url: str,
         goal: Any,
-        model: Optional[str] = None
+        model: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Generate shopping list with prices based on meal plan.
-        This is the second call - separate to avoid token limits.
+        """Price-match a pre-aggregated shopping list against a shop catalog.
+
+        The aggregated list is the SOURCE OF TRUTH — Gemini must price every
+        item and may not drop or add anything. Parity with recipe ingredients
+        is guaranteed by the caller, not by Gemini.
         """
         model = model or self.default_model
-        
+
         language_names = {
-            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
-            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
-            'de': 'German', 'en': 'English',
+            "cs": "Czech", "sk": "Slovak", "pl": "Polish",
+            "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian",
+            "de": "German", "en": "English",
         }
-        target_language = language_names.get(getattr(goal, 'language_code', 'en') or 'en', 'English')
-        currency_map = {'CZ': 'CZK', 'SK': 'EUR', 'PL': 'PLN', 'HU': 'HUF'}
-        currency = currency_map.get(getattr(goal, 'country', 'CZ'), 'CZK')
-        
-        # Extract ingredients summary for prompt
-        import json as json_module
-        days_summary = json_module.dumps(meal_plan_days, ensure_ascii=False)[:5000]  # Limit prompt size
-        
-        system_prompt = f"""You are a shopping assistant. Create shopping list with prices from {shop_url}.
+        target_language = language_names.get(
+            getattr(goal, "language_code", "en") or "en", "English"
+        )
+        currency_map = {"CZ": "CZK", "SK": "EUR", "PL": "PLN", "HU": "HUF"}
+        currency = currency_map.get(getattr(goal, "country", "CZ"), "CZK")
 
-RESPONSE FORMAT: Valid JSON only, all text in {target_language}
+        system_prompt = (
+            f"You are a shopping assistant. Price each item below from {shop_url}.\n\n"
+            f"RESPONSE FORMAT: Valid JSON only, all text in {target_language}\n\n"
+            "OUTPUT:\n"
+            '{\n  "shopping_list": [\n'
+            '    {\n'
+            '      "ingredient": "name",\n'
+            '      "quantity": 500,\n'
+            '      "unit": "g",\n'
+            '      "matched_product_name": "actual product",\n'
+            '      "price": 89.90,\n'
+            '      "price_total": 89.90,\n'
+            f'      "currency": "{currency}",\n'
+            '      "package_size": 500,\n'
+            '      "product_unit": "g",\n'
+            '      "price_type": "REGULAR",\n'
+            '      "estimated": false\n'
+            '    }\n  ],\n  "total_cost": 2345.67\n}\n\n'
+            "RULES:\n"
+            f"1. Browse {shop_url} for ACTUAL prices\n"
+            "2. Convert weights to pieces when needed (200g avocado -> 2 pieces)\n"
+            "3. Round UP to purchasable packages (300ml oil -> 500ml bottle)\n"
+            "4. Mark estimated: true only if product not found\n"
+            "5. EVERY input item must appear in shopping_list — do not drop any."
+        )
 
-OUTPUT:
-{{
-  "shopping_list": [
-    {{
-      "ingredient": "name",
-      "quantity": 500,
-      "unit": "g",
-      "matched_product_name": "actual product from {shop_url}",
-      "price": 89.90,
-      "price_total": 89.90,
-      "currency": "{currency}",
-      "package_size": 500,
-      "product_unit": "g",
-      "price_type": "REGULAR",
-      "estimated": false
-    }}
-  ],
-  "total_cost": 2345.67
-}}
+        items_block = "\n".join(
+            f"- {it.get('ingredient', '')}: {it.get('quantity', '')} {it.get('unit', '')}"
+            for it in aggregated_items
+        )
+        prompt = (
+            f"Price every item below from {shop_url}.\n"
+            f"Input items ({len(aggregated_items)} total):\n{items_block}\n\n"
+            f"Return shopping_list with one entry per input item."
+        )
 
-RULES:
-1. Browse {shop_url} for ACTUAL prices
-2. Convert weights to pieces when needed (200g avocado → 2 pieces)
-3. Round UP to purchasable packages (300ml oil → 500ml bottle)
-4. Mark estimated: true only if product not found"""
-
-        prompt = f"""Based on this meal plan, create shopping list with prices from {shop_url}.
-
-Meal plan (summary):
-{days_summary}
-
-Browse {shop_url} and return complete shopping list with real prices."""
-
-        try:
-            gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
-            max_tokens = getattr(settings, 'GEMINI_MAX_OUTPUT_TOKENS', 65536)
-
-            response = gemini_model.generate_content(
-                prompt,
-                generation_config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.3,
-                    "max_output_tokens": max_tokens,
-                },
-                request_options={"timeout": 300}
-            )
-
-            if response.candidates and hasattr(response.candidates[0], 'finish_reason'):
-                finish_reason = response.candidates[0].finish_reason
-                if finish_reason.name == 'MAX_TOKENS':
-                    logger.error(f"Shopping list response truncated at {max_tokens} tokens")
-                    raise ValueError(f"Response truncated: output exceeded {max_tokens} tokens")
-
-            content = response.text
-            usage = response.usage_metadata
-
-            try:
-                parsed_response = json.loads(content)
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse shopping list JSON: {e}")
-                try:
-                    cleaned = re.sub(r',\s*}', '}', content)
-                    cleaned = re.sub(r',\s*]', ']', cleaned)
-                    parsed_response = json.loads(cleaned)
-                except json.JSONDecodeError:
-                    raise ValueError(f"Invalid JSON from shopping list generation: {e}")
-
-            return {
-                'response': parsed_response,
-                'input_tokens': usage.prompt_token_count,
-                'output_tokens': usage.candidates_token_count,
-                'total_tokens': usage.total_token_count,
-                'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
-                'model': model,
-            }
-
-        except Exception as e:
-            logger.error(f"Shopping list generation error: {e}", exc_info=True)
-            raise
+        gemini_model = genai.GenerativeModel(
+            model_name=model, system_instruction=system_prompt
+        )
+        max_tokens = getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536)
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config={
+                "response_mime_type": "application/json",
+                "temperature": 0.3,
+                "max_output_tokens": max_tokens,
+            },
+            request_options={"timeout": 300},
+        )
+        if response.candidates and hasattr(response.candidates[0], "finish_reason"):
+            finish = response.candidates[0].finish_reason
+            if finish.name == "MAX_TOKENS":
+                raise ValueError(f"Shopping list response truncated at {max_tokens} tokens")
+        parsed = json.loads(response.text)
+        usage = response.usage_metadata
+        return {
+            "response": parsed,
+            "input_tokens": getattr(usage, "prompt_token_count", 0),
+            "output_tokens": getattr(usage, "candidates_token_count", 0),
+            # Decimal (not float) so callers can sum this with calculate_cost()
+            # results without a Decimal + float TypeError.
+            "cost_usd": Decimal("0.0"),
+        }
     
     def generate_complete_plan_with_shopping_list(
         self,
@@ -588,7 +689,16 @@ Browse {shop_url} and return complete shopping list with real prices."""
         days = meal_plan_result['response'].get('days', [])
         
         logger.info(f"Meal plan generated: {len(days)} days. Generating shopping list (step 2/2)...")
-        shopping_list_result = self.generate_shopping_list_with_prices(days, shop_url, goal, model)
+        # Deterministically aggregate every recipe ingredient into a flat list
+        # before pricing. generate_shopping_list_with_prices treats this list as
+        # the source of truth, so this guarantees recipe/shopping-list parity.
+        # Imported lazily to avoid a circular import (tasks imports this module).
+        from .tasks import aggregate_ingredients_from_meals
+
+        aggregated_items = aggregate_ingredients_from_meals(days)
+        shopping_list_result = self.generate_shopping_list_with_prices(
+            aggregated_items, shop_url, goal, model
+        )
         shopping_data = shopping_list_result['response']
         
         # Combine results
@@ -1445,6 +1555,7 @@ Only emit a slug from the candidate list. Use null when nothing fits.
         catalog_text: str,
         goal: Any,
         model: Optional[str] = None,
+        exclusions: "Optional[ResolvedRestrictions]" = None,
     ) -> Dict[str, Any]:
         """
         Generate a meal plan constrained to a real product catalog.
@@ -1463,62 +1574,14 @@ Only emit a slug from the candidate list. Use null when nothing fits.
             Dict with 'response' (parsed JSON), token counts, cost
         """
         model = model or self.default_model
+        exclusions = self._resolve_exclusions(goal, exclusions)
 
-        language_names = {
-            'cs': 'Czech', 'sk': 'Slovak', 'pl': 'Polish',
-            'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian',
-            'de': 'German', 'en': 'English',
-        }
-        target_language = language_names.get(
-            getattr(goal, 'language_code', 'en') or 'en', 'English'
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal,
+            exclusions=exclusions,
+            catalog_text=catalog_text,
+            single_meal=False,
         )
-
-        system_prompt = f"""You are a nutrition expert creating meal plans.
-
-RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.
-
-CRITICAL CONSTRAINT: You MUST use ONLY ingredients from the AVAILABLE PRODUCTS
-list below, plus items from PANTRY STAPLES. Do NOT invent ingredients that are
-not in either list.
-
-For each ingredient, include "catalog_id" — the # number from the product list.
-For pantry staples, set "catalog_id": null and "pantry": true.
-
-AVAILABLE PRODUCTS:
-{catalog_text}
-
-OUTPUT STRUCTURE:
-{{
-  "days": [
-    {{
-      "day_number": 1,
-      "breakfast": {{
-        "name": "meal name",
-        "description": "brief 1 sentence",
-        "food_category": "one of: {', '.join(CATEGORY_SLUGS)}",
-        "preparation_time": 15,
-        "ingredients": [
-          {{"name": "kuřecí prsa", "catalog_id": 42, "quantity": 200, "unit": "g"}},
-          {{"name": "sůl", "catalog_id": null, "quantity": 5, "unit": "g", "pantry": true}}
-        ],
-        "instructions": ["Step 1", "Step 2", "Step 3"],
-        "nutritional_info": {{"calories": 450, "protein": "30g", "carbs": "25g", "fat": "20g"}}
-      }},
-      "lunch": {{...}},
-      "dinner": {{...}},
-      "small_meals": [{{...}}],
-      "snacks": [{{...}}]
-    }}
-  ]
-}}
-
-RULES:
-- {getattr(goal, 'num_days', 7)} days total
-- Keep instructions BRIEF: 3 steps max per meal
-- Keep descriptions to 1 sentence
-- Ensure variety across days — do not repeat the same meal
-- Every ingredient MUST reference a product # from the list or be a pantry staple
-- DO NOT generate a shopping list or prices — the system handles that"""
 
         full_prompt = f"""{user_prompt}
 
@@ -1557,6 +1620,8 @@ Keep all text concise — 3 steps max per recipe, 1 sentence descriptions."""
                 cleaned = re.sub(r',\s*}', '}', content)
                 cleaned = re.sub(r',\s*]', ']', cleaned)
                 parsed = json.loads(cleaned)
+
+            self._enforce_restrictions(parsed, goal, exclusions)
 
             return {
                 'response': parsed,

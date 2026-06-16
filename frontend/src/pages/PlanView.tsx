@@ -358,7 +358,17 @@ export const PlanView = () => {
                   <div key={idx} className="group border-b border-slate-600 pb-6 last:border-0 last:pb-0">
                     <div className="flex justify-between items-start gap-3 mb-2">
                       <p className="text-base font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
-                      <p className="text-sm font-black text-emerald-500 tabular-nums leading-none shrink-0 whitespace-nowrap">{item.price} {item.currency}</p>
+                      <div className="flex flex-col items-end shrink-0">
+                        <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">{item.price} {item.currency}</p>
+                        {item.estimated && (
+                          <span
+                            title={item.source_detail || 'Odhadovaná cena'}
+                            className="mt-1 text-[8px] font-black text-amber-400/90 uppercase tracking-widest italic leading-none"
+                          >
+                            odhad
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
                       <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-600">{item.quantity} {item.unit}</span>

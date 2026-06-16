@@ -6,7 +6,7 @@ representation of products that actually exist in the selected store(s).
 The LLM is then constrained to use ONLY these products (plus pantry staples).
 """
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
 from django.utils import timezone
 
@@ -16,6 +16,9 @@ from diet_planner.models import (
     PriceRecord,
     PriceSourceType,
 )
+
+if TYPE_CHECKING:
+    from diet_planner.services.restrictions import ResolvedRestrictions
 
 logger = logging.getLogger(__name__)
 
@@ -113,21 +116,17 @@ class CatalogService:
         self,
         goal: DietaryGoal,
         max_products: int = 500,
+        exclusions: "ResolvedRestrictions | None" = None,
     ) -> Dict[str, Any]:
         """
         Build a catalog suitable for injecting into the LLM prompt.
 
-        Returns:
-            {
-                'products_by_category': {'proteins': [...], 'dairy': [...], ...},
-                'total_products': int,
-                'pantry_staples': [...],
-                'store_name': str,
-                'catalog_limited': bool,
-            }
+        `exclusions` is the resolved restriction set. If None, no dietary
+        filter is applied. Callers should pass the result of
+        RestrictionResolver().resolve(goal) — see services/restrictions.py.
         """
         products = self._load_products(goal)
-        products = self._filter_by_dietary_restrictions(products, goal)
+        products = self._filter_by_exclusions(products, exclusions)
         categorized = self._categorize(products)
         limited = self._limit_products(categorized, max_products)
 
@@ -250,32 +249,27 @@ class CatalogService:
 
         return products
 
-    def _filter_by_dietary_restrictions(
+    def _filter_by_exclusions(
         self,
         products: List[Dict[str, Any]],
-        goal: DietaryGoal,
+        exclusions: "ResolvedRestrictions | None",
     ) -> List[Dict[str, Any]]:
-        restrictions_text = (goal.dietary_restrictions or '').lower()
-        if not restrictions_text:
+        if exclusions is None or not exclusions.exclusion_keywords:
             return products
 
-        exclude_keywords = set()
-        for restriction, keywords in DIETARY_EXCLUSIONS.items():
-            if restriction in restrictions_text:
-                exclude_keywords.update(kw.lower() for kw in keywords)
-
-        if not exclude_keywords:
-            return products
-
+        exclude_keywords = exclusions.exclusion_keywords
         filtered = []
         for p in products:
-            name_lower = p['name'].lower()
-            display_lower = (p.get('display_name') or '').lower()
+            name_lower = p["name"].lower()
+            display_lower = (p.get("display_name") or "").lower()
             combined = f"{name_lower} {display_lower}"
             if not any(kw in combined for kw in exclude_keywords):
                 filtered.append(p)
 
-        logger.info(f"Dietary filter: {len(products)} -> {len(filtered)} products (excluded {len(exclude_keywords)} keywords)")
+        logger.info(
+            f"Dietary filter: {len(products)} -> {len(filtered)} products "
+            f"(excluded {len(exclude_keywords)} keywords)"
+        )
         return filtered
 
     def _categorize(self, products: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:

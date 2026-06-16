@@ -25,7 +25,17 @@ need a **live** key from your *real, activated* Stripe account.
 
 ---
 
-## Step 2 — Create the two LIVE prices
+## ✅ LIVE prices created (2026-06-13)
+
+Live account `acct_1Thr0DAUVVtUs6xl`. Both prices exist in live mode:
+
+- `STRIPE_PRICE_STANDARD=price_1ThuFOAUVVtUs6xl3iz4STto` — 9900 CZK, monthly, `lookup_key=standard_monthly`
+- `STRIPE_PRICE_PREMIUM=price_1ThuX5AUVVtUs6xlAwBa1sXu` — 19900 CZK, monthly (created via dashboard)
+- `STRIPE_PUBLISHABLE_KEY=pk_live_51Thr0DAUVVtUs6xlfya8IfBP3hHBo0ihr3CxphhqOrpy01L7fNoPazlyDZ5YpBs4AtIhSgVei0HCuC8AW0X5mHf000uxuxfGmj`
+
+Remaining go-live work: Steps 3–6 below (set DO env incl. `sk_live` + prod webhook secret, register webhook, portal/VAT, smoke test).
+
+## Step 2 — Create the two LIVE prices (done — see above)
 
 Paste your live key into the first line, then run the whole block in a terminal on this
 server (the `stripe` CLI is already installed). It creates both products + monthly CZK
@@ -72,9 +82,9 @@ Variables**, set these (mark each **Encrypted**), then deploy:
 | Var | Value |
 |-----|-------|
 | `STRIPE_SECRET_KEY` | your `sk_live_…` |
-| `STRIPE_PUBLISHABLE_KEY` | your `pk_live_…` (Developers → API keys, live mode) |
-| `STRIPE_PRICE_STANDARD` | the live `price_…` from Step 2 |
-| `STRIPE_PRICE_PREMIUM` | the live `price_…` from Step 2 |
+| `STRIPE_PUBLISHABLE_KEY` | `pk_live_51Thr0DAUVVtUs6xlfya8IfBP3hHBo0ihr3CxphhqOrpy01L7fNoPazlyDZ5YpBs4AtIhSgVei0HCuC8AW0X5mHf000uxuxfGmj` |
+| `STRIPE_PRICE_STANDARD` | `price_1ThuFOAUVVtUs6xl3iz4STto` |
+| `STRIPE_PRICE_PREMIUM` | `price_1ThuX5AUVVtUs6xlAwBa1sXu` |
 | `STRIPE_WEBHOOK_SECRET` | the **live** signing secret from Step 4 (NOT the local test one) |
 
 The local `.env` test values stay as-is for local dev — only DO gets live values.

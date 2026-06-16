@@ -66,8 +66,10 @@ class PriceRecordBucketingTest(TestCase):
 
     def _store_product(self):
         from diet_planner.models import GroceryStore, StoreProduct
-        store = GroceryStore.objects.create(
-            code='LIDL_CZ', name='Lidl', country='CZ', currency='CZK'
+        # get_or_create: LIDL_CZ is seeded by migration 0017.
+        store, _ = GroceryStore.objects.get_or_create(
+            code='LIDL_CZ',
+            defaults=dict(name='Lidl', country='CZ', currency='CZK'),
         )
         return StoreProduct.objects.create(
             store=store, name='Mléko', normalized_name='mléko', is_active=True
