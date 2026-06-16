@@ -2105,10 +2105,18 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
         goal.save(update_fields=['status'])
         logger.info(f"{log_prefix} Starting catalog-constrained generation for {goal.num_days} days")
 
-        # ── Phase 1: Build catalog ──
+        # ── Phase 0: Resolve dietary restrictions ──
+        # Resolve once and thread the same set through the catalog filter, the
+        # generation system prompt, and the post-generation repair loop so all
+        # three agree. Without this the catalog handed to the LLM still listed
+        # forbidden products (e.g. chicken for a vegetarian).
+        from diet_planner.services.restrictions import RestrictionResolver
+        exclusions = RestrictionResolver().resolve(goal)
+
+        # ── Phase 1: Build catalog (filtered by the resolved restrictions) ──
         from diet_planner.services.catalog import CatalogService
         catalog_service = CatalogService()
-        catalog = catalog_service.build_catalog_for_prompt(goal)
+        catalog = catalog_service.build_catalog_for_prompt(goal, exclusions=exclusions)
         catalog_text = catalog_service.build_compact_prompt_text(catalog, goal)
 
         if catalog['total_products'] < 10:
@@ -2130,6 +2138,7 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             user_prompt=user_prompt,
             catalog_text=catalog_text,
             goal=goal,
+            exclusions=exclusions,
         )
 
         llm_response = llm_result['response']

@@ -77,8 +77,12 @@ class CatalogServiceTest(TestCase):
     def test_dietary_filter_vegetarian(self):
         self.goal.dietary_restrictions = 'vegetarian'
         self.goal.save()
+        # build_catalog_for_prompt filters by the resolved restriction set the
+        # caller passes in (it no longer reads goal.dietary_restrictions itself).
+        from diet_planner.services.restrictions import RestrictionResolver
+        exclusions = RestrictionResolver().resolve(self.goal)
         service = CatalogService()
-        catalog = service.build_catalog_for_prompt(self.goal)
+        catalog = service.build_catalog_for_prompt(self.goal, exclusions=exclusions)
         all_names = []
         for products in catalog['products_by_category'].values():
             all_names.extend(p['name'] for p in products)
