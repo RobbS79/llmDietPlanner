@@ -66,6 +66,21 @@ else
   echo "DJANGO_SUPERUSER_PASSWORD not set — skipping superuser bootstrap."
 fi
 
+# 2c. Bootstrap admin TOTP MFA device (console-free enrollment)
+# OTPAdminSite locks /admin/ until a confirmed TOTP device exists, and the DO
+# App Platform console is unusable, so enrollment cannot be done interactively
+# in prod. Instead the operator supplies the secret as a DO SECRET env var; we
+# seed the device from it on every boot. Idempotent: --secret derives a fixed
+# key, so redeploys keep the same code sequence already in the authenticator.
+# --quiet keeps the secret out of the deploy logs.
+if [ -n "$ADMIN_TOTP_SECRET" ]; then
+  echo "Enrolling admin TOTP device from ADMIN_TOTP_SECRET..."
+  python manage.py setup_admin_totp "${DJANGO_SUPERUSER_USERNAME:-admin}" \
+    --secret "$ADMIN_TOTP_SECRET" --quiet || echo "WARN: admin TOTP enrollment failed (admin may be locked)."
+else
+  echo "ADMIN_TOTP_SECRET not set — admin MFA device not bootstrapped."
+fi
+
 # 3. Static Asset Aggregation
 echo "Collecting UI Assets..."
 python manage.py collectstatic --noinput --clear

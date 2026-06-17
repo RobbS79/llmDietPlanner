@@ -12,6 +12,8 @@ import time
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from datetime import timedelta
@@ -188,3 +190,107 @@ class WebhookTests(TestCase):
         self.assertEqual(mock_retrieve.call_count, 1)
         self.assertEqual(ProcessedWebhookEvent.objects.count(), 1)
         self.assertEqual(Subscription.objects.filter(user=self.user).count(), 1)
+
+    def _subscription_event(self, *, event_type, event_id, metadata=None,
+                            customer='cus_1', status='active'):
+        """A customer.subscription.* event whose object IS the subscription
+        (price embedded in items — handlers read it without a retrieve call)."""
+        return json.dumps({
+            'id': event_id,
+            'object': 'event',
+            'type': event_type,
+            'data': {'object': {
+                'id': 'sub_1', 'status': status, 'customer': customer,
+                'cancel_at_period_end': False,
+                'current_period_end': int(time.time()) + 30 * 86400,
+                'metadata': metadata or {},
+                'items': {'data': [{'price': {'id': 'price_standard_test'}}]},
+            }},
+        })
+
+    def test_subscription_updated_creates_if_missing(self):
+        """Out-of-order delivery: an `updated` event arrives with no existing
+        row (the `checkout.session.completed` never reached us). It must still
+        provision rather than silently drop — that's the revenue bug."""
+        payload = self._subscription_event(
+            event_type='customer.subscription.updated', event_id='evt_upd',
+            metadata={'user_id': str(self.user.id)},
+        )
+        self.assertEqual(self._post(payload).status_code, 200)
+        sub = Subscription.objects.get(user=self.user)
+        self.assertEqual(sub.tier, Tier.STANDARD)
+        self.assertTrue(sub.is_entitled())
+
+    def test_subscription_created_provisions_via_customer_mapping(self):
+        """A `customer.subscription.created` (e.g. dashboard-made sub) with no
+        metadata still provisions when a StripeCustomer mapping exists."""
+        StripeCustomer.objects.create(user=self.user, stripe_customer_id='cus_1')
+        payload = self._subscription_event(
+            event_type='customer.subscription.created', event_id='evt_cre',
+        )
+        self.assertEqual(self._post(payload).status_code, 200)
+        sub = Subscription.objects.get(user=self.user)
+        self.assertEqual(sub.tier, Tier.STANDARD)
+        self.assertTrue(sub.is_entitled())
+
+    def test_subscription_updated_preserves_usage(self):
+        """An `updated` event must NOT reset plans_used_this_period (only a
+        renewal `invoice.paid` does) — otherwise every Stripe tweak refunds
+        the user's monthly quota."""
+        Subscription.objects.create(
+            user=self.user, tier=Tier.STANDARD, status=Subscription.Status.ACTIVE,
+            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+            current_period_end=timezone.now() + timedelta(days=10),
+            plans_used_this_period=5,
+        )
+        payload = self._subscription_event(
+            event_type='customer.subscription.updated', event_id='evt_upd2',
+            metadata={'user_id': str(self.user.id)},
+        )
+        self.assertEqual(self._post(payload).status_code, 200)
+        self.user.subscription.refresh_from_db()
+        self.assertEqual(self.user.subscription.plans_used_this_period, 5)
+
+
+@override_settings(STRIPE_PRICE_STANDARD='price_standard_test')
+class ReconcileCommandTests(TestCase):
+    """The operational lever: bind a Stripe subscription to a Django user when
+    webhooks failed or the sub was made outside checkout (no metadata)."""
+
+    def setUp(self):
+        SubscriptionPlan.objects.get_or_create(
+            tier=Tier.STANDARD, defaults=dict(
+                name='Standard', price_czk=99, monthly_plan_quota=7,
+                edits_per_plan=10, allow_multi_store=False),
+        )
+        self.user = User.objects.create_user('carol', 'c@x.com', 'pw')
+
+    def _stripe_sub(self):
+        return {
+            'id': 'sub_orphan', 'status': 'active', 'customer': 'cus_orphan',
+            'cancel_at_period_end': False,
+            'current_period_end': int(time.time()) + 20 * 86400,
+            'metadata': {},  # the real-world broken case: no user_id
+            'items': {'data': [{'price': {'id': 'price_standard_test'}}]},
+        }
+
+    @patch('billing.services.stripe.Subscription.retrieve')
+    def test_reconcile_by_email_provisions(self, mock_retrieve):
+        mock_retrieve.return_value = self._stripe_sub()
+        call_command('reconcile_subscription', 'sub_orphan', '--email', 'c@x.com')
+        sub = Subscription.objects.get(user=self.user)
+        self.assertEqual(sub.stripe_subscription_id, 'sub_orphan')
+        self.assertEqual(sub.tier, Tier.STANDARD)
+        self.assertTrue(sub.is_entitled())
+        # customer mapping is recorded for future webhook resolution
+        self.assertTrue(
+            StripeCustomer.objects.filter(
+                user=self.user, stripe_customer_id='cus_orphan').exists()
+        )
+
+    @patch('billing.services.stripe.Subscription.retrieve')
+    def test_reconcile_unknown_user_errors(self, mock_retrieve):
+        mock_retrieve.return_value = self._stripe_sub()
+        with self.assertRaises(CommandError):
+            call_command('reconcile_subscription', 'sub_orphan',
+                         '--email', 'nobody@x.com')

@@ -187,6 +187,8 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'user',
+            'prompt',
+            'dietary_restrictions',
             'status',
             'country',
             'city',
@@ -205,9 +207,14 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'completed_at',
             'dietary_plan',
         ]
+        # prompt / dietary_restrictions are EncryptedTextField: stored encrypted
+        # at rest, decrypted on read here so the owner can see what they asked
+        # for. Read-only — the request is immutable once the goal is created.
         read_only_fields = [
             'id',
             'user',
+            'prompt',
+            'dietary_restrictions',
             'status',
             'country',
             'city',

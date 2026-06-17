@@ -1,8 +1,17 @@
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.urls import path, re_path, include
 from . import views
 from .sitemaps import sitemaps
+
+# Admin MFA: swap the default AdminSite for django-otp's OTPAdminSite so the
+# /admin/ login demands a TOTP code on top of the password. We swap __class__ on
+# the existing site instance to preserve every model already registered against
+# it. Toggleable via ADMIN_MFA_ENABLED (emergency escape hatch).
+if getattr(settings, "ADMIN_MFA_ENABLED", True):
+    from django_otp.admin import OTPAdminSite
+    admin.site.__class__ = OTPAdminSite
 
 """
 ROOT URL CONFIGURATION
@@ -19,8 +28,8 @@ urlpatterns = [
     # 1. Health check for DigitalOcean (Returns 200)
     path("health/", views.health_check, name="health-check"),
 
-    # 2. Django Admin
-    path("admin/", admin.site.urls),
+    # 2. Django Admin (path configurable via ADMIN_URL_PATH for obscurity)
+    path(settings.ADMIN_URL_PATH, admin.site.urls),
 
     # 3. API Namespace (Strictly separated from frontend routes)
     path("api/auth/", include("login_app.urls")),
