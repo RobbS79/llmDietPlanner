@@ -37,9 +37,31 @@ python manage.py migrate --noinput
 # rather than fall back to a known/default password.
 echo "Ensuring superuser..."
 if [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+  # Idempotent upsert: create the superuser if absent, otherwise RESET its
+  # password. `createsuperuser --noinput` only *creates* — it no-ops when the
+  # user already exists, so it cannot recover a lost prod admin password (the
+  # real lockout mode). Resetting from the secret on every boot keeps /admin/
+  # reachable with a known credential.
   DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}" \
   DJANGO_SUPERUSER_EMAIL="${DJANGO_SUPERUSER_EMAIL:-soroka.robert8@gmail.com}" \
-  python manage.py createsuperuser --noinput 2>/dev/null || echo "Superuser already exists"
+  python manage.py shell <<'PYEOF'
+import os
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+username = os.environ.get("DJANGO_SUPERUSER_USERNAME", "admin")
+email = os.environ.get("DJANGO_SUPERUSER_EMAIL", "")
+password = os.environ["DJANGO_SUPERUSER_PASSWORD"]
+
+user, created = User.objects.get_or_create(username=username, defaults={"email": email})
+user.is_staff = True
+user.is_superuser = True
+if email and not user.email:
+    user.email = email
+user.set_password(password)
+user.save()
+print("Superuser created." if created else "Superuser password reset.")
+PYEOF
 else
   echo "DJANGO_SUPERUSER_PASSWORD not set — skipping superuser bootstrap."
 fi
