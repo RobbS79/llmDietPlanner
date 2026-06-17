@@ -35,6 +35,7 @@ from django.conf import settings
 from django.db.models import F
 
 from diet_planner.models import CuratedRecipe
+from diet_planner.services.prompt_facets import PromptFacets, extract_prompt_facets
 
 
 # Free-text dietary restrictions -> structured dietary_tags. Substring match,
@@ -78,6 +79,48 @@ def published_pool(status: str = CuratedRecipe.Status.PUBLISHED) -> List[Curated
     return list(CuratedRecipe.objects.filter(status=status))
 
 
+def published_cuisine_vocab(
+    *,
+    status: str = CuratedRecipe.Status.PUBLISHED,
+    pool: Optional[List[CuratedRecipe]] = None,
+) -> List[str]:
+    """Sorted distinct non-empty cuisines (lowercased) among published recipes."""
+    recipes = pool if pool is not None else published_pool(status)
+    return sorted({(r.cuisine or '').strip().lower() for r in recipes} - {''})
+
+
+def _recipe_ingredient_tokens(recipe: CuratedRecipe) -> Set[str]:
+    """Lowercased canonical + name tokens for ingredient matching."""
+    tokens: Set[str] = set()
+    for ing in (recipe.ingredients or []):
+        for key in ('canonical', 'name'):
+            val = ing.get(key)
+            if val:
+                tokens.add(str(val).strip().lower())
+    return tokens
+
+
+def _ingredient_present(needle: str, tokens: Set[str]) -> bool:
+    return any(needle in tok for tok in tokens)
+
+
+def recipe_matches_facets(recipe: CuratedRecipe, facets: PromptFacets) -> bool:
+    """Hard gate. Only non-empty facet sets constrain eligibility."""
+    if facets.cuisines:
+        cuisine = (recipe.cuisine or '').strip().lower()
+        if not cuisine or cuisine not in facets.cuisines:
+            return False
+
+    tokens = _recipe_ingredient_tokens(recipe)
+    if facets.wanted_ingredients:
+        if not any(_ingredient_present(w, tokens) for w in facets.wanted_ingredients):
+            return False
+    if facets.avoided_ingredients:
+        if any(_ingredient_present(a, tokens) for a in facets.avoided_ingredients):
+            return False
+    return True
+
+
 def eligible_recipes_for_slot(
     slot: str,
     required_tags: Set[str],
@@ -85,8 +128,9 @@ def eligible_recipes_for_slot(
     pool: Optional[List[CuratedRecipe]] = None,
     status: str = CuratedRecipe.Status.PUBLISHED,
     exclude_ids: Optional[Set[int]] = None,
+    facets: Optional[PromptFacets] = None,
 ) -> List[CuratedRecipe]:
-    """Recipes that pass the HARD GATE for one slot."""
+    """Recipes that pass the HARD GATE for one slot (incl. prompt facets)."""
     meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)
     candidates = pool if pool is not None else published_pool(status)
     exclude_ids = exclude_ids or set()
@@ -101,6 +145,8 @@ def eligible_recipes_for_slot(
             continue
         if not r.is_catalog_mapped():
             continue
+        if facets is not None and not recipe_matches_facets(r, facets):
+            continue
         out.append(r)
     return out
 
@@ -111,6 +157,7 @@ def score_recipe(
     used_recipe_ids: Set[int],
     used_cuisines: Sequence[str],
     target_calories: Optional[float] = None,
+    facets: Optional[PromptFacets] = None,
 ) -> float:
     """Soft-ranking score; higher is better."""
     score = 0.0
@@ -136,6 +183,17 @@ def score_recipe(
             rel = abs(base_cal - target_calories) / target_calories
             score += max(0.0, 3.0 * (1.0 - rel))  # full 3 pts at exact, 0 at >=100% off
 
+    # Soft prompt-fit bonuses (additive; never override the variety/difficulty
+    # /popularity terms above). Only the best-fitting *eligible* recipe wins.
+    if facets is not None:
+        tokens = _recipe_ingredient_tokens(recipe)
+        wanted_hits = sum(1 for w in facets.wanted_ingredients if _ingredient_present(w, tokens))
+        score += 0.5 * wanted_hits
+        tags = set(recipe.dietary_tags or [])
+        score += 1.0 * len(facets.emphases & tags)
+        if 'quick' in facets.styles and recipe.total_time and recipe.total_time <= 20:
+            score += 1.0
+
     return score
 
 
@@ -143,6 +201,7 @@ def select_recipes_for_plan(
     goal: Any,
     *,
     status: str = CuratedRecipe.Status.PUBLISHED,
+    facets: Optional[PromptFacets] = None,
 ) -> Dict[str, Any]:
     """Greedy per-slot selection across the whole plan.
 
@@ -171,11 +230,12 @@ def select_recipes_for_plan(
         chosen: Dict[str, Any] = {}
         for slot_type, slot_key in slot_plan:
             total += 1
-            candidates = eligible_recipes_for_slot(slot_type, required_tags, pool=pool)
+            candidates = eligible_recipes_for_slot(slot_type, required_tags, pool=pool, facets=facets)
             if not candidates:
                 continue
             best = max(candidates, key=lambda r: score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
+                facets=facets,
             ))
             chosen[slot_key] = best
             used_recipe_ids.add(best.id)
@@ -256,13 +316,22 @@ def overlay_curated_recipes(
     goal: Any,
     *,
     status: str = CuratedRecipe.Status.PUBLISHED,
+    facets: Optional[PromptFacets] = None,
 ) -> Dict[str, Any]:
-    """Overlay real curated recipes onto covered slots of an already-generated
-    plan. Returns {'days': days, 'coverage': {...}}. Slots with no eligible
-    recipe are left untouched (they keep their generated meal, flagged
-    source=generated). Preserves each meal's existing `meal_identifier`.
+    """Overlay real curated recipes onto facet-eligible slots of an already-
+    generated plan. Uncovered/ineligible slots keep their generated meal
+    (flagged source=generated). Preserves each meal's existing `meal_identifier`.
+    Returns {'days', 'coverage', 'facets'}.
     """
-    selection = select_recipes_for_plan(goal, status=status)
+    if facets is None:
+        vocab = published_cuisine_vocab(status=status)
+        facets = extract_prompt_facets(
+            getattr(goal, 'prompt', '') or '',
+            language=getattr(goal, 'language_code', 'cs') or 'cs',
+            cuisine_vocab=vocab,
+        )
+
+    selection = select_recipes_for_plan(goal, status=status, facets=facets)
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
 
     promoted_ids: Set[int] = set()
@@ -310,7 +379,11 @@ def overlay_curated_recipes(
             usage_count=F('usage_count') + 1
         )
 
-    return {'days': transformed_days, 'coverage': selection['coverage']}
+    return {
+        'days': transformed_days,
+        'coverage': selection['coverage'],
+        'facets': facets.to_debug(),
+    }
 
 
 def grounding_enabled() -> bool:

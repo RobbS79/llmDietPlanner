@@ -1577,10 +1577,12 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         # Recipe grounding (B3): overlay vetted real recipes from the curated
         # corpus onto covered slots; uncovered slots keep the generated meal.
         from diet_planner.services.recipe_retrieval import grounding_enabled, overlay_curated_recipes
+        grounding_debug = None
         if grounding_enabled():
             result = overlay_curated_recipes(transformed_days, goal)
             transformed_days = result['days']
             cov = result['coverage']
+            grounding_debug = {'facets': result['facets'], 'coverage': cov}
             logger.info(f"{log_prefix} Recipe grounding: {cov['filled']}/{cov['total']} slots curated")
 
         # Never ship an empty/degenerate plan as COMPLETED.
@@ -1772,9 +1774,10 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             llm_input_tokens=llm_result.get('input_tokens'),
             llm_output_tokens=llm_result.get('output_tokens'),
             llm_total_tokens=llm_result.get('total_tokens'),
-            llm_cost_usd=llm_result.get('cost_usd')
+            llm_cost_usd=llm_result.get('cost_usd'),
+            grounding_debug=grounding_debug,
         )
-        
+
         # Mark as COMPLETED - meal plan successfully generated and rendered
         # This is when the user should be considered "charged" (fulfillment complete)
         goal.status = DietaryGoal.StatusChoices.COMPLETED
@@ -2190,9 +2193,11 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
         # Recipe grounding (B3): overlay vetted real recipes from the curated
         # corpus onto covered slots; uncovered slots keep the generated meal.
         from diet_planner.services.recipe_retrieval import grounding_enabled, overlay_curated_recipes
+        grounding_debug = None
         if grounding_enabled():
             _grounded = overlay_curated_recipes(transformed_days, goal)
             transformed_days = _grounded['days']
+            grounding_debug = {'facets': _grounded['facets'], 'coverage': _grounded['coverage']}
             logger.info(
                 f"{log_prefix} Recipe grounding: "
                 f"{_grounded['coverage']['filled']}/{_grounded['coverage']['total']} slots curated"
@@ -2282,6 +2287,7 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             llm_output_tokens=llm_result.get('output_tokens'),
             llm_total_tokens=llm_result.get('total_tokens'),
             llm_cost_usd=llm_result.get('cost_usd'),
+            grounding_debug=grounding_debug,
         )
 
         goal.status = DietaryGoal.StatusChoices.COMPLETED
