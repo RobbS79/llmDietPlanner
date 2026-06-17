@@ -83,6 +83,11 @@ INSTALLED_APPS = [
     "shopifyin",
     "slack_bot",
     "billing",
+    # --- Admin hardening (see section 7b) ---
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "django_otp.plugins.otp_static",
+    "axes",
 ]
 
 # --- 5. MIDDLEWARE ---
@@ -95,9 +100,15 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # OTPMiddleware must come AFTER AuthenticationMiddleware: it adds
+    # request.user.is_verified(), which OTPAdminSite uses to gate /admin/.
+    "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    # AxesMiddleware must be LAST: it turns a backend lockout (raised by
+    # AxesStandaloneBackend) into the configured lockout response.
+    "axes.middleware.AxesMiddleware",
 ]
 
 # --- 6. TEMPLATES ---
@@ -181,6 +192,48 @@ SOCIALACCOUNT_PROVIDERS = {
         'APP': {'client_id': GOOGLE_CLIENT_ID, 'secret': GOOGLE_CLIENT_SECRET, 'key': ''}
     }
 }
+
+# --- 7b. ADMIN MFA & BRUTE-FORCE LOCKOUT ---
+# The Django admin is the highest-value public surface (full access to the
+# paying-user DB). Two controls protect it without touching the user-facing
+# allauth/JWT login flow:
+#   1. django-otp: /admin/ requires a TOTP code in addition to the password.
+#   2. django-axes: failed logins are rate-limited / locked out by username+IP.
+#
+# AUTHENTICATION_BACKENDS must be set explicitly now that Axes is in play.
+# AxesStandaloneBackend goes FIRST: it doesn't authenticate, it short-circuits
+# with a lockout when a user/IP is over the limit, then defers to the real
+# backends. ModelBackend handles username/password; allauth handles social.
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# MFA on the admin can be toggled off as an emergency escape hatch (e.g. if the
+# OTP login flow ever wedges in prod). Default ON. Enrollment is out-of-band via
+# `manage.py setup_admin_totp <user>` run in the App Platform console, so there
+# is no web self-lockout: the panel is locked until a device exists in the DB.
+ADMIN_MFA_ENABLED = config('ADMIN_MFA_ENABLED', default=True, cast=bool)
+
+# Defense-in-depth: serve the admin at a non-default path so blind scanners that
+# hammer /admin/ never find it. Set ADMIN_URL_PATH to a secret-ish slug in prod.
+ADMIN_URL_PATH = config('ADMIN_URL_PATH', default='admin/').strip('/') + '/'
+
+# django-axes — lockout policy. State lives in the DB (default handler), so it
+# is shared across App Platform instances and survives redeploys.
+AXES_ENABLED = config('AXES_ENABLED', default=True, cast=bool)
+AXES_FAILURE_LIMIT = config('AXES_FAILURE_LIMIT', default=5, cast=int)
+AXES_COOLOFF_TIME = timedelta(hours=config('AXES_COOLOFF_HOURS', default=1, cast=int))
+AXES_RESET_ON_SUCCESS = True
+# Lock out the (username, IP) pair — narrow enough that one attacker's IP can't
+# lock a victim out of every account, strict enough to stop credential stuffing.
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+# Behind the DigitalOcean load balancer the real client IP is in
+# X-Forwarded-For; trust exactly one proxy hop so the header can't be spoofed to
+# forge a different source IP. Override AXES_IPWARE_PROXY_COUNT if DO adds hops.
+AXES_IPWARE_PROXY_COUNT = config('AXES_IPWARE_PROXY_COUNT', default=1, cast=int)
+AXES_IPWARE_META_PRECEDENCE_ORDER = ['HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']
 
 # --- PDF Upload ---
 DATA_UPLOAD_MAX_MEMORY_SIZE = 15 * 1024 * 1024  # 15 MB (10 MB PDF + form overhead)
