@@ -35,6 +35,7 @@ from django.conf import settings
 from django.db.models import F
 
 from diet_planner.models import CuratedRecipe
+from diet_planner.services.prompt_facets import PromptFacets, extract_prompt_facets
 
 
 # Free-text dietary restrictions -> structured dietary_tags. Substring match,
@@ -76,6 +77,48 @@ def published_pool(status: str = CuratedRecipe.Status.PUBLISHED) -> List[Curated
     the corpus is small enough (a few hundred rows) that in-memory filtering is
     cheaper than the portability cost."""
     return list(CuratedRecipe.objects.filter(status=status))
+
+
+def published_cuisine_vocab(
+    *,
+    status: str = CuratedRecipe.Status.PUBLISHED,
+    pool: Optional[List[CuratedRecipe]] = None,
+) -> List[str]:
+    """Sorted distinct non-empty cuisines (lowercased) among published recipes."""
+    recipes = pool if pool is not None else published_pool(status)
+    return sorted({(r.cuisine or '').strip().lower() for r in recipes} - {''})
+
+
+def _recipe_ingredient_tokens(recipe: CuratedRecipe) -> Set[str]:
+    """Lowercased canonical + name tokens for ingredient matching."""
+    tokens: Set[str] = set()
+    for ing in (recipe.ingredients or []):
+        for key in ('canonical', 'name'):
+            val = ing.get(key)
+            if val:
+                tokens.add(str(val).strip().lower())
+    return tokens
+
+
+def _ingredient_present(needle: str, tokens: Set[str]) -> bool:
+    return any(needle in tok for tok in tokens)
+
+
+def recipe_matches_facets(recipe: CuratedRecipe, facets: PromptFacets) -> bool:
+    """Hard gate. Only non-empty facet sets constrain eligibility."""
+    if facets.cuisines:
+        cuisine = (recipe.cuisine or '').strip().lower()
+        if not cuisine or cuisine not in facets.cuisines:
+            return False
+
+    tokens = _recipe_ingredient_tokens(recipe)
+    if facets.wanted_ingredients:
+        if not any(_ingredient_present(w, tokens) for w in facets.wanted_ingredients):
+            return False
+    if facets.avoided_ingredients:
+        if any(_ingredient_present(a, tokens) for a in facets.avoided_ingredients):
+            return False
+    return True
 
 
 def eligible_recipes_for_slot(
