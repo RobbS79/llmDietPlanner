@@ -54,6 +54,36 @@ class SetupAdminTotpCommandTests(TestCase):
         self.assertEqual(devices.count(), 1)
         self.assertNotEqual(devices.first().id, first_id)
 
+    def test_secret_seeds_deterministic_key_and_is_idempotent(self):
+        """The console-free prod bootstrap path: --secret derives a fixed device
+        key from a base32 secret, and re-running (as start.sh does on every
+        redeploy) neither duplicates nor rotates it — so the operator's
+        authenticator keeps working."""
+        import base64
+        import binascii
+
+        user = User.objects.create_superuser("admin", "a@b.com", "pw-strong-123")
+        secret = "JBSWY3DPEHPK3PXP"  # canonical base32 test vector
+        expected_key = binascii.hexlify(base64.b32decode(secret)).decode()
+
+        call_command("setup_admin_totp", "admin", "--secret", secret, "--quiet", stdout=StringIO())
+        device = TOTPDevice.objects.get(user=user)
+        self.assertEqual(device.key, expected_key)
+        self.assertTrue(device.confirmed)
+        first_id = device.id
+
+        # Idempotent: same secret again => same device row, same key.
+        call_command("setup_admin_totp", "admin", "--secret", secret, "--quiet", stdout=StringIO())
+        devices = TOTPDevice.objects.filter(user=user)
+        self.assertEqual(devices.count(), 1)
+        self.assertEqual(devices.first().id, first_id)
+        self.assertEqual(devices.first().key, expected_key)
+
+    def test_invalid_secret_raises_command_error(self):
+        User.objects.create_superuser("admin", "a@b.com", "pw-strong-123")
+        with self.assertRaises(CommandError):
+            call_command("setup_admin_totp", "admin", "--secret", "not!base32!", stdout=StringIO())
+
 
 class AdminMfaEnforcementTests(TestCase):
     def test_unverified_superuser_is_denied_admin_index(self):

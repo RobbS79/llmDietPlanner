@@ -20,8 +20,9 @@ it **without touching the user-facing allauth/JWT login flow**.
 
 `OTPAdminSite` locks the web admin until a **confirmed** TOTP device exists, and
 there is **no self-service web enrollment**. An attacker who guesses the
-password still cannot get in. Operators enroll via the management command, run
-in the DigitalOcean App Platform console (prod) or the dev-droplet container:
+password still cannot get in.
+
+**Interactive (dev / a working console):**
 
 ```bash
 python manage.py setup_admin_totp <username>        # create + print QR / otpauth URL
@@ -32,11 +33,27 @@ Scan the printed ASCII QR (or the `otpauth://` URL) into a phone authenticator,
 then log in with password + code. The device row persists in the DB (Supabase in
 prod).
 
+**Console-free bootstrap (prod).** The DO App Platform console is currently
+unusable, so prod enrollment is seeded from a DO SECRET env var instead.
+`start.sh` runs this on every boot when `ADMIN_TOTP_SECRET` is set:
+
+```bash
+python manage.py setup_admin_totp <username> --secret "$ADMIN_TOTP_SECRET" --quiet
+```
+
+`--secret` derives the device key deterministically from a base32 secret, so the
+step is idempotent — redeploys keep the same code sequence already in the
+operator's authenticator (no rotation, no lockout). Generate the secret once,
+set it as the `ADMIN_TOTP_SECRET` DO SECRET, and add the *same* secret to your
+authenticator app (manual entry or scan the matching QR). `--quiet` keeps the
+secret out of the deploy logs.
+
 ## Configuration (env vars)
 
 | Var | Default | Purpose |
 |-----|---------|---------|
 | `ADMIN_MFA_ENABLED` | `True` | Master switch / emergency escape hatch if the OTP flow ever wedges. |
+| `ADMIN_TOTP_SECRET` | (unset) | Base32 TOTP secret. When set, `start.sh` enrolls the admin device from it on boot (console-free). Set as a DO **SECRET**. |
 | `ADMIN_URL_PATH` | `admin/` | Secret-ish slug for the admin path in prod. |
 | `AXES_ENABLED` | `True` | Master switch for brute-force lockout. |
 | `AXES_FAILURE_LIMIT` | `5` | Failed attempts before lockout. |
@@ -59,11 +76,21 @@ prod).
 
 ## Deploy checklist (operational, post-merge)
 
-1. Deploy the branch (migrations for `otp_totp`, `otp_static`, `axes` apply
-   automatically via start.sh).
-2. In the App Platform console: `python manage.py setup_admin_totp <admin-user>`,
-   scan the QR.
-3. Set `ADMIN_URL_PATH` to a secret slug in prod env vars (optional but
-   recommended).
-4. Confirm admin login requires password + code; confirm the user-facing
-   `/api/auth/login/` still works.
+Set these in the DO dashboard env-var form **before** the deploy that ships MFA,
+so the admin is enrolled on the first boot (otherwise `/admin/` locks):
+
+1. `DJANGO_SUPERUSER_PASSWORD` (SECRET) — so `start.sh` bootstraps the superuser
+   (prod may currently have none).
+2. `ADMIN_TOTP_SECRET` (SECRET) — the base32 secret; add the same secret to your
+   authenticator app. `start.sh` enrolls the device from it on boot.
+3. `ADMIN_URL_PATH` (optional) — a secret slug for the admin path.
+
+Then:
+
+4. Deploy (push to `prod`). Migrations for `otp_totp`, `otp_static`, `axes` and
+   the TOTP enrollment all run automatically via `start.sh`.
+5. Confirm admin login at `/<ADMIN_URL_PATH>` requires password + 6-digit code;
+   confirm the user-facing `/api/auth/login/` still works.
+
+**Escape hatch:** if anything wedges, set `ADMIN_MFA_ENABLED=False` (dashboard)
+and redeploy to fall back to password-only admin.
