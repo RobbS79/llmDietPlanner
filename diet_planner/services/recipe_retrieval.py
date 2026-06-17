@@ -316,13 +316,22 @@ def overlay_curated_recipes(
     goal: Any,
     *,
     status: str = CuratedRecipe.Status.PUBLISHED,
+    facets: Optional[PromptFacets] = None,
 ) -> Dict[str, Any]:
-    """Overlay real curated recipes onto covered slots of an already-generated
-    plan. Returns {'days': days, 'coverage': {...}}. Slots with no eligible
-    recipe are left untouched (they keep their generated meal, flagged
-    source=generated). Preserves each meal's existing `meal_identifier`.
+    """Overlay real curated recipes onto facet-eligible slots of an already-
+    generated plan. Uncovered/ineligible slots keep their generated meal
+    (flagged source=generated). Preserves each meal's existing `meal_identifier`.
+    Returns {'days', 'coverage', 'facets'}.
     """
-    selection = select_recipes_for_plan(goal, status=status)
+    if facets is None:
+        vocab = published_cuisine_vocab(status=status)
+        facets = extract_prompt_facets(
+            getattr(goal, 'prompt', '') or '',
+            language=getattr(goal, 'language_code', 'cs') or 'cs',
+            cuisine_vocab=vocab,
+        )
+
+    selection = select_recipes_for_plan(goal, status=status, facets=facets)
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
 
     promoted_ids: Set[int] = set()
@@ -370,7 +379,11 @@ def overlay_curated_recipes(
             usage_count=F('usage_count') + 1
         )
 
-    return {'days': transformed_days, 'coverage': selection['coverage']}
+    return {
+        'days': transformed_days,
+        'coverage': selection['coverage'],
+        'facets': facets.to_debug(),
+    }
 
 
 def grounding_enabled() -> bool:
