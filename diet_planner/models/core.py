@@ -577,6 +577,12 @@ class DietaryPlan(models.Model):
         help_text="Whether the user has accepted and applied discount optimization"
     )
 
+    grounding_debug = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Recipe-grounding diagnostics: {facets, coverage} for this plan",
+    )
+
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,

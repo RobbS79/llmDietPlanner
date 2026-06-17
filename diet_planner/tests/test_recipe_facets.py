@@ -170,3 +170,29 @@ class OverlayFacetsTest(TestCase):
         self.assertEqual(dinner['name'], 'Těstoviny')
         self.assertEqual(dinner['meal_identifier'], 'd1-dinner')  # preserved
         self.assertEqual(result['coverage']['filled'], 1)
+
+
+from django.contrib.auth.models import User
+from diet_planner.models import DietaryGoal, DietaryPlan
+
+
+class GroundingDebugFieldTest(TestCase):
+    def test_grounding_debug_persists(self):
+        user = User.objects.create_user('gd', password='x')
+        goal = DietaryGoal.objects.create(
+            user=user, prompt='p', country='CZ', city='Prague', num_days=1,
+        )
+        plan = DietaryPlan.objects.create(
+            dietary_goal=goal,
+            grounding_debug={'facets': {'cuisines': ['italian']}, 'coverage': {'filled': 1, 'total': 1}},
+        )
+        plan.refresh_from_db()
+        self.assertEqual(plan.grounding_debug['coverage']['filled'], 1)
+
+    def test_grounding_debug_defaults_null(self):
+        user = User.objects.create_user('gd2', password='x')
+        goal = DietaryGoal.objects.create(
+            user=user, prompt='p', country='CZ', city='Prague', num_days=1,
+        )
+        plan = DietaryPlan.objects.create(dietary_goal=goal)
+        self.assertIsNone(plan.grounding_debug)
