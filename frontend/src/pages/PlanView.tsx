@@ -164,6 +164,25 @@ export const PlanView = () => {
           </button>
         </header>
 
+        {/* Your request — surface the original prompt so the user sees what they asked for */}
+        {(goalDetail.prompt || goalDetail.dietary_restrictions) && (
+          <div className="mb-16 bg-slate-800/60 border border-slate-700 rounded-3xl p-8 sm:p-10 text-left">
+            <div className="flex items-center gap-3 mb-5">
+              <UtensilsCrossed size={16} className="text-emerald-400" />
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400">Vaše zadání</span>
+            </div>
+            {goalDetail.prompt && (
+              <p className="text-zinc-200 text-lg font-medium tracking-tight leading-relaxed whitespace-pre-line">{goalDetail.prompt}</p>
+            )}
+            {goalDetail.dietary_restrictions && (
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">Omezení</span>
+                <span className="text-zinc-300 text-sm font-medium tracking-tight">{goalDetail.dietary_restrictions}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Weekly Cost Widget — #1 differentiator */}
         {plan.total_price && (() => {
           const totalPrice = parseFloat(plan.total_price);
