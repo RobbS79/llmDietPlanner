@@ -185,7 +185,10 @@ class LoginView(APIView):
     def post(self, request) -> Response:
         try:
             schema = LoginRequest(**request.data)
-            user = authenticate(username=schema.username, password=schema.password)
+            # `request` is REQUIRED: AxesStandaloneBackend (now in
+            # AUTHENTICATION_BACKENDS for admin brute-force lockout) raises if it
+            # is missing, and Axes needs it to record the source IP per attempt.
+            user = authenticate(request, username=schema.username, password=schema.password)
             
             if not user:
                 return Response({"status": "error", "data": None, "error": "Invalid credentials"}, status=401)

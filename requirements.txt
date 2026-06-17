@@ -13,6 +13,13 @@ django-allauth>=65.3.1
 djangorestframework-simplejwt>=5.3.0
 dj-rest-auth[with_social]>=7.0.0
 
+# Admin hardening — TOTP MFA on the Django admin (django-otp) + brute-force
+# lockout (django-axes). Protects the public /admin/ surface; user-facing
+# allauth/JWT login is untouched. See docs/admin-mfa-hardening.md.
+django-otp>=1.5.0
+qrcode>=7.4.2
+django-axes>=7.0.0
+
 # Async task processing
 celery>=5.3.0
 redis>=5.0.0
