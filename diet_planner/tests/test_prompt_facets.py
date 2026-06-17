@@ -42,3 +42,62 @@ class CoerceFacetsTest(SimpleTestCase):
                 'emphases': ['high_protein'],
             },
         )
+
+
+from diet_planner.services.prompt_facets import extract_prompt_facets
+
+
+class ExtractPromptFacetsTest(SimpleTestCase):
+    VOCAB = ['czech', 'italian', 'asian']
+
+    def test_parses_json_and_maps_vocab(self):
+        def fake_generate(system_prompt, user_text):
+            return '{"cuisines": ["italian"], "wanted_ingredients": ["chicken"], "emphases": ["high_protein"]}'
+
+        facets = extract_prompt_facets(
+            'rychlé italské večeře s kuřecím, hodně bílkovin',
+            language='cs', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertEqual(facets.cuisines, {'italian'})
+        self.assertEqual(facets.wanted_ingredients, {'chicken'})
+        self.assertEqual(facets.emphases, {'high_protein'})
+
+    def test_strips_markdown_code_fence(self):
+        def fake_generate(system_prompt, user_text):
+            return '```json\n{"cuisines": ["asian"]}\n```'
+
+        facets = extract_prompt_facets(
+            'asian food', language='en', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertEqual(facets.cuisines, {'asian'})
+
+    def test_empty_prompt_returns_empty_without_calling_llm(self):
+        calls = []
+
+        def fake_generate(system_prompt, user_text):
+            calls.append(1)
+            return '{}'
+
+        facets = extract_prompt_facets(
+            '   ', language='cs', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertTrue(facets.is_empty())
+        self.assertEqual(calls, [])  # short-circuited, no LLM call
+
+    def test_garbage_output_returns_empty(self):
+        def fake_generate(system_prompt, user_text):
+            return 'not json at all'
+
+        facets = extract_prompt_facets(
+            'whatever', language='en', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertTrue(facets.is_empty())
+
+    def test_generate_exception_returns_empty(self):
+        def fake_generate(system_prompt, user_text):
+            raise RuntimeError('LLM down')
+
+        facets = extract_prompt_facets(
+            'whatever', language='en', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertTrue(facets.is_empty())
