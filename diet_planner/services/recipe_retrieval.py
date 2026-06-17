@@ -128,8 +128,9 @@ def eligible_recipes_for_slot(
     pool: Optional[List[CuratedRecipe]] = None,
     status: str = CuratedRecipe.Status.PUBLISHED,
     exclude_ids: Optional[Set[int]] = None,
+    facets: Optional[PromptFacets] = None,
 ) -> List[CuratedRecipe]:
-    """Recipes that pass the HARD GATE for one slot."""
+    """Recipes that pass the HARD GATE for one slot (incl. prompt facets)."""
     meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)
     candidates = pool if pool is not None else published_pool(status)
     exclude_ids = exclude_ids or set()
@@ -144,6 +145,8 @@ def eligible_recipes_for_slot(
             continue
         if not r.is_catalog_mapped():
             continue
+        if facets is not None and not recipe_matches_facets(r, facets):
+            continue
         out.append(r)
     return out
 
@@ -154,6 +157,7 @@ def score_recipe(
     used_recipe_ids: Set[int],
     used_cuisines: Sequence[str],
     target_calories: Optional[float] = None,
+    facets: Optional[PromptFacets] = None,
 ) -> float:
     """Soft-ranking score; higher is better."""
     score = 0.0
@@ -179,6 +183,17 @@ def score_recipe(
             rel = abs(base_cal - target_calories) / target_calories
             score += max(0.0, 3.0 * (1.0 - rel))  # full 3 pts at exact, 0 at >=100% off
 
+    # Soft prompt-fit bonuses (additive; never override the variety/difficulty
+    # /popularity terms above). Only the best-fitting *eligible* recipe wins.
+    if facets is not None:
+        tokens = _recipe_ingredient_tokens(recipe)
+        wanted_hits = sum(1 for w in facets.wanted_ingredients if _ingredient_present(w, tokens))
+        score += 0.5 * wanted_hits
+        tags = set(recipe.dietary_tags or [])
+        score += 1.0 * len(facets.emphases & tags)
+        if 'quick' in facets.styles and recipe.total_time and recipe.total_time <= 20:
+            score += 1.0
+
     return score
 
 
@@ -186,6 +201,7 @@ def select_recipes_for_plan(
     goal: Any,
     *,
     status: str = CuratedRecipe.Status.PUBLISHED,
+    facets: Optional[PromptFacets] = None,
 ) -> Dict[str, Any]:
     """Greedy per-slot selection across the whole plan.
 
@@ -214,11 +230,12 @@ def select_recipes_for_plan(
         chosen: Dict[str, Any] = {}
         for slot_type, slot_key in slot_plan:
             total += 1
-            candidates = eligible_recipes_for_slot(slot_type, required_tags, pool=pool)
+            candidates = eligible_recipes_for_slot(slot_type, required_tags, pool=pool, facets=facets)
             if not candidates:
                 continue
             best = max(candidates, key=lambda r: score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
+                facets=facets,
             ))
             chosen[slot_key] = best
             used_recipe_ids.add(best.id)

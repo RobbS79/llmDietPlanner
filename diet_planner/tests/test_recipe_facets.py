@@ -55,3 +55,55 @@ class RecipeMatchesFacetsTest(TestCase):
         _recipe(slug='i', cuisine='asian')
         _recipe(slug='j', cuisine='')
         self.assertEqual(published_cuisine_vocab(), ['asian', 'italian'])
+
+
+from diet_planner.services.recipe_retrieval import (
+    eligible_recipes_for_slot,
+    score_recipe,
+    select_recipes_for_plan,
+)
+
+
+class FacetSelectionTest(TestCase):
+    def _goal(self, **kw):
+        # Lightweight stand-in: select_recipes_for_plan only reads attributes.
+        class G:
+            pass
+        g = G()
+        g.dietary_restrictions = kw.get('dietary_restrictions')
+        g.num_days = kw.get('num_days', 1)
+        g.small_meals_per_day = 0
+        g.snacks_per_day = 0
+        g.breakfast = False
+        g.lunch = False
+        g.dinner = True
+        return g
+
+    def test_eligible_excludes_off_cuisine_when_facets_given(self):
+        _recipe(slug='ital', cuisine='italian')
+        _recipe(slug='asia', cuisine='asian')
+        facets = PromptFacets(cuisines={'italian'})
+        eligible = eligible_recipes_for_slot('dinner', set(), facets=facets)
+        slugs = {r.slug for r in eligible}
+        self.assertEqual(slugs, {'ital'})
+
+    def test_eligible_unconstrained_without_facets(self):
+        _recipe(slug='ital2', cuisine='italian')
+        _recipe(slug='asia2', cuisine='asian')
+        eligible = eligible_recipes_for_slot('dinner', set())
+        self.assertEqual(len({r.slug for r in eligible}), 2)
+
+    def test_score_rewards_emphasis_match(self):
+        plain = _recipe(slug='plain', dietary_tags=[])
+        proteiny = _recipe(slug='prot', dietary_tags=['high_protein'])
+        facets = PromptFacets(emphases={'high_protein'})
+        s_plain = score_recipe(plain, used_recipe_ids=set(), used_cuisines=[], facets=facets)
+        s_prot = score_recipe(proteiny, used_recipe_ids=set(), used_cuisines=[], facets=facets)
+        self.assertGreater(s_prot, s_plain)
+
+    def test_select_leaves_slot_uncovered_when_no_facet_match(self):
+        _recipe(slug='only-asian', cuisine='asian')
+        goal = self._goal()
+        result = select_recipes_for_plan(goal, facets=PromptFacets(cuisines={'italian'}))
+        self.assertEqual(result['coverage']['filled'], 0)        # nothing italian -> uncovered
+        self.assertEqual(result['days'][0]['slots'], {})
