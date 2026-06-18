@@ -29,6 +29,16 @@ fi
 echo "Synchronizing Schema..."
 python manage.py migrate --noinput
 
+# 2a. Seed the canonical ingredient dictionary
+# CanonicalIngredient + IngredientAlias rows drive recipe ingredient→catalog
+# mapping (and thus real pricing). They live in data/canonical_ingredients.yaml,
+# NOT in a migration, so a schema-only deploy would never pick up dictionary
+# growth. The seed is idempotent (upsert by slug; get_or_create on aliases), so
+# running it on every boot is safe and keeps prod in lockstep with the YAML.
+# Non-fatal: a malformed YAML must not brick the deploy (set -e is active).
+echo "Seeding canonical ingredient dictionary..."
+python manage.py seed_canonical_ingredients || echo "WARN: canonical ingredient seed failed (dictionary may be stale)."
+
 # 2b. Ensure superuser exists
 # SECURITY (incident 2026-06-02-dbminer): the superuser password must NEVER be
 # hard-coded here — this file is committed to git, so any literal becomes a
