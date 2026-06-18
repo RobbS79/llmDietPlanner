@@ -1,0 +1,524 @@
+[
+  {
+    "dish_name": "Savory Oatmeal",
+    "source_url": "https://www.loveandlemons.com/savory-oatmeal/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Crustless Quiche",
+    "source_url": "https://www.loveandlemons.com/crustless-quiche/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Quinoa Breakfast Cookies",
+    "source_url": "https://www.loveandlemons.com/quinoa-breakfast-cookies/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "3-Ingredient Banana Pancakes",
+    "source_url": "https://cookieandkate.com/healthy-banana-pancakes-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Vegetable Frittata",
+    "source_url": "https://www.themediterraneandish.com/vegetable-frittata/",
+    "source_name": "The Mediterranean Dish",
+    "source_author": "Suzy Karadsheh"
+  },
+  {
+    "dish_name": "Banana Baked Oatmeal Cups",
+    "source_url": "https://www.gimmesomeoven.com/banana-baked-oatmeal-cups-recipe/",
+    "source_name": "Gimme Some Oven"
+  },
+  {
+    "dish_name": "Gluten-Free Waffles",
+    "source_url": "https://www.gimmesomeoven.com/favorite-gluten-free-waffles/",
+    "source_name": "Gimme Some Oven"
+  },
+  {
+    "dish_name": "Perfect Omelette",
+    "source_url": "https://natashaskitchen.com/perfect-omelette-recipe/",
+    "source_name": "Natasha's Kitchen",
+    "source_author": "Natasha Kravchuk"
+  },
+  {
+    "dish_name": "Breakfast Casserole",
+    "source_url": "https://www.loveandlemons.com/breakfast-casserole/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Mango Coconut Chia Pudding",
+    "source_url": "https://www.budgetbytes.com/mango-coconut-chia-pudding/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Strawberry Banana Smoothie",
+    "source_url": "https://www.loveandlemons.com/strawberry-banana-smoothie/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Mango Smoothie",
+    "source_url": "https://www.loveandlemons.com/mango-smoothie/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Tofu Scramble",
+    "source_url": "https://www.loveandlemons.com/tofu-scramble/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Steel Cut Oats",
+    "source_url": "https://www.loveandlemons.com/steel-cut-oats/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Vegan Breakfast Burrito",
+    "source_url": "https://www.loveandlemons.com/vegan-breakfast-burrito/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Vegan French Toast",
+    "source_url": "https://www.loveandlemons.com/vegan-french-toast/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Palacinky",
+    "source_url": "https://www.toprecepty.cz/recept/11511-palacinky/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Rychla ovesna kase",
+    "source_url": "https://www.toprecepty.cz/recept/74106-rychla-ovesna-kase/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Smetanovo-sametova michana vejce",
+    "source_url": "https://www.toprecepty.cz/recept/34647-smetanovo-sametova-michana-vejce/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "No Sugar Added Blueberry Almond Overnight Oats",
+    "source_url": "https://www.budgetbytes.com/no-sugar-added-blueberry-almond-overnight-oats/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Healthy Banana Bread",
+    "source_url": "https://www.loveandlemons.com/healthy-banana-bread-recipe/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Breakfast Burrito",
+    "source_url": "https://www.loveandlemons.com/breakfast-burrito/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Overnight Oats",
+    "source_url": "https://natashaskitchen.com/easy-overnight-oats-recipe/",
+    "source_name": "Natasha's Kitchen",
+    "source_author": "Natasha Kravchuk"
+  },
+  {
+    "dish_name": "Kureci prsicka se smetanovou omackou",
+    "source_url": "https://www.toprecepty.cz/recept/15489-kureci-prsicka-se-smetanovou-omackou/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Sekana",
+    "source_url": "https://www.toprecepty.cz/recept/2530-sekana/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Stepanska hovezi pecene",
+    "source_url": "https://www.toprecepty.cz/recept/3836-stepanska-hovezi-pecene/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Pinto Posole",
+    "source_url": "https://cookieandkate.com/pinto-posole-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Spicy Kale and Coconut Fried Rice",
+    "source_url": "https://cookieandkate.com/spicy-kale-and-coconut-fried-rice/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Vegan Tacos",
+    "source_url": "https://www.loveandlemons.com/vegan-tacos/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Chana Masala",
+    "source_url": "https://www.loveandlemons.com/chana-masala/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Avocado Sweet Potato Tacos",
+    "source_url": "https://www.loveandlemons.com/avocado-sweet-potato-tacos/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Creamy Coconut Curry Lentils with Spinach",
+    "source_url": "https://www.budgetbytes.com/creamy-coconut-curry-lentils-with-spinach/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Mango Burrito Bowls with Crispy Tofu",
+    "source_url": "https://cookieandkate.com/mango-burrito-bowls-with-crispy-tofu/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "African Peanut Stew",
+    "source_url": "https://www.budgetbytes.com/african-peanut-stew-vegan/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Rychle kureci rizoto pro zacatecniky",
+    "source_url": "https://www.toprecepty.cz/recept/60388-rychle-kureci-rizoto-pro-zacatecniky/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Svatecni svickova podle Zdenka Pohlreicha",
+    "source_url": "https://www.toprecepty.cz/recept/83511-svatecni-svickova-na-smetane-podle-zdenka-pohlreicha/",
+    "source_name": "Toprecepty.cz",
+    "source_author": "Zdenek Pohlreich"
+  },
+  {
+    "dish_name": "Madarsky gulas",
+    "source_url": "https://www.recepty.cz/recept/madarsky-gulas-2979",
+    "source_name": "Recepty.cz"
+  },
+  {
+    "dish_name": "Knedlo vepro zelo podle Vaclava Frice",
+    "source_url": "https://www.toprecepty.cz/recept/14738-knedlo-vepro-zelo-podle-vaclava-frice/",
+    "source_name": "Toprecepty.cz",
+    "source_author": "Vaclav Fric"
+  },
+  {
+    "dish_name": "Smazeny syr se sunkou",
+    "source_url": "https://www.toprecepty.cz/recept/2400-smazeny-syr-se-sunkou/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Plnene papriky podle Jana Puncochare",
+    "source_url": "https://www.toprecepty.cz/recept/81129-plnene-papriky-podle-jana-puncochare/",
+    "source_name": "Toprecepty.cz",
+    "source_author": "Jan Puncochar"
+  },
+  {
+    "dish_name": "Znojemska pecene",
+    "source_url": "https://www.toprecepty.cz/recept/8647-znojemska-pecene/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "West African Peanut Soup",
+    "source_url": "https://cookieandkate.com/west-african-peanut-soup/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Fresh Black Bean Burrito Bowl",
+    "source_url": "https://cookieandkate.com/black-bean-burrito-bowl-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Vegan Cheesy Broccoli Soup",
+    "source_url": "https://www.loveandlemons.com/vegan-cheesy-broccoli-soup/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Vegetable Soup",
+    "source_url": "https://www.loveandlemons.com/vegetable-soup/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Easy Rosemary Garlic White Bean Soup",
+    "source_url": "https://www.budgetbytes.com/easy-rosemary-garlic-white-bean-soup/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Vegetarian 15 Bean Soup",
+    "source_url": "https://www.budgetbytes.com/vegetarian-15-bean-soup/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Cocka na kyselo",
+    "source_url": "https://www.toprecepty.cz/recept/8453-cocka-na-kyselo/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Koprova omacka",
+    "source_url": "https://www.toprecepty.cz/recept/4995-koprova-omacka/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Ovocne tvarohove knedliky",
+    "source_url": "https://www.toprecepty.cz/recept/1939-ovocne-tvarohove-knedliky/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Babiccina zemlovka s jablky bez rozinek",
+    "source_url": "https://www.toprecepty.cz/recept/8908-babiccina-zemlovka-s-jablky-a-bez-rozinek/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Jemne domaci houskove knedliky",
+    "source_url": "https://www.toprecepty.cz/recept/4360-jemne-domaci-houskove-knedliky/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Babicciny bramborove placky",
+    "source_url": "https://www.toprecepty.cz/recept/24015-babicciny-bramborove-placky/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Beet Salad",
+    "source_url": "https://www.loveandlemons.com/beet-salad-recipe/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Cesnekova polevka svatecni",
+    "source_url": "https://www.toprecepty.cz/recept/2340-cesnekova-polevka-svatecni/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Prava gulasova polevka",
+    "source_url": "https://www.toprecepty.cz/recept/60252-prava-gulasova-polevka/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Hrachova polevka",
+    "source_url": "https://www.toprecepty.cz/recept/62-hrachova-polevka/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Hovezi vyvar se zeleninou",
+    "source_url": "https://www.toprecepty.cz/recept/8381-hovezi-vyvar-se-zeleninou/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Frankfurtska jemna polevka",
+    "source_url": "https://www.toprecepty.cz/recept/8814-frankfurtska-jemna-polevka/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Broccoli Slaw",
+    "source_url": "https://www.loveandlemons.com/broccoli-slaw-recipe/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Mediterranean Quinoa Salad",
+    "source_url": "https://www.loveandlemons.com/quinoa-salad-recipe/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Carrot Salad",
+    "source_url": "https://www.loveandlemons.com/carrot-salad-recipe/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Zucchini Soup",
+    "source_url": "https://www.loveandlemons.com/zucchini-soup/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Butternut Squash Soup",
+    "source_url": "https://www.loveandlemons.com/butternut-squash-soup/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Greek Chickpea Soup",
+    "source_url": "https://www.themediterraneandish.com/greek-chickpea-soup-revithosoupa/",
+    "source_name": "The Mediterranean Dish",
+    "source_author": "Suzy Karadsheh"
+  },
+  {
+    "dish_name": "Best Cucumber Salad",
+    "source_url": "https://cookieandkate.com/best-cucumber-salad-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Refried Beans",
+    "source_url": "https://www.loveandlemons.com/refried-beans/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Air Fryer Broccoli",
+    "source_url": "https://www.budgetbytes.com/air-fryer-broccoli/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Hasselback Potatoes",
+    "source_url": "https://www.budgetbytes.com/hasselback-potatoes/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Jihoceska kulajda",
+    "source_url": "https://www.toprecepty.cz/recept/13711-jihoceska-kulajda/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Bramboracka",
+    "source_url": "https://www.toprecepty.cz/recept/1069-bramboracka/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Bramborovy salat Recepty",
+    "source_url": "https://www.recepty.cz/recept/bramborovy-salat-162850",
+    "source_name": "Recepty.cz"
+  },
+  {
+    "dish_name": "7 Layer Dip",
+    "source_url": "https://www.budgetbytes.com/7-layer-dip/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Marinated Chickpeas",
+    "source_url": "https://cookieandkate.com/marinated-chickpeas-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Whipped Feta",
+    "source_url": "https://www.loveandlemons.com/whipped-feta-dip/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Gluten-Free Banana Bread",
+    "source_url": "https://cookieandkate.com/gluten-free-banana-bread-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Hovezi tatarak s kapary",
+    "source_url": "https://www.toprecepty.cz/recept/84707-hovezi-tatarak-s-kapary/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Utopenci rano nalozit vecer bastit",
+    "source_url": "https://www.toprecepty.cz/recept/30812-utopenci-rano-nalozit-vecer-bastit/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Cowboy Caviar",
+    "source_url": "https://www.budgetbytes.com/cowboy-caviar/",
+    "source_name": "Budget Bytes"
+  },
+  {
+    "dish_name": "Epic Baba Ganoush",
+    "source_url": "https://cookieandkate.com/epic-baba-ganoush-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Green Goddess Tahini Dip",
+    "source_url": "https://cookieandkate.com/green-goddess-tahini-dip-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Best Bean Dip",
+    "source_url": "https://www.loveandlemons.com/bean-dip/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Baked Potato Wedges",
+    "source_url": "https://www.loveandlemons.com/baked-potato-wedges/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Healthy No Bake Cookies",
+    "source_url": "https://www.loveandlemons.com/healthy-no-bake-cookies/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Avocado Summer Rolls",
+    "source_url": "https://www.loveandlemons.com/summer-rolls/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Creamy Vegan Queso",
+    "source_url": "https://cookieandkate.com/vegan-queso-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Buffalo Cauliflower Wings",
+    "source_url": "https://www.loveandlemons.com/buffalo-cauliflower-wings/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Kynute buchty",
+    "source_url": "https://www.toprecepty.cz/recept/5240-kynute-buchty/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Vdolky",
+    "source_url": "https://www.toprecepty.cz/recept/8673-vdolky/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Drobenkovy kolac s tvarohem a ovocem",
+    "source_url": "https://www.toprecepty.cz/recept/2625-drobenkovy-kolac-s-tvarohem-a-ovocem/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Dukatove buchticky s vanilkovym kremem",
+    "source_url": "https://www.toprecepty.cz/recept/32867-dukatove-buchticky-s-vanilkovym-kremem/",
+    "source_name": "Toprecepty.cz"
+  },
+  {
+    "dish_name": "Blueberry Muffins",
+    "source_url": "https://www.loveandlemons.com/blueberry-muffins-recipe/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  },
+  {
+    "dish_name": "Maple-Sweetened Banana Muffins",
+    "source_url": "https://cookieandkate.com/healthy-banana-muffins-recipe/",
+    "source_name": "Cookie and Kate",
+    "source_author": "Kathryne Taylor"
+  },
+  {
+    "dish_name": "Baked Brie",
+    "source_url": "https://www.loveandlemons.com/baked-brie/",
+    "source_name": "Love and Lemons",
+    "source_author": "Jeanine Donofrio"
+  }
+]
