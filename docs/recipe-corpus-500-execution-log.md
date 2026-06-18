@@ -20,11 +20,54 @@ Live status and operator handoff for the B2 push that grows the published
 | 4 | `curate-batch` DO one-off job in `.do/app.yaml` + runbook | ✅ committed `27ac01a`, hardened `6dfeb93` |
 | 5 | PM subagent → 470 source URLs + coverage matrix | ✅ committed `d44260f` |
 | **—** | **Merge `develop`→`prod`, deploy (auto-runs smoke test)** | ✅ pushed `6dfeb93` → DO deploying |
-| 6 | Smoke test (20-URL batch01) + draft inspection | 🔄 in progress — awaiting job output |
+| 6 | Smoke test (20-URL batch01) + draft inspection | 🔄 deploy done; PRE_DEPLOY smoke job likely ran but **unconfirmed** — see RESUME HERE |
 | 7 | Full 5-batch curation loop + dict growth | ⬜ prod, not started |
 | 8 | Coverage check → promote → close-out | ⬜ prod, not started |
 
-Both `develop` and `prod` are at `6dfeb93`.
+Both `develop` and `prod` are at `6dfeb93` (docs commit `003c5dd` is on
+`develop` only; folds into prod on next merge).
+
+---
+
+## ▶ RESUME HERE (as of 2026-06-18 ~19:00)
+
+The merge-to-prod deploy completed and the `web` service came up
+(`celery@... ready` in the runtime log). Because DO only starts the service
+containers **after** the PRE_DEPLOY job succeeds, the `curate-batch` 20-URL
+smoke job has **most likely already run** — but its output was **not
+confirmed**. The deploy log view appeared **stale / not updating**, and the
+stream being watched was the idle `web` runtime log (the `Done.` line lives in
+the separate `curate-batch` component log).
+
+**Do this next — run the smoke test manually in the `web` Console for a
+definitive, live result** (sidesteps the stale-log ambiguity):
+
+```bash
+python manage.py build_curated_recipes \
+  --index docs/curated-recipe-index-batch01.json \
+  --limit 20 --no-judge --sleep 1
+```
+
+DO dashboard → `llm-diet-planner` → **`web`** component → **Console** tab → paste.
+
+Interpret the final line (idempotent, so safe to re-run):
+- `skipped=20 curated=0` → the PRE_DEPLOY job already did it; **gate passes**, go to Task 7.
+- `curated=20 errors=0` → fresh run, clean; **gate passes**, go to Task 7.
+- A whole **source domain** failing (repeated 404/fetch errors) → swap that
+  source (send PM subagent back), re-run.
+- Hangs with no output ~2 min → real problem (hung fetch / crashed job), debug
+  directly, do not guess from logs.
+
+Then **inspect 5 drafts** in prod admin (Curated Recipes, filter `status=draft`,
+sort `created_at` desc): clear Czech steps, real shopping-basket ingredients,
+`source_url`/`source_name` present, ≥80% ingredients have `canonical`.
+
+Once the gate passes, proceed to **Task 7** below (set `CURATE_ARGS=""` for full
+batches).
+
+> Note: the `google.generativeai` FutureWarning seen in the logs is harmless
+> deprecation noise (works fine; future migration to `google.genai` is separate
+> low-priority tech debt — not part of this push).
 
 ---
 
