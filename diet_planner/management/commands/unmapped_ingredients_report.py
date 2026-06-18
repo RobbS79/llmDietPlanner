@@ -39,7 +39,7 @@ class Command(BaseCommand):
         as_csv = options['csv']
         status = options['status']
 
-        qs = CuratedRecipe.objects.all()
+        qs = CuratedRecipe.objects.all().order_by('id')
         if status != 'all':
             qs = qs.filter(status=status)
 

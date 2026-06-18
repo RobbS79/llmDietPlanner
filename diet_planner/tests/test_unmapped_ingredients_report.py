@@ -45,11 +45,24 @@ class UnmappedReportRankingTest(TestCase):
         output = out.getvalue()
         # rare-spice appears 3 times, odd-herb 1, rice is mapped (excluded).
         self.assertIn('rare-spice', output)
-        self.assertIn('3', output)
+        self.assertRegex(output, r'\s+3\s+rare-spice')
         self.assertIn('odd-herb', output)
         self.assertNotIn('rice', output)
         # rare-spice should appear before odd-herb (higher frequency first).
         self.assertLess(output.index('rare-spice'), output.index('odd-herb'))
+
+
+class UnmappedReportCatalogIdExclusionTest(TestCase):
+    def test_catalog_id_mapped_ingredient_is_excluded(self):
+        _recipe('a', [
+            {'name': 'salt', 'quantity': 1, 'unit': 'g', 'catalog_id': 'cat-salt-1'},
+            {'name': 'mystery-x', 'quantity': 1, 'unit': 'g'},
+        ])
+        out = StringIO()
+        call_command('unmapped_ingredients_report', stdout=out)
+        output = out.getvalue()
+        self.assertNotIn('salt', output)
+        self.assertIn('mystery-x', output)
 
 
 class UnmappedReportTopFlagTest(TestCase):
