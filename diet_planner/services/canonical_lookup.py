@@ -84,6 +84,7 @@ def _strip_descriptors(raw: str) -> str:
     s = re.split(r"\bnebo\b|\bor\b|/", s)[0]   # "x nebo y" -> first option
     s = _TAIL_MARKERS.split(s)[0]              # drop prepositional tails
     s = re.sub(r"\s*\d+([.,]\d+)?\s*%?", " ", s)  # drop quantities / percentages
+    s = re.sub(r"[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]", " ", s)  # drop unicode vulgar fractions
     tokens = [t for t in re.split(r"[\s]+", s.strip()) if t and t not in _MODIFIER_WORDS]
     return " ".join(sorted(tokens)).strip()
 

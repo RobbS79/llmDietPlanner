@@ -22,6 +22,8 @@
   is_pantry_staple: true
   estimated_price_czk: 15.0
   estimated_price_eur: 0.60
+  aliases:
+    - { alias: "kořenící sůl", language_code: cs }
 
 - name: black pepper
   name_cs: pepř černý mletý
@@ -42,6 +44,7 @@
     - { alias: "cukr krupice", language_code: cs }
     - { alias: "krupicový cukr", language_code: cs }
     - { alias: "cukr krystal", language_code: cs }
+    - { alias: "sladidlo dle chuti", language_code: cs }
 
 - name: plain flour
   name_cs: mouka hladká
@@ -79,6 +82,9 @@
   default_unit: g
   estimated_price_czk: 45.0
   estimated_price_eur: 1.80
+  aliases:
+    - { alias: "máslo nesolené", language_code: cs }
+    - { alias: "nesolené máslo", language_code: cs }
 
 - name: chicken breast
   name_cs: kuřecí prsa
@@ -134,6 +140,9 @@
   category: dairy
   default_unit: ml
   typical_package_sizes: [1000]
+  aliases:
+    - { alias: "mléko", language_code: cs }
+    - { alias: "teplé mléko", language_code: cs }
 
 - name: semi-skimmed milk
   name_cs: mléko polotučné
@@ -154,6 +163,7 @@
   aliases:
     - { alias: "měkký tvaroh", language_code: cs }
     - { alias: "tvrdý tvaroh", language_code: cs }
+    - { alias: "hrudkovitý tvaroh", language_code: cs }
 
 - name: rice basmati
   name_cs: rýže basmati
@@ -187,11 +197,18 @@
   category: grains
   default_unit: g
   typical_package_sizes: [500, 1000]
+  aliases:
+    - { alias: "oves", language_code: cs }
+    - { alias: "řezaný oves", language_code: cs }
+    - { alias: "ovesné vločky jemné", language_code: cs }
 
 - name: bread loaf
   name_cs: chléb
   category: grains
   default_unit: g
+  aliases:
+    - { alias: "toustový chléb", language_code: cs }
+    - { alias: "toustový chleba", language_code: cs }
 
 - name: tomatoes
   name_cs: rajčata
@@ -203,11 +220,15 @@
     - { alias: "rajčata krájená", language_code: cs }
     - { alias: "drcená rajčata", language_code: cs }
     - { alias: "loupaná rajčata", language_code: cs }
+    - { alias: "rajče roma", language_code: cs }
 
 - name: cucumber
   name_cs: okurka
   category: vegetables
   default_unit: ks
+  aliases:
+    - { alias: "okurka perská", language_code: cs }
+    - { alias: "salátová okurka", language_code: cs }
 
 - name: bell pepper
   name_cs: paprika
@@ -218,11 +239,16 @@
     - { alias: "žlutá paprika", language_code: cs }
     - { alias: "zelená paprika", language_code: cs }
     - { alias: "paprika kapie", language_code: cs }
+    - { alias: "červené papriky", language_code: cs }
+    - { alias: "pečené červené papriky", language_code: cs }
 
 - name: spinach
   name_cs: špenát
   category: vegetables
   default_unit: g
+  aliases:
+    - { alias: "baby špenát", language_code: cs }
+    - { alias: "listový špenát", language_code: cs }
 
 - name: broccoli
   name_cs: brokolice
@@ -266,6 +292,10 @@
   name_cs: banány
   category: fruits
   default_unit: g
+  aliases:
+    - { alias: "banán", language_code: cs }
+    - { alias: "zmrazený banán", language_code: cs }
+    - { alias: "mražený banán", language_code: cs }
 
 - name: apples
   name_cs: jablka
@@ -280,6 +310,8 @@
     - { alias: "citron", language_code: cs }
     - { alias: "citronová šťáva", language_code: cs }
     - { alias: "citronová kůra", language_code: cs }
+    - { alias: "šťáva z citronu", language_code: cs }
+    - { alias: "citronu", language_code: cs }
 
 - name: avocado
   name_cs: avokádo
@@ -346,6 +378,10 @@
     - { alias: "eidam", language_code: cs }
     - { alias: "gouda", language_code: cs }
     - { alias: "plátkový sýr", language_code: cs }
+    - { alias: "sýr gouda", language_code: cs }
+    - { alias: "sýr čedar", language_code: cs }
+    - { alias: "čedar", language_code: cs }
+    - { alias: "sýr monterey jack", language_code: cs }
 
 - name: feta cheese
   name_cs: sýr feta
@@ -406,6 +442,7 @@
   default_unit: g
   aliases:
     - { alias: "dušená šunka", language_code: cs }
+    - { alias: "plátky šunky", language_code: cs }
 
 - name: lard
   name_cs: sádlo
@@ -495,6 +532,7 @@
   aliases:
     - { alias: "kadeřávek", language_code: cs }
     - { alias: "kapusta kadeřavá", language_code: cs }
+    - { alias: "kadeřávkové listy", language_code: cs }
 
 - name: peas
   name_cs: hrášek
@@ -520,6 +558,7 @@
     - { alias: "jalapeño", language_code: cs }
     - { alias: "jalapeño paprička", language_code: cs }
     - { alias: "thajská chilli", language_code: cs }
+    - { alias: "aleppské papriky", language_code: cs }
 
 - name: ginger
   name_cs: zázvor
@@ -765,6 +804,7 @@
   default_unit: g
   aliases:
     - { alias: "džem", language_code: cs }
+    - { alias: "povidla", language_code: cs }
 
 - name: tamari
   name_cs: tamari
@@ -855,3 +895,189 @@
     - { alias: "ledová voda", language_code: cs }
     - { alias: "vlažná voda", language_code: cs }
     - { alias: "horká voda", language_code: cs }
+    - { alias: "vroucí voda", language_code: cs }
+    - { alias: "led", language_code: cs }
+
+# ───────────────────────────────────────────────────────────────────────────
+# Batch-01 dictionary growth (2026-06-18) — new canonicals surfaced by the
+# curated-recipe smoke run (docs/curated-recipe-index-batch01.json). Aliases
+# for non-stripped qualifiers/plurals on PRE-EXISTING canonicals are added in
+# place on their original entries above; only genuinely-new canonicals here.
+# ───────────────────────────────────────────────────────────────────────────
+
+- name: almond milk
+  name_cs: mandlové mléko
+  category: dairy
+  default_unit: ml
+  aliases:
+    - { alias: "neslazené mandlové mléko", language_code: cs }
+    - { alias: "mandlový nápoj", language_code: cs }
+
+- name: almond butter
+  name_cs: mandlové máslo
+  category: nuts
+  default_unit: g
+
+- name: almond flour
+  name_cs: mandlová mouka
+  category: baking
+  default_unit: g
+  aliases:
+    - { alias: "mleté mandle", language_code: cs }
+
+- name: almonds
+  name_cs: mandle
+  category: nuts
+  default_unit: g
+
+- name: pecans
+  name_cs: pekanové ořechy
+  category: nuts
+  default_unit: g
+  aliases:
+    - { alias: "pekany", language_code: cs }
+
+- name: hemp seeds
+  name_cs: konopná semínka
+  category: nuts
+  default_unit: g
+  aliases:
+    - { alias: "loupaná konopná semínka", language_code: cs }
+    - { alias: "konopné semínko", language_code: cs }
+
+- name: flaxseed
+  name_cs: lněné semínko
+  category: nuts
+  default_unit: g
+  aliases:
+    - { alias: "lněná semínka", language_code: cs }
+    - { alias: "mleté lněné semínko", language_code: cs }
+
+- name: quinoa
+  name_cs: quinoa
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "uvařená quinoa", language_code: cs }
+    - { alias: "vařená quinoa", language_code: cs }
+
+- name: greek yogurt
+  name_cs: řecký jogurt
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "řecký jogurt bílý", language_code: cs }
+    - { alias: "bílý řecký jogurt", language_code: cs }
+
+- name: buttermilk
+  name_cs: podmáslí
+  category: dairy
+  default_unit: ml
+  aliases:
+    - { alias: "podmáslí nízkotučné", language_code: cs }
+    - { alias: "nízkotučné podmáslí", language_code: cs }
+
+- name: hummus
+  name_cs: hummus
+  category: other
+  default_unit: g
+  aliases:
+    - { alias: "humus", language_code: cs }
+
+- name: brussels sprouts
+  name_cs: růžičková kapusta
+  category: vegetables
+  default_unit: g
+
+- name: radishes
+  name_cs: ředkvičky
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "ředkev", language_code: cs }
+
+- name: sun-dried tomatoes
+  name_cs: sušená rajčata
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "rajčata v oleji", language_code: cs }
+    - { alias: "sušená rajčata v oleji", language_code: cs }
+
+- name: hot sauce
+  name_cs: pálivá omáčka
+  category: condiments
+  default_unit: ml
+  aliases:
+    - { alias: "ostrá omáčka", language_code: cs }
+
+- name: zaatar
+  name_cs: za'atar
+  category: spices
+  default_unit: g
+  aliases:
+    - { alias: "koření za'atar", language_code: cs }
+    - { alias: "zatar", language_code: cs }
+
+- name: dates
+  name_cs: datle
+  category: fruits
+  default_unit: g
+  aliases:
+    - { alias: "datle medjool", language_code: cs }
+    - { alias: "medjool datle", language_code: cs }
+
+- name: peaches
+  name_cs: broskve
+  category: fruits
+  default_unit: g
+  aliases:
+    - { alias: "zmrazené broskve", language_code: cs }
+    - { alias: "mražené broskve", language_code: cs }
+
+- name: cherries
+  name_cs: třešně
+  category: fruits
+  default_unit: g
+  aliases:
+    - { alias: "sušené třešně", language_code: cs }
+
+- name: fruit
+  name_cs: ovoce
+  category: fruits
+  default_unit: g
+  aliases:
+    - { alias: "bobule", language_code: cs }
+    - { alias: "lesní ovoce", language_code: cs }
+
+- name: dark chocolate
+  name_cs: čokoláda
+  category: baking
+  default_unit: g
+  aliases:
+    - { alias: "čokoládové hoblinky", language_code: cs }
+    - { alias: "čokoládové lupínky", language_code: cs }
+    - { alias: "hořká čokoláda", language_code: cs }
+
+- name: matcha
+  name_cs: matcha
+  category: beverages
+  default_unit: g
+  aliases:
+    - { alias: "matcha prášek", language_code: cs }
+    - { alias: "matcha v prášku", language_code: cs }
+
+- name: coffee
+  name_cs: káva
+  category: beverages
+  default_unit: g
+  aliases:
+    - { alias: "koncentrát studené kávy", language_code: cs }
+    - { alias: "studená káva", language_code: cs }
+
+- name: english muffins
+  name_cs: anglické muffiny
+  category: grains
+  default_unit: ks
+  aliases:
+    - { alias: "anglický muffin", language_code: cs }

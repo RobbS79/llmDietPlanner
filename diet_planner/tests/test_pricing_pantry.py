@@ -150,3 +150,11 @@ class ResolveCanonicalTest(TestCase):
         ci = resolve_canonical('olivový olej na smažení')
         self.assertIsNotNone(ci)
         self.assertEqual(ci.slug, 'olive-oil')
+
+    def test_strips_unicode_vulgar_fraction(self):
+        # LLM ingredient lines carry vulgar fractions ("šťáva z ½ citronu");
+        # the glyph must be dropped like an ASCII quantity, not left as a token
+        # that defeats the normalized match.
+        ci = resolve_canonical('olivový olej ½')
+        self.assertIsNotNone(ci)
+        self.assertEqual(ci.slug, 'olive-oil')

@@ -20,7 +20,8 @@ Live status and operator handoff for the B2 push that grows the published
 | 4 | `curate-batch` DO one-off job in `.do/app.yaml` + runbook | ✅ committed `27ac01a`, hardened `6dfeb93` |
 | 5 | PM subagent → 470 source URLs + coverage matrix | ✅ committed `d44260f` |
 | **—** | **Merge `develop`→`prod`, deploy (auto-runs smoke test)** | ✅ pushed `6dfeb93` → DO deploying |
-| 6 | Smoke test (20-URL batch01) + draft inspection | 🔄 deploy done; PRE_DEPLOY smoke job likely ran but **unconfirmed** — see RESUME HERE |
+| 6 | Smoke test (20-URL batch01) + draft inspection | ✅ **validated locally** 2026-06-18 (20/20 curated, 0 errors). ⚠️ prod PRE_DEPLOY job never ran — see §"2026-06-18 ~21:30" |
+| 6.5 | Dictionary growth on batch01 smoke set (98→99% mapping) | ✅ local; YAML + normalizer fix committed |
 | 7 | Full 5-batch curation loop + dict growth | ⬜ prod, not started |
 | 8 | Coverage check → promote → close-out | ⬜ prod, not started |
 
@@ -29,7 +30,61 @@ Both `develop` and `prod` are at `6dfeb93` (docs commit `003c5dd` is on
 
 ---
 
+## Local smoke validation + dictionary growth (2026-06-18 ~21:30)
+
+Rather than wait on the ambiguous prod log, the batch01 smoke pass was run
+**locally** (`docker-compose run --rm --no-deps web build_curated_recipes
+--index docs/curated-recipe-index-batch01.json --limit 20 --no-judge`), which
+targets the local Postgres — prod untouched. Two outcomes:
+
+**1. Pipeline + sources are healthy.** `curated=20 skipped=0 errors=0` — all 20
+batch01 URLs fetched cleanly via json-ld, no 404s, Czech titles/steps generated
+(3–8 steps each). Batch01 sources are good to ship.
+
+**2. 🚩 Correction to the RESUME-HERE assumption below.** The live DO app spec
+(`doctl apps spec get`) contains **zero jobs** — only the `web` service. The
+`curate-batch` PRE_DEPLOY job exists solely in the repo's `.do/app.yaml`; DO
+serves a dashboard-managed spec that ignores it. **So the prod smoke pass never
+ran — prod still has only the original 30 recipes.** Installing the job needs
+`doctl apps update --spec .do/app.yaml` (overwrites live spec — diff first), or
+just run the command in the `web` Console per RESUME HERE. (`doctl` 1.116.0 has
+no `apps console` subcommand, so the console step is manual / dashboard-only.)
+
+**3. Dictionary growth — the real gate.** Initial mapping was only 35% because
+the local canonical dictionary was unseeded; after `seed_canonical_ingredients`
+it was **68%** — still below the 80% smoke gate. One growth pass on the 20-recipe
+draft set took it to **99% (186/188)**, 20/20 recipes fully mapped:
+
+- **+24 canonicals** in `diet_planner/data/canonical_ingredients.yaml` (almond
+  milk/butter/flour, almonds, pecans, hemp/flax seeds, quinoa, greek yogurt,
+  buttermilk, hummus, brussels sprouts, radishes, sun-dried tomatoes, hot sauce,
+  za'atar, dates, peaches, cherries, generic fruit, dark chocolate, matcha,
+  coffee, English muffins).
+- **~35 aliases** for non-stripped qualifier/plural forms on existing canonicals
+  (`baby špenát`, `máslo nesolené`, `řezaný oves`, `banán`, `plátky šunky`,
+  `sýr čedar`/`gouda`, `rajče roma`, `okurka perská`, `šťáva z citronu`, …).
+- **Normalizer fix** (`services/canonical_lookup.py`): `_strip_descriptors` now
+  drops unicode vulgar fractions (`½ ¼ ¾ ⅓ …`) the same way it drops ASCII
+  quantities — a corpus-wide win (covered by a new TDD test in
+  `tests/test_pricing_pantry.py`; full module green, 21 tests).
+
+Two long-tail lines remain unmapped (1.1%), both acceptable:
+`konopná, chia nebo lněná semínka` (a malformed multi-ingredient line) and
+`javorový sirup navíc` (maple syrup lives in the *migration*-seeded canonical
+set, not this YAML).
+
+> **Implication for Task 7:** run the per-batch dictionary-growth loop (7.3) for
+> batches 02–05 the same way — curate, `unmapped_ingredients_report`, top up the
+> YAML, re-seed + remap — but batch01's surface forms are now covered, so later
+> batches should start from a much higher baseline.
+
+---
+
 ## ▶ RESUME HERE (as of 2026-06-18 ~19:00)
+
+> ⚠️ Superseded in part by the §"~21:30" section above: the PRE_DEPLOY job is
+> **not** in the live spec, so the smoke pass did **not** auto-run. Treat the
+> manual `web`-Console run below as the *first* prod curation, not a re-confirm.
 
 The merge-to-prod deploy completed and the `web` service came up
 (`celery@... ready` in the runtime log). Because DO only starts the service
