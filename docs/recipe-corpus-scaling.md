@@ -94,6 +94,22 @@ Cost/throughput notes:
 - For 500–1000, prefer a **PRE_DEPLOY job or a scheduled one-off job** over an
   interactive console paste, so long runs aren't tied to your terminal.
 
+### Running a batch as a DigitalOcean one-off job
+
+Use `.do/app.yaml`'s `curate-batch` job rather than the prod console for any
+run longer than ~10 minutes. To run a batch:
+
+1. In the DO App Platform dashboard for `llm-diet-planner`, open the
+   `curate-batch` job.
+2. Click **Run Job**. In the form, override the `BATCH_FILE` env var with
+   the batch you want (e.g. `docs/curated-recipe-index-batch02.json`).
+3. Stream logs from the job's run page. The run is idempotent — already-
+   curated `source_url`s are skipped, so re-running picks up from a drop.
+
+Equivalent CLI: `doctl apps create-deployment <app-id> --force-rebuild` after
+editing `BATCH_FILE` in `.do/app.yaml`. Prefer the dashboard for ad-hoc batch
+selection.
+
 ---
 
 ## 4. Co-scale the ingredient dictionary (the mapping gate)

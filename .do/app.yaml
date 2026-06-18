@@ -72,6 +72,47 @@ services:
     routes:
       - path: /
     run_command: /app/start.sh
+jobs:
+  - name: curate-batch
+    kind: PRE_DEPLOY  # runs on-demand (DO requires a kind; PRE_DEPLOY is
+                     # the most appropriate for an idempotent one-off curation
+                     # job; trigger via 'doctl apps create-deployment' or
+                     # the DO Console "Run Job" button).
+    github:
+      repo: YOUR_GITHUB_USERNAME/llmDietPlanner
+      branch: prod
+    dockerfile_path: Dockerfile.prod
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    run_command: >-
+      python manage.py build_curated_recipes
+      --index ${BATCH_FILE:-docs/curated-recipe-index-batch01.json}
+      --sleep 1
+    envs:
+      # The batch file to curate. Override per run via the DO Console's
+      # "Run Job" form or by deploying with a different value.
+      - key: BATCH_FILE
+        value: "docs/curated-recipe-index-batch01.json"
+      # Inherit the prod secrets the curation pipeline needs.
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: GEMINI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: GEMINI_MODEL
+        value: "gemini-2.5-flash"
+      - key: ANTHROPIC_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: FIELD_ENCRYPTION_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DEBUG
+        value: "False"
 domains:
   - domain: eatalnicek.eu
     type: PRIMARY
