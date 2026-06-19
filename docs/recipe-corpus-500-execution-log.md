@@ -17,16 +17,89 @@ Live status and operator handoff for the B2 push that grows the published
 | 1 | `promote_curated_recipes` command (TDD) | ✅ committed `428c18e` |
 | 2 | `unmapped_ingredients_report` command (TDD) | ✅ committed `37f7bbb` + fix `b543577` |
 | 3 | `coverage_matrix_report` command (TDD) | ✅ committed `2bd55d3` |
-| 4 | `curate-batch` DO one-off job in `.do/app.yaml` + runbook | ✅ committed `27ac01a`, hardened `6dfeb93` |
+| 4 | `curate-batch` DO one-off job in `.do/app.yaml` + runbook | ✅ committed `27ac01a`, hardened `6dfeb93`; **never installed on live DO spec** (web service only) |
 | 5 | PM subagent → 470 source URLs + coverage matrix | ✅ committed `d44260f` |
-| **—** | **Merge `develop`→`prod`, deploy (auto-runs smoke test)** | ✅ pushed `6dfeb93` → DO deploying |
-| 6 | Smoke test (20-URL batch01) + draft inspection | ✅ **validated locally** 2026-06-18 (20/20 curated, 0 errors). ⚠️ prod PRE_DEPLOY job never ran — see §"2026-06-18 ~21:30" |
-| 6.5 | Dictionary growth on batch01 smoke set (98→99% mapping) | ✅ local; YAML + normalizer fix committed |
-| 7 | Full 5-batch curation loop + dict growth | ⬜ prod, not started |
-| 8 | Coverage check → promote → close-out | ⬜ prod, not started |
+| **—** | **Merge `develop`→`prod`, deploy** | ✅ active deploy on prod = `60b4ccf` (2026-06-19) |
+| 6 | Smoke test (20-URL batch01) + draft inspection | ✅ validated locally 2026-06-18. Prod smoke run via web Console (not the PRE_DEPLOY job — that never installed). |
+| 6.5 | Dictionary growth on batch01 smoke set (98→99% mapping) | ✅ shipped via `4bb1bd0` |
+| 7 | Full 5-batch curation loop + dict growth | 🟡 **batches 01–05 ingested on prod by hand via web Console** (inferred — see §"2026-06-19 status check"). Batch02 dict-growth shipped via `5d441e7`. Dict-growth for batches 03–05 untracked in git. |
+| 8 | Coverage check → promote → close-out | ⬜ **not run.** `promote_curated_recipes` has not been executed in prod → curated rows are still `status=draft` and **not served to users**. |
 
-Both `develop` and `prod` are at `6dfeb93` (docs commit `003c5dd` is on
-`develop` only; folds into prod on next merge).
+Both `develop` and `prod` are at `60b4ccf` as of 2026-06-19.
+
+---
+
+## 2026-06-19 status check — "are the 500 live?"
+
+**Short answer: no, not live to users yet.** Curation ran but promotion didn't.
+
+**What was confirmed from the prod web Console on 2026-06-19** (operator session,
+output pasted into the Slack thread; not captured in any deployment log):
+
+- Re-running `build_curated_recipes --index docs/curated-recipe-index-batch02.json`
+  produced `curated=0 skipped=94 errors=0` → **all 94 batch02 URLs are already in
+  the prod corpus** (idempotent skip on `source_url`). Batches 01–05 are
+  presumed similarly ingested; only batches 01–02 have left a commit trail.
+- `unmapped_ingredients_report` reported **380 recipes with ≥1 unmapped
+  ingredient** out of the draft set, with 692 distinct unmapped surface forms
+  and 1012 occurrences. That floor alone proves the corpus is well past the
+  original 30; the actual `CuratedRecipe` total is higher (recipes with 100%
+  mapped ingredients aren't counted in the 380).
+
+**What is NOT yet confirmed:**
+
+- Exact `CuratedRecipe.objects.count()` and the `draft` vs `published` split.
+  The Sanity check one-liner below settles it in one paste.
+- Whether the §8 promotion step has run. No git/log trail for it; default after
+  `build_curated_recipes` is `status=draft`, and only `published` rows are
+  served. So unless someone ran `promote_curated_recipes` in the Console
+  without telling git, the answer is **drafts only**.
+
+**Why the doc above was stale:** batches 03–05 were curated directly in the
+web Console without commits for dictionary growth or status notes. The job-based
+path in `.do/app.yaml` was never installed on the live DO spec (`jobs: []` per
+`GET /v2/apps/$APP`), so there's no DO Jobs log either. Operator runs in the
+web Console don't survive a redeploy.
+
+### Sanity check — paste in web Console any time
+
+Settles total / draft / published in one shot:
+
+```bash
+python manage.py shell -c "from diet_planner.models import CuratedRecipe as R; \
+print('total:', R.objects.count(), \
+      '| draft:', R.objects.filter(status='draft').count(), \
+      '| published:', R.objects.filter(status='published').count())"
+```
+
+Interpret:
+
+- `published ≈ 30, draft ≈ 470` → Task 7 done, **Task 8 still owed** (run §8 below).
+- `published ≈ 470+, draft ≈ 0` → **already live**; backfill this doc and close out.
+- anything else → investigate before promoting.
+
+### What to do next (to actually make them live)
+
+```bash
+# In the web Console (DO dashboard → llmdietplanner → Console):
+
+# 1. Confirm coverage including drafts; every (slot × main tag) cell ≥ 15
+python manage.py coverage_matrix_report --include-drafts
+
+# 2. Dry-run promotion (no writes)
+python manage.py promote_curated_recipes --dry-run
+
+# 3. Spot-check 5–10 to-be-promoted drafts in /admin (clarity, attribution,
+#    real shopping basket). Hold back problem rows with status=vetted.
+
+# 4. Live promotion (catalog-mapped drafts → published)
+python manage.py promote_curated_recipes
+
+# 5. Re-run the Sanity check above; expect published ≈ 470+.
+```
+
+The §"Operator runbook — remaining prod steps" Task 8 block below is the
+canonical version of step 4; this section is just the "do it now" shortcut.
 
 ---
 
