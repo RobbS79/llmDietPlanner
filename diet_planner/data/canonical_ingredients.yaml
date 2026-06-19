@@ -44,6 +44,7 @@
     - { alias: "cukr krupice", language_code: cs }
     - { alias: "krupicový cukr", language_code: cs }
     - { alias: "cukr krystal", language_code: cs }
+    - { alias: "krystalový cukr", language_code: cs }
     - { alias: "sladidlo dle chuti", language_code: cs }
 
 - name: plain flour
@@ -134,6 +135,9 @@
   typical_package_sizes: [10, 15]
   aliases:
     - { alias: "vajíčka", language_code: cs }
+    - { alias: "žloutek", language_code: cs }
+    - { alias: "žloutky", language_code: cs }
+    - { alias: "vaječný žloutek", language_code: cs }
 
 - name: whole milk
   name_cs: mléko plnotučné
@@ -266,6 +270,7 @@
   default_unit: g
   aliases:
     - { alias: "brambor", language_code: cs }
+    - { alias: "brambora", language_code: cs }
 
 - name: onion
   name_cs: cibule
@@ -287,6 +292,10 @@
   is_pantry_staple: true
   estimated_price_czk: 10.0
   estimated_price_eur: 0.40
+  aliases:
+    - { alias: "česneku", language_code: cs }        # genitive ("špetka česneku")
+    - { alias: "stroužky česneku", language_code: cs }
+    - { alias: "stroužek česneku", language_code: cs }
 
 - name: bananas
   name_cs: banány
@@ -301,6 +310,8 @@
   name_cs: jablka
   category: fruits
   default_unit: g
+  aliases:
+    - { alias: "jablko", language_code: cs }
 
 - name: lemons
   name_cs: citrony
@@ -557,6 +568,7 @@
     - { alias: "feferonka", language_code: cs }
     - { alias: "jalapeño", language_code: cs }
     - { alias: "jalapeño paprička", language_code: cs }
+    - { alias: "jalapeño paprika", language_code: cs }
     - { alias: "thajská chilli", language_code: cs }
     - { alias: "aleppské papriky", language_code: cs }
 
@@ -574,6 +586,7 @@
   aliases:
     - { alias: "batát", language_code: cs }
     - { alias: "sladké brambory", language_code: cs }
+    - { alias: "sladká brambora", language_code: cs }
 
 # --- Canned / preserved ---
 - name: corn
@@ -623,6 +636,11 @@
   aliases:
     - { alias: "rajčata z konzervy", language_code: cs }
     - { alias: "rajčata z plechovky", language_code: cs }
+    # Exact aliases so canned tomatoes win over the ambiguous bare "rajčata"
+    # normalized key (which "sušená rajčata" also reduces to → sun-dried).
+    - { alias: "rajčata v konzervě", language_code: cs }
+    - { alias: "krájená rajčata v konzervě", language_code: cs }
+    - { alias: "krájená rajčata", language_code: cs }
 
 # --- Fruits ---
 - name: lime
@@ -631,6 +649,8 @@
   default_unit: ks
   aliases:
     - { alias: "limetková šťáva", language_code: cs }
+    - { alias: "limetkové klínky", language_code: cs }
+    - { alias: "limetka klínky", language_code: cs }
 
 - name: raspberries
   name_cs: maliny
@@ -666,6 +686,8 @@
   aliases:
     - { alias: "tortilla", language_code: cs }
     - { alias: "pšeničná tortilla", language_code: cs }
+    - { alias: "kukuřičné tortilly", language_code: cs }
+    - { alias: "kukuřičná tortilla", language_code: cs }
 
 - name: pita bread
   name_cs: pita chléb
@@ -709,6 +731,7 @@
   default_unit: g
   aliases:
     - { alias: "bílé fazole", language_code: cs }
+    - { alias: "černé fazole", language_code: cs }
     - { alias: "červené fazole", language_code: cs }
 
 - name: tofu
@@ -1081,3 +1104,268 @@
   default_unit: ks
   aliases:
     - { alias: "anglický muffin", language_code: cs }
+
+# ───────────────────────────────────────────────────────────────────────────
+# Batch-02 dictionary growth (2026-06-19) — new distinct canonicals surfaced by
+# the 30→500 curation push (unmapped_ingredients_report). Priced variants are
+# DISTINCT canonicals (not aliases of a base) so real-price accuracy survives —
+# powdered/brown/coconut sugar, oat/whole-wheat flour, avocado/coconut oil and
+# sea salt are different buyable products at different prices. Singular/plural
+# and prep-state forms for PRE-EXISTING canonicals are added in place above.
+# ───────────────────────────────────────────────────────────────────────────
+
+# --- Sugars (distinct priced variants of base `sugar`/cukr) ---
+- name: powdered sugar
+  name_cs: moučkový cukr
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 30.0
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "cukr moučka", language_code: cs }
+
+- name: brown sugar
+  name_cs: hnědý cukr
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 45.0
+  estimated_price_eur: 1.80
+  aliases:
+    - { alias: "třtinový cukr", language_code: cs }
+
+- name: coconut sugar
+  name_cs: kokosový cukr
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 90.0
+  estimated_price_eur: 3.60
+
+# --- Oils (distinct priced variants) ---
+- name: avocado oil
+  name_cs: avokádový olej
+  category: oils
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 200.0
+  estimated_price_eur: 8.00
+
+- name: coconut oil
+  name_cs: kokosový olej
+  category: oils
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 130.0
+  estimated_price_eur: 5.20
+
+# --- Flours (distinct from plain wheat flour) ---
+- name: oat flour
+  name_cs: ovesná mouka
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 40.0
+  estimated_price_eur: 1.60
+
+- name: whole wheat flour
+  name_cs: celozrnná pšeničná mouka
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "celozrnná mouka", language_code: cs }
+
+# --- Salt variant ---
+- name: sea salt
+  name_cs: mořská sůl
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 35.0
+  estimated_price_eur: 1.40
+  aliases:
+    - { alias: "vločková mořská sůl", language_code: cs }
+    - { alias: "hrubá mořská sůl", language_code: cs }
+
+# --- Spices & blends ---
+- name: chili powder
+  name_cs: chilli prášek
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 30.0
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "chilli koření", language_code: cs }
+    - { alias: "mleté chilli", language_code: cs }
+
+- name: garam masala
+  name_cs: garam masala
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 40.0
+  estimated_price_eur: 1.60
+
+- name: grilling spice blend
+  name_cs: grilovací koření
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 30.0
+  estimated_price_eur: 1.20
+
+- name: baking powder
+  name_cs: kypřicí prášek
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 8.0
+  estimated_price_eur: 0.30
+  aliases:
+    - { alias: "prášek do pečiva", language_code: cs }
+
+# --- Nuts & seeds ---
+- name: pumpkin seeds
+  name_cs: dýňová semínka
+  category: nuts
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 60.0
+  estimated_price_eur: 2.40
+  aliases:
+    - { alias: "dýňové semínko", language_code: cs }
+
+- name: pine nuts
+  name_cs: piniové oříšky
+  category: nuts
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 120.0
+  estimated_price_eur: 4.80
+  aliases:
+    - { alias: "pinie", language_code: cs }
+
+- name: coconut flakes
+  name_cs: kokosové lupínky
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 40.0
+  estimated_price_eur: 1.60
+  aliases:
+    - { alias: "strouhaný kokos", language_code: cs }
+    - { alias: "kokos strouhaný", language_code: cs }
+
+- name: raisins
+  name_cs: rozinky
+  category: fruits
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 35.0
+  estimated_price_eur: 1.40
+
+# --- Vegetables ---
+- name: cauliflower
+  name_cs: květák
+  category: vegetables
+  default_unit: g
+
+- name: leek
+  name_cs: pórek
+  category: vegetables
+  default_unit: ks
+
+- name: shallot
+  name_cs: šalotka
+  category: vegetables
+  default_unit: ks
+
+- name: mint
+  name_cs: máta
+  category: vegetables
+  default_unit: svazek
+  aliases:
+    - { alias: "lístky máty", language_code: cs }
+
+# --- Fruits ---
+- name: mango
+  name_cs: mango
+  category: fruits
+  default_unit: ks
+
+# --- Meat ---
+- name: sausage
+  name_cs: klobása
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "uzená klobása", language_code: cs }
+    - { alias: "párek", language_code: cs }
+
+- name: czech sausage
+  name_cs: špekáčky
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "špekáček", language_code: cs }
+
+# --- Condiments / prepared ---
+- name: nutritional yeast
+  name_cs: lahůdkové droždí
+  category: condiments
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 60.0
+  estimated_price_eur: 2.40
+  aliases:
+    - { alias: "vločky lahůdkového droždí", language_code: cs }
+
+- name: pico de gallo
+  name_cs: pico de gallo
+  category: condiments
+  default_unit: g
+
+- name: tortilla chips
+  name_cs: tortillové chipsy
+  category: other
+  default_unit: g
+  aliases:
+    - { alias: "nachos", language_code: cs }
+    - { alias: "kukuřičné chipsy", language_code: cs }
+
+- name: pumpkin puree
+  name_cs: dýňové pyré
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "dýňová dřeň", language_code: cs }
+
+- name: stock
+  name_cs: vývar
+  category: condiments
+  default_unit: ml
+  aliases:
+    - { alias: "bujón", language_code: cs }
+    - { alias: "vývar v kostce", language_code: cs }
+
+- name: rum
+  name_cs: rum
+  category: beverages
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 200.0
+  estimated_price_eur: 8.00
+
+- name: bread roll
+  name_cs: rohlík
+  category: grains
+  default_unit: ks
+  aliases:
+    - { alias: "rohlíky", language_code: cs }
+    - { alias: "houska", language_code: cs }
+    - { alias: "pečivo", language_code: cs }

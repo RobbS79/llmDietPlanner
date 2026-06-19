@@ -11,7 +11,7 @@ from decimal import Decimal
 from django.test import TestCase
 
 from diet_planner.tasks import calculate_package_aware_price
-from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.canonical_lookup import _strip_descriptors, resolve_canonical
 
 
 class CalculatePackageAwarePriceTest(TestCase):
@@ -158,3 +158,43 @@ class ResolveCanonicalTest(TestCase):
         ci = resolve_canonical('olivový olej ½')
         self.assertIsNotNone(ci)
         self.assertEqual(ci.slug, 'olive-oil')
+
+
+class StripDescriptorsTest(TestCase):
+    """Pure-function tests for the normalizer key. Recipe ingredient lines from
+    the curation corpus carry prep-state adjectives and can/tin tails that must
+    reduce to the same base key as the canonical name, so the fallback match
+    lands. (DB-free: asserts the residual key, not a resolution.)"""
+
+    def test_strips_melted_state(self):
+        # "rozpuštěné máslo" / "rozpuštěný kokosový olej" — melted X is still X,
+        # same product, same price; the prep state must not defeat the match.
+        self.assertEqual(_strip_descriptors('rozpuštěné máslo'), 'máslo')
+        self.assertEqual(_strip_descriptors('rozpuštěný kokosový olej'),
+                         'kokosový olej')
+
+    def test_strips_lukewarm_state(self):
+        self.assertEqual(_strip_descriptors('vlažné mléko'), 'mléko')
+
+    def test_strips_creamy_modifier(self):
+        # creamy peanut butter -> peanut butter
+        self.assertEqual(_strip_descriptors('krémové arašídové máslo'),
+                         'arašídové máslo')
+
+    def test_strips_in_can_tail(self):
+        # "v konzervě" / "v plechovce" are prep/packaging tails like "z konzervy".
+        self.assertEqual(_strip_descriptors('krájená rajčata v konzervě'),
+                         'rajčata')
+
+    def test_disjunction_keeps_shared_trailing_head_noun(self):
+        # "kokosový nebo olivový olej" = coconut OR olive *oil*; the head noun
+        # is shared and trails the last option. Taking the bare first option
+        # ("kokosový") drops it; we must keep "kokosový olej".
+        self.assertEqual(_strip_descriptors('kokosový nebo olivový olej'),
+                         'kokosový olej')
+
+    def test_disjunction_first_option_with_own_head_unchanged(self):
+        # Regression: when the first option already carries its head noun,
+        # behaviour is unchanged (don't borrow from the last option).
+        self.assertEqual(_strip_descriptors('olivový olej nebo řepkový olej'),
+                         'olej olivový')

@@ -39,6 +39,8 @@ _MODIFIER_WORDS = {
     "vařený", "vařená", "vařené", "vychlazený", "vychlazená", "vychlazené",
     "pečený", "pečená", "pečené", "pražený", "pražená", "pražené",
     "uzený", "uzená", "uzené",
+    "rozpuštěný", "rozpuštěná", "rozpuštěné", "rozpuštěného",  # melted X is still X
+    "vlažný", "vlažná", "vlažné", "teplý", "teplá", "teplé",  # lukewarm / warm
     "nakládaný", "nakládaná", "nakládané", "sterilovaný", "sterilovaná", "sterilovaný",
     # cut / form
     "mletý", "mletá", "mleté", "mletého", "mleně",
@@ -53,6 +55,7 @@ _MODIFIER_WORDS = {
     "kvalitní", "extra", "panenský", "panenská", "panenské", "pevný", "pevná", "pevné",
     "jemný", "jemná", "jemné", "velký", "velká", "velké", "malý", "malá", "malé",
     "kvašený", "kvašená", "kvašené", "křupavý", "křupavá", "křupavé",
+    "krémový", "krémová", "krémové",  # creamy peanut butter -> peanut butter
     # generic head-nouns that don't change identity
     "maso", "koření",
     # bare connectors that survive a list ("rýže vařená a vychlazená")
@@ -66,7 +69,8 @@ _MODIFIER_WORDS = {
 # preparation note, not part of the ingredient identity.
 #   "olej na smažení" -> "olej",  "smetana ke šlehání" -> "smetana"
 _TAIL_MARKERS = re.compile(
-    r"\s+(?:na\s|ke\s|ku\s|k\s|z\s+konzervy|z\s+plechovky|do\s)",
+    r"\s+(?:na\s|ke\s|ku\s|k\s|z\s+konzervy|z\s+plechovky"
+    r"|v\s+konzervě|v\s+plechovce|v\s+nálevu|do\s)",
 )
 
 
@@ -81,7 +85,18 @@ def _strip_descriptors(raw: str) -> str:
     s = raw.lower().strip()
     s = re.sub(r"\(.*?\)", " ", s)            # drop parentheticals
     s = s.split(",")[0]                        # drop post-comma descriptor
-    s = re.split(r"\bnebo\b|\bor\b|/", s)[0]   # "x nebo y" -> first option
+    parts = re.split(r"\bnebo\b|\bor\b|/", s)  # "x nebo y" -> first option
+    s = parts[0]
+    if len(parts) > 1:
+        first_tokens = parts[0].split()
+        # "kokosový nebo olivový olej": the head noun ("olej") is shared and
+        # trails the *last* option. When the first option is a lone adjective
+        # (Czech acute ending ý/á/é — nouns like "máslo"/"olej"/"sůl" lack it),
+        # it has no head noun of its own, so borrow the trailing one.
+        if len(first_tokens) == 1 and re.search(r"[ýáé]$", first_tokens[0]):
+            last_tokens = parts[-1].split()
+            if last_tokens:
+                s = f"{first_tokens[0]} {last_tokens[-1]}"
     s = _TAIL_MARKERS.split(s)[0]              # drop prepositional tails
     s = re.sub(r"\s*\d+([.,]\d+)?\s*%?", " ", s)  # drop quantities / percentages
     s = re.sub(r"[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]", " ", s)  # drop unicode vulgar fractions
