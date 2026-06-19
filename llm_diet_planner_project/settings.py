@@ -361,7 +361,12 @@ if not GEMINI_API_KEY:
 # nothing else changes. See docs/qa-recipe-shopping-coherence.md.
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', config('ANTHROPIC_API_KEY', default=None))
 RECIPE_HUMAN_JUDGE_ENABLED = config('RECIPE_HUMAN_JUDGE_ENABLED', default=False, cast=bool)
-RECIPE_HUMAN_JUDGE_MODEL = config('RECIPE_HUMAN_JUDGE_MODEL', default='claude-opus-4-8')
+# Advisory judge: Sonnet 4.6 at low effort is the cost/quality balance for this
+# fail-open coherence check (was Opus 4.8 at high effort — ~order-of-magnitude
+# cheaper per call). Override per-env if flagging quality needs more reasoning;
+# valid effort values: low | medium | high | max.
+RECIPE_HUMAN_JUDGE_MODEL = config('RECIPE_HUMAN_JUDGE_MODEL', default='claude-sonnet-4-6')
+RECIPE_HUMAN_JUDGE_EFFORT = config('RECIPE_HUMAN_JUDGE_EFFORT', default='low')
 
 # Recipe grounding (Direction B, B3): when enabled, the meal-plan generator
 # overlays vetted real recipes from the CuratedRecipe corpus onto covered slots

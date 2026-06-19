@@ -141,7 +141,8 @@ class JudgingTest(SimpleTestCase):
         self.assertTrue(verdict.has_blocking_issues)
         # the request was actually made with our schema + model
         _, kwargs = fake_client.messages.create.call_args
-        self.assertEqual(kwargs["model"], "claude-opus-4-8")
+        self.assertEqual(kwargs["model"], "claude-sonnet-4-6")
+        self.assertEqual(kwargs["output_config"]["effort"], "low")
         self.assertIn("format", kwargs["output_config"])
 
     def test_coherent_plan_returns_no_issues(self):

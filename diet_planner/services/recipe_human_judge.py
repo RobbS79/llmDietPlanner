@@ -297,7 +297,8 @@ def judge_plan_coherence(
     if not is_enabled():
         return JudgeVerdict(ran=False, verdict="unknown", error="disabled")
 
-    model = model or getattr(settings, "RECIPE_HUMAN_JUDGE_MODEL", "claude-opus-4-8")
+    model = model or getattr(settings, "RECIPE_HUMAN_JUDGE_MODEL", "claude-sonnet-4-6")
+    effort = getattr(settings, "RECIPE_HUMAN_JUDGE_EFFORT", "low")
 
     try:
         import json
@@ -328,7 +329,7 @@ def judge_plan_coherence(
             system=_SYSTEM_PROMPT,
             thinking={"type": "adaptive"},
             output_config={
-                "effort": "high",
+                "effort": effort,
                 "format": {"type": "json_schema", "schema": _VERDICT_SCHEMA},
             },
             messages=[{"role": "user", "content": user_message}],
