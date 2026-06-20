@@ -19,13 +19,13 @@ Live status and operator handoff for the B2 push that grows the published
 | 3 | `coverage_matrix_report` command (TDD) | ✅ committed `2bd55d3` |
 | 4 | `curate-batch` DO one-off job in `.do/app.yaml` + runbook | ✅ committed `27ac01a`, hardened `6dfeb93`; **never installed on live DO spec** (web service only) |
 | 5 | PM subagent → 470 source URLs + coverage matrix | ✅ committed `d44260f` |
-| **—** | **Merge `develop`→`prod`, deploy** | ✅ active deploy on prod = `60b4ccf` (2026-06-19) |
+| **—** | **Merge `develop`→`prod`, deploy** | ✅ active deploy on prod = `b045ae8` (2026-06-20, batch02 YAML shipped) |
 | 6 | Smoke test (20-URL batch01) + draft inspection | ✅ validated locally 2026-06-18. Prod smoke run via web Console (not the PRE_DEPLOY job — that never installed). |
 | 6.5 | Dictionary growth on batch01 smoke set (98→99% mapping) | ✅ shipped via `4bb1bd0` |
-| 7 | Full 5-batch curation loop + dict growth | 🟡 **Curation done** (484 total / 454 draft confirmed on prod 2026-06-20). **Dict-growth incomplete:** only batches 01–02 mapped. 345 drafts still blocked by ≥1 unmapped ingredient. |
-| 8 | Coverage check → promote → close-out | 🟡 **partial.** First live promotion ran 2026-06-20: **promoted=109 → published_total=139**. The 109 fully-mapped drafts are now served. **345 still draft**, blocked by ≥1 unmapped ingredient — needs dictionary growth (Task 7.3) before a second promote. |
+| 7 | Full 5-batch curation loop + dict growth | 🟡 **Curation done** (484 total). **Dict-growth partial:** batches 01–02 YAML now live on prod (deploy 2026-06-20). Batches 03–05 head ingredients still drive most of the remaining unmapped tail. |
+| 8 | Coverage check → promote → close-out | 🟡 **two promotes done.** 2026-06-20 #1: 30→139 (+109). 2026-06-20 #2 (post-batch02 deploy): 139→198 (+59). **286 still draft**, blocked by ≥1 unmapped ingredient — needs another dictionary pass or gate relaxation. |
 
-Both `develop` and `prod` are at `60b4ccf` as of 2026-06-19.
+Both `develop` and `prod` are at `b045ae8` as of 2026-06-20.
 
 ---
 
@@ -143,6 +143,102 @@ Working the head of the unmapped report into `canonical_ingredients.yaml`
 `[[ingredient-mapping-normalizer]]`, then commit → deploy → `seed_canonical_ingredients`
 → `remap_curated_recipes` → re-run dry-run promote. Goal: lift promotable past
 the current 109 toward ~200–300 on the next pass.
+
+### 2026-06-20 (mid-morning) — deploy + remap + promote #2
+
+> **Replanned.** Before grinding new YAML, a state check showed the batch02
+> dictionary work (commit `5d441e7`, ~30 new canonicals incl. cauliflower,
+> shallot, mango, leek, garam masala, powdered/brown/coconut sugar, avocado oil,
+> baking powder, pumpkin seeds, etc.) **was sitting undeployed** — `origin/develop`
+> and `origin/prod` were both still at `60b4ccf`. The morning's "long tail of
+> missing staples" was mostly already-solved work awaiting a push.
+
+**Sequence:**
+
+1. Committed the morning's prod ground-truth log update on
+   `fix/ingredient-mapping-batch02` as `b045ae8`.
+2. Pushed feature branch + ff-merged into `origin/develop` and `origin/prod`
+   (`60b4ccf..b045ae8`). DO App Platform auto-deployed `prod`; canonical
+   dictionary auto-seeds on boot (per `c83015c`), so no manual seed needed.
+3. Confirmed canonical count jumped **~182 → 212** (YAML went 131 → 161 entries;
+   ~51 migration-seeded carry over).
+4. `remap_curated_recipes` on prod re-linked the 345 blocked drafts:
+   ```
+   recipes=484 changed=225 fully_mapped=192 ingredient_mapping=4949/5640 (88%)
+   ```
+5. `promote_curated_recipes --dry-run`:
+   ```
+   promoted=59 skipped_unmapped=286 published_total=139
+   ```
+6. Live promote ran cleanly:
+   ```
+   Published: 198  (was 139 → +59)
+   Draft:     286  (was 345 → −59)
+   ```
+
+**Cumulative for the morning:** prod corpus grew **30 → 198 published**
+(6.6× live) across the two promotes, with zero new YAML written between them
+— the second 59 came purely from shipping work that was already committed.
+
+### Unmapped tail — post-deploy shape
+
+| | Pre-deploy (morning #1) | Post-deploy + remap (#2) | Δ |
+|---|---|---|---|
+| Distinct forms | 692 | **531** | −161 |
+| Total occurrences | 1012 | **635** | −377 |
+| Recipes blocked | 380 | **299** | −81 |
+| Global ingredient mapping | (not measured) | **88%** (4949/5640) | — |
+
+**Top remaining unmapped — the head for any next YAML pass:**
+
+- **Easy new canonicals** (common Czech staples without an entry): `hermelín`,
+  `kapary` (capers), `čokoládové pecičky` (chocolate chips), `rajský protlak`
+  (tomato paste), `bílý vinný ocet` (white wine vinegar), `špek`,
+  `mleté maso` (ground meat), `vanilkový pudinkový prášek`,
+  `aleppské chilli vločky`, `vlašské ořechy` (walnut).
+- **Aliases for existing canonicals** (descriptor / inflection / word order):
+  `vlašské ořechy nasekané` ↔ `nasekané vlašské ořechy` → walnut,
+  `hrubozrnná sůl` → salt, `limetková kůra` / `plátky limetky` → lime,
+  `zralé avokádo` → avocado, `čerstvá petrželová nať` → parsley,
+  `listy kadeřávku` → kale, `mandlové lupínky` → almonds,
+  `neslazené kokosové lupínky` → coconut, `krátkozrnná hnědá rýže` /
+  `hnědá jasmínová rýže` → brown rice, `sůl a pepř` → salt+pepper merge.
+- **Niche / accept blocked:** `švestková povidla`, `starší chléb`,
+  `serrano paprička`.
+
+Realistic next-pass outcome: another **+30–60 unlocks**, taking the live floor
+into the ~230–260 range. The remaining tail past that is the unavoidable
+diminishing-returns zone (singletons, malformed multi-ingredient lines).
+
+### Prod console harness — relocated/rebuilt
+
+`/tmp/console_drive.py` was wiped (lives in `/tmp`, doesn't survive a droplet
+restart). A fresh copy is now in place, using `/tmp/doctl` 1.162 (also newer
+than the 1.124 mentioned earlier). Same calling convention:
+
+```bash
+/tmp/console_drive.py f1ffa865-7f6d-4aa0-9e74-2b37dac2f0e8 llmdietplanner \
+  "$DIGITAL_OCEAN_TOKEN" "<cmd>; echo END_OF_CMD" END_OF_CMD <timeout_s>
+```
+
+Known minor bug in the harness's *display slicing* when the wrapped cmd line
+visually wraps in the pty — the actual command executes correctly and DB
+writes are confirmed, but the captured stdout may be cut short. Verify side
+effects with a short follow-up query (as done for promote #2). Robust fix
+(BEGIN/END printf sentinels with `\n<marker>\n` byte matching) is queued but
+not blocking.
+
+### Open decisions after this milestone
+
+1. **Second YAML pass** (head of the table above) — likely the next +30–60
+   unlock. TDD per `[[ingredient-mapping-normalizer]]`, same loop as today.
+2. **Hold at 198 live** — no-regret floor; remaining tail is steeper diminishing
+   returns. Acceptable if 200 is "good enough" for the B2 push and other
+   priorities are warmer.
+3. **Re-open the gate** — separate brainstorm: relax `is_catalog_mapped` from
+   100% to e.g. ≥90% non-optional. Would unlock far more than dictionary
+   grinding for the same effort, but ships recipes with an unpriceable
+   ingredient or two. Cross-cuts pricing/shopping-basket assumptions.
 
 ---
 
