@@ -23,9 +23,62 @@ Live status and operator handoff for the B2 push that grows the published
 | 6 | Smoke test (20-URL batch01) + draft inspection | ✅ validated locally 2026-06-18. Prod smoke run via web Console (not the PRE_DEPLOY job — that never installed). |
 | 6.5 | Dictionary growth on batch01 smoke set (98→99% mapping) | ✅ shipped via `4bb1bd0` |
 | 7 | Full 5-batch curation loop + dict growth | 🟡 **Curation done** (484 total). **Dict-growth partial:** batches 01–02 YAML now live on prod (deploy 2026-06-20). Batches 03–05 head ingredients still drive most of the remaining unmapped tail. |
-| 8 | Coverage check → promote → close-out | 🟡 **two promotes done.** 2026-06-20 #1: 30→139 (+109). 2026-06-20 #2 (post-batch02 deploy): 139→198 (+59). **286 still draft**, blocked by ≥1 unmapped ingredient — needs another dictionary pass or gate relaxation. |
+| 8 | Coverage check → promote → close-out | 🟡 **four promotes done →  299 live.** #1 30→139 (+109). #2 (batch02) 139→198 (+59). #3 (batch03) 198→227 (+29). #4 (batch04 staples) 227→**299** (+72). 185 draft remain, blocked by ≥1 unmapped ingredient under the **strict 100% gate** (operator chose integrity over relaxation 2026-06-20). |
 
-Both `develop` and `prod` are at `b045ae8` as of 2026-06-20.
+`develop` and `prod` are at `27f9461` as of 2026-06-20 (batch04 staples pass).
+
+### Gate-relaxation decision (2026-06-20) — REJECTED, strict 100% stays
+
+Explored relaxing `is_catalog_mapped` to unlock the 257 blocked drafts faster,
+with the unpriceable item **surfaced to the user** ("not in our price catalog,
+source separately") so no price is fabricated. Quantified on prod draft data:
+
+- Of 257 blocked drafts: **156 miss exactly 1** ingredient, 59 miss 2, 29 miss 3.
+- But recipes are short (**median 10 non-optional ingredients**, 0.8% have >20),
+  so a percentage gate is nearly useless: `>95%`→**0** unlocked, `≥95%`→1,
+  `≥90%`→75. Only a literal "miss-1" rule (≈90% for a 10-ingredient recipe)
+  would unlock the 156.
+
+**Operator decision: keep the strict 100% gate, grind the dictionary only.**
+Integrity over hitting the number fast; only fully-priced recipes ship. Track B
+(relaxation + transparency flag) is dropped. Path to 400–450 is dictionary
+passes, accepting the catalog-absent tail (sumac/cotija/guacamole-class items)
+likely caps the live count short of the full 484 corpus.
+
+### batch04 staples pass (commit `27f9461`, 2026-06-20)
+
+First pass after the decision. Post-batch03 unmapped report was a flat long tail
+(452 distinct / 512 occ, top item only 3×), so this pass targeted the
+miss-exactly-1 head: surprising base-staple gaps (`jogurt`, `kuře`, `papriky`,
+`rajčata roma`) + genuine new canonicals. **+31 canonicals, +152 aliases, 8 new
+normalizer modifier classes** (cooked/toasted/mashed/crumbled/natural/blanched/
+medium/hard-boiled). Local seed clean (created=31, new_aliases=152); 75 tests
+green.
+
+**Deployed + promoted (2026-06-20).** Deploy `f325b829` (27f9461) ACTIVE;
+canonical count auto-seeded **212 → 243** (+31) on boot. `remap_curated_recipes`
+re-linked all drafts, then:
+
+```
+[dry-run] promoted=72 skipped_unmapped=185 published_total=227
+live      promoted=72 skipped_unmapped=185 published_total=299
+VERIFY    total=484 draft=185 published=299
+```
+
+**+72 unlocked** (above the +30–60 estimate — the staples pass hit common
+base-noun gaps like `jogurt`/`kuře`/`papriky` that each unblocked a miss-1
+recipe). **Live corpus 227 → 299** (8× the original 30; +101 across the two
+promotes this session).
+
+### Where the remaining 185 draft sit
+
+Strict 100% gate still blocks them. Next dictionary pass should re-run
+`unmapped_ingredients_report --status draft` against the *new* tail — expect the
+head to be thinner (lower frequencies) and the per-pass unlock to shrink toward
+the diminishing-returns zone. Genuinely catalog-absent / malformed lines
+(multi-ingredient strings, niche imports) will cap the live count below the full
+484 unless those recipes are hand-fixed or dropped. Realistic ceiling for pure
+dictionary grinding: ~350–420 live; the last ~60–130 are the hard tail.
 
 ---
 
