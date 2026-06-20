@@ -23,7 +23,7 @@ Live status and operator handoff for the B2 push that grows the published
 | 6 | Smoke test (20-URL batch01) + draft inspection | ✅ validated locally 2026-06-18. Prod smoke run via web Console (not the PRE_DEPLOY job — that never installed). |
 | 6.5 | Dictionary growth on batch01 smoke set (98→99% mapping) | ✅ shipped via `4bb1bd0` |
 | 7 | Full 5-batch curation loop + dict growth | 🟡 **Curation done** (484 total). **Dict-growth partial:** batches 01–02 YAML now live on prod (deploy 2026-06-20). Batches 03–05 head ingredients still drive most of the remaining unmapped tail. |
-| 8 | Coverage check → promote → close-out | 🟡 **four promotes done →  299 live.** #1 30→139 (+109). #2 (batch02) 139→198 (+59). #3 (batch03) 198→227 (+29). #4 (batch04 staples) 227→**299** (+72). 185 draft remain, blocked by ≥1 unmapped ingredient under the **strict 100% gate** (operator chose integrity over relaxation 2026-06-20). |
+| 8 | Coverage check → promote → close-out | 🟡 **six promotes done → 372 live.** #1 30→139. #2 (batch02) →198. #3 (batch03) →227. #4 (batch04 staples) →299. #5 (batch05) →352. #6 (batch06) →**372** (target hit exactly). 112 draft remain under the **strict 100% gate** (operator chose integrity over relaxation 2026-06-20). |
 
 `develop` and `prod` are at `27f9461` as of 2026-06-20 (batch04 staples pass).
 
@@ -262,6 +262,32 @@ the current 109 toward ~200–300 on the next pass.
 Realistic next-pass outcome: another **+30–60 unlocks**, taking the live floor
 into the ~230–260 range. The remaining tail past that is the unavoidable
 diminishing-returns zone (singletons, malformed multi-ingredient lines).
+
+### 2026-06-20 (afternoon) — batches 04–06: 198 → 372 live
+
+Operator target: 372 published. Hit **exactly** via three dictionary passes under
+the strict 100% gate (no relaxation). Canonical dictionary grew ~212 → ~275.
+
+| Pass | Commit | New canon / aliases / modifiers | Promote | Live |
+|------|--------|----------------------------------|---------|------|
+| batch04 staples | `27f9461` | +31 / +152 / +8 | +72 | 227→299 |
+| batch05 | `255015e` | +28 / +121 / +4 | +53 | 299→352 |
+| batch06 | `76dd86c` | +5 / +43 / +2 | +20 | 352→**372** |
+
+Each pass: TDD normalizer modifiers (pure-function tests) → grow YAML (new
+base canonicals + inflection/variety aliases) → local seed + spot-check + full
+suite green → ff-merge develop+prod → push (DO auto-deploy + auto-seed) →
+console `remap_curated_recipes` → dry-run + live `promote_curated_recipes`.
+The 14 new normalizer modifier classes added across the three passes (cooked/
+toasted/mashed/crumbled/natural/blanched/medium/hard-boiled/cold/grilled/grated/
+toasted-bread/fully-ripe/finely) are corpus-wide wins, not one-offs.
+
+**Remaining 112 draft** are the genuine hard tail: malformed multi-ingredient
+lines (`konopná, chia nebo lněná semínka`), niche/uncatalogued items
+(`hovězí kosti`, `játra`, `matjesy`, `fajita zelenina`, adobo-sauce variants),
+and disjunction lines whose first option lacks a head noun
+(`cherry nebo hroznová rajčata`). Pushing past ~372 means hand-fixing recipes or
+revisiting the gate — not a clean dictionary win. Stopped at the 372 target.
 
 ### Prod console harness — relocated/rebuilt
 
