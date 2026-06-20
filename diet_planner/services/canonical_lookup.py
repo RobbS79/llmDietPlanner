@@ -41,6 +41,10 @@ _MODIFIER_WORDS = {
     "uzený", "uzená", "uzené",
     "uvařený", "uvařená", "uvařené", "uvařeného",  # cooked (sibling of vařený)
     "opražený", "opražená", "opražené", "opraženého",  # toasted (sibling of pražený)
+    "opečený", "opečená", "opečené",  # pan-toasted (bread/baguette) — still the bread
+    "grilovaný", "grilovaná", "grilované",  # grilled — a cooking method, not a product
+    "studený", "studená", "studené",  # cold (fridge state) — same product
+    "nastrouhaný", "nastrouhaná", "nastrouhané",  # grated (sibling of strouhaný)
     "rozmačkaný", "rozmačkaná", "rozmačkané",  # mashed: mashed banana/avocado is still the fruit
     "rozdrobený", "rozdrobená", "rozdrobené",  # crumbled: crumbled feta is still feta
     "natvrdo",  # hard-boiled (eggs) — a prep state, not a different product

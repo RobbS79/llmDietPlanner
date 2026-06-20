@@ -263,3 +263,23 @@ class StripDescriptorsTest(TestCase):
     def test_strips_hardboiled_modifier(self):
         # "vejce natvrdo" — hard-boiled eggs are still eggs.
         self.assertEqual(_strip_descriptors('vejce natvrdo'), 'vejce')
+
+    # --- Batch-05 (2026-06-20) prep-state modifiers, same price-safe rationale.
+
+    def test_strips_cold_modifier(self):
+        # "studené máslo" — cold butter is still butter (a fridge state).
+        self.assertEqual(_strip_descriptors('studené máslo'), 'máslo')
+
+    def test_strips_grilled_modifier(self):
+        # "grilovaná kukuřice" — grilled corn is still corn.
+        self.assertEqual(_strip_descriptors('grilovaná kukuřice'), 'kukuřice')
+
+    def test_strips_grated_modifier(self):
+        # "nastrouhaná cuketa" — grated zucchini (sibling of strouhaný).
+        self.assertEqual(_strip_descriptors('nastrouhaná cuketa'), 'cuketa')
+        self.assertEqual(_strip_descriptors('nastrouhaný čerstvý zázvor'),
+                         'zázvor')
+
+    def test_strips_toasted_bread_modifier(self):
+        # "opečená bageta" — pan-toasted bread is still the bread.
+        self.assertEqual(_strip_descriptors('opečená bageta'), 'bageta')
