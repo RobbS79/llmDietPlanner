@@ -79,6 +79,8 @@
   aliases:
     - { alias: "olej", language_code: cs }
     - { alias: "rostlinný olej", language_code: cs }
+    - { alias: "neutrální olej", language_code: cs }
+    - { alias: "řepkový olej", language_code: cs }
 
 - name: butter
   name_cs: máslo
@@ -254,6 +256,7 @@
     - { alias: "rajče roma", language_code: cs }
     - { alias: "rajčata roma", language_code: cs }
     - { alias: "koktejlová rajčata", language_code: cs }
+    - { alias: "hroznová rajčata", language_code: cs }
 
 - name: cucumber
   name_cs: okurka
@@ -279,6 +282,8 @@
     - { alias: "bílé papriky", language_code: cs }
     - { alias: "oranžová paprika", language_code: cs }
     - { alias: "paprika oranžová", language_code: cs }
+    - { alias: "papriky světle zelené", language_code: cs }
+    - { alias: "světle zelené papriky", language_code: cs }
 
 - name: spinach
   name_cs: špenát
@@ -457,6 +462,7 @@
   aliases:
     - { alias: "feta", language_code: cs }
     - { alias: "balkánský sýr", language_code: cs }
+    - { alias: "brynza", language_code: cs }
 
 - name: cream
   name_cs: smetana
@@ -466,6 +472,7 @@
     - { alias: "smetana ke šlehání", language_code: cs }
     - { alias: "smetana na vaření", language_code: cs }
     - { alias: "šlehačka", language_code: cs }
+    - { alias: "sladká smetana", language_code: cs }
 
 - name: sour cream
   name_cs: zakysaná smetana
@@ -486,6 +493,9 @@
     - { alias: "hovězí zadní", language_code: cs }
     - { alias: "hovězí kližka", language_code: cs }
     - { alias: "hovězí přední", language_code: cs }
+    - { alias: "hovězí žebro", language_code: cs }
+    - { alias: "hovězí žebra", language_code: cs }
+    - { alias: "hovězí zadní maso", language_code: cs }
 
 - name: pork
   name_cs: vepřové maso
@@ -497,6 +507,9 @@
     - { alias: "vepřová kýta", language_code: cs }
     - { alias: "vepřový bok", language_code: cs }
     - { alias: "vepřová plec", language_code: cs }
+    - { alias: "žebra", language_code: cs }
+    - { alias: "uzená žebra", language_code: cs }
+    - { alias: "vepřová žebra", language_code: cs }
 
 - name: bacon
   name_cs: slanina
@@ -570,6 +583,7 @@
   aliases:
     - { alias: "bulvový celer", language_code: cs }
     - { alias: "řapíkatý celer", language_code: cs }
+    - { alias: "kořenový celer", language_code: cs }
     - { alias: "kořenová zelenina", language_code: cs }
 
 - name: parsley
@@ -654,6 +668,8 @@
     - { alias: "thajská chilli", language_code: cs }
     - { alias: "aleppské papriky", language_code: cs }
     - { alias: "aleppská paprika", language_code: cs }
+    - { alias: "aleppo paprika", language_code: cs }
+    - { alias: "červené thajské chilli papričky", language_code: cs }
     - { alias: "paprika poblano", language_code: cs }
     - { alias: "poblano", language_code: cs }
     - { alias: "feferonky", language_code: cs }
@@ -777,6 +793,10 @@
     - { alias: "fusilli", language_code: cs }
     - { alias: "kolínka", language_code: cs }
     - { alias: "vřetena", language_code: cs }
+    - { alias: "bezlepkové těstoviny", language_code: cs }
+    - { alias: "polévkové nudle", language_code: cs }
+    - { alias: "soba nudle", language_code: cs }
+    - { alias: "vaječné nudle", language_code: cs }
 
 - name: tortilla
   name_cs: tortilly
@@ -796,6 +816,9 @@
   aliases:
     - { alias: "pita", language_code: cs }
     - { alias: "pita chleba", language_code: cs }
+    - { alias: "chléb naan", language_code: cs }
+    - { alias: "naan", language_code: cs }
+    - { alias: "placka naan", language_code: cs }
 
 - name: breadcrumbs
   name_cs: strouhanka
@@ -1168,6 +1191,8 @@
   default_unit: ml
   aliases:
     - { alias: "ostrá omáčka", language_code: cs }
+    - { alias: "chilli pasta", language_code: cs }
+    - { alias: "sriracha", language_code: cs }
 
 - name: zaatar
   name_cs: za'atar
@@ -1192,6 +1217,7 @@
   aliases:
     - { alias: "zmrazené broskve", language_code: cs }
     - { alias: "mražené broskve", language_code: cs }
+    - { alias: "broskev", language_code: cs }
 
 - name: cherries
   name_cs: třešně
@@ -1305,6 +1331,8 @@
   is_pantry_staple: true
   estimated_price_czk: 40.0
   estimated_price_eur: 1.60
+  aliases:
+    - { alias: "bezlepková ovesná mouka", language_code: cs }
 
 - name: whole wheat flour
   name_cs: celozrnná pšeničná mouka
@@ -1415,6 +1443,9 @@
   name_cs: květák
   category: vegetables
   default_unit: g
+  aliases:
+    - { alias: "růžičky květáku", language_code: cs }
+    - { alias: "květákové růžičky", language_code: cs }
 
 - name: leek
   name_cs: pórek
@@ -1495,6 +1526,8 @@
   aliases:
     - { alias: "bujón", language_code: cs }
     - { alias: "vývar v kostce", language_code: cs }
+    - { alias: "vepřový vývar", language_code: cs }
+    - { alias: "kostní vývar", language_code: cs }
 
 - name: rum
   name_cs: rum
@@ -1513,6 +1546,9 @@
     - { alias: "houska", language_code: cs }
     - { alias: "pečivo", language_code: cs }
     - { alias: "starší rohlíky", language_code: cs }
+    - { alias: "žemle", language_code: cs }
+    - { alias: "starší žemle", language_code: cs }
+    - { alias: "hamburgerová bulka", language_code: cs }
 
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-03 dictionary growth (2026-06-20) — head of the post-batch-02 unmapped
@@ -2186,3 +2222,60 @@
   aliases:
     - { alias: "rostlinný nápoj", language_code: cs }
     - { alias: "rostlinný drink", language_code: cs }
+
+# ───────────────────────────────────────────────────────────────────────────
+# Batch-06 dictionary growth (2026-06-20) — final pass to the 372 live target
+# (352 → 372). Remaining drafts are deep in the singleton tail; this picks the
+# last clearly-mappable common items. 2 more modifier classes (fully-ripe,
+# finely-adverb). Aliases for pre-existing canonicals added in place above.
+# ───────────────────────────────────────────────────────────────────────────
+
+- name: butternut squash
+  name_cs: máslová dýně
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "dýně", language_code: cs }
+    - { alias: "dýně hokaido", language_code: cs }
+    - { alias: "dýně butternut", language_code: cs }
+
+- name: bok choy
+  name_cs: bok choy
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "baby bok choy", language_code: cs }
+    - { alias: "pak choi", language_code: cs }
+
+- name: cinnamon
+  name_cs: skořice
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "mletá skořice", language_code: cs }
+    - { alias: "skořicové tyčinky", language_code: cs }
+
+- name: spice blend
+  name_cs: kořenicí směs
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 30.0
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "koření na kuře", language_code: cs }
+    - { alias: "koření na tacos", language_code: cs }
+    - { alias: "koření na grilování", language_code: cs }
+
+- name: gluten-free flour
+  name_cs: bezlepková mouka
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 70.0
+  estimated_price_eur: 2.80
+  aliases:
+    - { alias: "bezlepková směs na pečení", language_code: cs }

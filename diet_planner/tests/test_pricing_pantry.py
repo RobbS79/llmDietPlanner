@@ -283,3 +283,16 @@ class StripDescriptorsTest(TestCase):
     def test_strips_toasted_bread_modifier(self):
         # "opečená bageta" — pan-toasted bread is still the bread.
         self.assertEqual(_strip_descriptors('opečená bageta'), 'bageta')
+
+    # --- Batch-06 (2026-06-20) modifiers, same price-safe rationale.
+
+    def test_strips_ripe_vyzraly_modifier(self):
+        # "vyzrálé rajče" — fully-ripe tomato (sibling of zralý).
+        self.assertEqual(_strip_descriptors('vyzrálé rajče'), 'rajče')
+
+    def test_strips_finely_adverb(self):
+        # "jemně nasekaná žlutá cibule" — "finely" is a degree adverb on the cut;
+        # nasekaná is already stripped, jemně must go too so the colour+noun key
+        # for the onion alias survives.
+        self.assertEqual(_strip_descriptors('jemně nasekaná žlutá cibule'),
+                         'cibule žlutá')
