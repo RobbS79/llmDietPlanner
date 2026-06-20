@@ -39,6 +39,11 @@ _MODIFIER_WORDS = {
     "vařený", "vařená", "vařené", "vychlazený", "vychlazená", "vychlazené",
     "pečený", "pečená", "pečené", "pražený", "pražená", "pražené",
     "uzený", "uzená", "uzené",
+    "uvařený", "uvařená", "uvařené", "uvařeného",  # cooked (sibling of vařený)
+    "opražený", "opražená", "opražené", "opraženého",  # toasted (sibling of pražený)
+    "rozmačkaný", "rozmačkaná", "rozmačkané",  # mashed: mashed banana/avocado is still the fruit
+    "rozdrobený", "rozdrobená", "rozdrobené",  # crumbled: crumbled feta is still feta
+    "natvrdo",  # hard-boiled (eggs) — a prep state, not a different product
     "rozpuštěný", "rozpuštěná", "rozpuštěné", "rozpuštěného",  # melted X is still X
     "vlažný", "vlažná", "vlažné", "teplý", "teplá", "teplé",  # lukewarm / warm
     "nakládaný", "nakládaná", "nakládané", "sterilovaný", "sterilovaná", "sterilovaný",
@@ -54,6 +59,8 @@ _MODIFIER_WORDS = {
     "plnotučný", "plnotučná", "plnotučné", "polotučný", "polotučná", "polotučné",
     "kvalitní", "extra", "panenský", "panenská", "panenské", "pevný", "pevná", "pevné",
     "jemný", "jemná", "jemné", "velký", "velká", "velké", "malý", "malá", "malé",
+    "střední",  # medium: a size, not a different product ("střední žlutá cibule")
+    "přírodní", "blanšírovaný", "blanšírovaná", "blanšírované",  # natural / blanched
     "kvašený", "kvašená", "kvašené", "křupavý", "křupavá", "křupavé",
     "krémový", "krémová", "krémové",  # creamy peanut butter -> peanut butter
     "neslazený", "neslazená", "neslazené",  # unsweetened: same SKU at the till

@@ -217,3 +217,49 @@ class StripDescriptorsTest(TestCase):
         self.assertEqual(_strip_descriptors('zralé avokádo'), 'avokádo')
         self.assertEqual(_strip_descriptors('zralý banán'), 'banán')
         self.assertEqual(_strip_descriptors('zralá rajčata'), 'rajčata')
+
+    # --- Batch-04 (2026-06-20) prep-state modifiers. Each is a preparation or
+    # size descriptor that does not change the buyable product, so the line must
+    # reduce to its base canonical key. Drawn from the post-batch-03 unmapped
+    # report head (miss-exactly-1 recipes blocked on one of these). ---
+
+    def test_strips_natural_modifier(self):
+        # "přírodní arašídové máslo" — natural peanut butter is the same shelf
+        # product as plain peanut butter.
+        self.assertEqual(_strip_descriptors('přírodní arašídové máslo'),
+                         'arašídové máslo')
+
+    def test_strips_cooked_uvareny_modifier(self):
+        # "uvařená cizrna" — cooked chickpeas; the prep state must not defeat
+        # the match (sibling of the existing "vařená" form).
+        self.assertEqual(_strip_descriptors('uvařená cizrna'), 'cizrna')
+
+    def test_strips_toasted_oprazeny_modifier(self):
+        # "opražené piniové oříšky" — toasted pine nuts; toasting is a prep step.
+        self.assertEqual(_strip_descriptors('opražené piniové oříšky'),
+                         'oříšky piniové')
+
+    def test_strips_mashed_modifier(self):
+        # "rozmačkané zralé banány" — mashed ripe bananas; both mashed and ripe
+        # are states, the product is bananas.
+        self.assertEqual(_strip_descriptors('rozmačkané zralé banány'),
+                         'banány')
+
+    def test_strips_crumbled_modifier(self):
+        # "rozdrobený sýr feta" — crumbled feta; crumbled is a prep form.
+        self.assertEqual(_strip_descriptors('rozdrobený sýr feta'), 'feta sýr')
+
+    def test_strips_blanched_modifier(self):
+        # "mandlová mouka blanšírovaná" — blanched almond flour; same product.
+        self.assertEqual(_strip_descriptors('mandlová mouka blanšírovaná'),
+                         'mandlová mouka')
+
+    def test_strips_medium_size_modifier(self):
+        # "střední žlutá cibule" — medium is a size; reduces to the colour+noun
+        # key that the onion alias "žlutá cibule" also produces.
+        self.assertEqual(_strip_descriptors('střední žlutá cibule'),
+                         'cibule žlutá')
+
+    def test_strips_hardboiled_modifier(self):
+        # "vejce natvrdo" — hard-boiled eggs are still eggs.
+        self.assertEqual(_strip_descriptors('vejce natvrdo'), 'vejce')
