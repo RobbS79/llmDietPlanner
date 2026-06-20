@@ -56,6 +56,8 @@ _MODIFIER_WORDS = {
     "jemný", "jemná", "jemné", "velký", "velká", "velké", "malý", "malá", "malé",
     "kvašený", "kvašená", "kvašené", "křupavý", "křupavá", "křupavé",
     "krémový", "krémová", "krémové",  # creamy peanut butter -> peanut butter
+    "neslazený", "neslazená", "neslazené",  # unsweetened: same SKU at the till
+    "zralý", "zralá", "zralé", "zralého", "zralou",  # ripe: state, not identity
     # generic head-nouns that don't change identity
     "maso", "koření",
     # bare connectors that survive a list ("rýže vařená a vychlazená")

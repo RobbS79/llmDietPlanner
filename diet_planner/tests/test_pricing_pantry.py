@@ -198,3 +198,22 @@ class StripDescriptorsTest(TestCase):
         # behaviour is unchanged (don't borrow from the last option).
         self.assertEqual(_strip_descriptors('olivový olej nebo řepkový olej'),
                          'olej olivový')
+
+    def test_strips_unsweetened_modifier(self):
+        # "neslazené kokosové lupínky" / "neslazené mandlové mléko" — the
+        # sugar-content qualifier is a buyable-variant note but maps to the
+        # same shelf product (unsweetened still appears next to sweetened in
+        # CZ stores and shares pricing). Batch-03 head: 8 occurrences across
+        # the corpus, dominantly on coconut-flakes / almond-milk / nut-butter.
+        self.assertEqual(_strip_descriptors('neslazené kokosové lupínky'),
+                         'kokosové lupínky')
+        self.assertEqual(_strip_descriptors('neslazený sójový nápoj'),
+                         'nápoj sójový')
+
+    def test_strips_ripe_modifier(self):
+        # "zralé avokádo" / "zralé banány" — ripeness is a state descriptor,
+        # same SKU at the till. Batch-03 head: shows up on avocado, banana,
+        # mango entries.
+        self.assertEqual(_strip_descriptors('zralé avokádo'), 'avokádo')
+        self.assertEqual(_strip_descriptors('zralý banán'), 'banán')
+        self.assertEqual(_strip_descriptors('zralá rajčata'), 'rajčata')

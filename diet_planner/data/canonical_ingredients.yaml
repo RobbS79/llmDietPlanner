@@ -24,6 +24,9 @@
   estimated_price_eur: 0.60
   aliases:
     - { alias: "kořenící sůl", language_code: cs }
+    - { alias: "hrubozrnná sůl", language_code: cs }
+    - { alias: "jemnozrnná sůl", language_code: cs }
+    - { alias: "sůl a pepř", language_code: cs }  # batch-03: bare "salt & pepper" line — buyable as salt; pepper alongside resolved elsewhere
 
 - name: black pepper
   name_cs: pepř černý mletý
@@ -446,6 +449,8 @@
   aliases:
     - { alias: "anglická slanina", language_code: cs }
     - { alias: "uzená slanina", language_code: cs }
+    - { alias: "špek", language_code: cs }
+    - { alias: "uzený špek", language_code: cs }
 
 - name: ham
   name_cs: šunka
@@ -512,6 +517,7 @@
     - { alias: "plocholistá petrželka", language_code: cs }
     - { alias: "hladkolistá petrželka", language_code: cs }
     - { alias: "nať petržele", language_code: cs }
+    - { alias: "petrželová nať", language_code: cs }
     - { alias: "bylinky", language_code: cs }
 
 - name: lettuce
@@ -544,6 +550,8 @@
     - { alias: "kadeřávek", language_code: cs }
     - { alias: "kapusta kadeřavá", language_code: cs }
     - { alias: "kadeřávkové listy", language_code: cs }
+    - { alias: "listy kadeřávku", language_code: cs }
+    - { alias: "listy kadeřávek", language_code: cs }
 
 - name: peas
   name_cs: hrášek
@@ -651,6 +659,11 @@
     - { alias: "limetková šťáva", language_code: cs }
     - { alias: "limetkové klínky", language_code: cs }
     - { alias: "limetka klínky", language_code: cs }
+    - { alias: "limetková kůra", language_code: cs }
+    - { alias: "kůra z limetky", language_code: cs }
+    - { alias: "plátky limetky", language_code: cs }
+    - { alias: "limetky", language_code: cs }  # plural/genitive
+    - { alias: "šťáva z limetky", language_code: cs }
 
 - name: raspberries
   name_cs: maliny
@@ -952,6 +965,10 @@
   name_cs: mandle
   category: nuts
   default_unit: g
+  aliases:
+    - { alias: "mandlové lupínky", language_code: cs }
+    - { alias: "plátky mandlí", language_code: cs }
+    - { alias: "loupané mandle", language_code: cs }
 
 - name: pecans
   name_cs: pekanové ořechy
@@ -1260,6 +1277,8 @@
   aliases:
     - { alias: "strouhaný kokos", language_code: cs }
     - { alias: "kokos strouhaný", language_code: cs }
+    - { alias: "neslazený strouhaný kokos", language_code: cs }
+    - { alias: "kokosové vločky", language_code: cs }
 
 - name: raisins
   name_cs: rozinky
@@ -1369,3 +1388,140 @@
     - { alias: "rohlíky", language_code: cs }
     - { alias: "houska", language_code: cs }
     - { alias: "pečivo", language_code: cs }
+
+# ───────────────────────────────────────────────────────────────────────────
+# Batch-03 dictionary growth (2026-06-20) — head of the post-batch-02 unmapped
+# report (531 distinct forms / 635 occurrences / 299 recipes blocked, 88%
+# global mapping). Same gating math as batch02: prioritize the 10–20 most-
+# frequent canonical misses (each one unblocks several recipes via the strict
+# 100% is_catalog_mapped gate). Aliases for pre-existing canonicals are added
+# in place on their original entries above; new canonicals here.
+# ───────────────────────────────────────────────────────────────────────────
+
+# --- Cheese ---
+- name: czech soft cheese
+  name_cs: hermelín
+  category: dairy
+  default_unit: g
+  typical_package_sizes: [120]
+  estimated_price_czk: 50.0
+  estimated_price_eur: 2.00
+  aliases:
+    - { alias: "hermelíny", language_code: cs }
+    - { alias: "zrající sýr", language_code: cs }
+    - { alias: "plísňový sýr", language_code: cs }
+
+# --- Nuts ---
+- name: walnuts
+  name_cs: vlašské ořechy
+  category: nuts
+  default_unit: g
+  estimated_price_czk: 100.0
+  estimated_price_eur: 4.00
+  aliases:
+    - { alias: "vlašský ořech", language_code: cs }
+    - { alias: "vlašské jádra", language_code: cs }
+    - { alias: "ořechy", language_code: cs }
+
+# --- Grains: brown rice (distinct from white basmati/jasmine pricing) ---
+- name: brown rice
+  name_cs: hnědá rýže
+  category: grains
+  default_unit: g
+  typical_package_sizes: [500, 1000]
+  estimated_price_czk: 50.0
+  estimated_price_eur: 2.00
+  aliases:
+    - { alias: "rýže natural", language_code: cs }
+    - { alias: "natural rýže", language_code: cs }
+    - { alias: "celozrnná rýže", language_code: cs }
+    - { alias: "krátkozrnná hnědá rýže", language_code: cs }
+    - { alias: "dlouhozrnná hnědá rýže", language_code: cs }
+    - { alias: "hnědá jasmínová rýže", language_code: cs }
+    - { alias: "hnědá basmati rýže", language_code: cs }
+
+# --- Canned / preserved ---
+- name: capers
+  name_cs: kapary
+  category: canned
+  default_unit: g
+  typical_package_sizes: [100]
+  estimated_price_czk: 60.0
+  estimated_price_eur: 2.40
+  aliases:
+    - { alias: "kapary v nálevu", language_code: cs }
+
+- name: tomato paste
+  name_cs: rajský protlak
+  category: canned
+  default_unit: g
+  typical_package_sizes: [70, 140, 200]
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "rajčatový protlak", language_code: cs }
+    - { alias: "rajčatové pyré", language_code: cs }
+    - { alias: "koncentrovaný rajský protlak", language_code: cs }
+
+# --- Vinegars (distinct from base `vinegar` for real-price accuracy) ---
+- name: white wine vinegar
+  name_cs: bílý vinný ocet
+  category: condiments
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 45.0
+  estimated_price_eur: 1.80
+  aliases:
+    - { alias: "bílý vinný ocet jemný", language_code: cs }
+
+# --- Meat ---
+- name: ground meat
+  name_cs: mleté maso
+  category: meat
+  default_unit: g
+  typical_package_sizes: [400, 500]
+  estimated_price_czk: 90.0
+  estimated_price_eur: 3.60
+  aliases:
+    - { alias: "mleté hovězí", language_code: cs }
+    - { alias: "mleté vepřové", language_code: cs }
+    - { alias: "mletá směs", language_code: cs }
+    - { alias: "mleté vepřovo-hovězí", language_code: cs }
+
+# --- Baking ---
+- name: chocolate chips
+  name_cs: čokoládové pecičky
+  category: baking
+  default_unit: g
+  typical_package_sizes: [100, 200]
+  estimated_price_czk: 60.0
+  estimated_price_eur: 2.40
+  aliases:
+    - { alias: "čokoládové kousky", language_code: cs }
+    - { alias: "čokoládové pecky", language_code: cs }
+    - { alias: "kousky čokolády", language_code: cs }
+
+- name: vanilla pudding powder
+  name_cs: vanilkový pudinkový prášek
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [37, 40]
+  estimated_price_czk: 12.0
+  estimated_price_eur: 0.50
+  aliases:
+    - { alias: "vanilkový pudink v prášku", language_code: cs }
+    - { alias: "pudink vanilkový", language_code: cs }
+
+# --- Spices ---
+- name: aleppo pepper flakes
+  name_cs: aleppské chilli vločky
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 80.0
+  estimated_price_eur: 3.20
+  aliases:
+    - { alias: "aleppské vločky", language_code: cs }
+    - { alias: "aleppo vločky", language_code: cs }
+    - { alias: "chilli vločky aleppo", language_code: cs }
