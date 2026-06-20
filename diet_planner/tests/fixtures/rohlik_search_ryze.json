@@ -1,0 +1,101 @@
+{
+ "status": 200,
+ "messages": [],
+ "data": {
+  "totalHits": 249,
+  "productList": [
+   {
+    "productId": 1343853,
+    "productName": "Pernerka Rýžová hladká mouka",
+    "brand": "Pernerka",
+    "unit": "kg",
+    "textualAmount": "1 kg",
+    "price": {
+     "full": 66.9,
+     "whole": 66,
+     "fraction": 90.0,
+     "currency": "Kč"
+    },
+    "pricePerUnit": {
+     "full": 66.9,
+     "whole": 66,
+     "fraction": 90.0,
+     "currency": "Kč"
+    },
+    "originalPrice": {
+     "full": 0,
+     "whole": 0,
+     "fraction": 0,
+     "currency": "Kč"
+    },
+    "goodPrice": false,
+    "goodPriceSalePercentage": 0,
+    "inStock": true,
+    "link": "?productPopup=1343853-pernerka-ryzova-hladka-mouka"
+   },
+   {
+    "productId": 1454459,
+    "productName": "Kitchin Rýže jasmínová",
+    "brand": "Kitchin",
+    "unit": "kg",
+    "textualAmount": "500 g",
+    "price": {
+     "full": 24.9,
+     "whole": 24,
+     "fraction": 90.0,
+     "currency": "Kč"
+    },
+    "pricePerUnit": {
+     "full": 49.8,
+     "whole": 49,
+     "fraction": 80.0,
+     "currency": "Kč"
+    },
+    "originalPrice": {
+     "full": 26.9,
+     "whole": 26,
+     "fraction": 90.0,
+     "currency": "Kč"
+    },
+    "goodPrice": true,
+    "goodPriceSalePercentage": 20,
+    "inStock": true,
+    "link": "?productPopup=1454459-kitchin-ryze-jasminova"
+   },
+   {
+    "productId": 1454458,
+    "productName": "Kitchin Rýže basmati",
+    "brand": "Kitchin",
+    "unit": "kg",
+    "textualAmount": "500 g",
+    "price": {
+     "full": 29.9,
+     "whole": 29,
+     "fraction": 90.0,
+     "currency": "Kč"
+    },
+    "pricePerUnit": {
+     "full": 59.8,
+     "whole": 59,
+     "fraction": 80.0,
+     "currency": "Kč"
+    },
+    "originalPrice": {
+     "full": 0,
+     "whole": 0,
+     "fraction": 0,
+     "currency": "Kč"
+    },
+    "goodPrice": false,
+    "goodPriceSalePercentage": 0,
+    "inStock": true,
+    "link": "?productPopup=1454458-kitchin-ryze-basmati"
+   }
+  ],
+  "productIds": [
+   1343853,
+   1454459,
+   1454458
+  ]
+ }
+}
