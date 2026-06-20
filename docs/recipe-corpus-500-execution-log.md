@@ -22,10 +22,127 @@ Live status and operator handoff for the B2 push that grows the published
 | **—** | **Merge `develop`→`prod`, deploy** | ✅ active deploy on prod = `60b4ccf` (2026-06-19) |
 | 6 | Smoke test (20-URL batch01) + draft inspection | ✅ validated locally 2026-06-18. Prod smoke run via web Console (not the PRE_DEPLOY job — that never installed). |
 | 6.5 | Dictionary growth on batch01 smoke set (98→99% mapping) | ✅ shipped via `4bb1bd0` |
-| 7 | Full 5-batch curation loop + dict growth | 🟡 **batches 01–05 ingested on prod by hand via web Console** (inferred — see §"2026-06-19 status check"). Batch02 dict-growth shipped via `5d441e7`. Dict-growth for batches 03–05 untracked in git. |
-| 8 | Coverage check → promote → close-out | ⬜ **not run.** `promote_curated_recipes` has not been executed in prod → curated rows are still `status=draft` and **not served to users**. |
+| 7 | Full 5-batch curation loop + dict growth | 🟡 **Curation done** (484 total / 454 draft confirmed on prod 2026-06-20). **Dict-growth incomplete:** only batches 01–02 mapped. 345 drafts still blocked by ≥1 unmapped ingredient. |
+| 8 | Coverage check → promote → close-out | 🟡 **partial.** First live promotion ran 2026-06-20: **promoted=109 → published_total=139**. The 109 fully-mapped drafts are now served. **345 still draft**, blocked by ≥1 unmapped ingredient — needs dictionary growth (Task 7.3) before a second promote. |
 
 Both `develop` and `prod` are at `60b4ccf` as of 2026-06-19.
+
+---
+
+## 2026-06-20 — prod ground truth confirmed (no longer inferred)
+
+Prod is now **directly scriptable from the dev droplet** (see §"Prod access
+method" below), so the 2026-06-19 inferences are replaced with measured numbers.
+
+### Confirmed live counts (prod `llmdietplanner` console)
+
+```
+CuratedRecipe   total=484   draft=454   published=30
+```
+
+→ This is the **"Task 7 done, Task 8 owed"** case. Curation landed (484 ≈ target
+500; the ~16 shortfall = pipeline skips/errors across batches). Only the original
+30 are served to users.
+
+### Dry-run promotion — the blocker, quantified
+
+```
+[dry-run] promoted=109  skipped_unmapped=345  skipped_judge=0  published_total=30
+```
+
+Promoting **right now** would take live 30 → ~139. **345 drafts are blocked**
+because the gate is strict.
+
+### Promotion gate semantics (`CuratedRecipe.is_catalog_mapped`, `models/curated.py:135`)
+
+> "Every **non-optional** ingredient resolves to a `catalog_id` or `canonical`."
+
+It's **100%, not a threshold** — a single unmapped non-optional ingredient blocks
+the whole recipe. This is why the long-tail unmapped ingredients are so costly:
+recipes block on *any* miss, so unlock is not proportional to occurrences fixed.
+
+### Why it stuck "in the middle"
+
+Curation (ingest URLs → drafts) finished for all 5 batches, but the paired
+**dictionary-growth loop (Task 7.3)** was only completed for batches 01–02
+(`4bb1bd0`, `5d441e7`). Batches 03–05 were curated in the web Console and their
+unmapped ingredients were never added to `canonical_ingredients.yaml`. Result:
+454 drafts, but 345 sit behind the mapping gate.
+
+### Unmapped report — the shape of the work (`unmapped_ingredients_report --top 50 --status draft`)
+
+```
+Unmapped: 692 distinct surface forms, 1012 occurrences, 380 recipes with ≥1 unmapped.
+```
+
+**It's a long tail.** Top 50 forms ≈ **244 of 1012 occurrences (~24%)**; the
+remaining ~640 forms are mostly singletons/doubletons. Head is full of easy wins —
+common staples that simply lack a canonical/alias:
+
+- **Plain staples missing canonicals:** `květák` (cauliflower 7), `šalotka`
+  (shallot 7), `jablko`/`brambora` (apple/potato, singular forms), `mango`,
+  `pórek` (leek), `klobása`/`špekáčky` (sausage), `garam masala`, `kypřicí prášek
+  do pečiva` (baking powder 7), `avokádový olej` (avocado oil 8).
+- **Sugar family** (high frequency): `moučkový cukr` (powdered 16), `krystalový
+  cukr` (granulated 7), `hnědý cukr` (brown 4), `kokosový cukr` (coconut 4).
+- **Inflection / duplicate splits** (the normalizer gotcha — see
+  `[[ingredient-mapping-normalizer]]`): `žloutek`(7)/`žloutky`(4) egg yolk;
+  `dýňová semínka`(5)/`dýňová semínka (pepitas)`(3) pumpkin seeds — should merge.
+- **Long-tail / malformed lines that may never map cleanly:** `kokosový nebo
+  olivový olej`, `konopná, chia nebo lněná semínka` — multi-ingredient strings;
+  better fixed per-recipe or accepted as permanently blocked.
+
+**Implication:** a focused head-pass (top ~60–80 forms + inflection merges) is
+high-leverage but **will not** reach all 454 — covering 24% of occurrences leaves
+many recipes still blocked on a single rare miss. Getting from 109 → ~454 means
+grinding hundreds of singletons, with diminishing returns. Realistic outcome of
+one good pass: promotable rises from 109 into the ~200–300 range.
+
+### Decision options (pending operator choice)
+
+1. **Promote 109 now (no-regret floor)** → 30→~139 live today, reversible-ish, no
+   code change. Then grind the dictionary to unlock more in later passes.
+2. **Dictionary-growth pass first** → `unmapped_ingredients_report` → add
+   canonicals/aliases to `canonical_ingredients.yaml` (TDD per
+   `[[ingredient-mapping-normalizer]]`) → commit → deploy → `seed_canonical_ingredients`
+   → `remap_curated_recipes` → re-check. Repeat. Then promote a bigger batch.
+3. **Consider relaxing the gate** (product/code decision): allow promotion at
+   e.g. ≥90% mapped instead of 100%. Would unlock far more than dictionary
+   grinding for the same effort — but ships recipes with an unpriceable
+   ingredient or two. Worth a separate brainstorm before doing.
+
+### Prod access method (new — 2026-06-20)
+
+Prod was previously "web-Console only." It is now scriptable from the **dev
+droplet** (`/opt/llmDietPlanner`):
+
+- A **rotated DO API token** lives in `.env` as `DIGITAL_OCEAN_TOKEN` (value not
+  recorded here — see `[[security-incident-dbminer]]` re: secret hygiene).
+- Installed `doctl` is 1.116.0 (no `console`); a newer **doctl 1.124.0** binary at
+  `/tmp/doctl` provides `apps console`.
+- `apps console` needs a TTY; drive it non-interactively with the pty harness
+  `/tmp/console_drive.py <app-id> llmdietplanner <token> "<cmd; echo MARKER>" MARKER`.
+- App id `f1ffa865-7f6d-4aa0-9e74-2b37dac2f0e8` (`squid-app`), component
+  `llmdietplanner`. `DATABASE_URL` is a DO-encrypted SECRET — not extractable from
+  the spec, so the console is the only path to the prod DB from here.
+
+### Live promotion #1 (2026-06-20)
+
+```
+promoted=109  skipped_unmapped=345  skipped_judge=0  published_total=139
+```
+
+First real write to prod via the console harness. Published corpus **30 → 139**.
+The 109 fully catalog-mapped recipes are now served to users. Remaining **345
+drafts** are blocked by the 100% mapping gate and await dictionary growth.
+
+### Next: dictionary-growth loop (in progress)
+
+Working the head of the unmapped report into `canonical_ingredients.yaml`
+(canonicals + aliases + inflection merges), TDD per
+`[[ingredient-mapping-normalizer]]`, then commit → deploy → `seed_canonical_ingredients`
+→ `remap_curated_recipes` → re-run dry-run promote. Goal: lift promotable past
+the current 109 toward ~200–300 on the next pass.
 
 ---
 
