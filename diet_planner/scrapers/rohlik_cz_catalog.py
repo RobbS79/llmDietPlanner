@@ -10,6 +10,7 @@ of pages and must not run on the user-facing request path.
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -126,8 +127,14 @@ class RohlikCzCatalogScraper:
 
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        name_el = soup.find("h1")
-        name = (name_el.get_text(strip=True) if name_el else "").strip()
+        # Rohlik is a client-side-rendered SPA; the authoritative price and name
+        # live in the ld+json Product block, not in any static HTML element.
+        product = self._extract_ldjson_product(soup)
+
+        name = (product or {}).get("name") or ""
+        if not name:
+            name_el = soup.find("h1")
+            name = (name_el.get_text(strip=True) if name_el else "").strip()
         if not name:
             return None
 
@@ -147,18 +154,58 @@ class RohlikCzCatalogScraper:
         )
 
     def _extract_price(self, soup: BeautifulSoup) -> Optional[Decimal]:
-        # Prefer structured price elements when present.
+        # Authoritative source: the ld+json Product block. Rohlik renders the
+        # visible price with JS, so it is absent from static HTML — a regex over
+        # page text grabs marketing decoys ("Doprava od 1 Kč") instead.
+        product = self._extract_ldjson_product(soup)
+        if product and product.get("price") is not None:
+            return product["price"]
+
+        # Legacy fallbacks, kept only for resilience if ld+json ever disappears.
         for sel in ("[data-test='product-price']", ".price__current", ".product-price"):
             node = soup.select_one(sel)
             if node:
                 m = PRICE_RE.search(node.get_text(" ", strip=True))
                 if m:
                     return self._normalize_price(m.group(1))
-        # Fall back to plain text on the full page.
-        text = soup.get_text(" ", strip=True)
-        m = PRICE_RE.search(text)
-        if m:
-            return self._normalize_price(m.group(1))
+        return None
+
+    def _extract_ldjson_product(self, soup: BeautifulSoup) -> Optional[dict]:
+        """Parse the schema.org/Product ld+json block: price, name, stock.
+
+        A Rohlik page carries several ld+json blocks (Organization,
+        BreadcrumbList, Product); only the Product one carries an offer.
+        """
+        for tag in soup.find_all("script", type="application/ld+json"):
+            raw = tag.string or tag.get_text() or ""
+            if not raw.strip():
+                continue
+            try:
+                data = json.loads(raw)
+            except (ValueError, TypeError):
+                continue
+
+            for node in data if isinstance(data, list) else [data]:
+                if not isinstance(node, dict):
+                    continue
+                node_type = node.get("@type")
+                types = node_type if isinstance(node_type, list) else [node_type]
+                if "Product" not in types:
+                    continue
+
+                offers = node.get("offers") or {}
+                if isinstance(offers, list):
+                    offers = offers[0] if offers else {}
+                price = self._normalize_price(str(offers.get("price", "")))
+                availability = str(offers.get("availability", "")).lower()
+
+                return {
+                    "name": (node.get("name") or "").strip()[:255],
+                    "price": price,
+                    "currency": offers.get("priceCurrency", ""),
+                    "in_stock": "outofstock" not in availability,
+                    "external_id": str(node.get("sku") or node.get("gtin13") or ""),
+                }
         return None
 
     @staticmethod
