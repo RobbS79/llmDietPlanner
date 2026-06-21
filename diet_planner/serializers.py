@@ -96,8 +96,6 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'pantry_fridge_on',
             'currency',
             'llm_usage',
-            'discount_optimization',
-            'discount_optimization_applied',
             'created_at',
             'updated_at',
         ]
@@ -112,8 +110,6 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             'pantry_fridge_on',
             'currency',
             'llm_usage',
-            'discount_optimization',
-            'discount_optimization_applied',
             'created_at',
             'updated_at',
         ]

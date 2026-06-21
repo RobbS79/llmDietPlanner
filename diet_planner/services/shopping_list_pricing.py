@@ -325,7 +325,16 @@ def _build_deals(resolved, store_names, currency) -> List[Dict[str, Any]]:
                 if not qualify_deal(rec.price, cheapest_elsewhere):
                     continue
 
-                baseline = rec.original_price or PriceRecord.latest_regular_for(rec.store_product_id)
+                # Savings are reported against the Rohlík baseline (the single
+                # reference price now that store selection is gone). Fall back to
+                # the leaflet's own original / store regular only when Rohlík has
+                # no current price for this canonical.
+                rohlik_baseline = current_prices.get('ROHLIK')
+                baseline = (
+                    rohlik_baseline
+                    or rec.original_price
+                    or PriceRecord.latest_regular_for(rec.store_product_id)
+                )
                 savings = None
                 if baseline and baseline > rec.price:
                     savings = float((baseline - rec.price).quantize(Decimal('0.01')))
