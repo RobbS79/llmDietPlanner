@@ -123,7 +123,7 @@ class Command(BaseCommand):
         (Rohlík on_sale + kupi.cz DISCOUNTED offers persisted).
         """
         canonicals = self._target_canonicals()
-        if limit:
+        if limit is not None:
             canonicals = canonicals[:limit]
         self.stdout.write(
             f"Targeting {len(canonicals)} canonical ingredients for discount refresh"

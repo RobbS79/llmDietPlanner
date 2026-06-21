@@ -156,12 +156,10 @@ class ScanDiscountsScrapeTests(TestCase):
             source_type=PriceSourceType.LEAFLET_DISCOUNT,
         )
         self.assertEqual(leaflet.count(), 5)  # one per store
-        # The regular (non-discounted) offer must NOT become a leaflet discount.
+        # The regular (non-discounted) offer must NOT be persisted at all:
+        # no PriceRecord should exist at the regular offer's price (19.90).
         self.assertFalse(
-            PriceRecord.objects.filter(
-                source_type=PriceSourceType.STORE_REGULAR,
-            ).exists()
-            and leaflet.filter(price=Decimal('19.90')).exists()
+            PriceRecord.objects.filter(price=Decimal('19.90')).exists()
         )
         # Rohlík run was invoked once; kupi scrape once per store (5).
         self.assertEqual(mock_rohlik.call_count, 1)
