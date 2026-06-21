@@ -149,6 +149,7 @@ export const ShoppingListPage = () => {
   const [actualTotal, setActualTotal] = useState('');
   const [feedbackNote, setFeedbackNote] = useState('');
   const [basicsExpanded, setBasicsExpanded] = useState(false);
+  const [showDeals, setShowDeals] = useState(false);
   // Optimistic local override for the pantry toggles. Falls back to the
   // server-persisted values from pricing.pantry_toggles when unset.
   const [toggleOverride, setToggleOverride] = useState<{ basics_on: boolean; fridge_on: boolean } | null>(null);
@@ -329,7 +330,7 @@ export const ShoppingListPage = () => {
             <>
               <div className="h-px bg-slate-600/60 my-5" />
               <button
-                onClick={scrollToDeals}
+                onClick={() => { setShowDeals(true); scrollToDeals(); }}
                 className="flex items-center gap-2 text-sm font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-tight italic transition-colors"
               >
                 <PiggyBank size={18} />
@@ -344,7 +345,14 @@ export const ShoppingListPage = () => {
           <h2 className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em] italic mb-4">
             Akce tento týden
           </h2>
-          {deals.length === 0 ? (
+          {!showDeals ? (
+            <button
+              onClick={() => setShowDeals(true)}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 h-12 rounded-xl font-black uppercase text-[10px] tracking-[0.15em] transition-colors"
+            >
+              <Tag size={16} /> Zkontrolovat slevy
+            </button>
+          ) : deals.length === 0 ? (
             <Card className="p-6 text-left">
               <p className="text-sm font-bold text-zinc-300 italic leading-relaxed">
                 {EMPTY_DEALS_COPY}
