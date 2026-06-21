@@ -6,7 +6,7 @@ Handles asynchronous task triggering (Celery) and partial "Draft" saves for UI p
 """
 import logging
 import traceback
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 from django.conf import settings
 from rest_framework.views import APIView
