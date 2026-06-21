@@ -323,8 +323,10 @@ class ComputePricingTest(TestCase):
         )
         milk_item = lidl_current['items'][0]
         self.assertEqual(milk_item['sale'], 18.90)
-        self.assertEqual(milk_item['original'], 24.90)
-        self.assertEqual(milk_item['savings'], 6.00)
+        # Savings are baselined to the Rohlík regular price (22.00), not the
+        # leaflet's own original (24.90): 22.00 - 18.90 = 3.10.
+        self.assertEqual(milk_item['original'], 22.0)
+        self.assertEqual(milk_item['savings'], 3.10)
 
     def test_pantry_toggles_echoed(self):
         result = self._compute(basics_on=False, fridge_on=True)
