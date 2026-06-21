@@ -39,7 +39,7 @@ from .serializers import (
 )
 from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
-from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, optimize_plan_discounts_task, process_protocol_pdf_task
+from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
 from billing.entitlements import active_subscription
@@ -583,123 +583,6 @@ class ScraperDebugView(APIView):
         from .scrapers.scraper_service import ScraperService
         offers = ScraperService.get_available_ingredients(shop, country, force_refresh=True)
         return Response({"status": "success", "data": {"count": len(offers), "sample": offers[:5]}})
-
-
-class DiscountOptimizationView(APIView):
-    """Trigger or retrieve discount optimization for a plan."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, goal_id: int) -> Response:
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Goal not found"}, status=404)
-
-        try:
-            plan = goal.dietary_plan
-        except DietaryPlan.DoesNotExist:
-            return Response({"status": "error", "error": "Plan not found"}, status=404)
-
-        requested_shops = request.data.get('shops')
-        validated_shops: Optional[List[str]] = None
-        if requested_shops:
-            if not isinstance(requested_shops, list) or not all(isinstance(s, str) for s in requested_shops):
-                return Response(
-                    {"status": "error", "error": "'shops' must be a list of shop codes"},
-                    status=400,
-                )
-            allowed = set(
-                GroceryStore.objects.filter(country=goal.country, is_active=True)
-                .values_list('code', flat=True)
-            )
-            validated_shops = [s for s in requested_shops if s in allowed]
-            if not validated_shops:
-                return Response(
-                    {"status": "error", "error": "No valid shops in selection"},
-                    status=400,
-                )
-
-        force = bool(request.data.get('force'))
-        if plan.discount_optimization and not force:
-            cached = plan.discount_optimization if isinstance(plan.discount_optimization, dict) else {}
-            cached_shops = cached.get('shops_queried')
-            requested_set = set(validated_shops) if validated_shops else None
-            cached_set = set(cached_shops) if cached_shops else None
-            if requested_set == cached_set:
-                return Response({"status": "success", "data": plan.discount_optimization})
-
-        task = optimize_plan_discounts_task.delay(goal_id, shops=validated_shops, force_scrape=force)
-        return Response({
-            "status": "success",
-            "data": {"task_id": task.id, "message": "Optimization started", "shops_queried": validated_shops}
-        }, status=status.HTTP_202_ACCEPTED)
-
-    def get(self, request, goal_id: int) -> Response:
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Goal not found"}, status=404)
-
-        try:
-            plan = goal.dietary_plan
-        except DietaryPlan.DoesNotExist:
-            return Response({"status": "error", "error": "Plan not found"}, status=404)
-
-        if not plan.discount_optimization:
-            return Response({"status": "success", "data": {"ready": False}})
-
-        return Response({"status": "success", "data": {
-            "ready": True,
-            "applied": plan.discount_optimization_applied,
-            **plan.discount_optimization,
-        }})
-
-
-class ApplyDiscountOptimizationView(APIView):
-    """Apply or reject the discount optimization suggestions."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, goal_id: int) -> Response:
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Goal not found"}, status=404)
-
-        try:
-            plan = goal.dietary_plan
-        except DietaryPlan.DoesNotExist:
-            return Response({"status": "error", "error": "Plan not found"}, status=404)
-
-        optimization = plan.discount_optimization
-        if not optimization or not optimization.get('swaps'):
-            return Response({"status": "error", "error": "No optimization available"}, status=400)
-
-        optimized_days = optimization.get('optimized_days')
-        optimized_list = optimization.get('optimized_shopping_list')
-
-        if not optimized_days:
-            return Response({"status": "error", "error": "Optimization has no plan data"}, status=400)
-
-        plan.discount_optimization['original_days'] = plan.days
-        plan.discount_optimization['original_shopping_list'] = plan.shopping_list
-        plan.discount_optimization['original_total_price'] = str(plan.total_price)
-
-        plan.days = optimized_days
-        if optimized_list:
-            plan.shopping_list = optimized_list
-        new_total = sum(
-            float(item.get('price_total') or item.get('price') or 0)
-            for item in (optimized_list or [])
-        )
-        if new_total > 0:
-            plan.total_price = new_total
-        plan.discount_optimization_applied = True
-        plan.save()
-
-        return Response({"status": "success", "data": {
-            "applied": True,
-            "new_total_price": str(plan.total_price),
-        }})
 
 
 class PublicRecipeListView(APIView):
