@@ -278,10 +278,10 @@ class RecomputePlanPricesCommandTest(TestCase):
         make_canonical('chicken breast', name_cs='kuřecí prsa',
                        is_pantry_staple=False, default_unit='g')
         clear_cache()
-        # Whole-pack cost from the real book: 680 g of a 650 g pack → 2 packs.
+        # Pro-rated cost from the real book: 680 g consumed × price per g.
         from diet_planner.services.estimate_pricer import _load_book
         e = _load_book()['prices']['chicken-breast']
-        self.expected = round(2 * e['pack'] * e['price_per_unit'], 2)
+        self.expected = round(680 * e['price_per_unit'], 2)
 
     def _make_plan(self):
         return DietaryPlan.objects.create(

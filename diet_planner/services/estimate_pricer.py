@@ -13,7 +13,6 @@ needs to buy: pantry staples the user says they already have (the "Mám doma
 základy" / fridge-basics toggles) drop out of the total.
 """
 import logging
-import math
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -115,13 +114,17 @@ class EstimatePricer:
         name = (item.get('ingredient') or '').strip()
         canonical = resolve_canonical(name) if name else None
         out['pantry_level'] = classify_pantry_level(name, canonical)
-        # Strip any legacy shop/brand identity — the new UI never shows it.
-        for k in ('matched_product_name', 'shop', 'assigned_store', 'assigned_store_name'):
+        # Strip any legacy shop/brand identity — no shop names leave this layer
+        # (deals are the only place stores appear). Also drop stale fields left
+        # by the old catalog resolver on re-priced plans.
+        for k in ('matched_product_name', 'shop', 'assigned_store',
+                  'assigned_store_name', 'cross_store', 'source_detail',
+                  'packages_needed'):
             out.pop(k, None)
 
         entry = self.book.get(canonical.slug) if canonical else None
         qty = self._num(item.get('quantity'))
-        cost = self._whole_pack_cost(entry, qty, item.get('unit', '')) if entry else None
+        cost = self._consumed_cost(entry, qty, item.get('unit', '')) if entry else None
 
         if cost is not None:
             out['price_total'] = round(cost * self._fx(), 2)
@@ -136,26 +139,34 @@ class EstimatePricer:
             out['estimated'] = True
         return out
 
-    def _whole_pack_cost(self, entry, qty, unit) -> Optional[float]:
+    def _consumed_cost(self, entry, qty, unit) -> Optional[float]:
+        """Pro-rated cost: charge only the amount the recipes actually consume
+        (a recipe using 10 ml of a 1 L bottle costs ~the price of 10 ml), not a
+        whole package. This is the honest 'what this food costs you' number and
+        keeps short plans realistic (whole-pack overstated them badly)."""
         if qty is None or qty <= 0:
             return None
         pack = float(entry.get('pack') or 0)
         ppu = float(entry.get('price_per_unit') or 0)
-        if pack <= 0 or ppu <= 0:
+        if ppu <= 0:
             return None
         need_base, need_dim = to_base(qty, unit)
         _, book_dim = to_base(1.0, entry.get('unit', ''))
-        # Mismatched dimensions (e.g. recipe in grams, book priced per piece)
-        # can't be converted — assume a single pack rather than guess a count.
+        # Can't convert the requirement to the book's unit (e.g. recipe in
+        # pieces, book priced per gram) → fall back to one typical pack.
         if need_dim is None or book_dim is None or need_dim != book_dim:
-            packs = 1
-        else:
-            packs = max(1, math.ceil(need_base / pack))
-            if packs > MAX_PACKAGES:
-                logger.warning("EstimatePricer: capping %s packs at %s for unit %s",
-                               packs, MAX_PACKAGES, unit)
-                packs = MAX_PACKAGES
-        return packs * pack * ppu
+            return pack * ppu if pack > 0 else None
+
+        cost = need_base * ppu
+        # Guard against absurd quantities (bad data) — never charge more than a
+        # sane number of packs' worth for a single line.
+        if pack > 0:
+            cap = MAX_PACKAGES * pack * ppu
+            if cost > cap:
+                logger.warning("EstimatePricer: capping consumed cost for unit %s "
+                               "(qty %s) at %s packs", unit, qty, MAX_PACKAGES)
+                cost = cap
+        return cost
 
     def _fx(self) -> float:
         if self.currency == self.book_currency:

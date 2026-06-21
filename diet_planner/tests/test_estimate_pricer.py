@@ -31,16 +31,22 @@ class EstimatePricerTest(TestCase):
         p.book = book
         return p
 
-    def test_whole_pack_cost_converts_units(self):
-        # 680 g of a 650 g pack → 2 packs; price/g applied to pack size.
+    def test_consumed_cost_is_prorated(self):
+        # Pro-rated: charge only the consumed grams, not a whole pack.
         p = self._pricer({})
-        cost = p._whole_pack_cost(CHICKEN, 680, 'g')
-        self.assertAlmostEqual(cost, 2 * 650 * 0.3499, places=2)
+        cost = p._consumed_cost(CHICKEN, 680, 'g')
+        self.assertAlmostEqual(cost, 680 * 0.3499, places=2)
 
-    def test_mixed_dimension_assumes_one_pack(self):
+    def test_consumed_cost_converts_kg_to_g(self):
+        p = self._pricer({})
+        # 0.4 kg consumed → 400 g × price/g
+        cost = p._consumed_cost(CHICKEN, 0.4, 'kg')
+        self.assertAlmostEqual(cost, 400 * 0.3499, places=2)
+
+    def test_mixed_dimension_falls_back_to_one_pack(self):
         p = self._pricer({})
         # book priced per gram, recipe asks pieces → can't convert → 1 pack
-        cost = p._whole_pack_cost(CHICKEN, 2, 'ks')
+        cost = p._consumed_cost(CHICKEN, 2, 'ks')
         self.assertAlmostEqual(cost, 650 * 0.3499, places=2)
 
     def test_pantry_excluded_from_total_when_basics_on(self):
@@ -52,7 +58,7 @@ class EstimatePricerTest(TestCase):
         resolved, est = p.price(items, basics_on=True, fridge_on=False)
         self.assertEqual(est['total_items'], 1)            # salt dropped
         self.assertEqual(est['priced_items'], 1)
-        self.assertAlmostEqual(est['total'], 2 * 650 * 0.3499, places=1)
+        self.assertAlmostEqual(est['total'], 680 * 0.3499, places=1)  # pro-rated
         salt = next(r for r in resolved if r['ingredient'] == 'sůl')
         self.assertTrue(salt['pantry_excluded'])
         self.assertEqual(salt['price_source'], 'pantry_estimate')
@@ -65,7 +71,8 @@ class EstimatePricerTest(TestCase):
         ]
         resolved, est = p.price(items, basics_on=False, fridge_on=False)
         self.assertEqual(est['total_items'], 2)
-        self.assertGreater(est['total'], 2 * 650 * 0.3499)
+        # chicken (pro-rated) + salt (pro-rated), both counted
+        self.assertAlmostEqual(est['total'], 680 * 0.3499 + 10 * 0.74, places=1)
 
     def test_unknown_ingredient_is_not_available(self):
         p = self._pricer({'kureci-prsa': CHICKEN})

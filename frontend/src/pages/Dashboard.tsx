@@ -36,13 +36,14 @@ export const Dashboard = () => {
     })),
   });
 
-  const costMap = new Map<number, { total: number; currency: string; days: number }>();
+  const costMap = new Map<number, { total: number; perDay: number | null; currency: string; days: number }>();
   goalDetails.forEach((q: any) => {
-    // Use the new whole-trolley ESTIMATE; legacy total_price is gone.
+    // Use the new pro-rated food-cost ESTIMATE; legacy total_price is gone.
     const estimate = q.data?.dietary_plan?.pricing?.estimate;
     if (estimate && estimate.total > 0) {
       costMap.set(q.data.id, {
         total: estimate.total,
+        perDay: estimate.per_day ?? null,
         currency: estimate.currency || 'CZK',
         days: q.data.num_days || 7,
       });
@@ -158,7 +159,7 @@ export const Dashboard = () => {
         )}
 
         {latestCost && !selectMode && (() => {
-          const dailyCost = Math.round(latestCost.total / latestCost.days);
+          const dailyCost = Math.round(latestCost.perDay ?? latestCost.total / latestCost.days);
           return (
             <div className="mb-10 bg-gradient-to-r from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 rounded-2xl p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
@@ -167,13 +168,15 @@ export const Dashboard = () => {
                     <Wallet size={24} className="text-emerald-400" />
                   </div>
                   <div>
-                    {/* EN gloss: "Latest plan — estimated price" */}
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-1">Poslední plán — odhadovaná cena</p>
+                    {/* EN gloss: "Latest plan — food cost per day" — per-day per-person is the hero */}
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-1">Poslední plán — cena jídla na den</p>
                     <p className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter leading-none tabular-nums">
-                      ~{Math.round(latestCost.total).toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}</span>
+                      ~{dailyCost.toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}</span>
+                      {/* EN gloss: "/ day · per person" */}
+                      <span className="text-zinc-400 text-xs not-italic ml-2 lowercase">/ den &middot; na osobu</span>
                     </p>
-                    {/* EN gloss: "approx. {n} {currency}/day — estimate" */}
-                    <p className="text-xs text-zinc-300 font-bold mt-1 italic tabular-nums">~{dailyCost.toLocaleString('cs-CZ')} {latestCost.currency}/den &middot; odhad</p>
+                    {/* EN gloss: "approx. {total} {currency} total for the plan — estimate" */}
+                    <p className="text-xs text-zinc-300 font-bold mt-1 italic tabular-nums">~{Math.round(latestCost.total).toLocaleString('cs-CZ')} {latestCost.currency} celkem &middot; odhad</p>
                   </div>
                 </div>
               </div>
@@ -238,15 +241,19 @@ export const Dashboard = () => {
                   {goal.prompt}
                 </h3>
 
-                {costMap.has(goal.id) && (
-                  <div className="mb-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                    {/* EN gloss: "Estimate" */}
-                    <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Odhad</span>
-                    <span className="text-lg font-black text-emerald-400 italic tracking-tighter tabular-nums">
-                      ~{Math.round(costMap.get(goal.id)!.total).toLocaleString('cs-CZ')} {costMap.get(goal.id)!.currency}
-                    </span>
-                  </div>
-                )}
+                {costMap.has(goal.id) && (() => {
+                  const c = costMap.get(goal.id)!;
+                  const perDay = Math.round(c.perDay ?? c.total / c.days);
+                  return (
+                    <div className="mb-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                      {/* EN gloss: "Estimate · per day" */}
+                      <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Odhad &middot; na den</span>
+                      <span className="text-lg font-black text-emerald-400 italic tracking-tighter tabular-nums">
+                        ~{perDay.toLocaleString('cs-CZ')} {c.currency}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-slate-600">
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-300 italic">

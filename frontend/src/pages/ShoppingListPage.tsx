@@ -248,21 +248,31 @@ export const ShoppingListPage = () => {
           {estimate && estimate.total > 0 && (
             <>
               <div>
-                {/* EN gloss: "Estimated price of the shopping" — label makes clear it is an estimate, never exact */}
+                {/* EN gloss: "Estimated food cost · per day" — per-day is the hero; it's
+                    the relatable, per-person number. The plan total is secondary. */}
                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] italic mb-1">
-                  Odhadovaná cena nákupu
+                  Odhad ceny jídla &middot; na den
                 </p>
-                <p className="text-3xl font-black text-white italic tracking-tighter tabular-nums">
-                  ~{fmtMoney(estimate.total)}
-                  <span className="text-emerald-500 text-base not-italic ml-2 uppercase">{currency}</span>
-                </p>
-                {estimate.per_day != null && (
-                  // EN gloss: "approx. {n} {currency}/day" — small secondary line
-                  <p className="text-[10px] font-bold text-zinc-400 italic mt-1 tabular-nums">
-                    ~{fmtMoney(estimate.per_day)} {currency}/den
-                    {estimate.per_portion != null && (
-                      <> &middot; ~{fmtMoney(estimate.per_portion)} {currency}/porce</>
-                    )}
+                {estimate.per_day != null ? (
+                  <>
+                    <p className="text-3xl font-black text-white italic tracking-tighter tabular-nums">
+                      ~{fmtMoney(estimate.per_day)}
+                      <span className="text-emerald-500 text-base not-italic ml-2 uppercase">{currency}</span>
+                      {/* EN gloss: "/ day · per person" */}
+                      <span className="text-zinc-400 text-xs not-italic ml-2 lowercase">/ den &middot; na osobu</span>
+                    </p>
+                    {/* EN gloss: "approx. {total} {currency} total for the plan" — secondary */}
+                    <p className="text-[10px] font-bold text-zinc-400 italic mt-1 tabular-nums">
+                      ~{fmtMoney(estimate.total)} {currency} celkem za plán
+                      {estimate.per_portion != null && (
+                        <> &middot; ~{fmtMoney(estimate.per_portion)} {currency}/porce</>
+                      )}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-3xl font-black text-white italic tracking-tighter tabular-nums">
+                    ~{fmtMoney(estimate.total)}
+                    <span className="text-emerald-500 text-base not-italic ml-2 uppercase">{currency}</span>
                   </p>
                 )}
                 {estimate.priced_items < estimate.total_items && (
