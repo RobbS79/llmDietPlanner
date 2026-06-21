@@ -30,6 +30,8 @@ Rohlík baseline. **The list never changes.**
 - No live scraping at click-time (read path is DB-only).
 - No deletion of the dormant multi-store optimizer or the `shop`/`store_mode` columns in
   this pass (kept for a smaller, reversible diff).
+- No new discount endpoint, service, or model — the existing `compute_pricing()` deal engine
+  is extended in place (see §3).
 
 ## Decisions (locked)
 
@@ -63,25 +65,36 @@ Rohlík baseline. **The list never changes.**
   `PriceResolver(shop=ROHLIK)`. The `mix_cost`/`mix_trips` branch (`CrossStoreOptimizer`)
   becomes **dormant** — unreferenced by the new flow, left in place, not deleted.
 
-### 3. Discount price-map (the new feature)
+### 3. Discount price-map — extend the existing engine (NOT a new service)
 
-- **Endpoint:** `GET /goals/<id>/discount-map/` — read-only, no plan mutation.
-- **Service:** `discount_price_map(plan)`:
-  - For each shopping-list item with a `canonical_id`:
-    - baseline = the item's resolved Rohlík price (already on the list).
-    - query current `PriceRecord` rows with `source_type=LEAFLET_DISCOUNT` for that canonical
-      across all stores (`PriceRecord.objects.current()`), via
-      `StoreProduct.canonical_ingredient`.
-    - pick the best discounted price; `saving = baseline − discounted`, scaled to the needed
-      quantity. Drop non-positive savings.
-  - **Output:** per-item `{store, discounted_price, saving}` + a grouped summary
-    (e.g. "6 items cheaper at Lidl → save 84 Kč") + total potential savings.
-  - Result cached on the plan: new `discount_map` (JSONField) + `discount_map_computed_at`.
-- **Reuses** existing `canonical_id` linkage and `PriceRecord` — no new pricing model.
+**Discovery:** `compute_pricing()` in `diet_planner/services/shopping_list_pricing.py` already
+resolves each shopping-list item across all stores by `canonical_id` and emits `deals[]`
+grouped by store, each item carrying `matched_product_name`, `sale`, `original`, `savings`,
+plus per-store `store_total_savings`. `ShoppingListPage.tsx` already renders these as the
+"Akce tento týden" section with per-item savings chips and a savings anchor. The discount
+price-map is therefore **mostly built**. We extend it, we do not duplicate it. No new
+endpoint, no new model, no `discount_map` field.
+
+Two precise changes to match the vision:
+
+1. **Re-baseline savings to Rohlík.** In `_build_deals()`
+   (`shopping_list_pricing.py:310-366`), the per-item `baseline` is currently
+   `rec.original_price or PriceRecord.latest_regular_for(...)` (the leaflet's own original /
+   the store's own regular). Change it to the item's **current Rohlík price** —
+   `current_prices.get('ROHLIK')` (already computed as `_best_current_per_store(...)` at
+   line 315) — falling back to the existing logic only when Rohlík has no price for that
+   canonical. `savings = rohlik_baseline − sale` when positive. This makes every deal read
+   "save X vs Rohlík baseline."
+
+2. **Gate behind a click (on-demand UX).** Today deals render eagerly on plan load. Move the
+   "Akce tento týden" section behind a **"Zkontrolovat slevy"** button in
+   `ShoppingListPage.tsx`. The `pricing` payload already arrives with the plan; gating is a
+   frontend reveal (no new fetch required). Default state: button shown, deals hidden.
+
 - **Retire** the legacy LLM-swap path: `optimize_plan_discounts_task`,
   `DiscountOptimizationView` (`/optimize-discounts/`), `ApplyDiscountOptimizationView`
-  (`/apply-optimization/`), and the `discount_optimization*` fields — wrong shape for this
-  feature. (Confirm no other callers before removing.)
+  (`/apply-optimization/`), the two URL routes, and the `discount_optimization*` model fields
+  — wrong shape for this feature. (Confirm no other callers before removing.)
 
 ### 4. Daily freshness job
 
@@ -101,22 +114,22 @@ Rohlík baseline. **The list never changes.**
 ### 5. UX on the shopping list
 
 - **`frontend/src/pages/ShoppingListPage.tsx`**: default view unchanged (list + Rohlík price
-  range). Add a **"Zkontrolovat slevy"** button that calls `GET /goals/<id>/discount-map/`.
-  Results render as per-item chips (e.g. *"akce u Lidl — ušetříš 12 Kč"*) plus a top
-  savings-summary banner grouped by store. Reuse the existing deal-chip rendering.
+  range). The `pricing.deals[]` already arrive with the plan. Add a **"Zkontrolovat slevy"**
+  button that reveals the existing "Akce tento týden" section (no new fetch); deals hidden by
+  default. The per-item chips and grouped per-store savings already render — savings now read
+  vs the Rohlík baseline (§3.1).
 
 ## Data flow
 
 ```
 Create plan (no store)  →  generate catalog-constrained to Rohlík  →  shopping list priced at Rohlík baseline
                                                                               │
-                                                  user clicks "Zkontrolovat slevy"
+                                         serializer get_pricing() → compute_pricing() (already runs)
                                                                               │
-                              GET /goals/<id>/discount-map/  →  discount_price_map(plan)
+                          _build_deals(): per canonical_id, current LEAFLET_DISCOUNT across stores,
+                                          savings = Rohlík baseline − sale  (re-baselined)
                                                                               │
-                        per canonical_id: current LEAFLET_DISCOUNT across stores vs Rohlík baseline
-                                                                              │
-                                   per-item chips + grouped savings summary (list unchanged)
+                                   user clicks "Zkontrolovat slevy" → reveals deals (list unchanged)
 
 [daily]  scan_discounts  →  refresh LEAFLET_DISCOUNT records + expire stale leaflets
 ```
