@@ -69,6 +69,7 @@ def upsert_price_record(
     valid_until,
     scrape_run: Optional[ScrapeRun] = None,
     confidence: Optional[Decimal] = None,
+    canonical=None,
 ) -> Optional[PriceRecord]:
     """
     Mirror an offer dict (the shape produced by both scrape paths) into the
@@ -100,17 +101,23 @@ def upsert_price_record(
     source_url = offer_data.get('source_url') or ''
     external_id = (offer_data.get('external_id') or '')[:255]
 
+    defaults = {
+        'name': display_name,
+        'package_size': package_size,
+        'package_unit': package_unit,
+        'source_url': source_url or None,
+        'external_id': external_id,
+        'is_active': True,
+    }
+    # Map to a canonical when the caller resolved one, so readers that match
+    # strictly by canonical_id (the pricing deal engine) can surface this row.
+    if canonical is not None:
+        defaults['canonical_ingredient'] = canonical
+
     store_product, _ = StoreProduct.objects.update_or_create(
         store=store,
         normalized_name=normalized_name[:255],
-        defaults={
-            'name': display_name,
-            'package_size': package_size,
-            'package_unit': package_unit,
-            'source_url': source_url or None,
-            'external_id': external_id,
-            'is_active': True,
-        },
+        defaults=defaults,
     )
 
     price_type = offer_data.get('price_type')
