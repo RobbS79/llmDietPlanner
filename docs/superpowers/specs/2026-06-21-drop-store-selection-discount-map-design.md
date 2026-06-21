@@ -89,11 +89,14 @@ Rohlík baseline. **The list never changes.**
   aggregator for Lidl/Albert/Kaufland/Penny/Tesco + Rohlík search-scraper sale flags) and
   **expires stale leaflets** so the click-time DB read is honest. Scoped to canonicals that
   appear in active plans (or the full dictionary — TBD in plan).
-- **Scheduling (open ops item):** Celery **beat is disabled in prod** (curation runs via
-  manual DO Console). Do **not** re-enable beat. Proposed: a **DO App Platform scheduled job**
-  (or external cron) invoking the management command daily. Never push the repo
-  `.do/app.yaml` (stale placeholder — would wreck prod). Exact scheduler wiring decided at
-  plan time.
+- **Scheduling (decided):** Celery **beat is disabled in prod** (curation runs via manual DO
+  Console). Do **not** re-enable beat. A **DO App Platform scheduled Job** component runs
+  `python manage.py scan_discounts` daily (e.g. `0 4 * * *`). Claude wires this via `doctl`
+  using `DIGITAL_OCEAN_TOKEN` (both present in the environment) — **no manual dashboard step
+  for the user.** Method: pull the **live** app spec (`doctl apps spec get <app-id>`), add the
+  Job component to that spec, push it back (`doctl apps update`). **Never** apply the repo's
+  `.do/app.yaml` (stale placeholder — would wreck prod). Sequenced **after** the
+  `scan_discounts` command exists and is verified, as the final implementation step.
 
 ### 5. UX on the shopping list
 
