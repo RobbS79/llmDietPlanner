@@ -104,6 +104,20 @@ def _ingredient_present(needle: str, tokens: Set[str]) -> bool:
     return any(needle in tok for tok in tokens)
 
 
+def _recipe_canonicals(recipe: CuratedRecipe) -> Set[str]:
+    """Canonical ingredient slugs for a recipe — the unit for ingredient reuse.
+
+    Using canonicals (not free-text names) means two recipes that both use
+    chicken count as sharing it even if named differently.
+    """
+    out: Set[str] = set()
+    for ing in (recipe.ingredients or []):
+        c = ing.get('canonical')
+        if c:
+            out.add(str(c).strip().lower())
+    return out
+
+
 def recipe_matches_facets(recipe: CuratedRecipe, facets: PromptFacets) -> bool:
     """Hard gate. Only non-empty facet sets constrain eligibility."""
     if facets.cuisines:
@@ -158,6 +172,7 @@ def score_recipe(
     used_cuisines: Sequence[str],
     target_calories: Optional[float] = None,
     facets: Optional[PromptFacets] = None,
+    used_canonicals: Optional[Set[str]] = None,
 ) -> float:
     """Soft-ranking score; higher is better."""
     score = 0.0
@@ -194,6 +209,15 @@ def score_recipe(
         if 'quick' in facets.styles and recipe.total_time and recipe.total_time <= 20:
             score += 1.0
 
+    # Ingredient reuse: prefer recipes that share canonical ingredients with
+    # those already chosen for the plan, so the shopping list stays short. Mild
+    # weight + cap so it nudges selection without overriding dietary/macro fit
+    # or making the week monotone (the cuisine-variety penalty above counters
+    # over-concentration).
+    if used_canonicals:
+        shared = len(_recipe_canonicals(recipe) & used_canonicals)
+        score += min(shared * 0.6, 6.0)
+
     return score
 
 
@@ -223,6 +247,7 @@ def select_recipes_for_plan(
     pool = published_pool(status)
     used_recipe_ids: Set[int] = set()
     used_cuisines: List[str] = []
+    used_canonicals: Set[str] = set()  # ingredient reuse across the whole plan
     days: List[Dict[str, Any]] = []
     filled = total = 0
 
@@ -235,12 +260,13 @@ def select_recipes_for_plan(
                 continue
             best = max(candidates, key=lambda r: score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
-                facets=facets,
+                facets=facets, used_canonicals=used_canonicals,
             ))
             chosen[slot_key] = best
             used_recipe_ids.add(best.id)
             if best.cuisine:
                 used_cuisines.append(best.cuisine)
+            used_canonicals |= _recipe_canonicals(best)
             filled += 1
         days.append({'day_number': day_number, 'slots': chosen})
 

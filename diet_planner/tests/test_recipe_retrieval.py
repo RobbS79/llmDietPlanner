@@ -98,6 +98,46 @@ class ScoreTest(TestCase):
         far = score_recipe(r, used_recipe_ids=set(), used_cuisines=[], target_calories=1000)
         self.assertGreater(near, far)
 
+    def test_ingredient_reuse_rewarded(self):
+        # A recipe sharing canonicals with those already chosen scores higher,
+        # so the plan converges on a smaller shopping list.
+        r = make_recipe(ingredients=[
+            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
+            {'name': 'rýže', 'quantity': 100, 'unit': 'g', 'canonical': 'rice-basmati'},
+        ])
+        none = score_recipe(r, used_recipe_ids=set(), used_cuisines=[])
+        shared = score_recipe(r, used_recipe_ids=set(), used_cuisines=[],
+                              used_canonicals={'chicken-breast', 'rice-basmati'})
+        self.assertGreater(shared, none)
+
+    def test_select_prefers_ingredient_overlap_as_tiebreaker(self):
+        # Among equally-eligible same-cuisine options for the 2nd slot, the one
+        # reusing the first recipe's ingredient is chosen (overlap breaks the
+        # tie without overriding the cuisine-variety penalty).
+        from diet_planner.services.recipe_retrieval import select_recipes_for_plan
+        # usage_count fixes the first pick deterministically (chicken+rice).
+        make_recipe(name_cs='Kuře s rýží', cuisine='czech', usage_count=10,
+                    meal_types=['lunch', 'dinner'], ingredients=[
+            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
+            {'name': 'rýže', 'quantity': 100, 'unit': 'g', 'canonical': 'rice-basmati'},
+        ])
+        make_recipe(name_cs='Kuřecí salát', cuisine='czech',
+                    meal_types=['lunch', 'dinner'], ingredients=[
+            {'name': 'kuřecí prsa', 'quantity': 120, 'unit': 'g', 'canonical': 'chicken-breast'},
+        ])
+        make_recipe(name_cs='Zelný salát', cuisine='czech',
+                    meal_types=['lunch', 'dinner'], ingredients=[
+            {'name': 'zelí', 'quantity': 200, 'unit': 'g', 'canonical': 'cabbage'},
+        ])
+        result = select_recipes_for_plan(goal(num_days=1, breakfast=False))
+        chosen = result['days'][0]['slots']
+        cans = set()
+        for r in chosen.values():
+            cans |= {i['canonical'] for i in r.ingredients}
+        # 2nd slot reuses chicken rather than introducing cabbage.
+        self.assertIn('chicken-breast', cans)
+        self.assertNotIn('cabbage', cans)
+
 
 class SelectTest(TestCase):
     def test_fills_distinct_recipes_when_pool_allows(self):
