@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ShoppingCart, ChefHat, Truck, Shuffle, FileText, ChevronDown } from 'lucide-react';
+import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ChefHat, FileText, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -10,7 +10,6 @@ import { ProtocolUpload } from '@/components/ProtocolUpload';
 const STEPS = [
   { label: 'Cíle', icon: BrainCircuit },
   { label: 'Jídla', icon: ChefHat },
-  { label: 'Obchod', icon: ShoppingCart },
 ];
 
 export const CreatePlan = () => {
@@ -31,8 +30,6 @@ export const CreatePlan = () => {
     dinner: true,
     small_meals_per_day: 2,
     snacks_per_day: 1,
-    shop: 'ROHLIK',
-    store_mode: 'single' as 'single' | 'mix_cost' | 'mix_trips',
     goal_id: null as number | null,
     historic_plan_id: null as number | null,
   });
@@ -72,7 +69,6 @@ export const CreatePlan = () => {
       dietary_restrictions: prev.dietary_restrictions || restrictions,
       country: prefs.country || prev.country,
       language_code: prefs.country === 'SK' ? 'sk' : 'cs',
-      shop: prefs.shop || prev.shop,
     }));
   }, [profile?.dietary_preferences, location.state]);
 
@@ -96,16 +92,8 @@ export const CreatePlan = () => {
       dinner: goal.dinner ?? prev.dinner,
       small_meals_per_day: goal.small_meals_per_day ?? prev.small_meals_per_day,
       snacks_per_day: goal.snacks_per_day ?? prev.snacks_per_day,
-      shop: goal.shop || prev.shop,
-      store_mode: goal.store_mode || prev.store_mode,
     }));
   };
-
-  const { data: shopsData } = useQuery({
-    queryKey: ['shops', formData.country],
-    queryFn: () => api.get(`/shops/?country=${formData.country}`).then(res => res.data.data),
-    enabled: !!formData.country,
-  });
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/goals/', data),
@@ -120,7 +108,7 @@ export const CreatePlan = () => {
     return true;
   };
 
-  const next = () => { if (step < 2 && canAdvance()) setStep(step + 1); };
+  const next = () => { if (step < STEPS.length - 1 && canAdvance()) setStep(step + 1); };
   const back = () => { if (step > 0) setStep(step - 1); };
 
   const handleSubmit = () => {
@@ -327,109 +315,6 @@ export const CreatePlan = () => {
           </section>
         )}
 
-        {/* Step 3: Preferred Store */}
-        {step === 2 && (
-          <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <div className="flex items-center gap-4 text-white">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">3</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Preferovaný obchod</h2>
-            </div>
-
-            <Card className="p-8 space-y-8">
-              <div className="grid sm:grid-cols-2 gap-5">
-                {shopsData?.shops?.map((shop: any) => (
-                  <button
-                    key={shop.code} type="button" onClick={() => update('shop', shop.code)}
-                    className={`p-8 rounded-2xl border-2 text-left transition-all relative overflow-hidden group ${
-                      formData.shop === shop.code
-                        ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl'
-                        : 'bg-slate-900 border-transparent text-zinc-400 hover:bg-slate-700'
-                    }`}
-                  >
-                    <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      {shop.is_online_only && (
-                        <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded-md">
-                          <Truck size={10} /> Online doručení
-                        </span>
-                      )}
-                      {!shop.is_online_only && (
-                        <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Kamenný obchod</span>
-                      )}
-                    </div>
-                    {formData.shop === shop.code && <div className="absolute top-8 right-8 text-emerald-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-6 border-t border-slate-600">
-                <div className="flex items-center gap-3 mb-4">
-                  <Shuffle size={16} className="text-emerald-500" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 italic">Nákupní režim</span>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => update('store_mode', 'single')}
-                    className={`flex-1 p-5 rounded-xl border-2 text-left transition-all ${
-                      formData.store_mode === 'single'
-                        ? 'bg-emerald-600/10 border-emerald-600 text-white'
-                        : 'bg-slate-900 border-transparent text-zinc-400 hover:bg-slate-700'
-                    }`}
-                  >
-                    <span className="font-black text-xs block uppercase tracking-tight">Jeden obchod</span>
-                    <span className="text-[9px] text-zinc-300 mt-1 block">Vše z jednoho obchodu</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => update('store_mode', 'mix_trips')}
-                    className={`flex-1 p-5 rounded-xl border-2 text-left transition-all ${
-                      formData.store_mode === 'mix_trips'
-                        ? 'bg-emerald-600/10 border-emerald-600 text-white'
-                        : 'bg-slate-900 border-transparent text-zinc-400 hover:bg-slate-700'
-                    }`}
-                  >
-                    <span className="font-black text-xs block uppercase tracking-tight">Více obchodů</span>
-                    <span className="text-[9px] text-zinc-300 mt-1 block">Nejlepší ceny z více obchodů</span>
-                  </button>
-                </div>
-                {formData.store_mode === 'mix_trips' && (
-                  <p className="text-[10px] text-zinc-300 mt-3 leading-relaxed">
-                    Systém porovná ceny a vybere nejlevnější položky z různých obchodů. Nákupní seznam bude seskupen podle obchodu.
-                  </p>
-                )}
-              </div>
-            </Card>
-
-            {/* Summary card */}
-            <Card className="p-8 border-emerald-500/10">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-300 mb-6">Shrnutí vašeho plánu</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Město</p>
-                  <p className="font-black text-white">{formData.city || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Délka</p>
-                  <p className="font-black text-white">{formData.num_days} dní</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Jídla</p>
-                  <p className="font-black text-white">
-                    {[formData.breakfast && 'S', formData.lunch && 'O', formData.dinner && 'V'].filter(Boolean).join('+')}
-                    {formData.small_meals_per_day > 0 && ` +${formData.small_meals_per_day}sv`}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Obchod</p>
-                  <p className="font-black text-white">{formData.shop}</p>
-                  <p className="text-[9px] text-zinc-300 mt-0.5">{formData.store_mode === 'single' ? 'Jeden obchod' : 'Více obchodů'}</p>
-                </div>
-              </div>
-            </Card>
-          </section>
-        )}
-
         <div aria-live="polite" aria-atomic="true">
         {error && (
           <div role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-5 text-sm font-bold mt-8">
@@ -447,7 +332,7 @@ export const CreatePlan = () => {
             </button>
           ) : <div />}
 
-          {step < 2 ? (
+          {step < STEPS.length - 1 ? (
             <button type="button" onClick={next} disabled={!canAdvance()} className="flex items-center gap-3 px-10 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
               Další krok <ArrowRight size={16} />
             </button>
@@ -466,7 +351,7 @@ export const CreatePlan = () => {
                 <ArrowLeft size={20} />
               </button>
             )}
-            {step < 2 ? (
+            {step < STEPS.length - 1 ? (
               <button type="button" onClick={next} disabled={!canAdvance()} className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
                 Další krok <ArrowRight size={16} />
               </button>
