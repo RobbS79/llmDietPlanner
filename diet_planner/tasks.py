@@ -2226,7 +2226,10 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             )
 
         # ── Phase 4: Resolve prices from DB ──
-        store_mode = getattr(goal, 'store_mode', 'single')
+        # Store selection was removed from the product; everything is the
+        # Rohlík single-store baseline. The mix_cost/mix_trips branch below is
+        # kept dormant for history but is never taken.
+        store_mode = 'single'
         cross_store_data = None
 
         if store_mode in ('mix_cost', 'mix_trips'):

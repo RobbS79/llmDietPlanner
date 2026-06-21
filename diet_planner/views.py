@@ -122,8 +122,8 @@ class DietaryGoalCreateView(APIView):
                 'dinner': schema.dinner,
                 'small_meals_per_day': schema.small_meals_per_day,
                 'snacks_per_day': schema.snacks_per_day,
-                'shop': schema.shop.value if schema.shop else None,
-                'store_mode': schema.store_mode.value if schema.store_mode else 'single',
+                'shop': schema.shop.value if schema.shop else 'ROHLIK',
+                'store_mode': 'single',
                 'status': DietaryGoal.StatusChoices.PENDING,
                 'is_free_generation': is_free_generation,
             }
