@@ -315,18 +315,20 @@ class ComputePricingTest(TestCase):
         # Non-qualifying Kaufland cheese "deal" dropped (decision #3).
         self.assertNotIn(('KAUFLAND_CZ', 'current'), statuses)
 
-    def test_qualifying_deal_carries_savings(self):
+    def test_qualifying_deal_is_informational_only(self):
+        """A surfaced leaflet deal carries the leaflet price for information but
+        NO savings/original — kupi.cz prices have no unit, so a savings number
+        vs the Rohlík baseline would be a unit-mismatch artifact (fabrication)."""
         result = self._compute()
         lidl_current = next(
             d for d in result['deals']
             if d['store'] == 'LIDL_CZ' and d['status'] == 'current'
         )
         milk_item = lidl_current['items'][0]
-        self.assertEqual(milk_item['sale'], 18.90)
-        # Savings are baselined to the Rohlík regular price (22.00), not the
-        # leaflet's own original (24.90): 22.00 - 18.90 = 3.10.
-        self.assertEqual(milk_item['original'], 22.0)
-        self.assertEqual(milk_item['savings'], 3.10)
+        self.assertEqual(milk_item['sale'], 18.90)       # leaflet price, informational
+        self.assertIsNone(milk_item['original'])          # no baseline comparison
+        self.assertIsNone(milk_item['savings'])           # no fabricated saving
+        self.assertEqual(lidl_current['store_total_savings'], 0.0)
 
     def test_pantry_toggles_echoed(self):
         result = self._compute(basics_on=False, fridge_on=True)
@@ -341,9 +343,10 @@ class ComputePricingTest(TestCase):
         if 'current' in statuses and 'upcoming' in statuses:
             self.assertLess(statuses.index('current'), statuses.index('upcoming'))
 
-    def test_deal_savings_are_baselined_to_rohlik(self):
-        """A leaflet discount at another store reports savings vs the current
-        Rohlík regular price, not vs the leaflet's own original price."""
+    def test_leaflet_deal_emits_no_savings_even_with_rohlik_baseline(self):
+        """Even when a Rohlík regular price exists for the canonical, a leaflet
+        deal must NOT emit a savings/original number — leaflet prices are
+        unit-less so the comparison is unsound. Surface the leaflet price only."""
         from decimal import Decimal
         from diet_planner.models import (
             CanonicalIngredient, GroceryStore, PriceRecord, PriceSourceType,
@@ -389,8 +392,9 @@ class ComputePricingTest(TestCase):
         )
         lidl_deal = next(d for d in result['deals'] if d['store'] == 'LIDL_CZ')
         item = lidl_deal['items'][0]
-        self.assertEqual(item['original'], 200.0)   # baseline is Rohlík regular
-        self.assertEqual(item['savings'], 50.0)     # 200 - 150, not 160 - 150
+        self.assertEqual(item['sale'], 150.0)       # leaflet price, informational
+        self.assertIsNone(item['original'])         # no baseline comparison emitted
+        self.assertIsNone(item['savings'])          # no fabricated saving
 
 
 class ResolveStoreProductsTest(TestCase):

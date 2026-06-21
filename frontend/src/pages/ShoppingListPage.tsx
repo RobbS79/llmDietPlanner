@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Printer, Check, Tag, Store, PiggyBank, Calendar, ChevronDown, Info, MessageSquare, Send, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, Check, Tag, Store, Calendar, ChevronDown, Info, MessageSquare, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -216,10 +216,12 @@ export const ShoppingListPage = () => {
   const isCrossStore = rawList && !Array.isArray(rawList) && rawList.by_store;
   const items: any[] = isCrossStore ? (rawList.items || []) : rawList;
 
-  // Sum of store_total_savings across CURRENT deals only (anchor headline).
-  const currentSavings = deals
+  // How many of the user's items are featured in a current leaflet (anchor).
+  // We intentionally don't sum "savings": leaflet prices have no unit/quantity,
+  // so a savings-vs-Rohlík number would be a unit-mismatch artifact.
+  const currentDealItemCount = deals
     .filter(d => d.status === 'current')
-    .reduce((acc, d) => acc + (d.store_total_savings || 0), 0);
+    .reduce((acc, d) => acc + d.items.length, 0);
 
   // Map plan ingredient name -> store name of a matching deal (for the ★ chip).
   const dealStoreByIngredient: Record<string, string> = {};
@@ -326,15 +328,15 @@ export const ShoppingListPage = () => {
             </div>
           )}
 
-          {currentSavings > 0 && (
+          {currentDealItemCount > 0 && (
             <>
               <div className="h-px bg-slate-600/60 my-5" />
               <button
                 onClick={() => { setShowDeals(true); scrollToDeals(); }}
                 className="flex items-center gap-2 text-sm font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-tight italic transition-colors"
               >
-                <PiggyBank size={18} />
-                Tento týden ušetříte až ~{Math.round(currentSavings)} {currency}
+                <Tag size={18} />
+                {currentDealItemCount} {currentDealItemCount === 1 ? 'položka je' : 'položek je'} tento týden v letáku →
               </button>
             </>
           )}
@@ -342,9 +344,12 @@ export const ShoppingListPage = () => {
 
         {/* ---- AKCE TENTO TÝDEN ---- */}
         <div id="deals-section" className="mb-10">
-          <h2 className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em] italic mb-4">
+          <h2 className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em] italic mb-1">
             Akce tento týden
           </h2>
+          <p className="text-[11px] font-bold text-zinc-400 italic mb-4">
+            Položky z vašeho seznamu, které jsou tento týden v letácích obchodů.
+          </p>
           {!showDeals ? (
             <button
               onClick={() => setShowDeals(true)}
