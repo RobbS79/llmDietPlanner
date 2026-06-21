@@ -339,6 +339,57 @@ class ComputePricingTest(TestCase):
         if 'current' in statuses and 'upcoming' in statuses:
             self.assertLess(statuses.index('current'), statuses.index('upcoming'))
 
+    def test_deal_savings_are_baselined_to_rohlik(self):
+        """A leaflet discount at another store reports savings vs the current
+        Rohlík regular price, not vs the leaflet's own original price."""
+        from decimal import Decimal
+        from diet_planner.models import (
+            CanonicalIngredient, GroceryStore, PriceRecord, PriceSourceType,
+            StoreProduct,
+        )
+        from diet_planner.services.shopping_list_pricing import compute_pricing
+
+        now = timezone.now()
+        valid_from = now - dt.timedelta(days=1)
+        valid_until = now + dt.timedelta(days=7)
+
+        canon = CanonicalIngredient.objects.create(name='chicken breast')
+        # get_or_create: migration 0017 seeds these stores into the test DB.
+        rohlik = self._store('ROHLIK', 'Rohlík')
+        lidl = self._store('LIDL_CZ', 'Lidl')
+
+        rohlik_prod = StoreProduct.objects.create(
+            store=rohlik, name='Kuřecí prsa 1kg', normalized_name='chicken breast',
+            is_active=True, canonical_ingredient=canon,
+        )
+        lidl_prod = StoreProduct.objects.create(
+            store=lidl, name='Kuřecí prsa', normalized_name='chicken breast',
+            is_active=True, canonical_ingredient=canon,
+        )
+        # Rohlík regular baseline = 200; Lidl leaflet sale = 150 with its own
+        # (misleading) original of 160. Savings must read 200 - 150 = 50.
+        PriceRecord.objects.create(
+            store_product=rohlik_prod, price=Decimal('200'), currency='CZK',
+            source_type=PriceSourceType.STORE_REGULAR,
+            valid_from=valid_from, valid_until=valid_until, scraped_at=now,
+        )
+        PriceRecord.objects.create(
+            store_product=lidl_prod, price=Decimal('150'), currency='CZK',
+            original_price=Decimal('160'),
+            source_type=PriceSourceType.LEAFLET_DISCOUNT,
+            valid_from=valid_from, valid_until=valid_until, scraped_at=now,
+        )
+
+        result = compute_pricing(
+            [{'ingredient': 'chicken breast', 'quantity': 1, 'unit': 'kg',
+              'catalog_id': rohlik_prod.id}],
+            country='CZ', currency='CZK',
+        )
+        lidl_deal = next(d for d in result['deals'] if d['store'] == 'LIDL_CZ')
+        item = lidl_deal['items'][0]
+        self.assertEqual(item['original'], 200.0)   # baseline is Rohlík regular
+        self.assertEqual(item['savings'], 50.0)     # 200 - 150, not 160 - 150
+
 
 class ResolveStoreProductsTest(TestCase):
     """The catalog-identity resolution that powers a real cross-store range.
