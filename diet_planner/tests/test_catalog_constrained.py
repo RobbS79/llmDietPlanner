@@ -182,3 +182,136 @@ class PriceResolverTest(TestCase):
         for item in resolved:
             self.assertNotEqual(item['price_source'], 'LLM_ESTIMATED')
             self.assertNotIn('llm', item.get('price_source', '').lower())
+
+
+class PriceResolverUnitConversionTest(TestCase):
+    """Regression for prod plan #86: a kg/l-packaged product priced against a
+    gram/ml recipe requirement inflated the package count ~1000x (chicken
+    breast showed 238,129 CZK). `_calc_packages_needed` must convert the
+    requirement and the package size to a common base unit before dividing,
+    and must never produce a runaway package count across mismatched units.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user('uconv', password='test')
+        self.goal = DietaryGoal.objects.create(
+            user=self.user, prompt='t', country='CZ', city='Prague',
+            shop='LIDL_CZ', num_days=7,
+        )
+
+    def test_kg_product_gram_requirement_no_inflation(self):
+        rec = make_price(
+            store_code='LIDL_CZ', normalized_name='kuřecí prsa',
+            display_name='Farma rodiny Němcovy Kuřecí prsa', price=227.44,
+            source_type=PriceSourceType.STORE_REGULAR,
+            package_size=0.65, package_unit='kg',
+        )
+        r = PriceResolver(self.goal).resolve_shopping_list(
+            [{'ingredient': 'kuřecí prsa', 'catalog_id': rec.store_product_id,
+              'quantity': 680, 'unit': 'g'}]
+        )[0]
+        # 680 g needs ceil(680 / 650) = 2 packs of 0.65 kg, not 1047.
+        self.assertEqual(r['packages_needed'], 2)
+        self.assertAlmostEqual(r['price_total'], 454.88, places=2)
+
+    def test_litre_product_millilitre_requirement(self):
+        rec = make_price(
+            store_code='LIDL_CZ', normalized_name='mléko',
+            display_name='Mléko 1 l', price=23.90,
+            source_type=PriceSourceType.STORE_REGULAR,
+            package_size=1.0, package_unit='l',
+        )
+        r = PriceResolver(self.goal).resolve_shopping_list(
+            [{'ingredient': 'mléko', 'catalog_id': rec.store_product_id,
+              'quantity': 500, 'unit': 'ml'}]
+        )[0]
+        self.assertEqual(r['packages_needed'], 1)
+        self.assertAlmostEqual(r['price_total'], 23.90, places=2)
+
+    def test_same_unit_grams_unchanged(self):
+        rec = make_price(
+            store_code='LIDL_CZ', normalized_name='rýže',
+            display_name='Rýže 500 g', price=30.0,
+            source_type=PriceSourceType.STORE_REGULAR,
+            package_size=500, package_unit='g',
+        )
+        r = PriceResolver(self.goal).resolve_shopping_list(
+            [{'ingredient': 'rýže', 'catalog_id': rec.store_product_id,
+              'quantity': 800, 'unit': 'g'}]
+        )[0]
+        self.assertEqual(r['packages_needed'], 2)  # ceil(800 / 500)
+        self.assertAlmostEqual(r['price_total'], 60.0, places=2)
+
+    def test_mixed_dimension_falls_back_to_one_package(self):
+        # Recipe asks grams; product sold per piece. Without per-piece weights
+        # we can't convert, so assume one package rather than fabricate a count.
+        rec = make_price(
+            store_code='LIDL_CZ', normalized_name='avokádo',
+            display_name='Avokádo', price=29.90,
+            source_type=PriceSourceType.STORE_REGULAR,
+            package_size=1, package_unit='ks',
+        )
+        r = PriceResolver(self.goal).resolve_shopping_list(
+            [{'ingredient': 'avokádo', 'catalog_id': rec.store_product_id,
+              'quantity': 200, 'unit': 'g'}]
+        )[0]
+        self.assertEqual(r['packages_needed'], 1)
+        self.assertAlmostEqual(r['price_total'], 29.90, places=2)
+
+
+class RecomputePlanPricesCommandTest(TestCase):
+    """The recompute_plan_prices command re-prices a stored plan in place
+    (no LLM, same meals) so plans created before the unit-conversion fix get
+    healed instead of requiring full regeneration."""
+
+    def setUp(self):
+        self.user = User.objects.create_user('recompute', password='test')
+        self.goal = DietaryGoal.objects.create(
+            user=self.user, prompt='t', country='CZ', city='Prague',
+            shop='LIDL_CZ', num_days=7,
+        )
+        self.rec = make_price(
+            store_code='LIDL_CZ', normalized_name='kuřecí prsa',
+            display_name='Kuřecí prsa', price=227.44,
+            source_type=PriceSourceType.STORE_REGULAR,
+            package_size=0.65, package_unit='kg',
+        )
+
+    def _make_plan(self):
+        # Simulate a plan stored with the OLD (inflated) numbers.
+        return DietaryPlan.objects.create(
+            dietary_goal=self.goal,
+            days=[],
+            shopping_list=[{
+                'ingredient': 'kuřecí prsa', 'catalog_id': self.rec.store_product_id,
+                'quantity': 680, 'unit': 'g',
+                'price_total': 238129.68, 'price': 227.44,
+            }],
+            total_price=Decimal('238129.68'),
+            currency='CZK',
+        )
+
+    def test_command_reprices_plan_in_place(self):
+        from django.core.management import call_command
+        from io import StringIO
+
+        plan = self._make_plan()
+        call_command('recompute_plan_prices', stdout=StringIO())
+
+        plan.refresh_from_db()
+        self.assertAlmostEqual(float(plan.total_price), 454.88, places=2)
+        item = plan.shopping_list[0]
+        self.assertEqual(item['packages_needed'], 2)
+        self.assertAlmostEqual(item['price_total'], 454.88, places=2)
+        # Meals/ingredient untouched — only prices change.
+        self.assertEqual(item['ingredient'], 'kuřecí prsa')
+
+    def test_dry_run_leaves_plan_unchanged(self):
+        from django.core.management import call_command
+        from io import StringIO
+
+        plan = self._make_plan()
+        call_command('recompute_plan_prices', '--dry-run', stdout=StringIO())
+
+        plan.refresh_from_db()
+        self.assertEqual(plan.total_price, Decimal('238129.68'))
