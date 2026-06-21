@@ -22,7 +22,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 
 from diet_planner.models import DietaryPlan
-from diet_planner.services.price_resolver import PriceResolver
+from diet_planner.services.estimate_pricer import EstimatePricer
 
 
 class Command(BaseCommand):
@@ -66,7 +66,11 @@ class Command(BaseCommand):
 
             goal = plan.dietary_goal
             try:
-                resolved = PriceResolver(goal).resolve_shopping_list(items)
+                basics_on = getattr(plan, 'pantry_basics_on', True)
+                fridge_on = getattr(plan, 'pantry_fridge_on', False)
+                resolved, estimate = EstimatePricer(goal).price(
+                    items, basics_on=basics_on, fridge_on=fridge_on
+                )
             except Exception as exc:  # never let one bad plan abort the run
                 self.stderr.write(self.style.WARNING(
                     f"[{plan.id}] re-price failed, left untouched: {exc}"
@@ -74,10 +78,7 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
 
-            new_total = sum(
-                (Decimal(str(i['price_total'])) for i in resolved if i.get('price_total')),
-                Decimal('0'),
-            )
+            new_total = Decimal(str(estimate['total']))
             old_total = plan.total_price or Decimal('0')
 
             self.stdout.write(

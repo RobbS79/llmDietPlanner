@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, MapPin, Timer, Globe, Download, ShoppingCart, UtensilsCrossed, ArrowRight, List, ChefHat, Flame, Wallet, TrendingDown, CalendarDays } from 'lucide-react';
+import { AlertCircle, MapPin, Timer, Globe, Download, ShoppingCart, UtensilsCrossed, ArrowRight, List, ChefHat, Flame, Wallet, CalendarDays } from 'lucide-react';
 import { getFoodImageUrl } from '@/lib/food-image';
+import { fmtMoney, getEstimate } from '@/lib/pricing';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -34,11 +35,20 @@ function exportPlanAsText(goalDetail: any, plan: any) {
   });
 
   lines.push('═══ SHOPPING LIST ═══');
-  plan.shopping_list?.forEach((item: any) => {
-    lines.push(`  ${item.ingredient} — ${item.quantity} ${item.unit} — ${item.price} ${item.currency}`);
+  const exportItems = Array.isArray(plan.shopping_list)
+    ? plan.shopping_list
+    : plan.shopping_list?.items || [];
+  const exportEstimate = getEstimate(plan);
+  const exportCurrency = exportEstimate?.currency || plan.currency || 'CZK';
+  exportItems.forEach((item: any) => {
+    const priced = item.price_total != null ? `~${item.price_total} ${exportCurrency}` : '—';
+    lines.push(`  ${item.ingredient} — ${item.quantity} ${item.unit} — ${priced}`);
   });
   lines.push('');
-  lines.push(`TOTAL: ${plan.total_price} ${plan.currency}`);
+  // Estimate, never an exact total.
+  if (exportEstimate) {
+    lines.push(`ESTIMATED TOTAL: ~${Math.round(exportEstimate.total)} ${exportCurrency}`);
+  }
 
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
@@ -183,61 +193,47 @@ export const PlanView = () => {
           </div>
         )}
 
-        {/* Weekly Cost Widget — #1 differentiator */}
-        {plan.total_price && (() => {
-          const totalPrice = parseFloat(plan.total_price);
-          const numDays = goalDetail.num_days || 7;
-          const dailyCost = Math.round(totalPrice / numDays);
-          const weeklyCost = numDays >= 7 ? Math.round(totalPrice / numDays * 7) : Math.round(totalPrice);
-          const avgCzWeekly = 1850;
-          const estimatedSavings = Math.max(0, avgCzWeekly - weeklyCost);
-          const savingsPercent = Math.round((estimatedSavings / avgCzWeekly) * 100);
-          const shopName = goalDetail.shop === 'ROHLIK' ? 'Rohlik.cz' : goalDetail.shop === 'KOSIK' ? 'Kosik.cz' : goalDetail.shop || 'obchodu';
+        {/* Plan price estimate — honest, de-emphasised. The headline is the
+            whole-trolley ESTIMATE for this plan; per-day/per-portion are small
+            secondary lines. No fabricated "savings vs average shopping". */}
+        {(() => {
+          const estimate = getEstimate(plan);
+          if (!estimate || estimate.total <= 0) return null;
+          const currency = estimate.currency || plan.currency || 'Kč';
 
           return (
             <div className="mb-16 bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 rounded-3xl p-8 sm:p-10 text-left">
-              <div className="grid sm:grid-cols-3 gap-8">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
                     <Wallet size={18} className="text-emerald-400" />
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Týdenní náklady</p>
+                    {/* EN gloss: "Estimated price of this plan" */}
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Odhadovaná cena plánu</p>
                   </div>
-                  <p className="text-5xl sm:text-6xl font-black text-white italic tracking-tighter leading-none">
-                    {weeklyCost.toLocaleString('cs-CZ')}<span className="text-emerald-500 text-lg not-italic ml-2 uppercase">{plan.currency}</span>
+                  <p className="text-5xl sm:text-6xl font-black text-white italic tracking-tighter leading-none tabular-nums">
+                    ~{fmtMoney(estimate.total)}<span className="text-emerald-500 text-lg not-italic ml-2 uppercase">{currency}</span>
                   </p>
-                  <p className="text-xs text-zinc-300 font-bold italic">
-                    {dailyCost.toLocaleString('cs-CZ')} {plan.currency}/den na {shopName}
-                  </p>
-                </div>
-
-                <div className="flex flex-col justify-center space-y-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown size={18} className="text-emerald-400" />
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">Odhadovaná úspora</p>
-                  </div>
-                  <p className="text-4xl font-black text-emerald-400 italic tracking-tighter leading-none">
-                    {estimatedSavings > 0 ? `-${estimatedSavings.toLocaleString('cs-CZ')}` : '0'}<span className="text-emerald-500/60 text-sm not-italic ml-2 uppercase">{plan.currency}/týden</span>
-                  </p>
-                  {estimatedSavings > 0 && (
-                    <p className="text-xs text-zinc-300 font-bold italic">
-                      {savingsPercent}% méně než průměrný český nákup ({avgCzWeekly.toLocaleString('cs-CZ')} {plan.currency}/týden)
+                  {(estimate.per_day != null || estimate.per_portion != null) && (
+                    // EN gloss: "approx. {n} {currency}/day · approx. {n} {currency}/portion"
+                    <p className="text-xs text-zinc-300 font-bold italic tabular-nums">
+                      {estimate.per_day != null && <>~{fmtMoney(estimate.per_day)} {currency}/den</>}
+                      {estimate.per_day != null && estimate.per_portion != null && <> &middot; </>}
+                      {estimate.per_portion != null && <>~{fmtMoney(estimate.per_portion)} {currency}/porce</>}
                     </p>
                   )}
                 </div>
 
-                <div className="flex flex-col justify-center space-y-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CalendarDays size={18} className="text-zinc-300" />
-                    <p className="text-[9px] font-black text-zinc-300 uppercase tracking-[0.3em]">Měsíčně ušetříte</p>
-                  </div>
-                  <p className="text-4xl font-black text-white italic tracking-tighter leading-none">
-                    {estimatedSavings > 0 ? `${(estimatedSavings * 4).toLocaleString('cs-CZ')}` : '—'}<span className="text-zinc-300 text-sm not-italic ml-2 uppercase">{estimatedSavings > 0 ? plan.currency : ''}</span>
+                <div className="flex items-start gap-2 sm:max-w-xs">
+                  <CalendarDays size={14} className="text-zinc-400 shrink-0 mt-0.5" />
+                  {/* EN gloss: "Just an estimate — based on currently available store data. The real price may differ." */}
+                  <p className="text-[11px] text-zinc-400 font-bold italic leading-relaxed">
+                    Jen odhad – vychází z aktuálně dostupných dat obchodů.
+                    Skutečná cena se může lišit.
+                    {estimate.priced_items < estimate.total_items && (
+                      // EN gloss: " Estimate covers {priced} of {total} items."
+                      <> Odhad pokrývá {estimate.priced_items} z {estimate.total_items} položek.</>
+                    )}
                   </p>
-                  {estimatedSavings > 0 && (
-                    <p className="text-xs text-zinc-300 font-bold italic">
-                      {(estimatedSavings * 52).toLocaleString('cs-CZ')} {plan.currency} za rok
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -373,37 +369,57 @@ export const PlanView = () => {
               </div>
 
               <div className="space-y-6 max-h-[440px] overflow-y-auto pr-4 custom-scrollbar mb-14">
-                {(Array.isArray(plan.shopping_list) ? plan.shopping_list : plan.shopping_list?.items || []).map((item: any, idx: number) => (
-                  <div key={idx} className="group border-b border-slate-600 pb-6 last:border-0 last:pb-0">
-                    <div className="flex justify-between items-start gap-3 mb-2">
-                      <p className="text-base font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
-                      <div className="flex flex-col items-end shrink-0">
-                        <p className="text-sm font-black text-emerald-500 tabular-nums leading-none whitespace-nowrap">{item.price} {item.currency}</p>
-                        {item.estimated && (
-                          <span
-                            title={item.source_detail || 'Odhadovaná cena'}
-                            className="mt-1 text-[8px] font-black text-amber-400/90 uppercase tracking-widest italic leading-none"
-                          >
-                            odhad
-                          </span>
-                        )}
+                {(Array.isArray(plan.shopping_list) ? plan.shopping_list : plan.shopping_list?.items || []).map((item: any, idx: number) => {
+                  const sidebarCurrency = getEstimate(plan)?.currency || plan.currency || 'Kč';
+                  return (
+                    <div key={idx} className="group border-b border-slate-600 pb-6 last:border-0 last:pb-0">
+                      <div className="flex justify-between items-start gap-3 mb-2">
+                        {/* Plain ingredient only — no brand / product name */}
+                        <p className="text-base font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic leading-none truncate min-w-0">{item.ingredient}</p>
+                        <div className="flex flex-col items-end shrink-0">
+                          {item.price_total != null ? (
+                            <p className="text-sm font-black text-zinc-300 tabular-nums leading-none whitespace-nowrap">~{fmtMoney(item.price_total)} {sidebarCurrency}</p>
+                          ) : (
+                            // EN gloss: "no estimate" — when we can't price an item
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest italic leading-none whitespace-nowrap">bez odhadu</p>
+                          )}
+                          {item.estimated && item.price_total != null && (
+                            // EN gloss: "estimate" — small honest label on every priced row
+                            <span
+                              title="Odhadovaná cena"
+                              className="mt-1 text-[8px] font-black text-amber-400/90 uppercase tracking-widest italic leading-none"
+                            >
+                              odhad
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
+                        <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-600">{item.quantity} {item.unit}</span>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
-                      <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-600">{item.quantity} {item.unit}</span>
-                      <span className="opacity-30 group-hover:opacity-100 transition-opacity max-w-[120px] truncate text-right">{item.matched_product_name}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="pt-10 border-t-2 border-emerald-600/30 space-y-10">
-                <div className="space-y-2 text-left">
-                  <p className="text-[9px] font-black text-zinc-300 uppercase tracking-[0.3em] italic leading-none">Odhadovaná cena celkem</p>
-                  <p className="text-6xl font-black text-white italic tracking-tighter leading-none">
-                    {plan.total_price}<span className="text-emerald-500 text-xl not-italic ml-2 uppercase leading-none">{plan.currency}</span>
-                  </p>
-                </div>
+                {(() => {
+                  const estimate = getEstimate(plan);
+                  const currency = estimate?.currency || plan.currency || 'Kč';
+                  return (
+                    <div className="space-y-2 text-left">
+                      {/* EN gloss: "Estimated total price" — leading "~" reinforces it is not exact */}
+                      <p className="text-[9px] font-black text-zinc-300 uppercase tracking-[0.3em] italic leading-none">Odhadovaná cena celkem</p>
+                      <p className="text-6xl font-black text-white italic tracking-tighter leading-none tabular-nums">
+                        ~{fmtMoney(estimate?.total ?? 0)}<span className="text-emerald-500 text-xl not-italic ml-2 uppercase leading-none">{currency}</span>
+                      </p>
+                      {estimate?.per_day != null && (
+                        // EN gloss: "approx. {n} {currency}/day"
+                        <p className="text-[10px] font-bold text-zinc-400 italic tabular-nums">~{fmtMoney(estimate.per_day)} {currency}/den</p>
+                      )}
+                    </div>
+                  );
+                })()}
                 <button
                   onClick={() => navigate(`/plan/${id}/shopping-list`)}
                   className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-4"

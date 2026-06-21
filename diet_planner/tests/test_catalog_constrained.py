@@ -261,30 +261,34 @@ class PriceResolverUnitConversionTest(TestCase):
 
 class RecomputePlanPricesCommandTest(TestCase):
     """The recompute_plan_prices command re-prices a stored plan in place
-    (no LLM, same meals) so plans created before the unit-conversion fix get
-    healed instead of requiring full regeneration."""
+    (no LLM, same meals) from the static price book, so plans stored with old
+    (inflated) numbers get healed instead of requiring full regeneration."""
 
     def setUp(self):
+        from diet_planner.services.canonical_lookup import clear_cache
+        from diet_planner.tests.factories import make_canonical
+
         self.user = User.objects.create_user('recompute', password='test')
         self.goal = DietaryGoal.objects.create(
             user=self.user, prompt='t', country='CZ', city='Prague',
-            shop='LIDL_CZ', num_days=7,
+            shop='ROHLIK', num_days=7, currency='CZK',
         )
-        self.rec = make_price(
-            store_code='LIDL_CZ', normalized_name='kuřecí prsa',
-            display_name='Kuřecí prsa', price=227.44,
-            source_type=PriceSourceType.STORE_REGULAR,
-            package_size=0.65, package_unit='kg',
-        )
+        # Canonical with the book's slug ('chicken-breast') and a Czech name so
+        # resolve_canonical('kuřecí prsa') maps to the book entry.
+        make_canonical('chicken breast', name_cs='kuřecí prsa',
+                       is_pantry_staple=False, default_unit='g')
+        clear_cache()
+        # Whole-pack cost from the real book: 680 g of a 650 g pack → 2 packs.
+        from diet_planner.services.estimate_pricer import _load_book
+        e = _load_book()['prices']['chicken-breast']
+        self.expected = round(2 * e['pack'] * e['price_per_unit'], 2)
 
     def _make_plan(self):
-        # Simulate a plan stored with the OLD (inflated) numbers.
         return DietaryPlan.objects.create(
             dietary_goal=self.goal,
             days=[],
             shopping_list=[{
-                'ingredient': 'kuřecí prsa', 'catalog_id': self.rec.store_product_id,
-                'quantity': 680, 'unit': 'g',
+                'ingredient': 'kuřecí prsa', 'quantity': 680, 'unit': 'g',
                 'price_total': 238129.68, 'price': 227.44,
             }],
             total_price=Decimal('238129.68'),
@@ -299,12 +303,11 @@ class RecomputePlanPricesCommandTest(TestCase):
         call_command('recompute_plan_prices', stdout=StringIO())
 
         plan.refresh_from_db()
-        self.assertAlmostEqual(float(plan.total_price), 454.88, places=2)
+        self.assertAlmostEqual(float(plan.total_price), self.expected, places=2)
         item = plan.shopping_list[0]
-        self.assertEqual(item['packages_needed'], 2)
-        self.assertAlmostEqual(item['price_total'], 454.88, places=2)
-        # Meals/ingredient untouched — only prices change.
-        self.assertEqual(item['ingredient'], 'kuřecí prsa')
+        self.assertAlmostEqual(item['price_total'], self.expected, places=2)
+        self.assertEqual(item['price_source'], 'estimate')
+        self.assertEqual(item['ingredient'], 'kuřecí prsa')  # meals untouched
 
     def test_dry_run_leaves_plan_unchanged(self):
         from django.core.management import call_command

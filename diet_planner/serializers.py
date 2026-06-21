@@ -131,7 +131,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
 
         Computed live from scraped PriceRecord rows (see
         SHOPPING_LIST_PRICING_PLAN.md). Returns
-        {price_range, deals, pantry_toggles} or None if it can't be built.
+        {estimate, deals, pantry_toggles} or None if it can't be built.
         """
         from .services.shopping_list_pricing import compute_pricing
 
@@ -152,6 +152,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
                 currency=obj.currency,
                 basics_on=obj.pantry_basics_on,
                 fridge_on=obj.pantry_fridge_on,
+                goal=obj.dietary_goal,
             )
         except Exception as e:
             logger.error(

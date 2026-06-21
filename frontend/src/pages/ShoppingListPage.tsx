@@ -7,76 +7,29 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { fmtMoney, fmtDay, normName, type Pricing, type Deal } from '@/lib/pricing';
 
-// ---- Pricing payload shape (mirrors compute_pricing() in
-// diet_planner/services/shopping_list_pricing.py) ----
-interface PriceRange {
-  low: number;
-  high: number;
-  currency: string;
-  store_low: string;
-  store_low_name: string;
-  store_high: string;
-  store_high_name: string;
-  items_counted: number;
-}
-interface DealItem {
-  ingredient: string;
-  matched_product_name: string;
-  sale: number;
-  original: number | null;
-  savings: number | null;
-}
-interface Deal {
-  store: string;
-  store_name: string;
-  status: 'current' | 'upcoming';
-  valid_from: string | null;
-  valid_until: string | null;
-  currency: string;
-  items: DealItem[];
-  store_total_savings: number;
-}
-interface Pricing {
-  price_range: PriceRange | null;
-  deals: Deal[];
-  pantry_toggles: { basics_on: boolean; fridge_on: boolean };
-  // Which pantry categories the plan actually contains. A toggle is only shown
-  // when its category is present (an absent category can't affect the range).
-  pantry_present?: { basics: boolean; fridge: boolean };
-}
-
+// EN gloss: "We tried, but we didn't find any deals for your meals this week :("
 const EMPTY_DEALS_COPY =
   'Snažili jsme se, ale pro vaše jídla jsme tento týden žádné slevy nenašli :(';
 
-// Format an ISO datetime into the Czech "DD.MM." leaflet token.
-const fmtDay = (iso: string | null): string => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return `${d.getDate()}.${d.getMonth() + 1}.`;
-};
-
-const fmtMoney = (n: number): string =>
-  Number.isInteger(n) ? String(n) : n.toFixed(1);
-
 const isStapleItem = (item: any): boolean =>
   item?.is_pantry_staple === true || item?.pantry === true;
-
-const normName = (s: string | undefined | null): string =>
-  (s || '').toLowerCase().trim();
 
 // ---- Simplified list row: checkbox + name + qty (+ optional deal chip) ----
 const ShoppingItem = ({
   item,
   done,
   onToggle,
-  dealStoreName,
+  onSale,
 }: {
   item: any;
   done: boolean;
   onToggle: () => void;
-  dealStoreName?: string | null;
+  // True when this ingredient appears in a current leaflet. We deliberately
+  // do NOT pass the store name here — store names belong only in the deals
+  // section, never on a main shopping-list row.
+  onSale?: boolean;
 }) => (
   <Card
     onClick={onToggle}
@@ -95,10 +48,11 @@ const ShoppingItem = ({
             {item.quantity} {item.unit}
           </span>
         </div>
-        {dealStoreName && (
+        {onSale && (
           <div className="mt-2">
+            {/* EN gloss: "in a leaflet this week" — neutral, no store name (those live in the deals section) */}
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-              <Tag size={9} /> ★ akce u {dealStoreName}
+              <Tag size={9} /> tento týden v letáku
             </span>
           </div>
         )}
@@ -199,7 +153,7 @@ export const ShoppingListPage = () => {
   if (!plan) return <LoadingScreen message="Loading shopping list..." />;
 
   const pricing: Pricing | null = plan.pricing || null;
-  const priceRange = pricing?.price_range || null;
+  const estimate = pricing?.estimate || null;
   const deals: Deal[] = pricing?.deals || [];
 
   // Toggle state: optimistic override wins, else server value, else defaults.
@@ -210,7 +164,7 @@ export const ShoppingListPage = () => {
   // Older payloads without `pantry_present` fall back to showing both.
   const pantryPresent = pricing?.pantry_present || { basics: true, fridge: true };
 
-  const currency = priceRange?.currency || plan.currency || 'Kč';
+  const currency = estimate?.currency || plan.currency || 'Kč';
 
   const rawList = plan.shopping_list || [];
   const isCrossStore = rawList && !Array.isArray(rawList) && rawList.by_store;
@@ -223,14 +177,16 @@ export const ShoppingListPage = () => {
     .filter(d => d.status === 'current')
     .reduce((acc, d) => acc + d.items.length, 0);
 
-  // Map plan ingredient name -> store name of a matching deal (for the ★ chip).
-  const dealStoreByIngredient: Record<string, string> = {};
-  deals.forEach(d => {
-    d.items.forEach(di => {
+  // Set of ingredient names that are in a CURRENT leaflet, for the neutral
+  // "in a leaflet this week" chip on list rows. We track only presence, never
+  // the store (store names live in the deals section).
+  const onSaleIngredients = new Set<string>();
+  deals
+    .filter(d => d.status === 'current')
+    .forEach(d => d.items.forEach(di => {
       const key = normName(di.ingredient);
-      if (key && !dealStoreByIngredient[key]) dealStoreByIngredient[key] = d.store_name;
-    });
-  });
+      if (key) onSaleIngredients.add(key);
+    }));
 
   const groceries = items.filter((i: any) => !isStapleItem(i));
   const pantry = items.filter((i: any) => isStapleItem(i));
@@ -287,21 +243,34 @@ export const ShoppingListPage = () => {
           </button>
         </header>
 
-        {/* ---- Sticky top card: range + pantry toggles + savings anchor ---- */}
+        {/* ---- Sticky top card: estimate + pantry toggles + deals anchor ---- */}
         <Card className="p-6 mb-10 text-left sticky top-4 z-20 backdrop-blur supports-[backdrop-filter]:bg-slate-700/70 print:static">
-          {priceRange && (
+          {estimate && estimate.total > 0 && (
             <>
               <div>
+                {/* EN gloss: "Estimated price of the shopping" — label makes clear it is an estimate, never exact */}
                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] italic mb-1">
-                  Běžná cena
+                  Odhadovaná cena nákupu
                 </p>
                 <p className="text-3xl font-black text-white italic tracking-tighter tabular-nums">
-                  {fmtMoney(priceRange.low)}–{fmtMoney(priceRange.high)}
+                  ~{fmtMoney(estimate.total)}
                   <span className="text-emerald-500 text-base not-italic ml-2 uppercase">{currency}</span>
                 </p>
-                <p className="text-[10px] font-bold text-zinc-400 italic mt-1">
-                  od {priceRange.store_low_name} po {priceRange.store_high_name}
-                </p>
+                {estimate.per_day != null && (
+                  // EN gloss: "approx. {n} {currency}/day" — small secondary line
+                  <p className="text-[10px] font-bold text-zinc-400 italic mt-1 tabular-nums">
+                    ~{fmtMoney(estimate.per_day)} {currency}/den
+                    {estimate.per_portion != null && (
+                      <> &middot; ~{fmtMoney(estimate.per_portion)} {currency}/porce</>
+                    )}
+                  </p>
+                )}
+                {estimate.priced_items < estimate.total_items && (
+                  // EN gloss: "estimate based on {priced} of {total} items" — honest about coverage
+                  <p className="text-[10px] font-bold text-zinc-500 italic mt-1 tabular-nums">
+                    odhad z {estimate.priced_items} z {estimate.total_items} položek
+                  </p>
+                )}
               </div>
               <div className="h-px bg-slate-600/60 my-5" />
             </>
@@ -384,11 +353,6 @@ export const ShoppingListPage = () => {
                         </span>
                       )}
                     </div>
-                    {deal.store_total_savings > 0 && (
-                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic">
-                        ušetříte {Math.round(deal.store_total_savings)} {deal.currency}
-                      </span>
-                    )}
                   </div>
                   <div className="space-y-3">
                     {deal.items.map((it, ii) => (
@@ -399,15 +363,15 @@ export const ShoppingListPage = () => {
                         <div className="flex items-center gap-2 shrink-0 tabular-nums">
                           {it.original != null && (
                             <span className="text-[10px] font-bold text-zinc-400 line-through">
-                              {fmtMoney(it.original)}
+                              {fmtMoney(it.original, 2)}
                             </span>
                           )}
                           <span className="text-sm font-black text-emerald-500">
-                            {fmtMoney(it.sale)} {deal.currency}
+                            {fmtMoney(it.sale, 2)} {deal.currency}
                           </span>
                           {it.savings != null && it.savings > 0 && (
                             <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg">
-                              −{Math.round(it.savings)} {deal.currency}
+                              −{fmtMoney(it.savings, 2)} {deal.currency}
                             </span>
                           )}
                         </div>
@@ -428,14 +392,14 @@ export const ShoppingListPage = () => {
           <div className="space-y-3">
             {groceries.map((item: any) => {
               const itemKey = `g-${items.indexOf(item)}`;
-              const dealStore = dealStoreByIngredient[normName(item.ingredient)] || null;
+              const onSale = onSaleIngredients.has(normName(item.ingredient));
               return (
                 <ShoppingItem
                   key={itemKey}
                   item={item}
                   done={checked.has(itemKey)}
                   onToggle={() => toggleItem(itemKey)}
-                  dealStoreName={dealStore}
+                  onSale={onSale}
                 />
               );
             })}
@@ -505,7 +469,7 @@ export const ShoppingListPage = () => {
                     step="0.01"
                     value={actualTotal}
                     onChange={e => setActualTotal(e.target.value)}
-                    placeholder={priceRange ? String(priceRange.low) : '0'}
+                    placeholder={estimate ? String(Math.round(estimate.total)) : '0'}
                     className="w-full h-12 bg-black/50 border border-slate-600 rounded-xl px-4 text-white font-bold text-sm focus:outline-none focus:border-emerald-500/50 transition-colors tabular-nums"
                   />
                 </div>

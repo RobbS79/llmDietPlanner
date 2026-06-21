@@ -294,15 +294,14 @@ class ComputePricingTest(TestCase):
         from diet_planner.services.shopping_list_pricing import compute_pricing
         return compute_pricing(self.items, country='CZ', currency='CZK', **kwargs)
 
-    def test_price_range_low_high_and_stores(self):
+    def test_no_cross_store_price_range(self):
+        # The cross-store range was removed: it leaked shop names and relied on
+        # unreliable per-shop data (see [[pricing-pivot-static-book]]). The
+        # payload now exposes an `estimate` (None without a goal) and `deals`.
         result = self._compute(basics_on=True, fridge_on=False)
-        pr = result['price_range']
-        self.assertIsNotNone(pr)
-        self.assertEqual(pr['currency'], 'CZK')
-        self.assertLessEqual(pr['low'], pr['high'])
-        # Rohlik is cheapest carrier of chicken (95) and milk (22); Albert is
-        # the priciest on chicken (130).
-        self.assertEqual(pr['store_low'], 'ROHLIK')
+        self.assertNotIn('price_range', result)
+        self.assertIn('estimate', result)
+        self.assertIsNone(result['estimate'])  # no goal passed → no estimate
 
     def test_deals_bucketing_current_and_upcoming(self):
         result = self._compute()
@@ -451,15 +450,12 @@ class ResolveStoreProductsTest(TestCase):
             self.lidl_prod.id, None, 'banán', shops, 'CZ')
         self.assertCountEqual(ids, [self.lidl_prod.id, self.rohlik_prod.id])
 
-    def test_range_built_for_catalog_constrained_item(self):
+    def test_no_price_range_for_catalog_constrained_item(self):
         from diet_planner.services.shopping_list_pricing import compute_pricing
-        # Single catalog-constrained item -> a real (cheapest..priciest) range
-        # spanning both stores, which the old name-only matching produced as null.
+        # Catalog resolution still feeds the deals section (see the test above),
+        # but the shop-name-bearing cross-store range is gone.
         result = compute_pricing(
             [{'ingredient': 'banán', 'catalog_id': self.lidl_prod.id}],
             country='CZ', currency='CZK')
-        pr = result['price_range']
-        self.assertIsNotNone(pr)
-        self.assertEqual(pr['low'], 24.90)
-        self.assertEqual(pr['high'], 29.90)
-        self.assertEqual(pr['store_low'], 'ROHLIK')
+        self.assertNotIn('price_range', result)
+        self.assertIn('deals', result)

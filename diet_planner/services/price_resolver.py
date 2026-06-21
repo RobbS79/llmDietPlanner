@@ -26,6 +26,7 @@ from diet_planner.models import (
     PriceSourceType,
 )
 from diet_planner.services.catalog import PANTRY_STAPLES
+from diet_planner.services.units import to_base
 
 logger = logging.getLogger(__name__)
 
@@ -344,24 +345,6 @@ class PriceResolver:
     # than bill the user for it. (Prod plan #86: 1047 packs of chicken.)
     MAX_PACKAGES = 50
 
-    # Common base unit per measurement dimension: mass→g, volume→ml, count→ks.
-    _UNIT_TO_BASE = {
-        'g': ('mass', 1.0), 'kg': ('mass', 1000.0),
-        'ml': ('volume', 1.0), 'l': ('volume', 1000.0),
-        'ks': ('count', 1.0),
-    }
-
-    @classmethod
-    def _to_base(cls, value: float, unit: str):
-        """Return (base_value, dimension) for a quantity, or (value, None) when
-        the unit is unknown/empty so callers can detect an unconvertible side."""
-        norm = (unit or '').lower().strip()
-        entry = cls._UNIT_TO_BASE.get(norm)
-        if entry is None:
-            return value, None
-        dim, factor = entry
-        return value * factor, dim
-
     def _calc_packages_needed(
         self,
         required_qty: float,
@@ -372,8 +355,8 @@ class PriceResolver:
         if not package_size or package_size <= 0 or required_qty <= 0:
             return 1
 
-        req_base, req_dim = self._to_base(required_qty, required_unit)
-        pkg_base, pkg_dim = self._to_base(package_size, product_unit)
+        req_base, req_dim = to_base(required_qty, required_unit)
+        pkg_base, pkg_dim = to_base(package_size, product_unit)
 
         # Only divide when both sides are the same measurement dimension
         # (both mass, both volume, both count). A gram requirement against a

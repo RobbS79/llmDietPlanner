@@ -2246,15 +2246,14 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             total_sum = Decimal(str(cross_store_data['total_price']))
             priced_count = sum(1 for i in resolved_list if i.get('price_total'))
         else:
-            from diet_planner.services.price_resolver import PriceResolver
-            resolver = PriceResolver(goal)
-            resolved_list = resolver.resolve_shopping_list(shopping_items)
-            total_sum = Decimal('0')
-            priced_count = 0
-            for item in resolved_list:
-                if item.get('price_total'):
-                    total_sum += Decimal(str(item['price_total']))
-                    priced_count += 1
+            # Static price-book estimate — no per-shop calls, no shop names in
+            # the list (see [[pricing-pivot-static-book]]). Stored total uses the
+            # default pantry toggles; the API recomputes live per the plan's
+            # actual toggles in DietaryPlanSerializer.get_pricing.
+            from diet_planner.services.estimate_pricer import EstimatePricer
+            resolved_list, estimate = EstimatePricer(goal).price(shopping_items)
+            total_sum = Decimal(str(estimate['total']))
+            priced_count = estimate['priced_items']
 
         unpriced_count = len(resolved_list) - priced_count
         unpriced_ratio = unpriced_count / max(len(resolved_list), 1)
