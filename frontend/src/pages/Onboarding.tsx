@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Target, Leaf, AlertTriangle, Home, ChefHat, ShoppingCart, Check, ArrowRight, ArrowLeft, X, Loader2 } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Target, Leaf, AlertTriangle, Home, ChefHat, Check, ArrowRight, ArrowLeft, X, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -12,7 +12,6 @@ const STEPS = [
   { label: 'Alergie', icon: AlertTriangle },
   { label: 'Domácnost', icon: Home },
   { label: 'Vaření', icon: ChefHat },
-  { label: 'Obchod', icon: ShoppingCart },
 ];
 
 const GOALS = [
@@ -83,12 +82,6 @@ export const Onboarding = () => {
     shop: 'ROHLIK',
   });
 
-  const { data: shopsData } = useQuery({
-    queryKey: ['shops', data.country],
-    queryFn: () => api.get(`/shops/?country=${data.country}`).then(res => res.data.data),
-    enabled: step === 5,
-  });
-
   const saveMutation = useMutation({
     mutationFn: (payload: { onboarding_completed: boolean; dietary_preferences: OnboardingData }) =>
       api.patch('/auth/profile/', payload),
@@ -125,14 +118,13 @@ export const Onboarding = () => {
   };
 
   const next = () => {
-    if (step < 5 && canAdvance()) setStep(step + 1);
-    else if (step === 5) saveMutation.mutate({ onboarding_completed: true, dietary_preferences: data });
+    if (step < 4 && canAdvance()) setStep(step + 1);
+    else if (step === 4) saveMutation.mutate({ onboarding_completed: true, dietary_preferences: data });
   };
   const back = () => { if (step > 0) setStep(step - 1); };
 
   const goalLabel: Record<string, string> = { lose_weight: 'Zhubnout', eat_healthy: 'Jíst zdravěji', save_money: 'Šetřit za jídlo', save_time: 'Šetřit čas' };
   const skillLabel: Record<string, string> = { beginner: 'Začátečník', intermediate: 'Pokročilý', advanced: 'Zkušený kuchař' };
-  const shopName = data.shop === 'ROHLIK' ? 'Rohlík.cz' : data.shop === 'KOSIK' ? 'Košík.cz' : data.shop;
 
   if (showSummary) {
     return (
@@ -157,7 +149,6 @@ export const Onboarding = () => {
             <Row label="Domácnost" value={`${data.household_size} ${data.household_size === 1 ? 'osoba' : data.household_size < 5 ? 'osoby' : 'osob'}`} />
             <Row label="Rozpočet" value={`${data.weekly_budget.toLocaleString('cs-CZ')} ${data.country === 'SK' ? 'EUR' : 'CZK'}/týden`} />
             <Row label="Vaření" value={`${skillLabel[data.cooking_skill] || ''}, ${COOKING_TIMES.find(t => t.id === data.cooking_time)?.label || ''}`} />
-            <Row label="Obchod" value={shopName} />
           </Card>
 
           <button
@@ -342,35 +333,6 @@ export const Onboarding = () => {
           </section>
         )}
 
-        {/* Step 5: Store */}
-        {step === 5 && (
-          <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <StepHeader num={6} title="Kde nakupujete?" />
-            <Card className="p-8 space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Země</label>
-                <select value={data.country} onChange={e => { update('country', e.target.value); update('weekly_budget', e.target.value === 'SK' ? 60 : 1500); }}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-xl h-14 px-5 text-xs font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer">
-                  <option value="CZ">Česko (CZK)</option>
-                  <option value="SK">Slovensko (EUR)</option>
-                </select>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-5">
-                {shopsData?.shops?.map((shop: any) => (
-                  <button key={shop.code} type="button" onClick={() => update('shop', shop.code)}
-                    className={`p-8 rounded-2xl border-2 text-left transition-all relative overflow-hidden ${
-                      data.shop === shop.code ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl' : 'bg-slate-900 border-transparent text-zinc-400 hover:bg-slate-700'
-                    }`}>
-                    <span className="font-black text-base block uppercase tracking-tight italic leading-none mb-1">{shop.name}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Dostupné</span>
-                    {data.shop === shop.code && <div className="absolute top-8 right-8 text-emerald-500 bg-white p-1 rounded-lg"><Check size={14} strokeWidth={4} /></div>}
-                  </button>
-                ))}
-              </div>
-            </Card>
-          </section>
-        )}
-
         {/* Desktop navigation */}
         <div className="hidden sm:flex items-center justify-between mt-12 gap-4">
           {step > 0 ? (
@@ -380,7 +342,7 @@ export const Onboarding = () => {
           ) : <div />}
           <button type="button" onClick={next} disabled={!canAdvance() || saveMutation.isPending}
             className="flex items-center gap-3 px-10 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
-            {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : step === 5 ? 'Dokončit' : 'Další krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
+            {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : step === 4 ? 'Dokončit' : 'Další krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
           </button>
         </div>
 
@@ -394,7 +356,7 @@ export const Onboarding = () => {
             )}
             <button type="button" onClick={next} disabled={!canAdvance() || saveMutation.isPending}
               className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
-              {saveMutation.isPending ? <Loader2 size={20} className="animate-spin" /> : step === 5 ? 'Dokončit' : 'Další krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
+              {saveMutation.isPending ? <Loader2 size={20} className="animate-spin" /> : step === 4 ? 'Dokončit' : 'Další krok'} {!saveMutation.isPending && <ArrowRight size={16} />}
             </button>
           </div>
         </div>
