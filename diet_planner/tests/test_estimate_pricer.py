@@ -84,6 +84,46 @@ class EstimatePricerTest(TestCase):
         self.assertIsNone(resolved[0]['price_total'])
         self.assertEqual(est['priced_items'], 0)
 
+    def test_uses_carried_canonical_slug_when_name_unresolvable(self):
+        # A curated recipe pre-maps each ingredient to a canonical slug. For
+        # type-adjective variants ("červené zelí") the free-text name has no
+        # canonical/alias of its own, so name re-resolution returns None. The
+        # slug the item carries must still price it (see
+        # [[pricing-catalog-id-resolution]]: price via canonical, not name).
+        from diet_planner.services.canonical_lookup import resolve_canonical
+        self.assertIsNone(resolve_canonical('červené zelí'))  # precondition
+        p = self._pricer({'red-cabbage': {
+            'pack': 500, 'price_per_unit': 0.04, 'unit': 'g', 'name_cs': 'zelí červené',
+        }})
+        resolved, est = p.price(
+            [{'ingredient': 'červené zelí', 'quantity': 300, 'unit': 'g',
+              'canonical': 'red-cabbage'}],
+            basics_on=True,
+        )
+        self.assertNotEqual(resolved[0]['price_source'], 'not_available')
+        self.assertAlmostEqual(resolved[0]['price_total'], 300 * 0.04, places=2)
+        self.assertEqual(est['priced_items'], 1)
+
+    def test_aggregated_carried_canonical_prices_end_to_end(self):
+        # The whole bug in one test: a curated meal carries the canonical slug;
+        # aggregation must keep it and the pricer must use it, so a variant whose
+        # free-text name won't re-resolve ("červené zelí") still gets priced.
+        from diet_planner.tasks import aggregate_ingredients_from_meals
+        from diet_planner.services.canonical_lookup import resolve_canonical
+        self.assertIsNone(resolve_canonical('červené zelí'))  # precondition
+        days = [{'day_number': 1, 'lunch': {'ingredients': [
+            {'name': 'červené zelí', 'quantity': 300, 'unit': 'g',
+             'canonical': 'red-cabbage'},
+        ]}}]
+        items = aggregate_ingredients_from_meals(days)
+        p = self._pricer({'red-cabbage': {
+            'pack': 500, 'price_per_unit': 0.04, 'unit': 'g', 'name_cs': 'zelí červené',
+        }})
+        resolved, est = p.price(items, basics_on=True)
+        self.assertEqual(est['priced_items'], 1)
+        self.assertNotEqual(resolved[0]['price_source'], 'not_available')
+        self.assertAlmostEqual(resolved[0]['price_total'], 300 * 0.04, places=2)
+
     def test_no_shop_or_brand_fields_leak(self):
         p = self._pricer({'kureci-prsa': CHICKEN})
         resolved, _ = p.price(

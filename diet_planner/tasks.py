@@ -578,7 +578,9 @@ def aggregate_ingredients_from_meals(days: List[Dict[str, Any]], context_id: str
             'ingredient': data['original_name'],
             'quantity': display_qty,
             'unit': display_unit,
-            'occurrences': data['occurrences']
+            'occurrences': data['occurrences'],
+            'canonical': data.get('canonical'),
+            'catalog_id': data.get('catalog_id'),
         })
 
         # Log aggregation details for each ingredient
@@ -664,11 +666,18 @@ def _aggregate_meal_ingredients(meal: Dict[str, Any], aggregated: Dict[str, Any]
     found_ingredients = []
 
     for ing in ingredients:
+        # Curation pre-maps each ingredient to a catalog identity; carry it
+        # through aggregation so the pricer can price by slug rather than
+        # re-resolving the free-text name. See [[pricing-catalog-id-resolution]].
+        canonical = None
+        catalog_id = None
         # Handle both dict and string formats
         if isinstance(ing, dict):
             name = ing.get('name', ing.get('ingredient', ''))
             quantity = ing.get('quantity')
             unit = ing.get('unit', '')
+            canonical = ing.get('canonical')
+            catalog_id = ing.get('catalog_id')
         elif isinstance(ing, str):
             # Try to parse "500g chicken" format
             match = re.match(r'^(\d+(?:\.\d+)?)\s*(g|kg|ml|l|ks)?\s*(.+)$', ing.strip())
@@ -721,7 +730,9 @@ def _aggregate_meal_ingredients(meal: Dict[str, Any], aggregated: Dict[str, Any]
                 'unit_type': unit_type,
                 'original_name': name,
                 'occurrences': 1,
-                'quantities': [f"{qty}{norm_unit}"]
+                'quantities': [f"{qty}{norm_unit}"],
+                'canonical': canonical,
+                'catalog_id': catalog_id,
             }
             found_ingredients.append(name)
         else:

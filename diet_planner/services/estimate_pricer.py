@@ -113,6 +113,11 @@ class EstimatePricer:
         out = dict(item)
         name = (item.get('ingredient') or '').strip()
         canonical = resolve_canonical(name) if name else None
+        # Prefer the canonical slug pre-mapped at curation: it travels with the
+        # item and survives even when the free-text name can't be re-resolved
+        # (type-adjective variants like "červené zelí" / "hnědá rýže"). Name
+        # resolution is only a fallback. See [[pricing-catalog-id-resolution]].
+        slug = item.get('canonical') or (canonical.slug if canonical else None)
         out['pantry_level'] = classify_pantry_level(name, canonical)
         # Strip any legacy shop/brand identity — no shop names leave this layer
         # (deals are the only place stores appear). Also drop stale fields left
@@ -122,7 +127,7 @@ class EstimatePricer:
                   'packages_needed'):
             out.pop(k, None)
 
-        entry = self.book.get(canonical.slug) if canonical else None
+        entry = self.book.get(slug) if slug else None
         qty = self._num(item.get('quantity'))
         cost = self._consumed_cost(entry, qty, item.get('unit', '')) if entry else None
 
