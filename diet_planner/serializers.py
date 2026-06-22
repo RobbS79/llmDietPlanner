@@ -264,6 +264,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for Recipe model."""
     dietary_goal_id = serializers.IntegerField(source='dietary_goal.id', read_only=True)
     image_url = serializers.SerializerMethodField()
+    price_range = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -276,6 +277,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'description',
             'food_category',
             'image_url',
+            'price_range',
             'instructions',
             'ingredients',
             'preparation_time',
@@ -291,6 +293,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id',
+            'price_range',
             'created_at',
             'updated_at',
         ]
@@ -299,6 +302,24 @@ class RecipeSerializer(serializers.ModelSerializer):
         from .food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
         category = obj.food_category if obj.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
         return f"/static/food-images/{category}.webp"
+
+    def get_price_range(self, obj):
+        """Honest per-recipe from-to cost from the static book. Null when the
+        recipe has no priceable ingredients. See recipe_pricing.price_recipe."""
+        from .services.recipe_pricing import price_recipe
+
+        currency = getattr(obj.dietary_goal, 'currency', None) or 'CZK'
+        r = price_recipe(obj.ingredients or [], obj.servings, currency=currency)
+        if r is None:
+            return None
+        return {
+            'low': round(r.low, 2),
+            'high': round(r.high, 2),
+            'per_portion_low': round(r.per_portion_low, 2) if r.per_portion_low is not None else None,
+            'per_portion_high': round(r.per_portion_high, 2) if r.per_portion_high is not None else None,
+            'currency': r.currency,
+            'confident': r.confident,
+        }
 
 
 class MealInstanceSerializer(serializers.ModelSerializer):
