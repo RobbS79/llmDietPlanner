@@ -71,6 +71,12 @@ _MODIFIER_WORDS = {
     "zralý", "zralá", "zralé", "zralého", "zralou",  # ripe: state, not identity
     "vyzrálý", "vyzrálá", "vyzrálé", "vyzrálého",  # fully ripe (sibling of zralý)
     "jemně",  # finely (degree adverb on a cut) — "jemně nasekaná" → just the noun
+    # retail descriptors seen on leaflet produce/meat that don't change identity
+    "konzumní",  # "brambory konzumní" — table potatoes are just potatoes
+    "raný", "raná", "rané",  # early (new-season) — same vegetable
+    "kuchyňský", "kuchyňská", "kuchyňské",  # culinary (yellow cooking onion) — same onion
+    "baby",  # "baby špenát" — still spinach
+    "selský", "selská", "selské",  # farmhouse-style — same dairy product
     # generic head-nouns that don't change identity
     "maso", "koření",
     # bare connectors that survive a list ("rýže vařená a vychlazená")
@@ -79,6 +85,22 @@ _MODIFIER_WORDS = {
     "fresh", "dried", "ground", "whole", "chopped", "sliced", "minced", "grated",
     "large", "small", "extra", "virgin", "fine", "frozen", "cooked",
 }
+
+# Store/producer brand + grade labels. These never change *what* you buy, but
+# they wreck the normalized-multiset match for scraped leaflet names — plain
+# "Avokádo" resolves, "Avokádo bio Nature's Promise" did not. Stripped as whole
+# tokens, exactly like _MODIFIER_WORDS. Kept separate for clarity/maintenance.
+# Only brands that are unambiguously NOT an ingredient word belong here.
+_BRAND_WORDS = {
+    # grade / label markers
+    "bio", "premium", "finest", "exclusive", "deluxe", "standard",
+    # CZ store private labels & dairy/bakery producers seen on leaflets
+    "pilos", "milbona", "clever", "boni", "olma", "olmais", "hollandia",
+    "danone", "activia", "choceňský", "choceňská", "milko", "madeta",
+    "laktos", "penam", "odkolek", "breadway", "tesco", "kunín", "kunin",
+    "nature's", "natures", "promise", "karlova", "koruna",
+}
+
 
 # Prepositional / descriptor tails: everything from these markers onward is a
 # preparation note, not part of the ingredient identity.
@@ -115,7 +137,10 @@ def _strip_descriptors(raw: str) -> str:
     s = _TAIL_MARKERS.split(s)[0]              # drop prepositional tails
     s = re.sub(r"\s*\d+([.,]\d+)?\s*%?", " ", s)  # drop quantities / percentages
     s = re.sub(r"[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]", " ", s)  # drop unicode vulgar fractions
-    tokens = [t for t in re.split(r"[\s]+", s.strip()) if t and t not in _MODIFIER_WORDS]
+    tokens = [
+        t for t in re.split(r"[\s]+", s.strip())
+        if t and t not in _MODIFIER_WORDS and t not in _BRAND_WORDS
+    ]
     return " ".join(sorted(tokens)).strip()
 
 

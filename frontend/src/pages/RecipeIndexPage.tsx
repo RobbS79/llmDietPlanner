@@ -5,6 +5,7 @@ import { Zap, ArrowRight, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
+import { fmtRange, getRecipeRange } from '@/lib/pricing';
 
 export const RecipeIndexPage = () => {
   const navigate = useNavigate();
@@ -80,6 +81,18 @@ export const RecipeIndexPage = () => {
                     {recipe.description && (
                       <p className="text-zinc-300 text-sm leading-relaxed mb-6 line-clamp-2">{recipe.description}</p>
                     )}
+                    {getRecipeRange(recipe) && (() => {
+                      const pr = getRecipeRange(recipe)!;
+                      const cur = pr.currency === 'EUR' ? '€' : 'Kč';
+                      return (
+                        <p className="mb-4 text-[10px] font-black uppercase italic tracking-widest tabular-nums text-emerald-400">
+                          ~{fmtRange(pr.low, pr.high)} {cur}
+                          {pr.per_portion_low != null && (
+                            <span className="text-zinc-500"> · ~{fmtRange(pr.per_portion_low, pr.per_portion_high)}/porce</span>
+                          )}
+                        </p>
+                      );
+                    })()}
                     <div className="mt-auto pt-4 border-t border-slate-600 flex items-center gap-4 text-[10px] font-black text-zinc-300 uppercase tracking-widest">
                       {recipe.preparation_time && (
                         <span className="flex items-center gap-1.5">

@@ -222,10 +222,18 @@ def compute_pricing(
     currency: str,
     basics_on: bool = True,
     fridge_on: bool = False,
+    goal=None,
 ) -> Dict[str, Any]:
-    """Build the honest pricing payload for a plan's shopping list.
+    """Build the pricing payload for a plan's shopping list.
 
-    Returns {'price_range': {...}|None, 'deals': [...], 'pantry_toggles': {...}}.
+    Returns {'estimate': {...}|None, 'deals': [...], 'pantry_toggles': {...},
+    'pantry_present': {...}}.
+
+    The headline `estimate` is a deterministic whole-pack cost from the static
+    price book (see [[pricing-pivot-static-book]]) and exposes no shop names.
+    `deals` are factual leaflet discounts and are the ONLY place store names
+    appear. We no longer compute a cross-store price range (it leaked shop
+    names and depended on unreliable per-shop data).
     """
     shops = COUNTRY_TO_SHOPS.get(country, [])
     store_names = dict(
@@ -234,7 +242,7 @@ def compute_pricing(
 
     # Resolve + classify each item once. `product_ids` are the StoreProducts
     # that represent this item across the country's stores (catalog identity
-    # first, name match as a fallback) — reused for both the range and deals.
+    # first, name match as a fallback) — used to find leaflet deals.
     resolved = []
     for item in items:
         name = (item.get('ingredient') or '').lower().strip()
@@ -249,32 +257,29 @@ def compute_pricing(
             'name': name, 'level': level, 'item': item, 'product_ids': product_ids,
         })
 
-    # ---- Range: per-store baskets over non-excluded items ----
-    basket_entries = []
-    for r in resolved:
-        if item_is_excluded(r['level'], basics_on, fridge_on):
-            continue
-        by_store = _best_current_per_store(r['product_ids'])
-        if not by_store:
-            continue
-        avg = sum(by_store.values()) / Decimal(len(by_store))
-        basket_entries.append({'avg': avg, 'by_store': by_store})
-
-    price_range = _build_range(basket_entries, shops, store_names, currency)
+    # ---- Estimate: whole-pack cost from the static price book ----
+    estimate = None
+    if goal is not None:
+        # Lazy import avoids a circular dependency (estimate_pricer imports the
+        # pure pantry helpers from this module).
+        from diet_planner.services.estimate_pricer import EstimatePricer
+        _, estimate = EstimatePricer(goal).price(
+            items, basics_on=basics_on, fridge_on=fridge_on
+        )
 
     # ---- Deals: current + upcoming, cheapest-source, grouped by store ----
     deals = _build_deals(resolved, store_names, currency)
 
     # Which pantry categories are actually in this plan. A toggle for a category
-    # with no matching items is meaningless (it can't change the range), so the
-    # frontend only renders a toggle when its category is present here.
+    # with no matching items is meaningless, so the frontend only renders a
+    # toggle when its category is present here.
     pantry_present = {
         'basics': any(r['level'] == 'dry' for r in resolved),
         'fridge': any(r['level'] == 'fridge' for r in resolved),
     }
 
     return {
-        'price_range': price_range,
+        'estimate': estimate,
         'deals': deals,
         'pantry_toggles': {'basics_on': basics_on, 'fridge_on': fridge_on},
         'pantry_present': pantry_present,
@@ -325,20 +330,12 @@ def _build_deals(resolved, store_names, currency) -> List[Dict[str, Any]]:
                 if not qualify_deal(rec.price, cheapest_elsewhere):
                     continue
 
-                # Savings are reported against the Rohlík baseline (the single
-                # reference price now that store selection is gone). Fall back to
-                # the leaflet's own original / store regular only when Rohlík has
-                # no current price for this canonical.
-                rohlik_baseline = current_prices.get('ROHLIK')
-                baseline = (
-                    rohlik_baseline
-                    or rec.original_price
-                    or PriceRecord.latest_regular_for(rec.store_product_id)
-                )
-                savings = None
-                if baseline and baseline > rec.price:
-                    savings = float((baseline - rec.price).quantize(Decimal('0.01')))
-
+                # Informational only. kupi.cz leaflet prices carry no quantity or
+                # unit, so a leaflet price cannot be soundly compared to the
+                # Rohlík baseline (per-kg vs unit-less) — any "savings" number
+                # would be a unit-mismatch artifact. We surface the leaflet price
+                # as "in {store}'s leaflet this week" and deliberately emit NO
+                # savings/original (pricing-integrity: never fabricate one).
                 key = (shop, bucket)
                 if key not in grouped:
                     grouped[key] = {
@@ -349,18 +346,16 @@ def _build_deals(resolved, store_names, currency) -> List[Dict[str, Any]]:
                         'valid_until': rec.valid_until,
                         'currency': currency,
                         'items': [],
-                        'store_total_savings': 0.0,
+                        'store_total_savings': 0.0,  # retained at 0; no savings claimed
                     }
                 group = grouped[key]
                 group['items'].append({
                     'ingredient': r['item'].get('ingredient', r['name']),
                     'matched_product_name': rec.store_product.name,
                     'sale': float(rec.price.quantize(Decimal('0.01'))),
-                    'original': float(baseline.quantize(Decimal('0.01'))) if baseline else None,
-                    'savings': savings,
+                    'original': None,
+                    'savings': None,
                 })
-                if savings:
-                    group['store_total_savings'] = round(group['store_total_savings'] + savings, 2)
                 # Track the widest validity window seen for the group header.
                 if rec.valid_until and (group['valid_until'] is None or rec.valid_until > group['valid_until']):
                     group['valid_until'] = rec.valid_until
@@ -371,5 +366,5 @@ def _build_deals(resolved, store_names, currency) -> List[Dict[str, Any]]:
         group['valid_from'] = group['valid_from'].isoformat() if group['valid_from'] else None
         group['valid_until'] = group['valid_until'].isoformat() if group['valid_until'] else None
         deals.append(group)
-    deals.sort(key=lambda g: (g['status'] != 'current', -g['store_total_savings']))
+    deals.sort(key=lambda g: (g['status'] != 'current', g['store_name']))
     return deals

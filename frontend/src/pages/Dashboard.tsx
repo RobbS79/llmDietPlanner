@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Wallet, TrendingDown, Trash2, X, Check } from 'lucide-react';
+import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Wallet, Trash2, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -36,14 +36,16 @@ export const Dashboard = () => {
     })),
   });
 
-  const costMap = new Map<number, { total: number; currency: string; days: number; shop: string }>();
+  const costMap = new Map<number, { total: number; perDay: number | null; currency: string; days: number }>();
   goalDetails.forEach((q: any) => {
-    if (q.data?.dietary_plan?.total_price) {
+    // Use the new pro-rated food-cost ESTIMATE; legacy total_price is gone.
+    const estimate = q.data?.dietary_plan?.pricing?.estimate;
+    if (estimate && estimate.total > 0) {
       costMap.set(q.data.id, {
-        total: parseFloat(q.data.dietary_plan.total_price),
-        currency: q.data.dietary_plan.currency || 'CZK',
+        total: estimate.total,
+        perDay: estimate.per_day ?? null,
+        currency: estimate.currency || 'CZK',
         days: q.data.num_days || 7,
-        shop: q.data.shop || '',
       });
     }
   });
@@ -157,10 +159,7 @@ export const Dashboard = () => {
         )}
 
         {latestCost && !selectMode && (() => {
-          const weeklyCost = Math.round(latestCost.total / latestCost.days * 7);
-          const avgCzWeekly = 1850;
-          const savings = Math.max(0, avgCzWeekly - weeklyCost);
-          const shopName = latestCost.shop === 'ROHLIK' ? 'Rohlik.cz' : latestCost.shop === 'KOSIK' ? 'Kosik.cz' : latestCost.shop || 'obchodu';
+          const dailyCost = Math.round(latestCost.perDay ?? latestCost.total / latestCost.days);
           return (
             <div className="mb-10 bg-gradient-to-r from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 rounded-2xl p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
@@ -169,22 +168,17 @@ export const Dashboard = () => {
                     <Wallet size={24} className="text-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-1">Poslední plán — týdenní náklady</p>
-                    <p className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter leading-none">
-                      {weeklyCost.toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}/týden</span>
+                    {/* EN gloss: "Latest plan — food cost per day" — per-day per-person is the hero */}
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-1">Poslední plán — cena jídla na den</p>
+                    <p className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter leading-none tabular-nums">
+                      ~{dailyCost.toLocaleString('cs-CZ')} <span className="text-emerald-500 text-sm not-italic uppercase">{latestCost.currency}</span>
+                      {/* EN gloss: "/ day · per person" */}
+                      <span className="text-zinc-400 text-xs not-italic ml-2 lowercase">/ den &middot; na osobu</span>
                     </p>
-                    <p className="text-xs text-zinc-300 font-bold mt-1 italic">na {shopName}</p>
+                    {/* EN gloss: "approx. {total} {currency} total for the plan — estimate" */}
+                    <p className="text-xs text-zinc-300 font-bold mt-1 italic tabular-nums">~{Math.round(latestCost.total).toLocaleString('cs-CZ')} {latestCost.currency} celkem &middot; odhad</p>
                   </div>
                 </div>
-                {savings > 0 && (
-                  <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-3">
-                    <TrendingDown size={18} className="text-emerald-400" />
-                    <div>
-                      <p className="text-lg font-black text-emerald-400 italic tracking-tighter leading-none">-{savings.toLocaleString('cs-CZ')} {latestCost.currency}/týden</p>
-                      <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">vs. průměrný český nákup</p>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -247,14 +241,19 @@ export const Dashboard = () => {
                   {goal.prompt}
                 </h3>
 
-                {costMap.has(goal.id) && (
-                  <div className="mb-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                    <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Celkem</span>
-                    <span className="text-lg font-black text-emerald-400 italic tracking-tighter">
-                      {Math.round(costMap.get(goal.id)!.total).toLocaleString('cs-CZ')} {costMap.get(goal.id)!.currency}
-                    </span>
-                  </div>
-                )}
+                {costMap.has(goal.id) && (() => {
+                  const c = costMap.get(goal.id)!;
+                  const perDay = Math.round(c.perDay ?? c.total / c.days);
+                  return (
+                    <div className="mb-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                      {/* EN gloss: "Estimate · per day" */}
+                      <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Odhad &middot; na den</span>
+                      <span className="text-lg font-black text-emerald-400 italic tracking-tighter tabular-nums">
+                        ~{perDay.toLocaleString('cs-CZ')} {c.currency}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-slate-600">
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-300 italic">

@@ -156,14 +156,86 @@ class ScanDiscountsScrapeTests(TestCase):
             source_type=PriceSourceType.LEAFLET_DISCOUNT,
         )
         self.assertEqual(leaflet.count(), 5)  # one per store
-        # The regular (non-discounted) offer must NOT be persisted at all:
-        # no PriceRecord should exist at the regular offer's price (19.90).
+        # The regular offer ('mléko') resolves to no seeded canonical, so under
+        # the strict-canonical rule it must NOT be persisted at all.
         self.assertFalse(
             PriceRecord.objects.filter(price=Decimal('19.90')).exists()
         )
+        # Every persisted leaflet record is mapped to its canonical, so the deal
+        # engine (which matches strictly by canonical_id) can surface it.
+        canon = CanonicalIngredient.objects.get(slug='chicken-breast')
+        for rec in leaflet:
+            self.assertEqual(rec.store_product.canonical_ingredient_id, canon.id)
         # Rohlík run was invoked once; kupi scrape once per store (5).
         self.assertEqual(mock_rohlik.call_count, 1)
         self.assertEqual(mock_kupi.call_count, 5)
+
+    @mock.patch('diet_planner.management.commands.scan_discounts.time.sleep', lambda *_: None)
+    @mock.patch(KUPI_SCRAPE)
+    @mock.patch(ROHLIK_RUN)
+    def test_leaflet_offer_without_struck_original_persists_mapped(self, mock_rohlik, mock_kupi):
+        """kupi.cz leaflet cards carry no original price (only name + promo
+        price). Such an offer must still persist as a LEAFLET_DISCOUNT mapped
+        to its canonical; an offer whose name resolves to no canonical is
+        skipped (strict-canonical rule — never a floating/fabricated discount).
+        """
+        canon = self._seed_canonical_and_recipe()
+        # Canonicals the retail-noise names would mis-map to via the loose
+        # resolver — present so the test proves the precision GUARD (not a
+        # missing canonical) is what drops them.
+        CanonicalIngredient.objects.create(name='pasta', name_cs='těstoviny', slug='pasta')
+        CanonicalIngredient.objects.create(name='avocado', name_cs='avokádo', slug='avocado')
+        from diet_planner.services.canonical_lookup import clear_cache
+        clear_cache()  # the normalized index is process-cached; rebuild for this DB
+        for code, name in [
+            ('LIDL_CZ', 'Lidl'), ('ALBERT_CZ', 'Albert'),
+            ('KAUFLAND_CZ', 'Kaufland'), ('PENNY_CZ', 'Penny'),
+            ('TESCO_CZ', 'Tesco'),
+        ]:
+            self._store(code, name)
+
+        mock_rohlik.return_value = {
+            'canonicals': 1, 'priced': 1, 'missed': 0, 'on_sale': 0, 'dry_run': False,
+        }
+        # No price_type, no original_price — exactly what the live kupi parser
+        # produces now. One genuine food offer + three that must be dropped:
+        # an unresolvable name, and two retail-noise names that DO resolve to a
+        # canonical but aren't that food (toothpaste -> pasta, spice -> avocado).
+        resolvable = {
+            'ingredient_name': 'kuřecí prsa', 'display_name': 'Kuřecí prsa Vodňany',
+            'price': Decimal('99.90'), 'currency': 'CZK', 'unit': 'kg',
+            'source_url': 'https://www.kupi.cz/x',
+        }
+        unresolvable = {
+            'ingredient_name': 'pivo plzeňský prazdroj', 'display_name': 'Pivo',
+            'price': Decimal('25.90'), 'currency': 'CZK',
+            'source_url': 'https://www.kupi.cz/y',
+        }
+        toothpaste = {  # "Pasta na zuby" -> resolver strips 'na zuby' -> pasta
+            'ingredient_name': 'pasta na zuby odol', 'display_name': 'Pasta na zuby',
+            'price': Decimal('39.90'), 'currency': 'CZK',
+            'source_url': 'https://www.kupi.cz/z',
+        }
+        spice = {  # "Koření Avokádo" -> resolver strips 'koření' -> avocado
+            'ingredient_name': 'koření avokádo', 'display_name': 'Koření Avokádo',
+            'price': Decimal('8.90'), 'currency': 'CZK',
+            'source_url': 'https://www.kupi.cz/w',
+        }
+        mock_kupi.return_value = [resolvable, unresolvable, toothpaste, spice]
+
+        out = StringIO()
+        call_command('scan_discounts', stdout=out)
+
+        leaflet = PriceRecord.objects.filter(
+            source_type=PriceSourceType.LEAFLET_DISCOUNT,
+        )
+        self.assertEqual(leaflet.count(), 5)  # resolvable offer, one per store
+        for rec in leaflet:
+            self.assertEqual(rec.store_product.canonical_ingredient_id, canon.id)
+            self.assertIsNone(rec.original_price)  # no struck original required
+        # The unresolvable offer and both retail-noise offers are never persisted.
+        for price in (Decimal('25.90'), Decimal('39.90'), Decimal('8.90')):
+            self.assertFalse(PriceRecord.objects.filter(price=price).exists())
 
     @mock.patch('diet_planner.management.commands.scan_discounts.time.sleep', lambda *_: None)
     @mock.patch(KUPI_SCRAPE)

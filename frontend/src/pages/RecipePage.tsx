@@ -7,6 +7,7 @@ import { getFoodImageUrl } from '@/lib/food-image';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { fmtRange, getRecipeRange } from '@/lib/pricing';
 
 export const RecipePage = () => {
   const { id, mealId } = useParams();
@@ -160,6 +161,24 @@ export const RecipePage = () => {
             </p>
           )}
         </header>
+
+        {getRecipeRange(recipe) && (() => {
+          const pr = getRecipeRange(recipe)!;
+          const cur = pr.currency === 'EUR' ? '€' : 'Kč';
+          return (
+            <div className="mb-16 -mt-8 inline-block rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-6 py-5 text-left">
+              <p className="mb-1 text-[9px] font-black uppercase italic tracking-[0.3em] text-zinc-400">Přibližná cena · na porci</p>
+              <p className="text-4xl font-black italic tracking-tighter tabular-nums text-white">
+                ~{pr.per_portion_low != null ? fmtRange(pr.per_portion_low, pr.per_portion_high) : fmtRange(pr.low, pr.high)}{' '}
+                <span className="text-base not-italic text-emerald-500">{cur}</span>
+              </p>
+              {pr.per_portion_low != null && (
+                <p className="mt-1 text-[11px] italic text-zinc-400 tabular-nums">celý recept ~{fmtRange(pr.low, pr.high)} {cur}</p>
+              )}
+              <p className="mt-2 text-[10px] italic text-zinc-500">z reálných cen Rohlíku · jen odhad</p>
+            </div>
+          );
+        })()}
 
         <div className="grid md:grid-cols-3 gap-10">
           {/* Ingredients sidebar */}

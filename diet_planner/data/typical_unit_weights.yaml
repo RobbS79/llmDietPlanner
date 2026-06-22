@@ -1,0 +1,25 @@
+# Typical edible weight in grams per piece, for count-unit ("ks") canonicals
+# that Czech stores sell by weight. Used by build_price_book and the pricer to
+# bridge "2 ks onion" (recipe) <-> "1 kg net @ 19.90" (Rohlík catalog), so real
+# catalog prices seed the book instead of being discarded on a unit mismatch.
+#
+# These are reviewable reference values (not prices). Adjust to taste.
+# NOTE: `garlic` is ambiguous — a recipe "ks" may mean a single clove (~5 g) or
+# a whole head/bulb (~50 g). Set to clove weight, since recipes usually count
+# cloves ("stroužky"); revisit if your corpus counts heads.
+grams_per_piece:
+  onion: 110
+  garlic: 5          # one clove (see note above)
+  shallot: 30
+  lemons: 100
+  lime: 67
+  bell-pepper: 150
+  chili-pepper: 15
+  avocado: 170
+  cucumber: 300
+  zucchini: 250
+  eggplant: 250
+  mango: 200
+  leek: 150
+  fennel: 250
+  radicchio: 250

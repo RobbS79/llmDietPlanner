@@ -374,6 +374,29 @@ EXAMPLE INGREDIENT FORMAT:
             else f"Use ONLY the AVAILABLE PRODUCTS list below.\n\n{catalog_text or ''}"
         )
 
+        # Ingredient efficiency: a meal plan built from many one-off ingredients
+        # produces a long, expensive, hard-to-shop list (some plans hit ~99
+        # distinct ingredients). Steer the model toward a shared core set so the
+        # shopping list stays short and affordable. Only for full plans — a
+        # single-meal repair can't reason about the whole plan's ingredient set.
+        diversity_block = ""
+        if not single_meal:
+            ndays = int(num_days or 7)
+            budget = max(15, ndays * 6)
+            diversity_block = (
+                f"INGREDIENT EFFICIENCY (keep the shopping list short & affordable):\n"
+                f"- Design the WHOLE plan around a small, shared set of core\n"
+                f"  ingredients. Reuse the same proteins, vegetables and grains\n"
+                f"  across several meals and days instead of a new ingredient for\n"
+                f"  every dish (think batch-cooking).\n"
+                f"- Aim for at most ~{budget} DISTINCT main ingredients across the\n"
+                f"  entire {ndays}-day plan (common pantry staples like salt, oil\n"
+                f"  and spices don't count toward this).\n"
+                f"- When two meals fit the goal equally well, pick the one that\n"
+                f"  reuses ingredients already used elsewhere in the plan.\n"
+                f"\n"
+            )
+
         return (
             f"You are a nutrition expert creating meal plans.\n\n"
             f"RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.\n\n"
@@ -385,6 +408,7 @@ EXAMPLE INGREDIENT FORMAT:
             f"- Keep instructions VERY BRIEF: 3 steps maximum per meal\n"
             f"- Keep descriptions to 1 sentence\n"
             f"\n"
+            f"{diversity_block}"
             f"INGREDIENT CONSISTENCY (production-critical, do not violate):\n"
             f"- ingredients[] MUST list ONLY raw items the user has to buy fresh\n"
             f"  at the store for THIS meal.\n"

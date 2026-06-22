@@ -26,6 +26,7 @@ from diet_planner.models import (
 from diet_planner.scrapers.kupi_cz import KupiCzScraper
 from diet_planner.scrapers.price_recording import upsert_price_record
 from diet_planner.scrapers.rohlik_cz_search import RohlikCzSearchScraper
+from diet_planner.services.canonical_lookup import resolve_canonical
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,32 @@ KUPI_STORE_CODES = {
 
 # Politeness pause between kupi.cz stores (seconds).
 KUPI_INTER_STORE_DELAY = 1.0
+
+# Retail-noise guard. The canonical resolver is tuned for clean recipe-ingredient
+# text; on raw leaflet names it can strip a category word and mis-map a non-food
+# product to a food canonical ("Pasta na zuby" -> pasta, "Koření Avokádo" ->
+# avocado). We drop a leaflet offer when its name carries drogerie/hygiene/pet
+# signals, or leads with a flavouring word ("koření …", "dochucovadlo …") — the
+# product is a seasoning of X, not X itself.
+_NONFOOD_MARKERS = (
+    'zuby', 'zubní', 'zubni', 'šampon', 'sampon', 'mýdlo', 'mydlo', 'sprchov',
+    'deodorant', 'antiperspirant', 'toaletní', 'toaletni', 'ubrousky', 'pleny',
+    'prací', 'praci', 'aviváž', 'avivaz', 'čisticí', 'cistici', 'osvěžovač',
+    'osvezovac', 'holení', 'holeni', 'tělov', 'telov', 'pleťov', 'pletov',
+    'vlas', 'krém na', 'krem na', 'granule', 'pro psy', 'pro kočky', 'pro kocky',
+)
+_FLAVOURING_LEADS = ('koření', 'koreni', 'dochucovadlo', 'směs koření', 'smes koreni')
+
+
+def _looks_nonfood(name: str) -> bool:
+    """True when a leaflet name signals a non-food / wrong-category product the
+    canonical resolver would otherwise mis-map to a food ingredient."""
+    n = (name or '').strip().lower()
+    if not n:
+        return True
+    if any(n.startswith(lead) for lead in _FLAVOURING_LEADS):
+        return True
+    return any(marker in n for marker in _NONFOOD_MARKERS)
 
 
 class Command(BaseCommand):
@@ -160,8 +187,20 @@ class Command(BaseCommand):
                 offers = scraper.scrape()
                 persisted = 0
                 for offer in offers:
-                    if offer.get('price_type') != 'DISCOUNTED':
+                    # A kupi.cz leaflet entry IS a promotion — leaflet pages
+                    # carry only name + promo price (no struck-through original),
+                    # so we don't gate on `<del>` markup. Instead we gate on a
+                    # strict canonical match: an offer that maps to no canonical
+                    # is dropped (pricing-integrity rule — never a discount that
+                    # can't be tied to a real ingredient). Savings are computed
+                    # downstream against the Rohlík baseline.
+                    name = offer.get('ingredient_name') or offer.get('display_name') or ''
+                    if _looks_nonfood(name):
                         continue
+                    canonical = resolve_canonical(name)
+                    if canonical is None:
+                        continue
+                    offer.setdefault('price_type', 'DISCOUNTED')
                     if not dry_run:
                         upsert_price_record(
                             shop_code=shop_code,
@@ -169,6 +208,7 @@ class Command(BaseCommand):
                             valid_from=offer.get('valid_from') or timezone.now(),
                             valid_until=offer.get('valid_until')
                             or (timezone.now() + timedelta(days=7)),
+                            canonical=canonical,
                         )
                     persisted += 1
                 kupi_count += persisted

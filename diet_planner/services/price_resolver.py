@@ -26,6 +26,7 @@ from diet_planner.models import (
     PriceSourceType,
 )
 from diet_planner.services.catalog import PANTRY_STAPLES
+from diet_planner.services.units import to_base
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +339,12 @@ class PriceResolver:
                     continue
         return None
 
+    # Defensive ceiling on package count. With correct unit conversion a real
+    # recipe never needs this many of one product; a larger count means the
+    # data is malformed (e.g. a missing/garbage unit), so we cap and log rather
+    # than bill the user for it. (Prod plan #86: 1047 packs of chicken.)
+    MAX_PACKAGES = 50
+
     def _calc_packages_needed(
         self,
         required_qty: float,
@@ -347,8 +354,28 @@ class PriceResolver:
     ) -> int:
         if not package_size or package_size <= 0 or required_qty <= 0:
             return 1
-        # Simple: same-unit division, round up
-        return max(1, math.ceil(required_qty / package_size))
+
+        req_base, req_dim = to_base(required_qty, required_unit)
+        pkg_base, pkg_dim = to_base(package_size, product_unit)
+
+        # Only divide when both sides are the same measurement dimension
+        # (both mass, both volume, both count). A gram requirement against a
+        # per-piece product, or either unit unknown, can't be converted without
+        # extra knowledge (e.g. avg weight per piece) — assume one package
+        # rather than fabricate a count from incomparable units.
+        if pkg_base <= 0 or req_dim is None or req_dim != pkg_dim:
+            return 1
+
+        packages = max(1, math.ceil(req_base / pkg_base))
+        if packages > self.MAX_PACKAGES:
+            logger.warning(
+                "PriceResolver: capping %s packages at %s "
+                "(need %s%s, package %s%s) — check unit data",
+                packages, self.MAX_PACKAGES,
+                required_qty, required_unit, package_size, product_unit,
+            )
+            packages = self.MAX_PACKAGES
+        return packages
 
     def _is_pantry_staple(self, ingredient: str) -> bool:
         ingredient_lower = ingredient.lower().strip()
