@@ -91,3 +91,30 @@ export const getEstimate = (plan: any): PriceEstimate | null =>
 // Normalise an ingredient name for matching deal -> list row.
 export const normName = (s: string | undefined | null): string =>
   (s || '').toLowerCase().trim();
+
+// ---- Per-recipe price range (sub-project 2) ----
+
+// Mirrors the backend RecipeSerializer.price_range payload
+// (diet_planner/services/recipe_pricing.py RecipeRange). Always an estimate.
+export interface RecipePriceRange {
+  low: number;
+  high: number;
+  per_portion_low: number | null;
+  per_portion_high: number | null;
+  currency: string;
+  confident: boolean;
+}
+
+// Format a from–to as "1 250–1 600" (Czech locale, en dash, no currency).
+// Caller adds the `~` prefix and currency suffix to match existing copy.
+export const fmtRange = (
+  lo: number | null | undefined,
+  hi: number | null | undefined,
+  decimals = 0,
+): string => `${fmtMoney(lo, decimals)}–${fmtMoney(hi, decimals)}`;
+
+// Pull a confident price range off a recipe object, else null.
+export const getRecipeRange = (recipe: any): RecipePriceRange | null => {
+  const pr = recipe?.price_range;
+  return pr && pr.confident ? (pr as RecipePriceRange) : null;
+};
