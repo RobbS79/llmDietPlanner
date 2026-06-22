@@ -21,11 +21,12 @@ import yaml
 from django.conf import settings
 
 from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.piece_weights import load_piece_weights
+from diet_planner.services.pricing_core import consumed_line_cost
 from diet_planner.services.shopping_list_pricing import (
     classify_pantry_level,
     item_is_excluded,
 )
-from diet_planner.services.units import to_base
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +35,6 @@ BOOK_PATH = Path(settings.BASE_DIR) / 'diet_planner' / 'data' / 'canonical_price
 # Rough FX so non-CZK plans still get an estimate (the book is CZK). It's an
 # estimate anyway; refine if a EUR book is ever maintained.
 _FX_FROM_CZK = {'CZK': 1.0, 'EUR': 1 / 25.0}
-
-# Same defensive ceiling as the catalog resolver: with correct unit conversion
-# no real recipe needs this many packs of one product.
-MAX_PACKAGES = 50
-
 
 @lru_cache(maxsize=1)
 def _load_book() -> Dict[str, Any]:
@@ -129,7 +125,9 @@ class EstimatePricer:
 
         entry = self.book.get(slug) if slug else None
         qty = self._num(item.get('quantity'))
-        cost = self._consumed_cost(entry, qty, item.get('unit', '')) if entry else None
+        grams = load_piece_weights().get(slug) if slug else None
+        cost = (self._consumed_cost(entry, qty, item.get('unit', ''), grams)
+                if entry else None)
 
         if cost is not None:
             out['price_total'] = round(cost * self._fx(), 2)
@@ -144,34 +142,9 @@ class EstimatePricer:
             out['estimated'] = True
         return out
 
-    def _consumed_cost(self, entry, qty, unit) -> Optional[float]:
-        """Pro-rated cost: charge only the amount the recipes actually consume
-        (a recipe using 10 ml of a 1 L bottle costs ~the price of 10 ml), not a
-        whole package. This is the honest 'what this food costs you' number and
-        keeps short plans realistic (whole-pack overstated them badly)."""
-        if qty is None or qty <= 0:
-            return None
-        pack = float(entry.get('pack') or 0)
-        ppu = float(entry.get('price_per_unit') or 0)
-        if ppu <= 0:
-            return None
-        need_base, need_dim = to_base(qty, unit)
-        _, book_dim = to_base(1.0, entry.get('unit', ''))
-        # Can't convert the requirement to the book's unit (e.g. recipe in
-        # pieces, book priced per gram) → fall back to one typical pack.
-        if need_dim is None or book_dim is None or need_dim != book_dim:
-            return pack * ppu if pack > 0 else None
-
-        cost = need_base * ppu
-        # Guard against absurd quantities (bad data) — never charge more than a
-        # sane number of packs' worth for a single line.
-        if pack > 0:
-            cap = MAX_PACKAGES * pack * ppu
-            if cost > cap:
-                logger.warning("EstimatePricer: capping consumed cost for unit %s "
-                               "(qty %s) at %s packs", unit, qty, MAX_PACKAGES)
-                cost = cap
-        return cost
+    def _consumed_cost(self, entry, qty, unit, grams=None) -> Optional[float]:
+        """Pro-rated cost for one line — see pricing_core.consumed_line_cost."""
+        return consumed_line_cost(entry, qty, unit, grams)
 
     def _fx(self) -> float:
         if self.currency == self.book_currency:
