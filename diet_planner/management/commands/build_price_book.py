@@ -40,7 +40,9 @@ class Command(BaseCommand):
     help = "Seed the static price book (canonical_prices.yaml) from catalog medians."
 
     def add_arguments(self, parser):
-        parser.add_argument('--stdout', action='store_true',
+        # dest must NOT be 'stdout' — BaseCommand.execute() wraps any truthy
+        # options['stdout'] as an OutputWrapper, which breaks self.stdout.write.
+        parser.add_argument('--stdout', action='store_true', dest='emit_stdout',
                             help="Print YAML to stdout instead of writing the file.")
         parser.add_argument('--min-samples', type=int, default=1,
                             help="Minimum mapped products required to include a "
@@ -118,7 +120,7 @@ class Command(BaseCommand):
         }
         text = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False, width=100)
 
-        if options['stdout']:
+        if options['emit_stdout']:
             self.stdout.write(text)
         else:
             BOOK_PATH.parent.mkdir(parents=True, exist_ok=True)

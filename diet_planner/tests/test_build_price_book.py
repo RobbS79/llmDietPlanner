@@ -6,7 +6,8 @@ discarded the weight-priced product on a dimension mismatch, so onion/garlic/
 lemon/etc. never reached the price book despite a real, current catalog price.
 With a typical piece weight the real price seeds the book as a per-piece price.
 """
-from io import StringIO
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import yaml
@@ -19,13 +20,20 @@ from diet_planner.tests.factories import make_canonical, make_price
 
 class BuildPriceBookPieceWeightBridgeTest(TestCase):
     def _build(self, weights):
-        out = StringIO()
-        with patch(
-            'diet_planner.management.commands.build_price_book.load_piece_weights',
-            return_value=weights,
-        ):
-            call_command('build_price_book', '--stdout', stdout=out)
-        return yaml.safe_load(out.getvalue())['prices']
+        # Exercise the real production path (file write to BOOK_PATH), pointing
+        # it at a tmp file. Avoids depending on call_command stdout capture,
+        # which only worked by accident when the flag's dest was 'stdout'.
+        with tempfile.TemporaryDirectory() as tmp:
+            book_path = Path(tmp) / 'canonical_prices.yaml'
+            with patch(
+                'diet_planner.management.commands.build_price_book.load_piece_weights',
+                return_value=weights,
+            ), patch(
+                'diet_planner.management.commands.build_price_book.BOOK_PATH',
+                book_path,
+            ):
+                call_command('build_price_book')
+            return yaml.safe_load(book_path.read_text(encoding='utf-8'))['prices']
 
     def test_count_canonical_sold_by_weight_is_priced_per_piece(self):
         make_canonical('cibule', default_unit='ks')
