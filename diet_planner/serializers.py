@@ -75,10 +75,6 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
     """Serializer for DietaryPlan model."""
     # JSONField fields are already Python objects (lists/dicts), return them directly
     days = serializers.SerializerMethodField()
-    shopping_list = serializers.SerializerMethodField()
-
-    # Honest pricing: regular-price range + factual leaflet deals + pantry toggles
-    pricing = serializers.SerializerMethodField()
 
     # LLM usage information
     llm_usage = serializers.SerializerMethodField()
@@ -88,12 +84,6 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'days',
-            'shopping_list',
-            'pricing',
-            'total_price',
-            'pantry_price',
-            'pantry_basics_on',
-            'pantry_fridge_on',
             'currency',
             'llm_usage',
             'created_at',
@@ -102,18 +92,12 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'days',
-            'shopping_list',
-            'pricing',
-            'total_price',
-            'pantry_price',
-            'pantry_basics_on',
-            'pantry_fridge_on',
             'currency',
             'llm_usage',
             'created_at',
             'updated_at',
         ]
-    
+
     def get_days(self, obj):
         """Return days JSONField as-is (already a Python list)."""
         # Support backward compatibility: if meal_ideas exists, convert to days format
@@ -121,44 +105,6 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             # Legacy format - convert meal_ideas to days structure
             return []
         return obj.days if hasattr(obj, 'days') and obj.days else []
-    
-    def get_shopping_list(self, obj):
-        """Return shopping_list JSONField as-is (already a Python list)."""
-        return obj.shopping_list if obj.shopping_list else []
-
-    def get_pricing(self, obj):
-        """Honest price range + factual leaflet deals for this plan.
-
-        Computed live from scraped PriceRecord rows (see
-        SHOPPING_LIST_PRICING_PLAN.md). Returns
-        {estimate, deals, pantry_toggles} or None if it can't be built.
-        """
-        from .services.shopping_list_pricing import compute_pricing
-
-        items = obj.shopping_list or []
-        if not items:
-            return None
-
-        country = getattr(obj.dietary_goal, 'country', None)
-        if not country:
-            return None
-
-        import logging
-        logger = logging.getLogger(__name__)
-        try:
-            return compute_pricing(
-                items=items,
-                country=country,
-                currency=obj.currency,
-                basics_on=obj.pantry_basics_on,
-                fridge_on=obj.pantry_fridge_on,
-                goal=obj.dietary_goal,
-            )
-        except Exception as e:
-            logger.error(
-                f"Error computing pricing for plan {obj.id}: {e}", exc_info=True
-            )
-            return None
 
     def get_llm_usage(self, obj):
         """Return LLM usage information including tokens and cost."""
