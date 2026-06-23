@@ -6,1039 +6,1135 @@ prices:
     unit: g
     price_per_unit: 1.3267
     pack: 15.0
-    samples: 5
+    samples: 7
   almond-butter:
     name_cs: mandlové máslo
     unit: g
     price_per_unit: 0.7876
     pack: 330.0
-    samples: 4
+    samples: 6
   almond-flour:
     name_cs: mandlová mouka
     unit: g
     price_per_unit: 0.4198
     pack: 500.0
-    samples: 4
+    samples: 6
   almonds:
     name_cs: mandle
     unit: g
     price_per_unit: 0.3745
     pack: 200.0
-    samples: 4
+    samples: 6
   apple-cider-vinegar:
     name_cs: Jablečný ocet
     unit: ml
     price_per_unit: 0.1498
     pack: 500.0
-    samples: 4
+    samples: 6
   apples:
     name_cs: jablka
     unit: g
     price_per_unit: 0.0739
     pack: 1000.0
-    samples: 4
+    samples: 6
   applesauce:
     name_cs: jablečné pyré
     unit: g
     price_per_unit: 0.097
     pack: 700.0
-    samples: 5
+    samples: 7
   artichokes:
     name_cs: artyčoky
     unit: g
     price_per_unit: 0.4468
     pack: 190.0
-    samples: 4
+    samples: 6
   arugula:
     name_cs: rukola
     unit: g
-    price_per_unit: 0.559
-    pack: 100.0
-    samples: 5
+    price_per_unit: 0.4551
+    pack: 112.5
+    samples: 6
   asparagus:
     name_cs: chřest
     unit: g
     price_per_unit: 0.7995
     pack: 200.0
-    samples: 5
+    samples: 7
+  avocado:
+    name_cs: avokádo
+    unit: ks
+    price_per_unit: 27.506
+    pack: 2.9
+    samples: 7
   avocado-oil:
     name_cs: avokádový olej
     unit: ml
     price_per_unit: 0.6996
     pack: 250.0
-    samples: 4
+    samples: 6
   bacon:
     name_cs: slanina
     unit: g
     price_per_unit: 0.3785
     pack: 110.0
-    samples: 4
+    samples: 6
   baking-powder:
     name_cs: kypřicí prášek
     unit: g
     price_per_unit: 0.1462
     pack: 13.0
-    samples: 4
+    samples: 6
   baking-soda:
     name_cs: Jedlá soda
     unit: g
     price_per_unit: 0.1945
     pack: 200.0
-    samples: 4
+    samples: 6
   balsamic-vinegar:
     name_cs: balzamikový ocet
     unit: ml
     price_per_unit: 1.8196
     pack: 250.0
-    samples: 4
+    samples: 6
   bananas:
     name_cs: banány
     unit: g
     price_per_unit: 0.5978
     pack: 45.0
-    samples: 4
+    samples: 6
   basil:
     name_cs: bazalka
     unit: g
     price_per_unit: 0.4862
     pack: 80.0
-    samples: 4
+    samples: 6
   bay-leaves:
     name_cs: bobkový list
     unit: g
     price_per_unit: 7.1333
     pack: 3.0
-    samples: 4
+    samples: 6
   beans:
     name_cs: fazole
     unit: g
     price_per_unit: 0.1818
     pack: 390.0
-    samples: 4
+    samples: 6
   beef:
     name_cs: hovězí maso
     unit: g
     price_per_unit: 0.5299
     pack: 700.0
-    samples: 3
+    samples: 5
   beef-stock:
     name_cs: hovězí vývar
     unit: ml
     price_per_unit: 0.3298
     pack: 500.0
-    samples: 5
+    samples: 7
   beef-tenderloin:
     name_cs: hovězí svíčková
     unit: g
     price_per_unit: 1.4999
     pack: 2400.0
-    samples: 4
+    samples: 6
   beetroot:
     name_cs: červená řepa
     unit: g
     price_per_unit: 0.3161
     pack: 180.0
-    samples: 4
+    samples: 6
+  bell-pepper:
+    name_cs: paprika
+    unit: ks
+    price_per_unit: 44.0605
+    pack: 1.3
+    samples: 6
   black-pepper:
     name_cs: pepř černý mletý
     unit: g
     price_per_unit: 1.6611
     pack: 18.0
-    samples: 4
+    samples: 6
   blueberries:
     name_cs: borůvky
     unit: g
     price_per_unit: 0.4997
     pack: 300.0
-    samples: 4
+    samples: 6
   bread-loaf:
     name_cs: chléb
     unit: g
     price_per_unit: 0.1002
     pack: 408.0
-    samples: 4
+    samples: 6
   breadcrumbs:
     name_cs: strouhanka
     unit: g
     price_per_unit: 0.0438
     pack: 500.0
-    samples: 4
+    samples: 6
   broccoli:
     name_cs: brokolice
     unit: g
     price_per_unit: 0.1997
     pack: 300.0
-    samples: 5
+    samples: 7
   brown-rice:
     name_cs: hnědá rýže
     unit: g
     price_per_unit: 0.0918
     pack: 500.0
-    samples: 4
+    samples: 6
   brown-sugar:
     name_cs: hnědý cukr
     unit: g
     price_per_unit: 0.0618
     pack: 500.0
-    samples: 5
+    samples: 7
   brussels-sprouts:
     name_cs: růžičková kapusta
     unit: g
     price_per_unit: 0.0854
     pack: 350.0
-    samples: 4
+    samples: 6
   butter:
     name_cs: máslo
     unit: g
     price_per_unit: 0.1996
     pack: 250.0
-    samples: 5
+    samples: 7
   buttermilk:
     name_cs: podmáslí
     unit: ml
     price_per_unit: 0.0298
     pack: 500.0
-    samples: 4
+    samples: 6
   butternut-squash:
     name_cs: máslová dýně
     unit: g
     price_per_unit: 0.2908
     pack: 120.0
-    samples: 4
+    samples: 6
   cabbage:
     name_cs: zelí
     unit: g
-    price_per_unit: 0.0222
-    pack: 2680.0
-    samples: 4
+    price_per_unit: 0.0352
+    pack: 1850.0
+    samples: 6
   capers:
     name_cs: kapary
     unit: g
     price_per_unit: 0.6242
     pack: 120.0
-    samples: 4
+    samples: 6
   caraway-seeds:
     name_cs: Kmín
     unit: g
     price_per_unit: 0.7286
     pack: 28.0
-    samples: 4
+    samples: 6
   cardamom:
     name_cs: kardamom
     unit: g
     price_per_unit: 4.49
     pack: 10.0
-    samples: 5
+    samples: 7
   carrots:
     name_cs: mrkev
     unit: g
     price_per_unit: 0.0676
     pack: 250.0
-    samples: 5
+    samples: 8
   cashews:
     name_cs: kešu ořechy
     unit: g
     price_per_unit: 0.3993
     pack: 150.0
-    samples: 4
+    samples: 6
   cauliflower:
     name_cs: květák
     unit: g
     price_per_unit: 0.0854
     pack: 350.0
-    samples: 4
+    samples: 6
   cayenne-pepper:
     name_cs: Kajenský pepř
     unit: g
     price_per_unit: 0.5158
     pack: 120.0
-    samples: 4
+    samples: 6
   celery-root:
     name_cs: celer
     unit: g
     price_per_unit: 0.2589
     pack: 185.0
-    samples: 5
+    samples: 7
   cheese:
     name_cs: sýr
     unit: g
     price_per_unit: 0.1345
     pack: 200.0
-    samples: 4
+    samples: 6
   cherries:
     name_cs: třešně
     unit: g
-    price_per_unit: 0.1533
-    pack: 1500.0
-    samples: 4
+    price_per_unit: 0.3408
+    pack: 925.0
+    samples: 6
   chia-seeds:
     name_cs: chia semínka
     unit: g
     price_per_unit: 0.189
     pack: 100.0
-    samples: 4
+    samples: 6
   chicken-breast:
     name_cs: kuřecí prsa
     unit: g
     price_per_unit: 0.3499
     pack: 650.0
-    samples: 4
+    samples: 6
   chicken-stock:
     name_cs: kuřecí vývar
     unit: ml
     price_per_unit: 0.3498
     pack: 500.0
-    samples: 5
+    samples: 7
   chicken-thigh:
     name_cs: kuřecí stehna
     unit: g
     price_per_unit: 0.1099
     pack: 500.0
-    samples: 4
+    samples: 6
   chickpea-flour:
     name_cs: cizrnová mouka
     unit: g
     price_per_unit: 0.1519
     pack: 1000.0
-    samples: 4
+    samples: 6
   chickpeas:
     name_cs: cizrna
     unit: g
     price_per_unit: 0.2132
     pack: 220.0
-    samples: 4
+    samples: 6
   chickpeas-canned:
     name_cs: cizrna v konzervě
     unit: g
     price_per_unit: 0.1996
     pack: 265.0
-    samples: 4
+    samples: 6
   chili-powder:
     name_cs: chilli prášek
     unit: g
     price_per_unit: 1.218
     pack: 50.0
-    samples: 12
+    samples: 18
   chives:
     name_cs: pažitka
     unit: g
     price_per_unit: 0.5187
     pack: 75.0
-    samples: 4
+    samples: 6
   chocolate-chips:
     name_cs: čokoládové pecičky
     unit: g
     price_per_unit: 0.6098
     pack: 500.0
-    samples: 4
+    samples: 6
   chopped-tomatoes-canned:
     name_cs: konzervovaná rajčata
     unit: g
     price_per_unit: 0.1522
     pack: 400.0
-    samples: 5
+    samples: 7
   cinnamon:
     name_cs: skořice
     unit: g
     price_per_unit: 0.813
     pack: 23.0
-    samples: 4
+    samples: 6
   cloves:
     name_cs: hřebíček
     unit: g
     price_per_unit: 1.55
     pack: 18.0
-    samples: 4
+    samples: 6
   cocoa-powder:
     name_cs: Kakaový prášek
     unit: g
     price_per_unit: 0.1878
     pack: 90.0
-    samples: 4
+    samples: 6
   coconut-flakes:
     name_cs: kokosové lupínky
     unit: g
     price_per_unit: 0.1932
     pack: 750.0
-    samples: 4
+    samples: 6
   coconut-milk:
     name_cs: kokosové mléko
     unit: ml
     price_per_unit: 0.1247
     pack: 400.0
-    samples: 4
+    samples: 6
   coconut-oil:
     name_cs: kokosový olej
     unit: ml
     price_per_unit: 0.1998
     pack: 500.0
-    samples: 4
+    samples: 6
   coconut-sugar:
     name_cs: kokosový cukr
     unit: g
     price_per_unit: 0.2556
     pack: 250.0
-    samples: 4
+    samples: 6
+  coffee:
+    name_cs: káva
+    unit: g
+    price_per_unit: 0.2636
+    pack: 140.0
+    samples: 2
   coriander:
     name_cs: koriandr
     unit: g
     price_per_unit: 1.2633
     pack: 30.0
-    samples: 5
+    samples: 7
   corn:
     name_cs: kukuřice
     unit: g
     price_per_unit: 0.1054
     pack: 350.0
-    samples: 5
+    samples: 7
   cornmeal:
     name_cs: kukuřičná mouka
     unit: g
     price_per_unit: 0.0953
     pack: 450.0
-    samples: 5
+    samples: 7
   cornstarch:
     name_cs: Kukuřičný škrob
     unit: g
     price_per_unit: 0.2396
     pack: 250.0
-    samples: 4
+    samples: 6
   cottage-cheese:
     name_cs: tvaroh
     unit: g
     price_per_unit: 0.0796
     pack: 250.0
-    samples: 4
+    samples: 6
   cranberries:
     name_cs: brusinky
     unit: g
     price_per_unit: 0.3521
     pack: 190.0
-    samples: 5
+    samples: 7
   cream:
     name_cs: smetana
     unit: ml
     price_per_unit: 0.0717
     pack: 180.0
-    samples: 4
+    samples: 6
   cream-cheese:
     name_cs: smetanový sýr
     unit: g
-    price_per_unit: 0.5352
-    pack: 125.0
-    samples: 4
+    price_per_unit: 0.3345
+    pack: 200.0
+    samples: 6
+  cucumber:
+    name_cs: okurka
+    unit: ks
+    price_per_unit: 33.42
+    pack: 0.8
+    samples: 6
   cumin:
     name_cs: Římský kmín
     unit: g
     price_per_unit: 1.376
     pack: 25.0
-    samples: 4
+    samples: 6
   curry-powder:
     name_cs: Kari koření
     unit: g
     price_per_unit: 1.8725
     pack: 40.0
-    samples: 4
+    samples: 6
   czech-sausage:
     name_cs: špekáčky
     unit: g
     price_per_unit: 0.3302
     pack: 620.0
-    samples: 4
+    samples: 6
   czech-soft-cheese:
     name_cs: hermelín
     unit: g
     price_per_unit: 0.499
     pack: 100.0
-    samples: 4
+    samples: 6
   dark-chocolate:
     name_cs: čokoláda
     unit: g
     price_per_unit: 0.479
     pack: 100.0
-    samples: 4
+    samples: 6
   dates:
     name_cs: datle
     unit: g
     price_per_unit: 0.4995
     pack: 200.0
-    samples: 4
+    samples: 6
   dill:
     name_cs: kopr
     unit: g
     price_per_unit: 0.1829
     pack: 240.0
-    samples: 4
+    samples: 6
   dry-yeast:
     name_cs: Sušené droždí
     unit: g
     price_per_unit: 1.4238
     pack: 21.0
-    samples: 4
+    samples: 6
   edamame:
     name_cs: edamame
     unit: g
     price_per_unit: 0.4256
     pack: 270.0
-    samples: 4
+    samples: 6
+  eggplant:
+    name_cs: lilek
+    unit: ks
+    price_per_unit: 17.0833
+    pack: 1.3
+    samples: 6
   eggs:
     name_cs: vejce
     unit: ks
     price_per_unit: 8.3267
     pack: 15.0
+    samples: 8
+  fennel:
+    name_cs: fenykl
+    unit: ks
+    price_per_unit: 19.9141
+    pack: 1.3
     samples: 6
   feta-cheese:
     name_cs: sýr feta
     unit: g
     price_per_unit: 0.609
     pack: 100.0
-    samples: 4
+    samples: 7
   flaxseed:
     name_cs: lněné semínko
     unit: g
     price_per_unit: 0.1497
     pack: 300.0
-    samples: 4
+    samples: 6
   garam-masala:
     name_cs: garam masala
     unit: g
     price_per_unit: 1.156
     pack: 25.0
-    samples: 4
+    samples: 6
+  garlic:
+    name_cs: česnek
+    unit: ks
+    price_per_unit: 2.598
+    pack: 50.0
+    samples: 7
   garlic-powder:
     name_cs: Česnekový prášek
     unit: g
     price_per_unit: 0.709
     pack: 100.0
-    samples: 5
+    samples: 7
   ghee:
     name_cs: Přepuštěné máslo
     unit: g
     price_per_unit: 0.9811
     pack: 270.0
-    samples: 5
+    samples: 7
   gluten-free-flour:
     name_cs: bezlepková mouka
     unit: g
     price_per_unit: 0.1299
     pack: 1000.0
-    samples: 4
+    samples: 6
   goat-cheese:
     name_cs: kozí sýr
     unit: g
     price_per_unit: 0.9189
     pack: 140.0
-    samples: 4
+    samples: 6
   greek-yogurt:
     name_cs: řecký jogurt
     unit: g
     price_per_unit: 0.1978
     pack: 500.0
-    samples: 4
+    samples: 6
   green-beans:
     name_cs: zelené fazolky
     unit: g
     price_per_unit: 0.1353
     pack: 450.0
-    samples: 4
+    samples: 6
   green-curry-paste:
     name_cs: kari pasta
     unit: g
     price_per_unit: 0.3897
     pack: 300.0
-    samples: 4
+    samples: 6
   grilling-spice-blend:
     name_cs: grilovací koření
     unit: g
     price_per_unit: 0.9967
     pack: 30.0
-    samples: 4
+    samples: 6
   ground-coriander:
     name_cs: Mletý koriandr
     unit: g
     price_per_unit: 0.93
     pack: 30.0
-    samples: 5
+    samples: 7
   ground-ginger:
     name_cs: Mletý zázvor
     unit: g
     price_per_unit: 1.295
     pack: 20.0
-    samples: 8
+    samples: 12
   ground-meat:
     name_cs: mleté maso
     unit: g
     price_per_unit: 0.2499
     pack: 450.0
-    samples: 4
+    samples: 6
   guacamole:
     name_cs: guacamole
     unit: g
     price_per_unit: 0.3795
     pack: 200.0
-    samples: 4
+    samples: 6
   ham:
     name_cs: šunka
     unit: g
     price_per_unit: 0.3394
     pack: 110.0
-    samples: 4
+    samples: 6
   hazelnuts:
     name_cs: lískové ořechy
     unit: g
     price_per_unit: 0.4495
     pack: 200.0
-    samples: 4
+    samples: 6
   hemp-seeds:
     name_cs: konopná semínka
     unit: g
     price_per_unit: 0.879
     pack: 100.0
-    samples: 4
+    samples: 6
   herbs-de-provence:
     name_cs: provensálské koření
     unit: g
     price_per_unit: 3.8625
     pack: 8.0
-    samples: 4
+    samples: 6
   honey:
     name_cs: med
     unit: g
     price_per_unit: 0.1666
     pack: 900.0
-    samples: 5
+    samples: 7
   hot-paprika:
     name_cs: Pálivá paprika
     unit: g
     price_per_unit: 0.876
     pack: 25.0
-    samples: 4
+    samples: 6
   hummus:
     name_cs: hummus
     unit: g
     price_per_unit: 0.5796
     pack: 250.0
-    samples: 4
+    samples: 6
   juniper-berries:
     name_cs: jalovec
     unit: g
     price_per_unit: 1.395
     pack: 20.0
-    samples: 4
+    samples: 6
   kale:
     name_cs: kapusta
     unit: g
-    price_per_unit: 0.0551
-    pack: 1060.0
-    samples: 4
+    price_per_unit: 0.0602
+    pack: 970.0
+    samples: 6
   ketchup:
     name_cs: Kečup
     unit: g
     price_per_unit: 0.1715
     pack: 460.0
-    samples: 4
+    samples: 6
   lard:
     name_cs: sádlo
     unit: g
     price_per_unit: 0.0956
     pack: 250.0
-    samples: 4
+    samples: 6
+  leek:
+    name_cs: pórek
+    unit: ks
+    price_per_unit: 23.94
+    pack: 1.7
+    samples: 7
+  lemons:
+    name_cs: citrony
+    unit: ks
+    price_per_unit: 7.98
+    pack: 5.0
+    samples: 7
   lentils:
     name_cs: čočka
     unit: g
     price_per_unit: 0.0678
     pack: 500.0
-    samples: 4
+    samples: 6
   lettuce:
     name_cs: hlávkový salát
     unit: ks
     price_per_unit: 36.9
     pack: 1.0
-    samples: 4
+    samples: 6
+  mango:
+    name_cs: mango
+    unit: ks
+    price_per_unit: 121.2
+    pack: 0.8
+    samples: 6
   margarine:
     name_cs: rostlinný tuk
     unit: g
     price_per_unit: 0.1796
     pack: 250.0
-    samples: 4
+    samples: 6
   marjoram:
     name_cs: majoránka
     unit: g
     price_per_unit: 2.7
     pack: 7.0
-    samples: 4
+    samples: 6
   mint:
-    name_cs: m��ta
+    name_cs: máta
     unit: g
     price_per_unit: 1.03
     pack: 30.0
-    samples: 5
+    samples: 7
   mixed-vegetables:
     name_cs: zeleninová směs
     unit: g
     price_per_unit: 0.1111
     pack: 350.0
-    samples: 4
+    samples: 6
   mozzarella:
     name_cs: mozzarella
     unit: g
     price_per_unit: 0.3352
     pack: 125.0
-    samples: 4
+    samples: 6
   mushrooms:
     name_cs: žampiony
     unit: g
     price_per_unit: 0.1596
     pack: 250.0
-    samples: 4
+    samples: 6
+  mustard:
+    name_cs: hořčice
+    unit: g
+    price_per_unit: 0.1652
+    pack: 290.0
+    samples: 1
   nori:
     name_cs: nori
     unit: g
     price_per_unit: 11.475
     pack: 4.0
-    samples: 4
+    samples: 6
   nutmeg:
     name_cs: Muškátový oříšek
     unit: g
     price_per_unit: 3.0692
     pack: 13.0
-    samples: 4
+    samples: 6
   nutritional-yeast:
     name_cs: lahůdkové droždí
     unit: g
     price_per_unit: 0.899
     pack: 100.0
-    samples: 4
+    samples: 6
   oat-flour:
     name_cs: ovesná mouka
     unit: g
     price_per_unit: 0.2476
     pack: 250.0
-    samples: 4
+    samples: 6
   oats:
     name_cs: ovesné vločky
     unit: g
     price_per_unit: 0.1118
     pack: 500.0
-    samples: 4
+    samples: 6
   okra:
     name_cs: okra
     unit: g
     price_per_unit: 0.5499
     pack: 100.0
-    samples: 4
+    samples: 6
   olive-oil:
     name_cs: olivový olej
     unit: ml
     price_per_unit: 0.1699
     pack: 1000.0
-    samples: 4
+    samples: 6
   olives:
     name_cs: olivy
     unit: g
     price_per_unit: 0.4161
     pack: 180.0
-    samples: 4
+    samples: 6
+  onion:
+    name_cs: cibule
+    unit: ks
+    price_per_unit: 2.189
+    pack: 9.1
+    samples: 7
   onion-powder:
     name_cs: Cibulový prášek
     unit: g
     price_per_unit: 1.8543
     pack: 35.0
-    samples: 3
+    samples: 5
   oregano:
     name_cs: Oregano
     unit: g
     price_per_unit: 2.49
     pack: 10.0
-    samples: 4
+    samples: 6
   oyster-sauce:
     name_cs: Ústřicová omáčka
     unit: ml
     price_per_unit: 0.1997
     pack: 300.0
-    samples: 5
+    samples: 7
   panko-breadcrumbs:
     name_cs: panko strouhanka
     unit: g
     price_per_unit: 0.2845
     pack: 200.0
-    samples: 4
+    samples: 6
   parsley:
     name_cs: petrželka
     unit: g
     price_per_unit: 0.4862
     pack: 80.0
-    samples: 4
+    samples: 6
   parsley-root:
     name_cs: petržel kořenová
     unit: g
     price_per_unit: 0.0997
     pack: 350.0
-    samples: 5
+    samples: 7
   parsnip:
     name_cs: pastinák
     unit: g
     price_per_unit: 0.3672
     pack: 125.0
-    samples: 4
+    samples: 6
   pasta:
     name_cs: těstoviny
     unit: g
     price_per_unit: 0.1598
     pack: 500.0
-    samples: 5
+    samples: 7
   pasta-spaghetti:
     name_cs: špagety
     unit: g
     price_per_unit: 0.0323
     pack: 400.0
-    samples: 5
+    samples: 7
   peaches:
     name_cs: broskve
     unit: g
     price_per_unit: 0.1398
     pack: 500.0
-    samples: 4
+    samples: 6
   peanut-butter:
     name_cs: arašídové máslo
     unit: g
     price_per_unit: 0.3996
     pack: 250.0
-    samples: 4
+    samples: 6
   peanuts:
     name_cs: arašídy
     unit: g
     price_per_unit: 0.1998
     pack: 400.0
-    samples: 4
+    samples: 6
   peas:
     name_cs: hrášek
     unit: g
     price_per_unit: 0.134
     pack: 350.0
-    samples: 5
+    samples: 7
   pecans:
     name_cs: pekanové ořechy
     unit: g
     price_per_unit: 0.5995
     pack: 200.0
-    samples: 4
+    samples: 6
   pickles:
     name_cs: nakládané okurky
     unit: g
     price_per_unit: 0.3574
     pack: 190.0
-    samples: 4
+    samples: 6
   pine-nuts:
     name_cs: piniové oříšky
     unit: g
     price_per_unit: 1.198
     pack: 50.0
-    samples: 4
+    samples: 6
+  pineapple:
+    name_cs: ananas
+    unit: g
+    price_per_unit: 0.1995
+    pack: 200.0
+    samples: 2
   plain-flour:
     name_cs: mouka hladká
     unit: g
     price_per_unit: 0.0099
     pack: 1000.0
-    samples: 4
+    samples: 6
   plant-milk:
     name_cs: rostlinné mléko
     unit: ml
     price_per_unit: 0.1598
     pack: 500.0
-    samples: 1
+    samples: 3
   popcorn:
     name_cs: popcorn
     unit: g
     price_per_unit: 0.099
     pack: 100.0
-    samples: 4
+    samples: 6
   poppy-seeds:
     name_cs: mák
     unit: g
     price_per_unit: 0.1245
     pack: 200.0
-    samples: 4
+    samples: 6
   pork:
     name_cs: vepřové maso
     unit: g
     price_per_unit: 0.2716
     pack: 330.0
-    samples: 4
+    samples: 6
   potato-starch:
     name_cs: Bramborový škrob
     unit: g
     price_per_unit: 0.1545
     pack: 200.0
-    samples: 4
+    samples: 6
   potatoes:
     name_cs: brambory
     unit: g
     price_per_unit: 0.0399
     pack: 1000.0
-    samples: 5
+    samples: 7
   powdered-sugar:
     name_cs: moučkový cukr
     unit: g
     price_per_unit: 0.1497
     pack: 400.0
-    samples: 4
+    samples: 6
+  protein-powder:
+    name_cs: proteinový prášek
+    unit: g
+    price_per_unit: 1.0747
+    pack: 400.0
+    samples: 1
   pumpkin-puree:
     name_cs: dýňové pyré
     unit: g
     price_per_unit: 0.279
     pack: 100.0
-    samples: 4
+    samples: 7
   pumpkin-seeds:
     name_cs: dýňová semínka
     unit: g
     price_per_unit: 0.2995
     pack: 200.0
-    samples: 4
+    samples: 6
   quinoa:
     name_cs: quinoa
     unit: g
     price_per_unit: 0.1818
     pack: 500.0
-    samples: 4
+    samples: 6
+  radicchio:
+    name_cs: radicchio
+    unit: ks
+    price_per_unit: 34.3241
+    pack: 1.1
+    samples: 6
   radishes:
     name_cs: ředkvičky
     unit: g
     price_per_unit: 0.083
     pack: 300.0
-    samples: 4
+    samples: 6
   raisins:
     name_cs: rozinky
     unit: g
     price_per_unit: 0.1395
     pack: 200.0
-    samples: 4
+    samples: 6
   raspberries:
     name_cs: maliny
     unit: g
     price_per_unit: 0.4792
     pack: 125.0
-    samples: 4
+    samples: 6
   red-beans-canned:
     name_cs: fazole červené v konzervě
     unit: g
     price_per_unit: 0.2356
     pack: 250.0
-    samples: 4
+    samples: 6
   rice-basmati:
     name_cs: rýže basmati
     unit: g
     price_per_unit: 0.0598
     pack: 500.0
-    samples: 4
+    samples: 6
   rice-jasmine:
     name_cs: rýže jasmínová
     unit: g
     price_per_unit: 0.0498
     pack: 500.0
-    samples: 4
+    samples: 6
   rice-noodles:
     name_cs: rýžové nudle
     unit: g
     price_per_unit: 0.1497
     pack: 400.0
-    samples: 4
+    samples: 6
   rosemary:
     name_cs: Rozmarýn
     unit: g
     price_per_unit: 1.036
     pack: 25.0
-    samples: 4
+    samples: 6
   rum:
     name_cs: rum
     unit: ml
     price_per_unit: 0.7713
     pack: 700.0
-    samples: 4
+    samples: 6
   sage:
     name_cs: šalvěj
     unit: g
     price_per_unit: 0.4983
     pack: 60.0
-    samples: 4
+    samples: 6
   salami:
     name_cs: salám
     unit: g
     price_per_unit: 0.299
     pack: 100.0
-    samples: 4
+    samples: 6
   salsa:
     name_cs: salsa
     unit: g
     price_per_unit: 0.1545
     pack: 310.0
-    samples: 4
+    samples: 6
   salt:
     name_cs: sůl
     unit: g
     price_per_unit: 0.7396
     pack: 250.0
-    samples: 5
+    samples: 6
   sauerkraut:
     name_cs: kysané zelí
     unit: g
     price_per_unit: 0.1153
     pack: 450.0
-    samples: 5
+    samples: 7
   sausage:
     name_cs: klobása
     unit: g
     price_per_unit: 0.4328
     pack: 180.0
-    samples: 4
+    samples: 6
   sea-salt:
     name_cs: mořská sůl
     unit: g
     price_per_unit: 0.0379
     pack: 1000.0
-    samples: 4
+    samples: 7
   semi-skimmed-milk:
     name_cs: mléko polotučné
     unit: ml
     price_per_unit: 0.0259
     pack: 1000.0
-    samples: 5
+    samples: 7
   sesame-oil:
     name_cs: Sezamový olej
     unit: ml
     price_per_unit: 1.1957
     pack: 163.0
-    samples: 4
+    samples: 6
   sesame-seeds:
     name_cs: sezamová semínka
     unit: g
     price_per_unit: 0.349
     pack: 100.0
-    samples: 4
+    samples: 6
+  shallot:
+    name_cs: šalotka
+    unit: ks
+    price_per_unit: 4.308
+    pack: 8.3
+    samples: 7
   smoked-paprika:
     name_cs: Uzená paprika
     unit: g
     price_per_unit: 1.196
     pack: 25.0
-    samples: 5
+    samples: 7
   snap-peas:
     name_cs: cukrový hrášek
     unit: g
     price_per_unit: 0.4045
     pack: 200.0
-    samples: 4
+    samples: 6
   sour-cream:
     name_cs: zakysaná smetana
     unit: g
     price_per_unit: 0.0822
     pack: 400.0
-    samples: 4
+    samples: 6
   soy-sauce:
     name_cs: Sójová omáčka
     unit: ml
     price_per_unit: 1.0327
     pack: 150.0
-    samples: 4
+    samples: 6
   spice-blend:
     name_cs: kořenicí směs
     unit: g
@@ -1050,239 +1146,244 @@ prices:
     unit: g
     price_per_unit: 0.2952
     pack: 125.0
-    samples: 5
+    samples: 7
   spring-onion:
     name_cs: jarní cibulka
     unit: ks
     price_per_unit: 17.9
     pack: 1.0
-    samples: 4
+    samples: 6
   sprouts:
     name_cs: klíčky
     unit: g
     price_per_unit: 0.589
     pack: 100.0
-    samples: 4
+    samples: 6
   sriracha-sauce:
     name_cs: Sriracha omáčka
     unit: ml
     price_per_unit: 0.286
     pack: 150.0
-    samples: 5
+    samples: 7
   stock:
     name_cs: vývar
     unit: ml
     price_per_unit: 0.1887
     pack: 450.0
-    samples: 4
+    samples: 6
   strawberries:
     name_cs: jahody
     unit: g
     price_per_unit: 0.0997
     pack: 350.0
-    samples: 4
+    samples: 6
   sugar:
     name_cs: cukr
     unit: g
     price_per_unit: 0.0169
     pack: 1000.0
-    samples: 8
+    samples: 12
   sun-dried-tomatoes:
     name_cs: sušená rajčata
     unit: g
-    price_per_unit: 0.9244
-    pack: 175.0
-    samples: 4
+    price_per_unit: 0.7993
+    pack: 150.0
+    samples: 6
   sunflower-oil:
     name_cs: slunečnicový olej
     unit: ml
     price_per_unit: 0.0349
     pack: 1000.0
-    samples: 4
+    samples: 6
   sweet-paprika:
     name_cs: Sladká paprika
     unit: g
     price_per_unit: 1.036
     pack: 25.0
-    samples: 4
+    samples: 6
   sweet-potato:
     name_cs: batáty
     unit: g
     price_per_unit: 0.1538
     pack: 500.0
-    samples: 4
+    samples: 6
   tahini:
     name_cs: tahini
     unit: g
     price_per_unit: 0.4163
     pack: 300.0
-    samples: 4
+    samples: 6
   tamari:
     name_cs: tamari
     unit: ml
     price_per_unit: 0.6098
     pack: 500.0
-    samples: 4
+    samples: 6
   tapioca-starch:
     name_cs: tapiokový škrob
     unit: g
     price_per_unit: 0.1273
     pack: 400.0
-    samples: 4
+    samples: 6
   tempeh:
     name_cs: tempeh
     unit: g
     price_per_unit: 0.3395
     pack: 200.0
-    samples: 4
+    samples: 6
   thyme:
     name_cs: Tymián
     unit: g
     price_per_unit: 1.4214
     pack: 14.0
-    samples: 4
+    samples: 6
   tofu:
     name_cs: tofu
     unit: g
     price_per_unit: 0.1249
     pack: 220.0
-    samples: 4
+    samples: 6
   tomato-paste:
     name_cs: rajský protlak
     unit: g
     price_per_unit: 0.37
     pack: 70.0
-    samples: 5
+    samples: 7
   tomato-sauce:
     name_cs: rajčatová omáčka
     unit: g
     price_per_unit: 0.0879
     pack: 420.0
-    samples: 4
+    samples: 6
   tomatoes:
     name_cs: rajčata
     unit: g
     price_per_unit: 0.1196
     pack: 250.0
-    samples: 5
+    samples: 7
   tortilla-chips:
     name_cs: tortillové chipsy
     unit: g
     price_per_unit: 0.5272
     pack: 125.0
-    samples: 4
+    samples: 6
   turmeric:
     name_cs: Kurkuma
     unit: g
     price_per_unit: 0.7971
     pack: 35.0
-    samples: 5
+    samples: 7
   vanilla:
     name_cs: vanilka
     unit: g
     price_per_unit: 19.0658
     pack: 7.6
-    samples: 4
+    samples: 6
   vanilla-extract:
     name_cs: Vanilkový extrakt
     unit: ml
     price_per_unit: 2.34
     pack: 35.0
-    samples: 4
+    samples: 6
   vanilla-pudding-powder:
     name_cs: vanilkový pudinkový prášek
     unit: g
-    price_per_unit: 0.578
-    pack: 50.0
-    samples: 5
+    price_per_unit: 0.1878
+    pack: 90.0
+    samples: 7
   vegeta-seasoning:
     name_cs: Vegeta
     unit: g
     price_per_unit: 0.277
     pack: 200.0
-    samples: 4
+    samples: 6
   vegetable-stock:
     name_cs: zeleninový vývar
     unit: ml
     price_per_unit: 0.2598
     pack: 500.0
-    samples: 5
+    samples: 7
   vinegar:
     name_cs: ocet
     unit: ml
     price_per_unit: 0.2163
     pack: 300.0
-    samples: 8
+    samples: 12
   walnuts:
     name_cs: vlašské ořechy
     unit: g
     price_per_unit: 0.3449
     pack: 1000.0
-    samples: 4
+    samples: 6
   water:
     name_cs: voda
     unit: ml
     price_per_unit: 0.0452
     pack: 330.0
-    samples: 5
+    samples: 7
   white-pepper:
     name_cs: Mletý bílý pepř
     unit: g
     price_per_unit: 2.095
     pack: 20.0
-    samples: 4
+    samples: 6
   white-sugar:
     name_cs: Cukr krystal
     unit: g
     price_per_unit: 0.0149
     pack: 1000.0
-    samples: 4
+    samples: 6
   white-wine:
     name_cs: bílé víno
     unit: ml
     price_per_unit: 0.2561
     pack: 187.0
-    samples: 5
+    samples: 7
   white-wine-vinegar:
     name_cs: bílý vinný ocet
     unit: ml
     price_per_unit: 0.0759
     pack: 1000.0
-    samples: 4
+    samples: 6
   white-yogurt:
     name_cs: jogurt bílý
     unit: g
     price_per_unit: 0.0471
     pack: 380.0
-    samples: 4
+    samples: 6
   whole-milk:
     name_cs: mléko plnotučné
     unit: ml
     price_per_unit: 0.0229
     pack: 1000.0
-    samples: 4
+    samples: 6
   whole-wheat-flour:
     name_cs: celozrnná pšeničná mouka
     unit: g
     price_per_unit: 0.0419
     pack: 1000.0
-    samples: 4
+    samples: 6
   wine-vinegar:
     name_cs: Vinný ocet
     unit: ml
     price_per_unit: 1.6596
     pack: 250.0
-    samples: 4
+    samples: 6
   worcestershire-sauce:
     name_cs: worcesterská omáčka
     unit: ml
     price_per_unit: 0.5527
     pack: 150.0
-    samples: 4
+    samples: 6
   zaatar:
     name_cs: za'atar
     unit: g
     price_per_unit: 5.7475
     pack: 40.0
-    samples: 4
-
+    samples: 6
+  zucchini:
+    name_cs: cuketa
+    unit: ks
+    price_per_unit: 15.9018
+    pack: 1.1
+    samples: 6
