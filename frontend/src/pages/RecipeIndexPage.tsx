@@ -5,7 +5,7 @@ import { Zap, ArrowRight, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
-import { fmtRange, getRecipeRange } from '@/lib/pricing';
+import { getRecipeDeals } from '@/lib/pricing';
 
 export const RecipeIndexPage = () => {
   const navigate = useNavigate();
@@ -81,16 +81,12 @@ export const RecipeIndexPage = () => {
                     {recipe.description && (
                       <p className="text-zinc-300 text-sm leading-relaxed mb-6 line-clamp-2">{recipe.description}</p>
                     )}
-                    {getRecipeRange(recipe) && (() => {
-                      const pr = getRecipeRange(recipe)!;
-                      const cur = pr.currency === 'EUR' ? '€' : 'Kč';
+                    {getRecipeDeals(recipe) && (() => {
+                      const d = getRecipeDeals(recipe)!;
                       return (
-                        <p className="mb-4 text-[10px] font-black uppercase italic tracking-widest tabular-nums text-emerald-400">
-                          ~{fmtRange(pr.low, pr.high)} {cur}
-                          {pr.per_portion_low != null && (
-                            <span className="text-zinc-500"> · ~{fmtRange(pr.per_portion_low, pr.per_portion_high)}/porce</span>
-                          )}
-                        </p>
+                        <span className="mt-1 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
+                          {d.matched} ve slevě
+                        </span>
                       );
                     })()}
                     <div className="mt-auto pt-4 border-t border-slate-600 flex items-center gap-4 text-[10px] font-black text-zinc-300 uppercase tracking-widest">

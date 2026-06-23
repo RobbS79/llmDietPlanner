@@ -161,15 +161,19 @@ canonical-less records are never ACTIVE.
 from django.test import TestCase
 
 from diet_planner.models import PriceSourceType
+from diet_planner.services.canonical_lookup import clear_cache
 from diet_planner.services.recipe_deals import recipe_deals
 from diet_planner.tests.factories import make_canonical, make_price, make_store
 
 
 class RecipeDealsTest(TestCase):
     def setUp(self):
+        # name_cs='cibule' so resolve_canonical('cibule') maps to this canonical
+        # (the resolver is DB-based over name/name_cs/name_sk + aliases).
         make_store('LIDL_CZ', name='Lidl')
         make_store('ALBERT_CZ', name='Albert')
-        self.onion = make_canonical('onion', default_unit='ks')
+        self.onion = make_canonical('onion', default_unit='ks', name_cs='cibule')
+        clear_cache()   # drop the cached normalized index after seeding rows
 
     def _leaflet(self, canonical, *, store='LIDL_CZ', name='cibule',
                  offset=0, days=7, url='http://lidl.cz/cibule'):
@@ -308,7 +312,9 @@ def _active_deal_index():
             continue
         index[slug] = {
             'canonical': slug,
-            'shop': product.store.name,
+            # Clean brand name for the headline ("Lidl"), not the verbose seeded
+            # store.name ("Lidl (Czech Republic)"). chain is an uppercase code.
+            'shop': product.store.chain.title(),
             'display_name': product.name,
             'source_url': record.source_url or product.source_url or '',
             'valid_until': record.valid_until,

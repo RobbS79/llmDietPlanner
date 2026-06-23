@@ -114,7 +114,35 @@ export const fmtRange = (
 ): string => `${fmtMoney(lo, decimals)}–${fmtMoney(hi, decimals)}`;
 
 // Pull a confident price range off a recipe object, else null.
-export const getRecipeRange = (recipe: any): RecipePriceRange | null => {
-  const pr = recipe?.price_range;
-  return pr && pr.confident ? (pr as RecipePriceRange) : null;
+// PIVOT 2026-06-23: absolute price display is disabled — the estimate
+// fabricated whole-pack costs for unconvertible units (see deals-headline
+// spec). The backend engine stays; we just stop surfacing it. Returns null so
+// every price block stops rendering. Replaced by getRecipeDeals (Task 5).
+export const getRecipeRange = (_recipe: any): RecipePriceRange | null => {
+  return null;
+};
+
+// ---- Per-recipe active deals (deals-headline pivot, 2026-06-23) ----
+
+// Mirrors backend services.recipe_deals output. Active-only — every deal here
+// is currently live (valid_from <= now < valid_until). Never a price/savings.
+export interface RecipeDeal {
+  ingredient: string;
+  canonical: string;
+  shop: string;
+  display_name: string;
+  source_url: string;
+  valid_until: string | null;
+}
+
+export interface RecipeDeals {
+  matched: number;
+  total: number;
+  deals: RecipeDeal[];
+}
+
+// Pull active deals off a recipe object; null when there are none to show.
+export const getRecipeDeals = (recipe: any): RecipeDeals | null => {
+  const d = recipe?.deals as RecipeDeals | undefined;
+  return d && d.matched > 0 ? d : null;
 };

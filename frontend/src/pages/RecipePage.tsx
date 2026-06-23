@@ -7,7 +7,7 @@ import { getFoodImageUrl } from '@/lib/food-image';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { fmtRange, getRecipeRange } from '@/lib/pricing';
+import { getRecipeDeals } from '@/lib/pricing';
 
 export const RecipePage = () => {
   const { id, mealId } = useParams();
@@ -162,20 +162,23 @@ export const RecipePage = () => {
           )}
         </header>
 
-        {getRecipeRange(recipe) && (() => {
-          const pr = getRecipeRange(recipe)!;
-          const cur = pr.currency === 'EUR' ? '€' : 'Kč';
+        {getRecipeDeals(recipe) && (() => {
+          const d = getRecipeDeals(recipe)!;
           return (
-            <div className="mb-16 -mt-8 inline-block rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-6 py-5 text-left">
-              <p className="mb-1 text-[9px] font-black uppercase italic tracking-[0.3em] text-zinc-400">Přibližná cena · na porci</p>
-              <p className="text-4xl font-black italic tracking-tighter tabular-nums text-white">
-                ~{pr.per_portion_low != null ? fmtRange(pr.per_portion_low, pr.per_portion_high) : fmtRange(pr.low, pr.high)}{' '}
-                <span className="text-base not-italic text-emerald-500">{cur}</span>
+            <div className="mt-3 rounded-lg bg-emerald-50 p-3">
+              <p className="text-sm font-medium text-emerald-800">
+                {d.matched} z {d.total} surovin ve slevě tento týden
               </p>
-              {pr.per_portion_low != null && (
-                <p className="mt-1 text-[11px] italic text-zinc-400 tabular-nums">celý recept ~{fmtRange(pr.low, pr.high)} {cur}</p>
-              )}
-              <p className="mt-2 text-[10px] italic text-zinc-500">z reálných cen Rohlíku · jen odhad</p>
+              <ul className="mt-1 space-y-0.5">
+                {d.deals.map((deal) => (
+                  <li key={deal.canonical} className="text-[13px] text-emerald-700">
+                    <a href={deal.source_url} target="_blank" rel="noopener noreferrer"
+                       className="hover:underline">
+                      {deal.display_name} — {deal.shop}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           );
         })()}
