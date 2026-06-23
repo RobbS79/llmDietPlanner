@@ -6,7 +6,7 @@ and how the catalog prices it ("Cibule žlutá, síť 1 kg @ 19.90"). Without a 
 weight, build_price_book discards the weight-priced product (different dimension)
 and the ingredient silently falls out of pricing; the pricer likewise can't cost
 a count requirement against a weight-priced book entry. See the piece↔weight
-bridge in build_price_book and EstimatePricer._consumed_cost.
+bridge in build_price_book and pricing_core.consumed_line_cost.
 """
 from functools import lru_cache
 from pathlib import Path

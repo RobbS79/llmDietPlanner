@@ -2,7 +2,7 @@
 
 Two jobs:
   1. Report LEAFLET_DISCOUNT PriceRecords past their valid_until, so the
-     click-time deal read (compute_pricing) never surfaces stale leaflets.
+     click-time deal read (recipe_deals) never surfaces stale leaflets.
      (current() already excludes them; this pass surfaces/normalizes them.)
   2. (unless --no-scrape) Re-scrape current discounts via the existing
      kupi.cz aggregator + Rohlík search scrapers so coverage stays fresh.

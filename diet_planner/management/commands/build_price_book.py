@@ -16,7 +16,7 @@ corrections) — re-running this overwrites it, so run it only to re-seed.
     python manage.py build_price_book --stdout        # print YAML only
     python manage.py build_price_book --min-samples 1
 
-The served estimator (EstimatePricer) reads the committed YAML, never the DB.
+The per-recipe pricing engine reads the committed YAML (via _load_book), never the DB.
 """
 import statistics
 from pathlib import Path
@@ -29,7 +29,7 @@ from diet_planner.models import CanonicalIngredient, PriceRecord, PriceSourceTyp
 from diet_planner.services.piece_weights import load_piece_weights
 from diet_planner.services.units import to_base
 
-# Where the committed book lives; EstimatePricer loads this same path.
+# Where the committed book lives; _load_book reads this same path.
 BOOK_PATH = Path(settings.BASE_DIR) / 'diet_planner' / 'data' / 'canonical_prices.yaml'
 
 # Canonical base code per measurement dimension.

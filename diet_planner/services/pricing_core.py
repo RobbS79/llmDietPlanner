@@ -2,9 +2,9 @@
 
 Single source of truth for converting one recipe/shopping line ("qty unit")
 into a cost against a price-book entry, including the piece<->weight bridge.
-Both the whole-plan EstimatePricer and the per-recipe range engine call this,
-so unit conversion never forks into a second path — the fork is what produced
-the 238k Kč chicken (see [[prod-pricing-fabrication-surface]]).
+The per-recipe range engine calls this, so unit conversion never forks into a
+second path — the fork is what produced the 238k Kč chicken
+(see [[prod-pricing-fabrication-surface]]).
 """
 import logging
 from typing import Optional
