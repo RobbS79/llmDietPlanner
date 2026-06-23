@@ -23,7 +23,6 @@ from .models import (
     Recipe,
     MealInstance,
     GroceryStore,
-    PriceFeedback,
     HistoricNutritionPlan,
     get_currency_for_country,
     get_shops_for_country,
@@ -241,36 +240,6 @@ class DietaryGoalDetailView(APIView):
             return Response({"status": "success", "data": DietaryGoalDetailSerializer(goal).data})
         except DietaryGoal.DoesNotExist:
             return Response({"status": "error", "error": "Object not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    def patch(self, request, goal_id: int) -> Response:
-        """Persist the shopping-list pantry toggles on the goal's plan.
-
-        Accepts `pantry_basics_on` and/or `pantry_fridge_on` (booleans). These
-        feed the honest price-range computation (pantry items the user already
-        has are excluded from the range).
-        """
-        try:
-            goal = DietaryGoal.objects.select_related('user', 'dietary_plan').get(id=goal_id, user=request.user)
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Object not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            plan = goal.dietary_plan
-        except DietaryPlan.DoesNotExist:
-            plan = None
-        if plan is None:
-            return Response({"status": "error", "error": "No plan for this goal"}, status=status.HTTP_404_NOT_FOUND)
-
-        update_fields = []
-        for field in ('pantry_basics_on', 'pantry_fridge_on'):
-            if field in request.data:
-                setattr(plan, field, bool(request.data[field]))
-                update_fields.append(field)
-
-        if update_fields:
-            plan.save(update_fields=update_fields)
-
-        return Response({"status": "success", "data": DietaryGoalDetailSerializer(goal).data})
 
 
 class DietaryGoalTaskStatusView(APIView):
@@ -617,79 +586,6 @@ class PublicRecipeDetailView(APIView):
             return Response({"status": "success", "data": RecipeSerializer(recipe).data})
         except Recipe.DoesNotExist:
             return Response({"status": "error", "error": "Recipe not found"}, status=404)
-
-
-class PriceFeedbackView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, goal_id: int) -> Response:
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Goal not found"}, status=404)
-
-        try:
-            plan = goal.dietary_plan
-        except DietaryPlan.DoesNotExist:
-            return Response({"status": "error", "error": "Plan not found"}, status=404)
-
-        actual_total = request.data.get('actual_total')
-        if actual_total is None:
-            return Response({"status": "error", "error": "actual_total is required"}, status=400)
-
-        try:
-            actual_total = float(actual_total)
-            if actual_total < 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            return Response({"status": "error", "error": "actual_total must be a positive number"}, status=400)
-
-        feedback = PriceFeedback.objects.create(
-            user=request.user,
-            dietary_plan=plan,
-            estimated_total=plan.total_price or 0,
-            actual_total=actual_total,
-            currency=plan.currency or '',
-            note=str(request.data.get('note', ''))[:1000],
-        )
-
-        return Response({
-            "status": "success",
-            "data": {
-                "id": feedback.id,
-                "estimated_total": str(feedback.estimated_total),
-                "actual_total": str(feedback.actual_total),
-                "difference": str(feedback.actual_total - feedback.estimated_total),
-                "currency": feedback.currency,
-            }
-        }, status=status.HTTP_201_CREATED)
-
-    def get(self, request, goal_id: int) -> Response:
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Goal not found"}, status=404)
-
-        try:
-            plan = goal.dietary_plan
-        except DietaryPlan.DoesNotExist:
-            return Response({"status": "error", "error": "Plan not found"}, status=404)
-
-        feedback = plan.price_feedbacks.filter(user=request.user).first()
-        if not feedback:
-            return Response({"status": "success", "data": None})
-
-        return Response({
-            "status": "success",
-            "data": {
-                "id": feedback.id,
-                "estimated_total": str(feedback.estimated_total),
-                "actual_total": str(feedback.actual_total),
-                "difference": str(feedback.actual_total - feedback.estimated_total),
-                "currency": feedback.currency,
-                "note": feedback.note,
-            }
-        })
 
 
 MAX_PDF_SIZE = 10 * 1024 * 1024  # 10 MB
