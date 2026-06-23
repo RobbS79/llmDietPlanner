@@ -1,66 +1,8 @@
-// Shared pricing types + helpers for the meal-plan shopping list.
+// Shared pricing helpers + per-recipe pricing/deals types.
 //
-// These mirror EXACTLY the `pricing` payload the backend returns on a plan
-// (see diet_planner/services/shopping_list_pricing.py). Price is always an
-// ESTIMATE — never presented as an exact figure. Store/brand names live only
-// in `deals`, never in the main shopping list.
-
-// ---- New contract ----
-
-export type PriceSource = 'estimate' | 'pantry_estimate' | 'not_available';
-
-// A single row in `plan.shopping_list`. There is intentionally NO
-// matched_product_name / shop here — the list is brand- and store-agnostic.
-export interface ShoppingListItem {
-  ingredient: string;
-  quantity: number | string;
-  unit: string;
-  price_total: number | null;
-  price_source: PriceSource;
-  estimated: boolean;
-  // Legacy pantry flags some payloads still carry (used to quietly fold
-  // pantry staples into a collapsed section).
-  is_pantry_staple?: boolean;
-  pantry?: boolean;
-}
-
-// The whole-trolley estimate for THIS plan.
-export interface PriceEstimate {
-  total: number;
-  per_day: number | null;
-  per_portion: number | null;
-  currency: string;
-  is_estimate: true;
-  priced_items: number;
-  total_items: number;
-}
-
-export interface DealItem {
-  ingredient: string;
-  matched_product_name: string;
-  sale: number;
-  original: number | null;
-  savings: number | null;
-}
-
-export interface Deal {
-  store: string;
-  store_name: string;
-  status: 'current' | 'upcoming';
-  valid_from: string | null;
-  valid_until: string | null;
-  currency: string;
-  items: DealItem[];
-}
-
-export interface Pricing {
-  estimate: PriceEstimate | null;
-  deals: Deal[];
-  // Pantry toggles + presence still ride along on the payload so the
-  // shopping list can offer "I already have the basics" switches.
-  pantry_toggles?: { basics_on: boolean; fridge_on: boolean };
-  pantry_present?: { basics: boolean; fridge: boolean };
-}
+// Whole-plan shopping-list pricing has been removed — shopping and pricing
+// live per-recipe now. What remains is the shared money/date formatters and
+// the per-recipe price-range + active-deals contracts.
 
 // ---- Helpers ----
 
@@ -83,10 +25,6 @@ export const fmtDay = (iso: string | null): string => {
   if (Number.isNaN(d.getTime())) return '';
   return `${d.getDate()}.${d.getMonth() + 1}.`;
 };
-
-// Read the estimate off a plan object regardless of how it's nested.
-export const getEstimate = (plan: any): PriceEstimate | null =>
-  plan?.pricing?.estimate ?? null;
 
 // Normalise an ingredient name for matching deal -> list row.
 export const normName = (s: string | undefined | null): string =>
