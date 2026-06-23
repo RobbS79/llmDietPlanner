@@ -496,32 +496,10 @@ class DietaryPlan(models.Model):
         default=list,
         help_text="Legacy field: meal ideas (deprecated, use days instead)"
     )
-    shopping_list = models.JSONField(
-        default=list,
-        help_text="LLM-generated shopping list with ingredients (JSON structure)"
-    )
-    
-    # Django-calculated fields (not from LLM)
-    total_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-        help_text="Total price calculated from database (not LLM guess)"
-    )
-    pantry_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-        help_text="Pro-rated share of pantry staples included in total_price"
-    )
     currency = models.CharField(
         max_length=3,
         default='PLN',
-        help_text="Currency of the total price"
+        help_text="Currency of the plan"
     )
     
     # LLM usage tracking
@@ -555,18 +533,6 @@ class DietaryPlan(models.Model):
         help_text="OpenAI model used for generation (e.g., gpt-4o-mini)"
     )
     
-    # Shopping-list pricing pantry toggles (see SHOPPING_LIST_PRICING_PLAN.md §6).
-    # When ON, that level of pantry staple is excluded from the regular-price
-    # range (the user already has it at home).
-    pantry_basics_on = models.BooleanField(
-        default=True,
-        help_text="User has dry basics (salt, oil, spices, ...) at home; exclude from price range"
-    )
-    pantry_fridge_on = models.BooleanField(
-        default=False,
-        help_text="User has fridge basics (milk, butter, eggs) at home; exclude from price range"
-    )
-
     discount_optimization = models.JSONField(
         null=True,
         blank=True,

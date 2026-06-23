@@ -86,7 +86,7 @@ class DietaryGoalAdmin(admin.ModelAdmin):
 
 @admin.register(DietaryPlan)
 class DietaryPlanAdmin(admin.ModelAdmin):
-    list_display = ['id', 'dietary_goal', 'total_price', 'currency', 'llm_model_used', 'created_at']
+    list_display = ['id', 'dietary_goal', 'currency', 'llm_model_used', 'created_at']
     list_filter = ['currency', 'created_at']
     readonly_fields = ['created_at', 'updated_at']
     date_hierarchy = 'created_at'
@@ -96,10 +96,10 @@ class DietaryPlanAdmin(admin.ModelAdmin):
             'fields': ('dietary_goal',)
         }),
         ('LLM Generated Content', {
-            'fields': ('days', 'meal_ideas', 'shopping_list'),
+            'fields': ('days', 'meal_ideas'),
         }),
         ('Price Information', {
-            'fields': ('total_price', 'currency'),
+            'fields': ('currency',),
         }),
         ('LLM Usage', {
             'fields': ('llm_model_used', 'llm_input_tokens', 'llm_output_tokens', 'llm_total_tokens', 'llm_cost_usd'),
