@@ -2217,83 +2217,13 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
         # Never ship an empty/degenerate plan as COMPLETED.
         _assert_plan_has_content(transformed_days, goal, log_prefix)
 
-        # ── Phase 3: Aggregate ingredients into shopping list ──
-        shopping_items = aggregate_ingredients_from_meals(
-            transformed_days, context_id=context_id, goal_id=goal_id
-        )
-
-        # Carry catalog_id and pantry flags from LLM output into aggregated items
-        catalog_id_map = _build_catalog_id_map(days)
-        for item in shopping_items:
-            ingredient_lower = item.get('ingredient', '').lower().strip()
-            if ingredient_lower in catalog_id_map:
-                item['catalog_id'] = catalog_id_map[ingredient_lower].get('catalog_id')
-                item['pantry'] = catalog_id_map[ingredient_lower].get('pantry', False)
-
-        # Validate quantities
-        for i, item in enumerate(shopping_items):
-            shopping_items[i] = validate_shopping_item(
-                item, num_days=goal.num_days, context_id=context_id, goal_id=goal_id
-            )
-
-        # ── Phase 4: Resolve prices from DB ──
-        # Store selection was removed from the product; everything is the
-        # Rohlík single-store baseline. The mix_cost/mix_trips branch below is
-        # kept dormant for history but is never taken.
-        store_mode = 'single'
-        cross_store_data = None
-
-        if store_mode in ('mix_cost', 'mix_trips'):
-            from diet_planner.services.cross_store_optimizer import CrossStoreOptimizer
-            optimizer = CrossStoreOptimizer(goal)
-            cross_store_data = optimizer.optimize(shopping_items, strategy=store_mode)
-            # Flatten all items from all stores for storage
-            resolved_list = []
-            for store_list in cross_store_data['shopping_lists_by_store']:
-                for item in store_list['items']:
-                    item['assigned_store'] = store_list['store']
-                    item['assigned_store_name'] = store_list['store_name']
-                    resolved_list.append(item)
-            total_sum = Decimal(str(cross_store_data['total_price']))
-            priced_count = sum(1 for i in resolved_list if i.get('price_total'))
-        else:
-            # Static price-book estimate — no per-shop calls, no shop names in
-            # the list (see [[pricing-pivot-static-book]]). Stored total uses the
-            # default pantry toggles; the API recomputes live per the plan's
-            # actual toggles in DietaryPlanSerializer.get_pricing.
-            from diet_planner.services.estimate_pricer import EstimatePricer
-            resolved_list, estimate = EstimatePricer(goal).price(shopping_items)
-            total_sum = Decimal(str(estimate['total']))
-            priced_count = estimate['priced_items']
-
-        unpriced_count = len(resolved_list) - priced_count
-        unpriced_ratio = unpriced_count / max(len(resolved_list), 1)
-
-        if unpriced_ratio > 0.30:
-            logger.warning(
-                f"{log_prefix} High unpriced ratio: {unpriced_count}/{len(resolved_list)} "
-                f"({unpriced_ratio:.0%}) items without price"
-            )
-
-        # Build shopping_list payload (include cross-store metadata if applicable)
-        shopping_list_payload = resolved_list
-        if cross_store_data:
-            shopping_list_payload = {
-                'items': resolved_list,
-                'by_store': cross_store_data['shopping_lists_by_store'],
-                'savings_vs_single': cross_store_data['savings_vs_single'],
-                'best_single_store': cross_store_data['best_single_store'],
-                'best_single_store_total': cross_store_data['best_single_store_total'],
-                'num_stores': cross_store_data['num_stores'],
-                'strategy': cross_store_data['strategy'],
-            }
-
         # ── Store results ──
+        # The whole-plan shopping list and its price aggregation were removed;
+        # pricing/deals are surfaced per-recipe now. Only the plan days and LLM
+        # accounting are persisted here.
         plan = DietaryPlan.objects.create(
             dietary_goal=goal,
             days=transformed_days,
-            shopping_list=shopping_list_payload,
-            total_price=total_sum,
             currency=goal.currency,
             llm_model_used=llm_result.get('model'),
             llm_input_tokens=llm_result.get('input_tokens'),
@@ -2311,8 +2241,7 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
             logger.info(f"{log_prefix} Order {goal.shopify_order_id} fulfillment complete")
 
         logger.info(
-            f"{log_prefix} Plan {plan.id} created: {len(resolved_list)} items, "
-            f"{priced_count} priced, total={total_sum} {goal.currency}, "
+            f"{log_prefix} Plan {plan.id} created: {len(transformed_days)} days, "
             f"LLM cost=${llm_result.get('cost_usd', 0)}"
         )
         return {'status': 'success', 'plan_id': plan.id}
