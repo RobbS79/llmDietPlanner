@@ -467,6 +467,7 @@ class RecipeDetailView(APIView):
         recipe = Recipe.objects.create(
             meal_identifier=meal_identifier,
             dietary_goal=goal,
+            servings=meal.get('servings') or 1,
             name=meal.get('name', ''),
             description=meal.get('description', ''),
             food_category=meal.get('food_category', '') or guess_category(meal.get('name', ''), meal.get('ingredients', [])),
