@@ -121,3 +121,28 @@ export const fmtRange = (
 export const getRecipeRange = (_recipe: any): RecipePriceRange | null => {
   return null;
 };
+
+// ---- Per-recipe active deals (deals-headline pivot, 2026-06-23) ----
+
+// Mirrors backend services.recipe_deals output. Active-only — every deal here
+// is currently live (valid_from <= now < valid_until). Never a price/savings.
+export interface RecipeDeal {
+  ingredient: string;
+  canonical: string;
+  shop: string;
+  display_name: string;
+  source_url: string;
+  valid_until: string | null;
+}
+
+export interface RecipeDeals {
+  matched: number;
+  total: number;
+  deals: RecipeDeal[];
+}
+
+// Pull active deals off a recipe object; null when there are none to show.
+export const getRecipeDeals = (recipe: any): RecipeDeals | null => {
+  const d = recipe?.deals as RecipeDeals | undefined;
+  return d && d.matched > 0 ? d : null;
+};
