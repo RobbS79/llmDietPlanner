@@ -321,6 +321,7 @@ def scale_recipe_to_meal(
 
     return {
         'name': recipe.name_cs,
+        'servings': recipe.base_servings,
         'description': recipe.description or '',
         'food_category': '',  # stock-image slug; left blank -> generic fallback
         'preparation_time': recipe.total_time or recipe.prep_time or None,

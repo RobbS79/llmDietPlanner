@@ -181,6 +181,16 @@ class ScaleTest(TestCase):
         self.assertEqual(meal['nutritional_info']['calories'], 800)
         self.assertEqual(meal['nutritional_info']['protein'], '40g')
 
+    def test_meal_carries_base_servings(self):
+        r = make_recipe(base_servings=4)
+        meal = scale_recipe_to_meal(r)
+        self.assertEqual(meal['servings'], 4)
+
+    def test_meal_servings_defaults_to_base_one(self):
+        r = make_recipe(base_servings=1)
+        meal = scale_recipe_to_meal(r)
+        self.assertEqual(meal['servings'], 1)
+
 
 class OverlayTest(TestCase):
     def _days(self):
