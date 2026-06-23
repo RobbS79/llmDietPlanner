@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 // File: frontend/vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -35,5 +36,11 @@ export default defineConfig(({ command, isSsrBuild }) => ({
             assetFileNames: 'assets/[name]-[hash].[ext]',
           },
     },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
   },
 }))
