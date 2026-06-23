@@ -26,6 +26,19 @@ def make_canonical(name: str, **kwargs) -> CanonicalIngredient:
     )[0]
 
 
+def make_store(code: str, **kwargs) -> GroceryStore:
+    return GroceryStore.objects.get_or_create(
+        code=code,
+        defaults={
+            'name': kwargs.pop('name', code.replace('_', ' ').title()),
+            'chain': kwargs.pop('chain', code),
+            'country': kwargs.pop('country', 'CZ'),
+            'currency': kwargs.pop('currency', 'CZK'),
+            **kwargs,
+        },
+    )[0]
+
+
 def make_price(
     *,
     store_code: str,
@@ -40,6 +53,8 @@ def make_price(
     original_price=None,
     discount_percentage=None,
     valid_for_days: int = 7,
+    valid_from_offset_days: int = 0,
+    source_url: str = '',
     confidence: Decimal = Decimal('0.85'),
 ) -> PriceRecord:
     """
@@ -59,15 +74,17 @@ def make_price(
         },
     )
     now = timezone.now()
+    valid_from = now + timedelta(days=valid_from_offset_days)
     return PriceRecord.objects.create(
         store_product=store_product,
         price=Decimal(str(price)),
         currency=currency or store.currency,
         source_type=source_type,
         confidence=confidence,
-        valid_from=now,
-        valid_until=now + timedelta(days=valid_for_days),
+        valid_from=valid_from,
+        valid_until=valid_from + timedelta(days=valid_for_days),
         original_price=Decimal(str(original_price)) if original_price is not None else None,
         discount_percentage=discount_percentage,
         scraped_at=now,
+        source_url=source_url,
     )
