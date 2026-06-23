@@ -265,6 +265,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     dietary_goal_id = serializers.IntegerField(source='dietary_goal.id', read_only=True)
     image_url = serializers.SerializerMethodField()
     price_range = serializers.SerializerMethodField()
+    deals = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -278,6 +279,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'food_category',
             'image_url',
             'price_range',
+            'deals',
             'instructions',
             'ingredients',
             'preparation_time',
@@ -294,6 +296,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'price_range',
+            'deals',
             'created_at',
             'updated_at',
         ]
@@ -320,6 +323,12 @@ class RecipeSerializer(serializers.ModelSerializer):
             'currency': r.currency,
             'confident': r.confident,
         }
+
+    def get_deals(self, obj):
+        """Currently-active leaflet deals on this recipe's ingredients.
+        See services.recipe_deals — active-only, never fabricated."""
+        from .services.recipe_deals import recipe_deals
+        return recipe_deals(obj.ingredients or [])
 
 
 class MealInstanceSerializer(serializers.ModelSerializer):
