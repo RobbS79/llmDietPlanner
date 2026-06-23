@@ -26,6 +26,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from diet_planner.models import CanonicalIngredient, PriceRecord, PriceSourceType
+from diet_planner.services.piece_weights import load_piece_weights
 from diet_planner.services.units import to_base
 
 # Where the committed book lives; EstimatePricer loads this same path.
@@ -47,6 +48,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         min_samples = options['min_samples']
+        piece_weights = load_piece_weights()  # canonical slug -> grams/piece
 
         # Current regular-price records, joined to their product + canonical.
         records = (
@@ -74,6 +76,19 @@ class Command(BaseCommand):
             # Only mix products that measure the same way the canonical does.
             _, canon_dim = to_base(1.0, c.default_unit)
             if canon_dim is not None and canon_dim != dim:
+                # Piece<->weight bridge: a counted canonical ("2 ks cibule")
+                # that the store sells by weight ("síť 1 kg"). With a typical
+                # piece weight we convert the real catalog price into a
+                # per-piece price instead of discarding it. No weight → we must
+                # not invent a price, so fall through to skip.
+                grams = piece_weights.get(c.slug)
+                if canon_dim == 'count' and dim == 'mass' and grams:
+                    price_per_piece = (float(r.price) / pack_base) * grams
+                    pack_pieces = pack_base / grams
+                    samples.setdefault(c.id, []).append(
+                        (price_per_piece, pack_pieces, canon_dim)
+                    )
+                    canon[c.id] = c
                 continue
             samples.setdefault(c.id, []).append(
                 (float(r.price) / pack_base, pack_base, dim)

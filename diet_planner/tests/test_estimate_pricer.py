@@ -124,6 +124,26 @@ class EstimatePricerTest(TestCase):
         self.assertNotEqual(resolved[0]['price_source'], 'not_available')
         self.assertAlmostEqual(resolved[0]['price_total'], 300 * 0.04, places=2)
 
+    def test_prices_count_book_entry_against_gram_recipe_via_piece_weight(self):
+        # The book has onion as a per-piece (ks) entry, but the recipe asks for
+        # 220 g of onion. Without the piece<->weight bridge the pricer falls back
+        # to one whole pack (~9 onions); with it, 220 g ≈ 2 onions.
+        from unittest.mock import patch
+        ONION_KS = {'pack': 9.09, 'price_per_unit': 2.189, 'unit': 'ks',
+                    'name_cs': 'cibule'}
+        make_canonical('cibule', is_pantry_staple=False, default_unit='ks')
+        clear_cache()
+        p = self._pricer({'cibule': ONION_KS})
+        with patch('diet_planner.services.estimate_pricer.load_piece_weights',
+                   return_value={'cibule': 110.0}):
+            resolved, _ = p.price(
+                [{'ingredient': 'cibule', 'quantity': 220, 'unit': 'g',
+                  'canonical': 'cibule'}],
+                basics_on=True,
+            )
+        # 220 g / 110 g-per-piece = 2 onions × 2.189 ≈ 4.38 (NOT a whole pack).
+        self.assertAlmostEqual(resolved[0]['price_total'], 2 * 2.189, places=2)
+
     def test_no_shop_or_brand_fields_leak(self):
         p = self._pricer({'kureci-prsa': CHICKEN})
         resolved, _ = p.price(
