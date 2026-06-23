@@ -114,7 +114,10 @@ export const fmtRange = (
 ): string => `${fmtMoney(lo, decimals)}–${fmtMoney(hi, decimals)}`;
 
 // Pull a confident price range off a recipe object, else null.
-export const getRecipeRange = (recipe: any): RecipePriceRange | null => {
-  const pr = recipe?.price_range;
-  return pr && pr.confident ? (pr as RecipePriceRange) : null;
+// PIVOT 2026-06-23: absolute price display is disabled — the estimate
+// fabricated whole-pack costs for unconvertible units (see deals-headline
+// spec). The backend engine stays; we just stop surfacing it. Returns null so
+// every price block stops rendering. Replaced by getRecipeDeals (Task 5).
+export const getRecipeRange = (_recipe: any): RecipePriceRange | null => {
+  return null;
 };
