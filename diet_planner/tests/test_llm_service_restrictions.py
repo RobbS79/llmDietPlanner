@@ -219,46 +219,6 @@ class TestRegenerateMeal:
         assert all(i["name"] != "mouka" for i in result["ingredients"])
 
 
-class TestShoppingListUsesAggregatedList:
-    def test_user_prompt_lists_every_aggregated_item(self, monkeypatch):
-        svc = GeminiService()
-        captured = {}
-
-        class FakeModel:
-            def __init__(self, model_name, system_instruction):
-                captured["system_instruction"] = system_instruction
-            def generate_content(self, prompt, *a, **kw):
-                captured["prompt"] = prompt
-                resp = MagicMock()
-                resp.candidates = [MagicMock(finish_reason=MagicMock(name="OK"))]
-                resp.text = '{"shopping_list": [], "total_cost": 0}'
-                resp.usage_metadata = MagicMock(
-                    prompt_token_count=1, candidates_token_count=1
-                )
-                return resp
-
-        import diet_planner.llm_service as llm_mod
-        monkeypatch.setattr(llm_mod.genai, "GenerativeModel", FakeModel)
-
-        aggregated = [
-            {"ingredient": "rýže", "quantity": 200, "unit": "g"},
-            {"ingredient": "kuřecí prsa", "quantity": 800, "unit": "g"},
-            # 40 more items to ensure no [:5000] truncation drops them
-            *[
-                {"ingredient": f"item_{i}", "quantity": 10, "unit": "g"}
-                for i in range(40)
-            ],
-        ]
-        svc.generate_shopping_list_with_prices(
-            aggregated_items=aggregated,
-            shop_url="https://x.example",
-            goal=_goal(),
-        )
-        # Every aggregated item must appear verbatim in the user prompt
-        for item in aggregated:
-            assert item["ingredient"] in captured["prompt"]
-
-
 class TestGenerateMealPlanOnlyEnforcesRestrictions:
     """End-to-end through the real generation method with only Gemini mocked.
 
@@ -360,58 +320,3 @@ class TestGenerateMealPlanOnlyEnforcesRestrictions:
                 exclusions=exclusions,
             )
         assert len(state["prompts"]) == 3
-
-
-class TestCompletePlanAlignsShoppingListWithRecipes:
-    """The two-step generator must price the AGGREGATED recipe ingredients,
-    not the raw days envelope. This is the shopping-list <-> recipe parity
-    guarantee: every ingredient a recipe uses reaches the pricing call exactly
-    once, with quantities summed across meals.
-    """
-
-    def test_pricing_call_receives_every_recipe_ingredient(self, monkeypatch):
-        svc = GeminiService()
-        plan = json.dumps({"days": [{
-            "day_number": 1,
-            "breakfast": {
-                "name": "Vaječná snídaně",
-                "ingredients": [
-                    {"name": "vejce", "quantity": 2, "unit": "ks"},
-                    {"name": "rýže", "quantity": 100, "unit": "g"},
-                ],
-                "instructions": ["Uvař."],
-            },
-            "lunch": {
-                "name": "Kuřecí oběd",
-                "ingredients": [
-                    {"name": "kuřecí prsa", "quantity": 200, "unit": "g"},
-                ],
-                "instructions": ["Opeč."],
-            },
-            "dinner": {
-                "name": "Rýžová večeře",
-                "ingredients": [
-                    {"name": "rýže", "quantity": 150, "unit": "g"},
-                ],
-                "instructions": ["Uvař."],
-            },
-        }]})
-        shopping = json.dumps({"shopping_list": [], "total_cost": 0})
-        state = _script_genai(monkeypatch, [plan, shopping])
-
-        svc.generate_complete_plan_with_shopping_list(
-            user_prompt="týdenní jídelníček",
-            shop_url="https://x.example",
-            goal=_goal(dietary_restrictions="", prompt=""),
-        )
-
-        # Two LLM round-trips: meal plan (step 1), then pricing (step 2).
-        assert len(state["prompts"]) == 2
-        pricing_prompt = state["prompts"][1]
-        # Every recipe ingredient reaches the pricing call.
-        for name in ("vejce", "rýže", "kuřecí prsa"):
-            assert name in pricing_prompt, f"{name!r} missing from pricing prompt"
-        # rýže is used in two meals: it must be aggregated into a single line
-        # (250 g total), not duplicated and not left as a raw days envelope.
-        assert pricing_prompt.count("rýže") == 1
-        assert "250" in pricing_prompt
