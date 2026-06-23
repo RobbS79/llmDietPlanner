@@ -28,12 +28,6 @@ class MealPlanValidator:
     Used before marking a goal as completed.
     """
 
-    # Configuration
-    MIN_PRICED_ITEMS_RATIO = 0.5  # At least 50% of items must have prices
-    MIN_TOTAL_PRICE = 1.0  # Minimum sensible total (in any currency)
-    MAX_TOTAL_PRICE = 1000.0  # Maximum sensible total (in any currency)
-    MAX_SINGLE_ITEM_PRICE = 200.0  # Flag items over this price
-
     def validate(
         self,
         meal_plan: Dict[str, Any],
@@ -63,13 +57,8 @@ class MealPlanValidator:
         warnings.extend(meal_warnings)
         stats.update(meal_stats)
 
-        # Validate shopping list
-        shopping_errors, shopping_warnings, shopping_stats = self._validate_shopping_list(
-            shopping_list
-        )
-        errors.extend(shopping_errors)
-        warnings.extend(shopping_warnings)
-        stats.update(shopping_stats)
+        # Whole-plan shopping-list pricing has been removed (shopping/pricing
+        # live per-recipe now), so there is no shopping list to price-validate.
 
         # Validate coverage coherence between meal plan and shopping list.
         coherence_warnings = self._validate_coherence(meal_plan, shopping_list)
@@ -186,83 +175,6 @@ class MealPlanValidator:
         # Check minimum meals
         if stats['total_meals'] < 3:
             errors.append(f"Too few meals generated: {stats['total_meals']}")
-
-        return errors, warnings, stats
-
-    def _validate_shopping_list(
-        self,
-        shopping_list: List[Dict[str, Any]]
-    ) -> tuple:
-        """Validate the shopping list."""
-        errors = []
-        warnings = []
-        stats = {}
-
-        if not shopping_list:
-            errors.append("Empty shopping list")
-            return errors, warnings, stats
-
-        stats['total_items'] = len(shopping_list)
-
-        # Count items with prices
-        priced_items = [
-            item for item in shopping_list
-            if item.get('price') is not None and float(item.get('price', 0)) > 0
-        ]
-        stats['priced_items'] = len(priced_items)
-
-        # Check price coverage
-        price_ratio = len(priced_items) / len(shopping_list) if shopping_list else 0
-        stats['price_coverage_ratio'] = round(price_ratio, 2)
-
-        if price_ratio < self.MIN_PRICED_ITEMS_RATIO:
-            errors.append(
-                f"Too many items without prices: {len(shopping_list) - len(priced_items)} "
-                f"out of {len(shopping_list)} ({round((1 - price_ratio) * 100)}%)"
-            )
-
-        # Calculate and validate total price
-        total_price = sum(
-            float(item.get('price', 0))
-            for item in shopping_list
-            if item.get('price') is not None
-        )
-        stats['total_price'] = round(total_price, 2)
-
-        if total_price < self.MIN_TOTAL_PRICE:
-            errors.append(f"Suspiciously low total price: {total_price}")
-
-        if total_price > self.MAX_TOTAL_PRICE:
-            errors.append(f"Suspiciously high total price: {total_price}")
-
-        # Check for unreasonable individual prices
-        expensive_items = []
-        for item in shopping_list:
-            price = float(item.get('price', 0)) if item.get('price') else 0
-            if price > self.MAX_SINGLE_ITEM_PRICE:
-                expensive_items.append(
-                    f"{item.get('ingredient', 'Unknown')}: {price}"
-                )
-
-        if expensive_items:
-            warnings.append(
-                f"Items with unusually high prices: {', '.join(expensive_items[:5])}"
-            )
-
-        # Count by price type
-        price_types = {}
-        for item in shopping_list:
-            pt = item.get('price_type', 'UNKNOWN')
-            price_types[pt] = price_types.get(pt, 0) + 1
-        stats['price_types'] = price_types
-
-        # Check for LLM-estimated items (just informational)
-        llm_estimated = price_types.get('LLM_ESTIMATED', 0)
-        if llm_estimated > len(shopping_list) * 0.5:
-            warnings.append(
-                f"Many prices are estimates ({llm_estimated} of {len(shopping_list)}). "
-                "Actual prices may vary."
-            )
 
         return errors, warnings, stats
 
