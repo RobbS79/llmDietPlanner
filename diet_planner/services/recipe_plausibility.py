@@ -25,7 +25,7 @@ TOTAL_CEILING_G = 1200.0  # max total weighable mass per portion
 _WEIGHABLE_UNITS = {"g", "ml"}
 
 
-@dataclass
+@dataclass(frozen=True)
 class PlausibilityResult:
     ok: bool
     reasons: List[str] = field(default_factory=list)
@@ -53,11 +53,17 @@ def check_portion_plausibility(
     ingredients: List[Dict[str, Any]],
     base_servings: int,
 ) -> PlausibilityResult:
-    servings = base_servings if isinstance(base_servings, int) and base_servings > 0 else 1
+    try:
+        servings = int(base_servings)
+    except (TypeError, ValueError):
+        servings = 1
+    if servings <= 0:
+        servings = 1
 
     total_g = 0.0
     max_single_g = 0.0
     offenders: List[Dict[str, Any]] = []
+    offender_reasons: List[str] = []
 
     for ing in ingredients or []:
         if not isinstance(ing, dict):
@@ -74,20 +80,21 @@ def check_portion_plausibility(
         if per_portion > max_single_g:
             max_single_g = per_portion
         if per_portion > SINGLE_CAP_G:
+            name = ing.get("name") or "<unnamed>"
             offenders.append({
-                "name": ing.get("name"),
+                "name": name,
                 "grams_per_portion": round(per_portion, 1),
             })
+            offender_reasons.append(
+                f"{name}: {per_portion:.1f} g/portion > {SINGLE_CAP_G:.0f}"
+            )
 
     per_portion_total = total_g / servings
 
     reasons: List[str] = []
     if per_portion_total > TOTAL_CEILING_G:
-        reasons.append(f"total {per_portion_total:.0f} g/portion > {TOTAL_CEILING_G:.0f}")
-    for off in offenders:
-        reasons.append(
-            f"{off['name']}: {off['grams_per_portion']:.0f} g/portion > {SINGLE_CAP_G:.0f}"
-        )
+        reasons.append(f"total {per_portion_total:.1f} g/portion > {TOTAL_CEILING_G:.0f}")
+    reasons.extend(offender_reasons)
 
     return PlausibilityResult(
         ok=not reasons,

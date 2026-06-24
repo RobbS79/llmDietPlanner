@@ -65,6 +65,12 @@ class CheckPortionPlausibilityTest(SimpleTestCase):
         self.assertFalse(r.ok)
         self.assertEqual(r.per_portion_total_g, 680.0)
 
+    def test_negative_base_servings_treated_as_one(self):
+        ings = [{"name": "kuře", "quantity": 680, "unit": "g"}]
+        r = check_portion_plausibility(ings, base_servings=-1)
+        self.assertFalse(r.ok)
+        self.assertEqual(r.per_portion_total_g, 680.0)
+
     def test_no_weighable_rows_is_ok(self):
         r = check_portion_plausibility([], base_servings=4)
         self.assertTrue(r.ok)
