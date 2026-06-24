@@ -135,13 +135,24 @@ class SlackClaudeBot:
             return
 
         session = await self._get_session(thread_ts)
+        # Post the placeholder before taking the lock so the user gets an
+        # instant "On it…" even when another message in this thread is still
+        # being processed and holds the lock.
+        status_ts = await self._post_status(channel, thread_ts, ":thought_balloon: On it…")
         async with session.lock:
             session.last_activity = time.time()
-            await self._post_thinking(channel, thread_ts)
-            response = await self._query_claude(session.client, prompt)
+            updater = self._make_status_updater(channel, status_ts)
+            try:
+                response = await self._query_claude(session.client, prompt, updater)
+            except Exception:
+                logger.exception("claude query failed for thread_ts=%s", thread_ts)
+                response = (
+                    ":warning: Something went wrong while processing that — "
+                    "check `docker-compose logs slackbot`."
+                )
             session.last_activity = time.time()
 
-        await self._post_response(channel, thread_ts, response)
+        await self._finalize(channel, thread_ts, status_ts, response)
 
     async def _get_session(self, thread_ts: str) -> ThreadSession:
         existing = self.sessions.get(thread_ts)
@@ -161,41 +172,83 @@ class SlackClaudeBot:
         logger.info("opened new session for thread_ts=%s", thread_ts)
         return session
 
-    async def _query_claude(self, client: ClaudeSDKClient, prompt: str) -> str:
+    async def _query_claude(self, client: ClaudeSDKClient, prompt: str, on_tool) -> str:
         await client.query(prompt)
         chunks: list[str] = []
         async for message in client.receive_response():
-            # The SDK yields a variety of message types. We only forward
-            # assistant text to Slack and drop tool-use chatter.
+            # The SDK yields a variety of message types. We forward assistant
+            # text to Slack and surface tool-use as live status, dropping the
+            # rest of the chatter.
             content = getattr(message, "content", None)
             if not content:
                 continue
             for block in content:
+                name = getattr(block, "name", None)
+                if name and hasattr(block, "input"):
+                    try:
+                        await on_tool(_describe_tool(name, getattr(block, "input", None)))
+                    except Exception:
+                        pass  # status is best-effort, never fail the run for it
+                    continue
                 text = getattr(block, "text", None)
                 if isinstance(text, str):
                     chunks.append(text)
         return "\n".join(chunks).strip() or "_(no response)_"
 
-    async def _post_thinking(self, channel: str, thread_ts: str) -> None:
+    async def _post_status(self, channel: str, thread_ts: str, text: str) -> Optional[str]:
+        """Post the live-status placeholder and return its ts (None on failure)."""
         try:
-            await self.web_client.reactions_add(
-                channel=channel, timestamp=thread_ts, name="hourglass_flowing_sand"
+            resp = await self.web_client.chat_postMessage(
+                channel=channel, thread_ts=thread_ts, text=text
             )
+            return resp["ts"]
         except Exception:
-            pass  # already reacted, or no perms — non-fatal
+            logger.exception("failed to post status placeholder")
+            return None
 
-    async def _post_response(self, channel: str, thread_ts: str, text: str) -> None:
+    def _make_status_updater(self, channel: str, status_ts: Optional[str]):
+        """Return an async fn that edits the placeholder, throttled to ~1/s."""
+        state = {"last": 0.0}
+
+        async def update(label: str) -> None:
+            if status_ts is None:
+                return
+            now = time.time()
+            if now - state["last"] < 1.0:
+                return  # throttle: next tool-use will refresh it
+            state["last"] = now
+            try:
+                await self.web_client.chat_update(
+                    channel=channel, ts=status_ts, text=f":thought_balloon: {label}"
+                )
+            except Exception:
+                pass  # transient / rate-limit — non-fatal
+
+        return update
+
+    async def _finalize(
+        self, channel: str, thread_ts: str, status_ts: Optional[str], text: str
+    ) -> None:
         # Slack hard-limits messages to 40k chars; chunk just in case.
-        for chunk in _chunk(text, 35_000):
+        chunks = list(_chunk(text, 35_000)) or ["_(no response)_"]
+        if status_ts is not None:
+            try:
+                await self.web_client.chat_update(
+                    channel=channel, ts=status_ts, text=chunks[0]
+                )
+            except Exception:
+                logger.exception("failed to edit placeholder; posting answer fresh")
+                await self.web_client.chat_postMessage(
+                    channel=channel, thread_ts=thread_ts, text=chunks[0]
+                )
+        else:
+            await self.web_client.chat_postMessage(
+                channel=channel, thread_ts=thread_ts, text=chunks[0]
+            )
+        for chunk in chunks[1:]:
             await self.web_client.chat_postMessage(
                 channel=channel, thread_ts=thread_ts, text=chunk
             )
-        try:
-            await self.web_client.reactions_remove(
-                channel=channel, timestamp=thread_ts, name="hourglass_flowing_sand"
-            )
-        except Exception:
-            pass
 
     async def _reap_idle_sessions(self) -> None:
         while True:
@@ -220,3 +273,38 @@ class SlackClaudeBot:
 def _chunk(text: str, size: int):
     for i in range(0, len(text), size):
         yield text[i : i + size]
+
+
+_TOOL_EMOJI = {
+    "Bash": ":wrench:",
+    "Read": ":book:",
+    "Grep": ":mag:",
+    "Glob": ":mag:",
+    "Edit": ":memo:",
+    "Write": ":memo:",
+}
+
+
+def _describe_tool(name: str, tool_input: Optional[dict]) -> str:
+    """Render a one-line Slack status string for a tool-use block.
+
+    Picks the most informative field per tool (command / file / pattern) and
+    truncates it so the live status stays a single tidy line.
+    """
+    emoji = _TOOL_EMOJI.get(name, ":gear:")
+    inp = tool_input or {}
+    detail = ""
+    if name == "Bash":
+        detail = inp.get("command", "")
+    elif name in ("Read", "Edit", "Write"):
+        path = inp.get("file_path", "")
+        detail = path.rsplit("/", 1)[-1] if path else ""
+    elif name in ("Grep", "Glob"):
+        detail = inp.get("pattern", "")
+    detail = " ".join(str(detail).split())
+    if len(detail) > 80:
+        detail = detail[:79] + "…"
+    label = f"{emoji} {name}"
+    if detail:
+        label += f": `{detail}`"
+    return label
