@@ -11,16 +11,21 @@ portion, or any single ingredient per portion, exceeds a plausibility ceiling.
 (`ks`), to-taste rows, and non-numeric/non-positive quantities are ignored —
 under-counting only makes the gate more conservative.
 
-Thresholds are provisional constants, calibrated from
-`manage.py audit_portion_plausibility` output before the gate is relied upon.
+Thresholds calibrated against the 372-recipe prod corpus on 2026-06-24 via
+`manage.py audit_portion_plausibility`: legit per-portion mass ran p50=118,
+p90=357, p95=411 g, with one true offender at 7000 g (`domaci-leco`,
+base_servings=1). 1200/500 gave zero false positives while catching that error,
+so they are kept generous on purpose — ~17 legit recipes sit between p95 and
+1200, and the gate hard-blocks publishing, so tightening toward p95 would risk
+rejecting good recipes. Re-run the audit before lowering them.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-SINGLE_CAP_G = 500.0      # max weighable mass of one ingredient per portion
-TOTAL_CEILING_G = 1200.0  # max total weighable mass per portion
+SINGLE_CAP_G = 500.0      # max single-ingredient mass per portion (validated 2026-06-24, 0 false positives on 372)
+TOTAL_CEILING_G = 1200.0  # max total weighable mass per portion (validated 2026-06-24, p95 legit = 411 g)
 
 _WEIGHABLE_UNITS = {"g", "ml"}
 
