@@ -19,6 +19,7 @@ from diet_planner.services.recipe_plausibility import check_portion_plausibility
 
 _FIELDS = [
     'slug', 'name_cs', 'base_servings', 'per_portion_total_g',
+    'per_portion_max_single_g',
     'worst_ingredient', 'worst_g_per_portion', 'ok', 'reasons',
 ]
 
@@ -50,7 +51,7 @@ class Command(BaseCommand):
         status = options['status']
         csv_path = options['csv_path']
 
-        qs = CuratedRecipe.objects.all()
+        qs = CuratedRecipe.objects.all().order_by('id')
         if status != 'all':
             qs = qs.filter(status=status)
 
@@ -70,7 +71,8 @@ class Command(BaseCommand):
                 'name_cs': recipe.name_cs,
                 'base_servings': recipe.base_servings,
                 'per_portion_total_g': r.per_portion_total_g,
-                'worst_ingredient': worst['name'] if worst else '',
+                'per_portion_max_single_g': r.per_portion_max_single_g,
+                'worst_ingredient': worst['name'] if worst else ('(total ceiling)' if not r.ok else ''),
                 'worst_g_per_portion': worst['grams_per_portion'] if worst else 0,
                 'ok': r.ok,
                 'reasons': '; '.join(r.reasons),
@@ -92,7 +94,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write("Flagged 0.")
 
-        for row in sorted(flagged, key=lambda r: r['per_portion_total_g'], reverse=True):
+        for row in sorted(flagged, key=lambda row: row['per_portion_total_g'], reverse=True):
             self.stdout.write(
                 "  [{base_servings}] {slug}: total {per_portion_total_g:.0f} g/p"
                 " — {reasons}".format(**row))
