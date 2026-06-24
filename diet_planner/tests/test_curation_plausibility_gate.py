@@ -6,6 +6,8 @@ from django.test import TestCase
 from diet_planner.models import CuratedRecipe
 from diet_planner.services import recipe_curation
 
+# Exercises the single-ingredient (SINGLE_CAP_G) path; the total-ceiling path
+# is covered by test_recipe_plausibility.py.
 _CURATED_IMPLAUSIBLE = {
     "name_cs": "Pečené kuře",
     "name_en": "Roast chicken",
@@ -46,4 +48,5 @@ class CurationPlausibilityGateTest(TestCase):
     def test_allows_when_enforcement_disabled(self):
         result = self._run(enforce=False)
         self.assertTrue(result.ok)
+        self.assertIsNone(result.error)
         self.assertEqual(CuratedRecipe.objects.count(), 1)
