@@ -28,6 +28,7 @@ from bs4 import BeautifulSoup
 from diet_planner.llm_service import GeminiService
 from diet_planner.models import CuratedRecipe
 from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.recipe_plausibility import check_portion_plausibility
 from diet_planner.services import recipe_human_judge
 
 logger = logging.getLogger(__name__)
@@ -287,6 +288,7 @@ def curate_from_source(
     gemini: Optional[GeminiService] = None,
     run_judge: bool = True,
     persist: bool = True,
+    enforce_plausibility: bool = True,
 ) -> CurationResult:
     """Run the full pipeline for one `{dish_name, source_url, source_name}` entry.
 
@@ -346,6 +348,14 @@ def curate_from_source(
     if not fields["instructions"]:
         result.error = "no instructions after curation"
         return result
+
+    if enforce_plausibility:
+        plausibility = check_portion_plausibility(
+            fields["ingredients"], fields["base_servings"]
+        )
+        if not plausibility.ok:
+            result.error = "implausible portion: " + "; ".join(plausibility.reasons)
+            return result
 
     recipe = CuratedRecipe(**fields)
 
