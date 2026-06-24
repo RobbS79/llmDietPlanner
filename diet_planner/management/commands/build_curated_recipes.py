@@ -42,6 +42,8 @@ class Command(BaseCommand):
                             help="Seconds to sleep between entries (rate-limit guard, default 1.0).")
         parser.add_argument('--no-judge', action='store_true',
                             help="Skip the clarity/coherence judge (faster/cheaper drafts).")
+        parser.add_argument('--no-plausibility', action='store_true',
+                            help="Disable the per-portion plausibility gate (for threshold calibration).")
 
     def handle(self, *args, **options):
         index_path = options['index']
@@ -49,6 +51,7 @@ class Command(BaseCommand):
         limit = options['limit']
         sleep_s = options['sleep']
         run_judge = not options['no_judge']
+        enforce_plausibility = not options['no_plausibility']
 
         try:
             with open(index_path, 'r', encoding='utf-8') as f:
@@ -84,7 +87,7 @@ class Command(BaseCommand):
 
         for i, entry in enumerate(entries, 1):
             label = entry.get('dish_name') or entry.get('source_url')
-            result = curate_from_source(entry, gemini=gemini, run_judge=run_judge, persist=True)
+            result = curate_from_source(entry, gemini=gemini, run_judge=run_judge, persist=True, enforce_plausibility=enforce_plausibility)
 
             if result.skipped:
                 skipped += 1
