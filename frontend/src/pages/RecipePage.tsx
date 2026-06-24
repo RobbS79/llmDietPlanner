@@ -7,6 +7,7 @@ import { getFoodImageUrl } from '@/lib/food-image';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals } from '@/lib/pricing';
 
 export const RecipePage = () => {
@@ -184,29 +185,8 @@ export const RecipePage = () => {
         })()}
 
         <div className="grid md:grid-cols-3 gap-10">
-          {/* Ingredients sidebar */}
-          <Card className="p-8 md:col-span-1 text-left h-fit md:sticky md:top-10">
-            <h2 className="text-lg font-black text-white uppercase tracking-tighter italic mb-6 pb-4 border-b border-slate-600">
-              Ingredience
-            </h2>
-            <ul className="space-y-3">
-              {(recipe.ingredients || []).map((ing: any, idx: number) => (
-                <li key={idx} className="flex items-start gap-3 text-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0" />
-                  <span className="text-zinc-300">
-                    {typeof ing === 'string' ? ing : (
-                      <>
-                        <span className="font-bold text-white">{ing.name}</span>
-                        {ing.quantity && (
-                          <span className="text-zinc-300 ml-1">— {ing.quantity} {ing.unit || ''}</span>
-                        )}
-                      </>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
+          {/* Ingredients sidebar — scaled "shopping list" with portion stepper */}
+          <RecipeIngredients ingredients={recipe.ingredients} baseServings={recipe.servings} />
 
           {/* Instructions */}
           <div className="md:col-span-2 space-y-8 text-left">
