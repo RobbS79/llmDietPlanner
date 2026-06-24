@@ -12,12 +12,13 @@ portion, or any single ingredient per portion, exceeds a plausibility ceiling.
 under-counting only makes the gate more conservative.
 
 Thresholds calibrated against the 372-recipe prod corpus on 2026-06-24 via
-`manage.py audit_portion_plausibility`: legit per-portion mass ran p50=118,
-p90=357, p95=411 g, with one true offender at 7000 g (`domaci-leco`,
-base_servings=1). 1200/500 gave zero false positives while catching that error,
-so they are kept generous on purpose — ~17 legit recipes sit between p95 and
-1200, and the gate hard-blocks publishing, so tightening toward p95 would risk
-rejecting good recipes. Re-run the audit before lowering them.
+`manage.py audit_portion_plausibility`: legit per-portion mass runs p50=118,
+p90=357, p95~404, max=700 g. The audit caught one true offender (`domaci-leco`,
+base_servings=1 -> 7000 g/portion), since corrected to 18 servings; the corpus
+now flags 0. 1200/500 give zero false positives and are kept generous on
+purpose — legit recipes reach 700 g/portion and the gate hard-blocks
+publishing, so tightening toward p95 would risk rejecting good ones. Re-run the
+audit before lowering them.
 """
 from __future__ import annotations
 
