@@ -361,7 +361,7 @@ export const Landing = () => {
                 <a href="mailto:admin@kentakin.eu" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Kontakt</a>
               </div>
             </div>
-            <p className="text-xs text-paper/80 text-center sm:text-left">&copy; {new Date().getFullYear()} Vařto. All rights reserved.</p>
+            <p className="text-xs text-paper/80 text-center sm:text-left">&copy; {new Date().getFullYear()} Vařto. Všechna práva vyhrazena.</p>
           </div>
         </div>
       </footer>

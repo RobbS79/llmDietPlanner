@@ -15,7 +15,7 @@ export const Terms = () => (
         Obchodní <span className="text-paprika">podmínky.</span>
       </h1>
 
-      <div className="prose prose max-w-none space-y-8 text-sm text-ink leading-relaxed">
+      <div className="prose max-w-none space-y-8 text-sm text-ink leading-relaxed">
         <section>
           <h2 className="font-display text-lg font-black text-ink uppercase tracking-tight mb-4">1. Základní ustanovení</h2>
           <p className="text-muted">Tyto obchodní podmínky upravují práva a povinnosti uživatelů služby Vařto. Použitím služby souhlasíte s těmito podmínkami.</p>

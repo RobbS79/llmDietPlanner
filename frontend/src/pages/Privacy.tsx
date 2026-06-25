@@ -15,7 +15,7 @@ export const Privacy = () => (
         Zásady ochrany <span className="text-paprika">soukromí.</span>
       </h1>
 
-      <div className="prose prose max-w-none space-y-8 text-sm text-ink leading-relaxed">
+      <div className="prose max-w-none space-y-8 text-sm text-ink leading-relaxed">
         <section>
           <h2 className="font-display text-lg font-black text-ink uppercase tracking-tight mb-4">1. Správce údajů</h2>
           <p className="text-muted">Správcem vašich osobních údajů je Vařto. V případě dotazů nás kontaktujte na <a href="mailto:admin@kentakin.eu" className="text-green hover:text-green-mid">admin@kentakin.eu</a>.</p>
