@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { Zap, Loader2, AlertCircle, CheckCircle2, Mail, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Mail, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 
 export const ForgotPassword = () => {
@@ -26,35 +26,31 @@ export const ForgotPassword = () => {
   };
 
   return (
-    <div className="h-screen flex items-center justify-center p-6 bg-[#1e293b] relative overflow-hidden">
+    <div className="h-screen flex items-center justify-center p-6 bg-paper text-ink font-body relative overflow-hidden">
       <a href="#forgot-form" className="skip-to-content">
         Přejít na formulář
       </a>
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-[-15%] left-[-15%] w-[800px] h-[800px] bg-emerald-600/[0.04] blur-[180px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-15%] right-[-15%] w-[900px] h-[900px] bg-teal-600/[0.02] blur-[220px] rounded-full animate-pulse delay-1000" />
-      </div>
 
-      <div className="max-w-md w-full relative z-10 bg-slate-700/50 border border-slate-600 rounded-3xl shadow-deep-full p-12">
+      <div className="max-w-md w-full relative z-10 bg-card border border-line rounded-3xl shadow-deep-full p-12">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-400 text-white mb-6 shadow-glow-md">
-            <Zap size={32} fill="currentColor" />
-          </div>
-          <h1 className="text-3xl font-black text-white tracking-tighter leading-none uppercase italic mb-3">
-            Obnova <span className="text-emerald-500 not-italic">hesla.</span>
+          <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">
+            vařto<span className="text-paprika">.</span>
+          </span>
+          <h1 className="text-3xl font-black text-ink tracking-tighter leading-none uppercase italic mb-3 mt-6">
+            Obnova <span className="text-green not-italic">hesla.</span>
           </h1>
-          <p className="text-xs text-zinc-400 font-bold">Zadejte svůj e-mail a pošleme vám odkaz pro obnovu.</p>
+          <p className="text-xs text-muted font-bold">Zadejte svůj e-mail a pošleme vám odkaz pro obnovu.</p>
         </div>
 
         <div aria-live="polite" aria-atomic="true">
         {error && (
-          <div role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-4 mb-6 text-xs font-bold">
+          <div role="alert" className="flex items-center gap-3 bg-paprika-soft border border-paprika/20 text-paprika-strong rounded-xl p-4 mb-6 text-xs font-bold">
             <AlertCircle size={16} className="shrink-0" />
             <span>{error}</span>
           </div>
         )}
         {success && (
-          <div role="status" className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl p-4 mb-6 text-xs font-bold">
+          <div role="status" className="flex items-center gap-3 bg-green-soft border border-green/20 text-green rounded-xl p-4 mb-6 text-xs font-bold">
             <CheckCircle2 size={16} className="shrink-0" />
             <span>{success}</span>
           </div>
@@ -65,9 +61,9 @@ export const ForgotPassword = () => {
           <fieldset className="space-y-4 border-0 p-0 m-0">
             <legend className="sr-only">Obnova hesla</legend>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">E-mail</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted">E-mail</label>
             <div className="relative">
-              <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 required
                 type="email"
@@ -75,7 +71,7 @@ export const ForgotPassword = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50"
+                className="w-full bg-paper border border-line rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-ink placeholder:text-muted focus:outline-none"
               />
             </div>
           </div>
@@ -85,14 +81,14 @@ export const ForgotPassword = () => {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6"
+            className="w-full bg-green hover:bg-green-mid text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6"
           >
             {mutation.isPending ? <Loader2 className="animate-spin" size={18} /> : 'Odeslat odkaz pro obnovu'}
           </button>
         </form>
 
         <div className="text-center mt-8">
-          <Link to="/login" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2">
+          <Link to="/login" className="text-xs font-bold text-muted hover:text-green transition-colors inline-flex items-center gap-2">
             <ArrowLeft size={14} /> Zpět na přihlášení
           </Link>
         </div>
