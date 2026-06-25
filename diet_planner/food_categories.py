@@ -162,8 +162,29 @@ KEYWORD_RULES = [
 ]
 
 
+def _match_keywords(text: str):
+    """Return the first category whose keyword appears in text, else None."""
+    for keywords, category in KEYWORD_RULES:
+        for kw in keywords:
+            if kw.lower() in text:
+                return category
+    return None
+
+
 def guess_category(name: str, ingredients: list = None) -> str:
-    text = name.lower()
+    name_text = (name or '').lower()
+
+    # The dish NAME is the strongest signal for which photo to show, so match
+    # it on its own first. This stops a dish like "Kuřecí parmigiana" (chicken)
+    # from being tagged 'vajicka' (eggs) just because an egg shows up in its
+    # ingredient list — the egg rule sits ahead of the chicken rule in
+    # KEYWORD_RULES, so name+ingredients matching would otherwise pick eggs.
+    category = _match_keywords(name_text)
+    if category:
+        return category
+
+    # Only when the name says nothing fall back to name + ingredients.
+    text = name_text
     if ingredients:
         for ing in ingredients:
             if isinstance(ing, dict):
@@ -171,9 +192,4 @@ def guess_category(name: str, ingredients: list = None) -> str:
             else:
                 text += ' ' + str(ing).lower()
 
-    for keywords, category in KEYWORD_RULES:
-        for kw in keywords:
-            if kw.lower() in text:
-                return category
-
-    return DEFAULT_CATEGORY
+    return _match_keywords(text) or DEFAULT_CATEGORY

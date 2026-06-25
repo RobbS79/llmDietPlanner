@@ -1,18 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Zap, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { PublicHeader } from '@/components/layout/PublicHeader';
 
 export const About = () => (
   <div className="min-h-screen bg-[#1e293b] text-white">
-    <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-4xl mx-auto">
-      <Link to="/" className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
-          <Zap size={20} fill="currentColor" />
-        </div>
-        <span className="text-xl font-black tracking-tighter uppercase italic">
-          Diet<span className="text-emerald-500 not-italic">Planner.</span>
-        </span>
-      </Link>
-    </nav>
+    <PublicHeader />
 
     <main className="max-w-4xl mx-auto px-6 sm:px-12 py-12">
       <Link to="/" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">

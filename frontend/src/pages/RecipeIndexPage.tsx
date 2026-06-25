@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Zap, ArrowRight, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
+import { Zap, ArrowRight, Clock, Users, ChefHat } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
+import { PublicHeader } from '@/components/layout/PublicHeader';
 import { getRecipeDeals } from '@/lib/pricing';
 
 export const RecipeIndexPage = () => {
@@ -18,21 +19,7 @@ export const RecipeIndexPage = () => {
 
   return (
     <div className="min-h-screen bg-[#1e293b] text-white">
-      <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
-            <Zap size={20} fill="currentColor" />
-          </div>
-          <span className="text-xl font-black tracking-tighter uppercase italic">
-            Diet<span className="text-emerald-500 not-italic">Planner.</span>
-          </span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">Ceník</button>
-          <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors">Přihlásit se</button>
-          <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">Začít zdarma</button>
-        </div>
-      </nav>
+      <PublicHeader />
 
       <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12">
         <header className="mb-12">
@@ -46,8 +33,19 @@ export const RecipeIndexPage = () => {
         </header>
 
         {isLoading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 size={48} className="text-emerald-500 animate-spin" />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6" aria-hidden="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-slate-600 bg-slate-800/40 overflow-hidden animate-pulse">
+                <div className="h-40 bg-slate-700/50" />
+                <div className="p-8 space-y-4">
+                  <div className="h-5 w-3/4 bg-slate-700/60 rounded" />
+                  <div className="h-3 w-full bg-slate-700/40 rounded" />
+                  <div className="h-3 w-5/6 bg-slate-700/40 rounded" />
+                  <div className="h-px bg-slate-600 mt-6" />
+                  <div className="h-3 w-1/2 bg-slate-700/40 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : data?.results?.length === 0 ? (
           <div className="py-20 text-center">
@@ -60,8 +58,8 @@ export const RecipeIndexPage = () => {
               {data?.results?.map((recipe: any) => (
                 <Card
                   key={recipe.id}
-                  className="p-0 hover:bg-slate-700 hover:border-emerald-500/30 cursor-pointer group text-left overflow-hidden"
-                  onClick={() => navigate(`/recepty/${recipe.id}/${recipe.slug || ''}/`)}
+                  to={`/recepty/${recipe.id}/${recipe.slug || ''}/`}
+                  className="p-0 hover:bg-slate-700 hover:border-emerald-500/30 group text-left overflow-hidden"
                 >
                   {(() => {
                     const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Zap, Check, X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
 import { startCheckout, type BillingTier } from '@/lib/billing';
 import { isAccessTokenValid } from '@/lib/auth';
+import { PublicHeader } from '@/components/layout/PublicHeader';
 
 const PLANS = [
   {
@@ -124,19 +125,7 @@ export const Pricing = () => {
 
   return (
     <div className="min-h-screen bg-[#1e293b] text-white">
-      <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
-            <Zap size={20} fill="currentColor" />
-          </div>
-          <span className="text-xl font-black tracking-tighter uppercase italic">
-            Diet<span className="text-emerald-500 not-italic">Planner.</span>
-          </span>
-        </Link>
-        <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-          Začít zdarma
-        </button>
-      </nav>
+      <PublicHeader />
 
       <main className="max-w-6xl mx-auto px-6 sm:px-12 py-12">
         <Link to="/" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
