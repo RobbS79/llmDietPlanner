@@ -146,7 +146,7 @@ def public_recipe_view(request, pk, slug=None):
 <script type="application/ld+json">{json.dumps(schema_ld, ensure_ascii=False)}</script>'''
 
     html = template.replace('<!--ssr-outlet-->', recipe_html)
-    title = f'{recipe.name} — Recept | DietPlanner AI'
+    title = f'{recipe.name} — Recept | Vařto'
     desc = (recipe.description or recipe.name)[:160]
     canonical = f'{SITE_URL}/recepty/{recipe.pk}/{recipe.slug}/'
     html = _replace_meta(html, title, desc, canonical)
@@ -193,7 +193,7 @@ def public_recipe_index_view(request):
     if not template:
         raise Http404
     html = template.replace('<!--ssr-outlet-->', index_html)
-    title = 'Recepty — DietPlanner AI'
+    title = 'Recepty — Vařto'
     desc = 'Prozkoumejte recepty generované AI s nutričními hodnotami a podrobnými postupy. Každý recept obsahuje ingredience, postup a nutriční hodnoty.'
     canonical = f'{SITE_URL}/recepty/'
     html = _replace_meta(html, title, desc, canonical)

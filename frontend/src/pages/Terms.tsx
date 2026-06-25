@@ -26,12 +26,12 @@ export const Terms = () => (
       <div className="prose prose-invert prose-zinc max-w-none space-y-8 text-sm text-zinc-200 leading-relaxed">
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">1. Základní ustanovení</h2>
-          <p>Tyto obchodní podmínky upravují práva a povinnosti uživatelů služby DietPlanner AI. Použitím služby souhlasíte s těmito podmínkami.</p>
+          <p>Tyto obchodní podmínky upravují práva a povinnosti uživatelů služby Vařto. Použitím služby souhlasíte s těmito podmínkami.</p>
         </section>
 
         <section>
           <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4">2. Popis služby</h2>
-          <p>DietPlanner AI je webová aplikace, která pomocí umělé inteligence generuje personalizované jídelníčky, recepty a nákupní seznamy s reálními cenami z českých a slovenských obchodů.</p>
+          <p>Vařto je webová aplikace, která generuje personalizované jídelníčky, recepty a nákupní seznamy s reálními cenami z českých a slovenských obchodů.</p>
         </section>
 
         <section>

@@ -25,7 +25,7 @@ export const About = () => (
           <p className="text-sm font-bold uppercase tracking-wide text-muted mb-4">Zakladatel</p>
           <p className="text-base text-ink leading-relaxed">
             Pracuju na plný úvazek a sportuju, ale nikdy mi nezbýval čas plánovat zdravá jídla
-            ani počítat nákup. Tak jsem vytvořil DietPlanner, který zvládne obojí za pár vteřin —
+            ani počítat nákup. Tak jsem vytvořil Vařto, které zvládne obojí za pár vteřin —
             a teď ho sdílím s vámi.
           </p>
         </div>
@@ -33,7 +33,7 @@ export const About = () => (
 
       <div className="max-w-none space-y-6 text-base text-muted leading-relaxed border-t border-line pt-10">
         <p>
-          Ahoj, jsem <strong className="text-ink">Robert Soroka</strong> a DietPlanner jsem
+          Ahoj, jsem <strong className="text-ink">Robert Soroka</strong> a Vařto jsem
           vytvořil sám. Pracuju na plný úvazek, žiju aktivně a sportovně a o duševní zdraví dbám
           stejně jako o to fyzické — a právě tam můj problém začínal: nikdy mi nezbýval čas
           naplánovat jídla, která by byla zároveň opravdu zdravá a stála za to je jíst.
@@ -54,7 +54,7 @@ export const About = () => (
           to="/pricing"
           className="inline-flex items-center gap-2 rounded-xl bg-green hover:bg-green-mid px-6 py-3 text-sm font-bold text-white transition-colors"
         >
-          Vyzkoušet DietPlanner
+          Vyzkoušet Vařto
         </Link>
       </div>
     </main>
