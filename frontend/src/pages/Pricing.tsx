@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Zap, Check, X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
+import { Check, X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
 import { startCheckout, type BillingTier } from '@/lib/billing';
 import { isAccessTokenValid } from '@/lib/auth';
 import { PublicHeader } from '@/components/layout/PublicHeader';
@@ -124,26 +124,29 @@ export const Pricing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#1e293b] text-white">
+    <div className="min-h-screen bg-paper text-ink font-body">
       <PublicHeader />
 
       <main className="max-w-6xl mx-auto px-6 sm:px-12 py-12">
-        <Link to="/" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2 mb-8">
+        <Link
+          to="/"
+          className="text-xs font-bold text-muted hover:text-green transition-colors inline-flex items-center gap-2 mb-8"
+        >
           <ArrowLeft size={14} /> Zpět na hlavní stránku
         </Link>
 
         <header className="text-center mb-16 space-y-6">
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em]">Ceník</p>
-          <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase italic leading-[0.85]">
-            Jednoduchý <span className="text-emerald-500 not-italic">ceník.</span>
+          <p className="text-[10px] font-black text-green uppercase tracking-[1em]">Ceník</p>
+          <h1 className="font-display text-5xl sm:text-6xl font-extrabold tracking-tight leading-tight text-ink">
+            Jednoduchý <span className="text-paprika">ceník.</span>
           </h1>
-          <p className="text-zinc-200 text-lg max-w-md mx-auto">
+          <p className="text-muted text-lg max-w-md mx-auto">
             Začněte zdarma. Upgradujte, až budete připraveni.
           </p>
         </header>
 
         {checkoutError && (
-          <div className="max-w-md mx-auto mb-8 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm text-red-300">
+          <div className="max-w-md mx-auto mb-8 rounded-xl border border-paprika/40 bg-paprika-soft px-5 py-3 text-center text-sm text-paprika-strong">
             {checkoutError}
           </div>
         )}
@@ -152,90 +155,99 @@ export const Pricing = () => {
           {PLANS.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-3xl p-8 transition-all ${
+              className={`rounded-3xl transition-all flex flex-col ${
                 plan.highlighted
-                  ? 'bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border-2 border-emerald-500/30 shadow-[0_0_60px_rgba(5,150,105,0.1)]'
-                  : 'bg-slate-700/50 border border-slate-600'
+                  ? 'bg-card border-2 border-green shadow-lg'
+                  : 'bg-card border border-line'
               }`}
             >
-              {plan.highlighted && (
-                <div className="inline-block px-3 py-1 bg-emerald-500 rounded-lg text-[9px] font-black uppercase tracking-widest mb-6 shadow-lg">
-                  Doporučeno
-                </div>
-              )}
-
-              <h2 className="text-3xl font-black uppercase italic tracking-tighter mb-2">{plan.name}</h2>
-              <p className="text-zinc-300 text-sm mb-8">{plan.description}</p>
-
-              <div className="mb-8">
-                {plan.price === 0 ? (
-                  <p className="text-5xl font-black tracking-tighter">
-                    0 <span className="text-zinc-300 text-lg">CZK</span>
-                  </p>
-                ) : (
-                  <p className="text-5xl font-black tracking-tighter">
-                    {plan.price} <span className="text-zinc-300 text-lg">CZK/měsíc</span>
-                  </p>
+              {/* Card header zone */}
+              <div className={`rounded-t-3xl px-8 pt-8 pb-6 ${plan.highlighted ? 'bg-green-soft' : ''}`}>
+                {plan.highlighted && (
+                  <div className="inline-block px-3 py-1 bg-green text-white rounded-lg text-[10px] font-bold uppercase tracking-wide mb-4">
+                    Doporučeno
+                  </div>
                 )}
+
+                <h2 className="font-display text-2xl font-bold text-ink mb-1">{plan.name}</h2>
+                <p className="text-muted text-sm mb-6">{plan.description}</p>
+
+                <div className="mb-2">
+                  {plan.price === 0 ? (
+                    <p className="font-price text-5xl font-bold text-ink">
+                      0 <span className="text-muted text-lg font-normal">Kč</span>
+                    </p>
+                  ) : (
+                    <p className="font-price text-5xl font-bold text-ink">
+                      {plan.price} <span className="text-muted text-lg font-normal">Kč/měsíc</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <button
-                onClick={() => handleSelectPlan((plan as { tier?: BillingTier }).tier)}
-                disabled={checkoutTier !== null}
-                className={`w-full h-14 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-3 mb-10 disabled:opacity-60 disabled:cursor-not-allowed ${
-                  plan.highlighted
-                    ? 'bg-white text-black shadow-2xl hover:shadow-white/10'
-                    : 'bg-slate-600 text-white hover:bg-zinc-700'
-                }`}
-              >
-                {checkoutTier === (plan as { tier?: BillingTier }).tier
-                  ? 'Přesměrování…'
-                  : plan.cta}{' '}
-                <ArrowRight size={16} />
-              </button>
+              {/* Card body */}
+              <div className="px-8 pb-8 flex flex-col flex-1">
+                <button
+                  onClick={() => handleSelectPlan((plan as { tier?: BillingTier }).tier)}
+                  disabled={checkoutTier !== null}
+                  className={`w-full h-14 rounded-xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-3 mb-8 mt-6 disabled:opacity-60 disabled:cursor-not-allowed ${
+                    plan.highlighted
+                      ? 'bg-green hover:bg-green-mid text-white shadow-md'
+                      : 'bg-green hover:bg-green-mid text-white'
+                  }`}
+                >
+                  {checkoutTier === (plan as { tier?: BillingTier }).tier
+                    ? 'Přesměrování…'
+                    : plan.cta}{' '}
+                  <ArrowRight size={16} />
+                </button>
 
-              <ul className="space-y-4">
-                {plan.features.map((f) => (
-                  <li key={f.text} className="flex items-center gap-3 text-sm">
-                    {f.included ? (
-                      <Check size={16} className="text-emerald-400 shrink-0" />
-                    ) : (
-                      <X size={16} className="text-zinc-700 shrink-0" />
-                    )}
-                    <span className={f.included ? 'text-zinc-300' : 'text-zinc-400'}>{f.text}</span>
-                  </li>
-                ))}
-              </ul>
+                <ul className="space-y-4 flex-1">
+                  {plan.features.map((f) => (
+                    <li key={f.text} className="flex items-center gap-3 text-sm">
+                      {f.included ? (
+                        <Check size={16} className="text-green shrink-0" />
+                      ) : (
+                        <X size={16} className="text-line shrink-0" />
+                      )}
+                      <span className={f.included ? 'text-ink' : 'text-muted'}>{f.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           ))}
         </div>
 
         <div className="text-center mb-16">
-          <p className="text-zinc-300 text-sm">
-            Stojí méně než jedno kafe týdně. Průměrný uživatel ušetří <strong className="text-white">850 CZK měsíčně</strong> na nákupech.
+          <p className="text-muted text-sm">
+            Stojí méně než jedno kafe týdně. Průměrný uživatel ušetří <strong className="text-ink">850 Kč měsíčně</strong> na nákupech.
           </p>
         </div>
 
         {/* FAQ */}
         <section className="max-w-3xl mx-auto mb-24">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">FAQ</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Časté dotazy</h2>
+            <p className="text-[10px] font-black text-green uppercase tracking-[1em] mb-4">FAQ</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink">Časté dotazy</h2>
           </div>
 
           <div className="space-y-3">
             {FAQ.map((item, i) => (
-              <div key={i} className="bg-slate-700/50 border border-slate-600 rounded-2xl overflow-hidden">
+              <div key={i} className="bg-card border border-line rounded-2xl overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="w-full flex items-center justify-between p-6 text-left"
                 >
-                  <span className="text-sm font-bold text-white pr-4">{item.q}</span>
-                  <HelpCircle size={18} className={`shrink-0 transition-colors ${openFaq === i ? 'text-emerald-400' : 'text-zinc-400'}`} />
+                  <span className="text-sm font-bold text-ink pr-4">{item.q}</span>
+                  <HelpCircle
+                    size={18}
+                    className={`shrink-0 transition-colors ${openFaq === i ? 'text-green' : 'text-muted'}`}
+                  />
                 </button>
                 {openFaq === i && (
-                  <div className="px-6 pb-6 pt-0">
-                    <p className="text-sm text-zinc-200 leading-relaxed">{item.a}</p>
+                  <div className="px-6 pb-6 pt-0 bg-kraft">
+                    <p className="text-sm text-ink leading-relaxed">{item.a}</p>
                   </div>
                 )}
               </div>
@@ -245,25 +257,33 @@ export const Pricing = () => {
 
         {/* Bottom CTA */}
         <section className="text-center pb-12">
-          <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-16">
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4">Připraveni šetřit čas i peníze?</h2>
-            <p className="text-zinc-200 mb-8">Začněte se 2 jídelníčky zdarma. Bez kreditní karty.</p>
-            <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
+          <div className="bg-green-soft border border-green/20 rounded-3xl p-12 sm:p-16">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink mb-4">
+              Připraveni šetřit čas i peníze?
+            </h2>
+            <p className="text-muted mb-8">Začněte se 2 jídelníčky zdarma. Bez kreditní karty.</p>
+            <button
+              onClick={() => navigate('/login')}
+              className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] inline-flex items-center gap-3"
+            >
               Vytvořit jídelníček zdarma <ArrowRight size={18} />
             </button>
           </div>
         </section>
       </main>
 
-      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-slate-700">
+      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-line">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Zap size={16} className="text-emerald-500" />
-            <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-400">DietPlanner.</span>
-          </div>
+          <span className="font-display font-extrabold text-xl tracking-tight text-ink lowercase">
+            vařto<span className="text-paprika">.</span>
+          </span>
           <div className="flex items-center gap-6">
-            <Link to="/privacy" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Zásady ochrany soukromí</Link>
-            <Link to="/terms" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Obchodní podmínky</Link>
+            <Link to="/privacy" className="text-xs font-bold text-muted hover:text-ink transition-colors">
+              Zásady ochrany soukromí
+            </Link>
+            <Link to="/terms" className="text-xs font-bold text-muted hover:text-ink transition-colors">
+              Obchodní podmínky
+            </Link>
           </div>
         </div>
       </footer>
