@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Zap, ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, List, Star, Quote, Heart, Target, Wallet, Lightbulb, Search, Shield, SlidersHorizontal } from 'lucide-react';
+import { ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, List, Quote, Heart, Target, Wallet, Lightbulb, Search, SlidersHorizontal } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/PublicHeader';
+import { Receipt } from '@/components/ui/Receipt';
 
 const SAMPLE_PLAN = {
   days: [
@@ -21,6 +22,15 @@ const SAMPLE_PLAN = {
   store: 'Rohlik.cz',
 };
 
+const DAY_CODES = ['PO', 'ÚT', 'ST', 'ČT', 'PÁ'];
+
+const RECEIPT_ITEMS = SAMPLE_PLAN.shoppingList.map((item, i) => ({
+  day: DAY_CODES[i],
+  name: item.name,
+  price: item.price,
+  deal: i === 1 || i === 3,
+}));
+
 export const Landing = () => {
   const navigate = useNavigate();
   const [showStickyCta, setShowStickyCta] = useState(false);
@@ -32,167 +42,180 @@ export const Landing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#1e293b] text-white overflow-hidden pb-20 sm:pb-0">
+    <div className="min-h-screen bg-paper text-ink font-body overflow-hidden pb-20 sm:pb-0">
       <a href="#main-content" className="skip-to-content">
         Přejít na obsah
       </a>
       <PublicHeader />
 
       {/* Hero */}
-      <section id="main-content" className="relative px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-600/[0.06] blur-[180px] rounded-full" />
-          <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-teal-600/[0.03] blur-[220px] rounded-full" />
-        </div>
+      <section id="main-content" className="px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-14 items-center">
+          {/* Left: copy */}
+          <div>
+            <div className="inline-flex items-center gap-2 bg-green-soft rounded-full px-4 py-1.5 mb-8">
+              <span className="w-2 h-2 bg-green rounded-full" />
+              <span className="text-[10px] font-bold text-green uppercase tracking-widest">Jídelníček s reálnými cenami z obchodu</span>
+            </div>
 
-        <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 bg-emerald-600/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-8">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Jídelníček s reálnými cenami z obchodu</span>
+            <h1 className="font-display text-5xl sm:text-7xl font-extrabold tracking-tight leading-[0.95] mb-8">
+              Víte, co budete jíst<br />
+              <span className="text-paprika">i kolik to stojí.</span>
+            </h1>
+
+            <p className="text-lg sm:text-xl text-muted max-w-xl mb-4 leading-relaxed">
+              Získáte personalizovaný jídelníček s recepty, nutričními hodnotami a nákupním seznamem s <strong className="text-ink">reálnými cenami z vašeho obchodu.</strong>
+            </p>
+
+            <p className="text-sm text-muted mb-10">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-bold text-base shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-3">
+                Vytvořit jídelníček zdarma <ArrowRight size={18} />
+              </button>
+              <a href="#how-it-works" className="border border-line text-ink px-10 py-4 rounded-2xl font-bold text-base hover:bg-kraft transition-all text-center">
+                Jak to funguje
+              </a>
+            </div>
           </div>
 
-          <h1 className="text-5xl sm:text-7xl font-black tracking-tighter leading-[0.9] mb-8">
-            Víte, co budete jíst<br />
-            <span className="text-emerald-500">i kolik to bude stát.</span>
-          </h1>
-
-          <p className="text-lg sm:text-xl text-zinc-200 max-w-xl mb-4 leading-relaxed">
-            Získáte personalizovaný jídelníček s recepty, nutričními hodnotami a nákupním seznamem s <strong className="text-white">reálními cenami z vašeho obchodu.</strong>
-          </p>
-
-          <p className="text-sm text-zinc-300 mb-12">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
-
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button onClick={() => navigate('/login')} className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] flex items-center justify-center gap-3">
-              Vytvořit jídelníček zdarma <ArrowRight size={18} />
-            </button>
-            <a href="#how-it-works" className="border border-slate-500 text-zinc-300 px-10 py-4 rounded-2xl font-black uppercase text-sm tracking-widest hover:border-zinc-500 transition-all text-center">
-              Jak to funguje
-            </a>
+          {/* Right: receipt signature */}
+          <div className="lg:pl-6">
+            <Receipt
+              title="Váš týden"
+              subtitle="3 jídla denně · 7 dní"
+              source={SAMPLE_PLAN.store}
+              items={RECEIPT_ITEMS}
+              totalLabel="Týdenní nákup"
+              total={SAMPLE_PLAN.total}
+            />
           </div>
         </div>
       </section>
 
-      {/* Social proof - metrics */}
-      <section className="px-6 sm:px-12 pb-20 max-w-7xl mx-auto">
-        <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
-          {[
-            { value: '500+', label: 'Vygenerovaných plánů' },
-            { value: 'Reálné', label: 'Ceny z e-shopů' },
-            { value: '<60s', label: 'Čas generování' },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{stat.value}</p>
-              <p className="text-xs font-bold text-zinc-300 uppercase tracking-widest mt-1">{stat.label}</p>
-            </div>
-          ))}
+      {/* Honest stat band */}
+      <section className="bg-kraft border-y border-line">
+        <div className="px-6 sm:px-12 py-12 max-w-7xl mx-auto">
+          <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
+            {[
+              { value: '500+', label: 'Vygenerovaných plánů' },
+              { value: 'Reálné', label: 'Ceny z českých e-shopů' },
+              { value: '<60s', label: 'Čas generování' },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p className="font-display text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{stat.value}</p>
+                <p className="text-xs font-semibold text-muted mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="px-6 sm:px-12 pb-20 max-w-7xl mx-auto">
-        <div className="grid sm:grid-cols-3 gap-6">
-          {[
-            {
-              quote: 'Ušetřil jsem skoro 400 Kč za týden. Konečně vím, co budu vařit a kolik to bude stát.',
-              name: 'Marek T.',
-              location: 'Praha',
-            },
-            {
-              quote: 'Dřív jsem nad jídelníčkem strávila 2 hodiny týdně. Teď za 60 sekund mám plán i nákup z Rohlíku. Ušetřím čas i nervy.',
-              name: 'Kateřina S.',
-              location: 'Brno',
-            },
-            {
-              quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. Aplikace mi přesně spočítá kalorie a vybere recepty, co mě baví.',
-              name: 'Tomáš K.',
-              location: 'Bratislava',
-            },
-          ].map((t) => (
-            <div key={t.name} className="bg-slate-700/50 border border-slate-600 rounded-2xl p-8">
-              <Quote size={20} className="text-emerald-500/40 mb-4" />
-              <p className="text-sm text-zinc-300 leading-relaxed mb-6">{t.quote}</p>
-              <div className="flex items-center gap-3">
-                <div className="flex gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={12} className="text-amber-500 fill-amber-500" />
-                  ))}
+      <section className="bg-paper">
+        <div className="px-6 sm:px-12 py-20 max-w-7xl mx-auto">
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              {
+                quote: 'Ušetřil jsem skoro 400 Kč za týden. Konečně vím, co budu vařit a kolik to bude stát.',
+                name: 'Marek T.',
+                location: 'Praha',
+              },
+              {
+                quote: 'Dřív jsem nad jídelníčkem strávila 2 hodiny týdně. Teď za 60 sekund mám plán i nákup z Rohlíku. Ušetřím čas i nervy.',
+                name: 'Kateřina S.',
+                location: 'Brno',
+              },
+              {
+                quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. Aplikace mi přesně spočítá kalorie a vybere recepty, co mě baví.',
+                name: 'Tomáš K.',
+                location: 'Bratislava',
+              },
+            ].map((t) => (
+              <div key={t.name} className="bg-card border border-line rounded-2xl p-8">
+                <Quote size={20} className="text-green/40 mb-4" />
+                <p className="text-sm text-muted leading-relaxed mb-6">{t.quote}</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold text-ink">{t.name}, {t.location}</span>
                 </div>
-                <span className="text-xs font-bold text-zinc-300">{t.name}, {t.location}</span>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Who is this for */}
-      <section className="px-6 sm:px-12 pb-20 max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Pro koho je to</p>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Vytvořeno pro lidi, kteří...</h2>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { icon: Heart, title: 'Chtějí jíst zdravěji', desc: 'Ale neví, kde začít a co vařit' },
-            { icon: Target, title: 'Sledují makra a kalorie', desc: 'Ale nenávidí plánování jídel' },
-            { icon: Wallet, title: 'Chtějí šetřit za jídlo', desc: 'A vědět přesně, kolik utratí před nákupem' },
-            { icon: Lightbulb, title: 'Vaří doma', desc: 'Ale dochází jim nápady na recepty' },
-          ].map((item) => (
-            <div key={item.title} className="bg-slate-700/50 border border-slate-600 rounded-2xl p-8 text-center hover:border-emerald-500/20 transition-all">
-              <item.icon size={28} className="text-emerald-500 mx-auto mb-4" />
-              <h4 className="font-black text-sm uppercase tracking-tight mb-2">{item.title}</h4>
-              <p className="text-zinc-300 text-xs leading-relaxed">{item.desc}</p>
-            </div>
-          ))}
+      <section className="bg-kraft border-y border-line">
+        <div className="px-6 sm:px-12 py-20 max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Pro koho je to</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">Vytvořeno pro lidi, kteří…</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Heart, title: 'Chtějí jíst zdravěji', desc: 'Ale neví, kde začít a co vařit' },
+              { icon: Target, title: 'Sledují makra a kalorie', desc: 'Ale nenávidí plánování jídel' },
+              { icon: Wallet, title: 'Chtějí šetřit za jídlo', desc: 'A vědět přesně, kolik utratí před nákupem' },
+              { icon: Lightbulb, title: 'Vaří doma', desc: 'Ale dochází jim nápady na recepty' },
+            ].map((item) => (
+              <div key={item.title} className="bg-card border border-line rounded-2xl p-8 text-center hover:border-green/40 transition-all">
+                <item.icon size={28} className="text-green mx-auto mb-4" />
+                <h4 className="font-display font-bold text-base mb-2">{item.title}</h4>
+                <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-        <div className="text-center mb-20">
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak to funguje</p>
-          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Tři kroky k vašemu jídelníčku.</h2>
-        </div>
+      <section id="how-it-works" className="bg-paper">
+        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Jak to funguje</p>
+            <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight">Tři kroky k vašemu jídelníčku.</h2>
+          </div>
 
-        <div className="grid sm:grid-cols-3 gap-8">
-          {[
-            {
-              step: '1',
-              icon: UtensilsCrossed,
-              title: 'Popište své cíle',
-              desc: 'Řekněte nám, co chcete — vysoko proteinová, levná, veganská, keto — vlastními slovy. Vyberte zemi a oblíbený obchod.',
-            },
-            {
-              step: '2',
-              icon: ChefHat,
-              title: 'Sestavíme váš plán',
-              desc: 'Vygenerujeme kompletní vícedenní jídelníček se snídaní, obědem, večeří, recepty a nutričními hodnotami.',
-            },
-            {
-              step: '3',
-              icon: ShoppingCart,
-              title: 'Nakupujte s reálními cenami',
-              desc: 'Dostanete nákupní seznam s aktuálními cenami z vašeho obchodu. Víte přesně, co koupit a kolik to bude stát.',
-            },
-          ].map((item) => (
-            <div key={item.step} className="bg-slate-700/50 border border-slate-600 rounded-3xl p-10 hover:border-emerald-500/20 transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-2xl font-black italic mb-8 shadow-lg group-hover:shadow-emerald-500/20 transition-shadow">
-                {item.step}
+          <div className="grid sm:grid-cols-3 gap-8">
+            {[
+              {
+                step: '1',
+                icon: UtensilsCrossed,
+                title: 'Popište své cíle',
+                desc: 'Řekněte nám, co chcete — vysoko proteinová, levná, veganská, keto — vlastními slovy. Vyberte zemi a oblíbený obchod.',
+              },
+              {
+                step: '2',
+                icon: ChefHat,
+                title: 'Sestavíme váš plán',
+                desc: 'Vygenerujeme kompletní vícedenní jídelníček se snídaní, obědem, večeří, recepty a nutričními hodnotami.',
+              },
+              {
+                step: '3',
+                icon: ShoppingCart,
+                title: 'Nakupujte s reálnými cenami',
+                desc: 'Dostanete nákupní seznam s aktuálními cenami z vašeho obchodu. Víte přesně, co koupit a kolik to bude stát.',
+              },
+            ].map((item) => (
+              <div key={item.step} className="bg-card border border-line rounded-3xl p-10 hover:border-green/40 transition-all">
+                <div className="w-12 h-12 rounded-xl bg-green flex items-center justify-center text-2xl font-display font-extrabold text-white mb-8 shadow-lg">
+                  {item.step}
+                </div>
+                <item.icon size={32} className="text-green mb-6" />
+                <h3 className="font-display text-xl font-bold mb-4">{item.title}</h3>
+                <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
               </div>
-              <item.icon size={32} className="text-emerald-500 mb-6" />
-              <h3 className="text-xl font-black tracking-tight mb-4">{item.title}</h3>
-              <p className="text-zinc-300 text-sm leading-relaxed">{item.desc}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
       {/* How the plan is made */}
-      <section className="px-6 sm:px-12 pb-24 max-w-7xl mx-auto">
-        <div className="bg-slate-700/30 border border-slate-600 rounded-3xl p-8 sm:p-12">
+      <section className="bg-kraft border-y border-line">
+        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Jak vzniká váš jídelníček</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">Transparentně a pod vaší kontrolou.</h2>
+            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Jak vzniká váš jídelníček</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">Transparentně a pod vaší kontrolou.</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
@@ -202,11 +225,11 @@ export const Landing = () => {
               { icon: SlidersHorizontal, title: 'Vy máte kontrolu', desc: 'Upravte, regenerujte nebo změňte cokoliv kdykoliv' },
             ].map((item) => (
               <div key={item.title} className="text-center">
-                <div className="w-12 h-12 rounded-xl bg-emerald-600/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-                  <item.icon size={22} className="text-emerald-400" />
+                <div className="w-12 h-12 rounded-xl bg-green-soft flex items-center justify-center mx-auto mb-4">
+                  <item.icon size={22} className="text-green" />
                 </div>
-                <h4 className="font-black text-sm tracking-tight mb-2">{item.title}</h4>
-                <p className="text-zinc-300 text-xs leading-relaxed">{item.desc}</p>
+                <h4 className="font-display font-bold text-base mb-2">{item.title}</h4>
+                <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -214,131 +237,139 @@ export const Landing = () => {
       </section>
 
       {/* Sample plan preview */}
-      <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-        <div className="text-center mb-20">
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[1em] mb-4">Ukázka</p>
-          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Podívejte se, co dostanete.</h2>
-        </div>
-
-        <div className="grid lg:grid-cols-12 gap-8">
-          {/* Plan preview */}
-          <div className="lg:col-span-7 bg-slate-700/50 border border-slate-600 rounded-3xl p-8 sm:p-10">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black text-emerald-400 uppercase tracking-widest">Ukázkový plán</div>
-              <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">3 dny • Praha</span>
-            </div>
-
-            <div className="space-y-6">
-              {SAMPLE_PLAN.days.map((day) => (
-                <div key={day.day} className="flex gap-6 items-start">
-                  <div className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-black text-lg italic shrink-0 shadow-lg">
-                    {day.day}
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    {day.meals.map((meal, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest w-20 shrink-0">
-                          {['Snídaně', 'Oběd', 'Večeře'][i]}
-                        </span>
-                        <span className="text-sm font-bold text-zinc-300">{meal}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+      <section className="bg-paper">
+        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Ukázka</p>
+            <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight">Podívejte se, co dostanete.</h2>
           </div>
 
-          {/* Shopping list preview */}
-          <div className="lg:col-span-5 bg-slate-700/50 border border-slate-600 rounded-3xl p-8 sm:p-10">
-            <div className="flex items-center gap-3 mb-8">
-              <ShoppingCart size={18} className="text-emerald-500" />
-              <h3 className="text-lg font-black uppercase tracking-tight italic">Nákupní seznam</h3>
-              <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest ml-auto">{SAMPLE_PLAN.store}</span>
-            </div>
+          <div className="grid lg:grid-cols-12 gap-8">
+            {/* Plan preview */}
+            <div className="lg:col-span-7 bg-card border border-line rounded-3xl p-8 sm:p-10">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="px-3 py-1 bg-green-soft rounded-lg text-[10px] font-bold text-green uppercase tracking-widest">Ukázkový plán</div>
+                <span className="text-xs font-semibold text-muted">3 dny · Praha</span>
+              </div>
 
-            <div className="space-y-4 mb-8">
-              {SAMPLE_PLAN.shoppingList.map((item) => (
-                <div key={item.name} className="flex items-center justify-between border-b border-slate-600 pb-3">
-                  <div>
-                    <p className="text-sm font-bold text-white">{item.name}</p>
-                    <p className="text-[10px] font-bold text-zinc-400">{item.unit}</p>
+              <div className="space-y-6">
+                {SAMPLE_PLAN.days.map((day) => (
+                  <div key={day.day} className="flex gap-6 items-start">
+                    <div className="w-10 h-10 rounded-xl bg-green text-white flex items-center justify-center font-display font-extrabold text-lg shrink-0 shadow-lg">
+                      {day.day}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      {day.meals.map((meal, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-muted uppercase tracking-widest w-20 shrink-0">
+                            {['Snídaně', 'Oběd', 'Večeře'][i]}
+                          </span>
+                          <span className="text-sm font-semibold text-ink">{meal}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-sm font-black text-emerald-400 tabular-nums">{item.price} {SAMPLE_PLAN.currency}</p>
-                </div>
-              ))}
-              <div className="text-center text-zinc-300 text-xs font-bold">+ 12 dalších položek...</div>
+                ))}
+              </div>
             </div>
 
-            <div className="pt-6 border-t-2 border-emerald-600/30">
-              <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest mb-1">Odhadovaná cena celkem</p>
-              <p className="text-4xl font-black tracking-tighter">
-                {SAMPLE_PLAN.total} <span className="text-emerald-500 text-lg">{SAMPLE_PLAN.currency}</span>
-              </p>
+            {/* Shopping list preview */}
+            <div className="lg:col-span-5 bg-card border border-line rounded-3xl p-8 sm:p-10">
+              <div className="flex items-center gap-3 mb-8">
+                <ShoppingCart size={18} className="text-green" />
+                <h3 className="font-display text-lg font-bold">Nákupní seznam</h3>
+                <span className="text-[10px] font-bold text-muted uppercase tracking-widest ml-auto">{SAMPLE_PLAN.store}</span>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                {SAMPLE_PLAN.shoppingList.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between border-b border-line pb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-ink">{item.name}</p>
+                      <p className="text-[11px] font-medium text-muted">{item.unit}</p>
+                    </div>
+                    <p className="font-price text-sm font-bold text-ink">{item.price} {SAMPLE_PLAN.currency}</p>
+                  </div>
+                ))}
+                <div className="text-center text-muted text-xs font-semibold">+ 12 dalších položek…</div>
+              </div>
+
+              <div className="pt-6 border-t-2 border-dashed border-line">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Odhadovaná cena celkem</p>
+                <p className="font-price text-4xl font-bold text-ink tracking-tight">
+                  {SAMPLE_PLAN.total} <span className="text-paprika text-lg">{SAMPLE_PLAN.currency}</span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { icon: BarChart3, title: 'Nutriční hodnoty', desc: 'Kalorie, bílkoviny, sacharidy a tuky u každého jídla' },
-            { icon: List, title: 'Tisk a export', desc: 'Vezmete si nákupní seznam do obchodu nebo ho sdílíte' },
-            { icon: ChefHat, title: 'Kompletní recepty', desc: 'Postup přípravy krok za krokem se všemi ingrediencemi' },
-            { icon: Check, title: 'Interaktivní seznam', desc: 'Odškrtávejte položky přímo v telefonu při nákupu' },
-          ].map((f) => (
-            <div key={f.title} className="bg-slate-900 border border-slate-600/50 rounded-2xl p-8 hover:border-slate-500 transition-all">
-              <f.icon size={24} className="text-emerald-500 mb-4" />
-              <h4 className="font-black text-sm uppercase tracking-tight mb-2">{f.title}</h4>
-              <p className="text-zinc-400 text-xs leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
+      <section className="bg-kraft border-y border-line">
+        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: BarChart3, title: 'Nutriční hodnoty', desc: 'Kalorie, bílkoviny, sacharidy a tuky u každého jídla' },
+              { icon: List, title: 'Tisk a export', desc: 'Vezmete si nákupní seznam do obchodu nebo ho sdílíte' },
+              { icon: ChefHat, title: 'Kompletní recepty', desc: 'Postup přípravy krok za krokem se všemi ingrediencemi' },
+              { icon: Check, title: 'Interaktivní seznam', desc: 'Odškrtávejte položky přímo v telefonu při nákupu' },
+            ].map((f) => (
+              <div key={f.title} className="bg-card border border-line rounded-2xl p-8 hover:border-green/40 transition-all">
+                <f.icon size={24} className="text-green mb-4" />
+                <h4 className="font-display font-bold text-base mb-2">{f.title}</h4>
+                <p className="text-muted text-sm leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-        <div className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/10 rounded-3xl p-12 sm:p-20 text-center">
-          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter mb-6">
-            Připraveni plánovat své jídlo?
-          </h2>
-          <p className="text-zinc-200 text-lg mb-10 max-w-md mx-auto">
-            Začněte se 2 jídelníčky zdarma. Bez kreditní karty.
-          </p>
-          <button onClick={() => navigate('/login')} className="bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl hover:shadow-white/10 transition-all active:scale-[0.98] inline-flex items-center gap-3">
-            Vytvořit můj první plán <ArrowRight size={18} />
-          </button>
-          <p className="text-zinc-300 text-xs font-bold mt-6 uppercase tracking-widest">Dostupné v Česku a na Slovensku</p>
+      <section className="bg-paper">
+        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
+          <div className="bg-green-soft border border-line rounded-3xl p-12 sm:p-20 text-center">
+            <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
+              Připraveni plánovat své jídlo?
+            </h2>
+            <p className="text-muted text-lg mb-10 max-w-md mx-auto">
+              Začněte se 2 jídelníčky zdarma. Bez kreditní karty.
+            </p>
+            <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-12 py-5 rounded-2xl font-bold text-base shadow-lg transition-all active:scale-[0.98] inline-flex items-center gap-3">
+              Vytvořit můj první plán <ArrowRight size={18} />
+            </button>
+            <p className="text-muted text-xs font-semibold mt-6">Dostupné v Česku a na Slovensku</p>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-slate-700">
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Zap size={16} className="text-emerald-500" />
-              <span className="text-sm font-black tracking-tighter uppercase italic text-zinc-400">DietPlanner.</span>
+      <footer className="bg-ink text-paper">
+        <div className="px-6 sm:px-12 py-14 max-w-7xl mx-auto">
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="font-display font-extrabold text-2xl tracking-tight lowercase text-paper">vařto<span className="text-paprika">.</span></span>
+                <span className="text-sm font-semibold text-paper/80">Jezte chytře, plaťte míň.</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-6">
+                <a href="/recepty" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Recepty</a>
+                <a href="/pricing" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Ceník</a>
+                <a href="/o-nas" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">O nás</a>
+                <a href="/privacy" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Zásady ochrany soukromí</a>
+                <a href="/terms" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Obchodní podmínky</a>
+                <a href="mailto:admin@kentakin.eu" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Kontakt</a>
+              </div>
             </div>
-            <div className="flex items-center gap-6">
-              <a href="/recepty" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Recepty</a>
-              <a href="/pricing" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Ceník</a>
-              <a href="/o-nas" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">O nás</a>
-              <a href="/privacy" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Zásady ochrany soukromí</a>
-              <a href="/terms" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Obchodní podmínky</a>
-              <a href="mailto:admin@kentakin.eu" className="text-xs font-bold text-zinc-300 hover:text-white transition-colors">Kontakt</a>
-            </div>
+            <p className="text-xs text-paper/80 text-center sm:text-left">&copy; {new Date().getFullYear()} Vařto. All rights reserved.</p>
           </div>
-          <p className="text-xs text-zinc-300 text-center sm:text-left">&copy; {new Date().getFullYear()} DietPlanner. All rights reserved.</p>
         </div>
       </footer>
 
       {/* Sticky mobile CTA */}
       {showStickyCta && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#1e293b]/95 backdrop-blur-lg border-t border-slate-600 sm:hidden">
-          <button onClick={() => navigate('/login')} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-paper/95 backdrop-blur-lg border-t border-line sm:hidden">
+          <button onClick={() => navigate('/login')} className="w-full bg-green hover:bg-green-mid text-white py-4 rounded-xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2">
             Vytvořit jídelníček zdarma <ArrowRight size={16} />
           </button>
         </div>
