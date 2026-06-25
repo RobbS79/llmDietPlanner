@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { Zap, Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound } from 'lucide-react';
 import axios from 'axios';
 
 const GoogleIcon = () => (
@@ -60,29 +60,22 @@ export const Login = () => {
   const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   return (
-    <div className="h-screen flex items-center justify-center p-6 bg-[#1e293b] relative overflow-hidden">
+    <div className="h-screen flex items-center justify-center p-6 bg-paper text-ink font-body relative overflow-hidden">
       <a href="#login-form" className="skip-to-content">
         Přejít na formulář
       </a>
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-[-15%] left-[-15%] w-[800px] h-[800px] bg-emerald-600/[0.04] blur-[180px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-15%] right-[-15%] w-[900px] h-[900px] bg-teal-600/[0.02] blur-[220px] rounded-full animate-pulse delay-1000" />
-      </div>
 
-      <div className="max-w-md w-full relative z-10 bg-slate-700/50 border border-slate-600 rounded-3xl shadow-deep-full p-12">
+      <div className="max-w-md w-full relative z-10 bg-card border border-line rounded-3xl shadow-deep-full p-12">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-400 text-white mb-6 shadow-glow-md">
-            <Zap size={32} fill="currentColor" />
-          </div>
-          <h1 className="text-4xl font-black text-white tracking-tighter leading-none uppercase italic">
-            Diet<span className="text-emerald-500 not-italic">Planner.</span>
-          </h1>
+          <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">
+            vařto<span className="text-paprika">.</span>
+          </span>
         </div>
 
-        <div className="flex gap-1 bg-slate-900 p-1 rounded-xl border border-slate-600 mb-8">
+        <div className="flex gap-1 bg-paper p-1 rounded-xl border border-line mb-8">
           {(['login', 'register'] as const).map((m) => (
             <button key={m} type="button" onClick={() => { setMode(m); setError(''); setSuccess(''); }}
-              className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${mode === m ? 'bg-emerald-600 text-white shadow-lg' : 'text-zinc-300 hover:text-zinc-300'}`}>
+              className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${mode === m ? 'bg-green text-white shadow-lg' : 'text-muted hover:text-ink'}`}>
               {m === 'login' ? <><KeyRound size={12} /> Přihlášení</> : <><UserPlus size={12} /> Registrace</>}
             </button>
           ))}
@@ -90,13 +83,13 @@ export const Login = () => {
 
         <div aria-live="polite" aria-atomic="true">
         {(error || urlError) && (
-          <div role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-4 mb-6 text-xs font-bold">
+          <div role="alert" className="flex items-center gap-3 bg-paprika-soft border border-paprika/20 text-paprika-strong rounded-xl p-4 mb-6 text-xs font-bold">
             <AlertCircle size={16} className="shrink-0" />
             <span>{error || urlError?.replace(/_/g, ' ')}</span>
           </div>
         )}
         {success && (
-          <div role="status" className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl p-4 mb-6 text-xs font-bold">
+          <div role="status" className="flex items-center gap-3 bg-green-soft border border-green/20 text-green rounded-xl p-4 mb-6 text-xs font-bold">
             <CheckCircle2 size={16} className="shrink-0" />
             <span>{success}</span>
           </div>
@@ -107,32 +100,32 @@ export const Login = () => {
           <fieldset className="space-y-4 border-0 p-0 m-0">
             <legend className="sr-only">{mode === 'login' ? 'Přihlašovací údaje' : 'Registrační údaje'}</legend>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Uživatelské jméno</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted">Uživatelské jméno</label>
             <div className="relative">
-              <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
               <input required type="text" autoComplete="username" placeholder={mode === 'login' ? 'Jméno nebo email' : 'Zvolte uživatelské jméno'} value={form.username} onChange={e => update('username', e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50" />
+                className="w-full bg-paper border border-line rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-ink placeholder:text-muted focus:outline-none" />
             </div>
           </div>
 
           {mode === 'register' && (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">E-mail</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted">E-mail</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
                 <input required type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={e => update('email', e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50" />
+                  className="w-full bg-paper border border-line rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-ink placeholder:text-muted focus:outline-none" />
               </div>
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Heslo</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted">Heslo</label>
             <div className="relative">
-              <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
               <input required type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'register' ? 'Min. 8 znaků, 1 písmeno, 1 číslice' : 'Zadejte heslo'} value={form.password} onChange={e => update('password', e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-xl h-12 pl-11 pr-11 text-sm font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200">
+                className="w-full bg-paper border border-line rounded-xl h-12 pl-11 pr-11 text-sm font-bold text-ink placeholder:text-muted focus:outline-none" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink">
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -140,11 +133,11 @@ export const Login = () => {
 
           {mode === 'register' && (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Potvrzení hesla</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted">Potvrzení hesla</label>
               <div className="relative">
-                <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
                 <input required type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Zadejte heslo znovu" value={form.passwordConfirm} onChange={e => update('passwordConfirm', e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50" />
+                  className="w-full bg-paper border border-line rounded-xl h-12 pl-11 pr-4 text-sm font-bold text-ink placeholder:text-muted focus:outline-none" />
               </div>
             </div>
           )}
@@ -152,13 +145,13 @@ export const Login = () => {
           </fieldset>
 
           <button type="submit" disabled={isLoading}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6">
+            className="w-full bg-green hover:bg-green-mid text-white h-14 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-6">
             {isLoading ? <Loader2 className="animate-spin" size={18} /> : mode === 'login' ? 'Přihlásit se' : 'Vytvořit účet'}
           </button>
 
           {mode === 'login' && (
             <div className="text-center mt-4">
-              <Link to="/forgot-password" className="text-xs font-bold text-zinc-400 hover:text-emerald-400 transition-colors">
+              <Link to="/forgot-password" className="text-xs font-bold text-muted hover:text-green transition-colors">
                 Zapomněli jste heslo?
               </Link>
             </div>
@@ -166,17 +159,17 @@ export const Login = () => {
         </form>
 
         <div className="flex items-center gap-4 my-8">
-          <div className="flex-1 h-px bg-slate-600" />
-          <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">nebo</span>
-          <div className="flex-1 h-px bg-slate-600" />
+          <div className="flex-1 h-px bg-line" />
+          <span className="text-[9px] font-black text-muted uppercase tracking-widest">nebo</span>
+          <div className="flex-1 h-px bg-line" />
         </div>
 
         <button onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || ''}/api/auth/google/login/`}
-          className="w-full bg-white hover:bg-zinc-100 text-black h-12 rounded-xl font-black transition-all flex items-center justify-center gap-4 text-xs uppercase tracking-[0.15em] shadow-xl active:scale-[0.98]">
+          className="w-full bg-card border border-line text-ink h-12 rounded-xl font-black transition-all flex items-center justify-center gap-4 text-xs uppercase tracking-[0.15em] shadow-sm active:scale-[0.98] hover:bg-kraft">
           <GoogleIcon /> Pokračovat přes Google
         </button>
 
-        <p className="text-center text-[10px] text-zinc-400 mt-6">Přidejte se k 500+ lidem, kteří už plánují chytřeji.</p>
+        <p className="text-center text-[10px] text-muted mt-6">Přidejte se k 500+ lidem, kteří už plánují chytřeji.</p>
       </div>
     </div>
   );

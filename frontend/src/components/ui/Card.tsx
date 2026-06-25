@@ -7,23 +7,21 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   className?: string;
   /** When set, the card renders as a real navigational link (<a href>). */
   to?: string;
+  /** 'app' (default) = dark auth-app surface from THEME; 'paper' = light public surface. */
+  variant?: 'app' | 'paper';
 }
 
-export const Card = ({ children, className = "", onClick, to, ...props }: CardProps) => {
+export const Card = ({ children, className = "", onClick, to, variant = 'app', ...props }: CardProps) => {
   const isInteractive = !!onClick || !!to;
-  const base = `${THEME.surface} border ${THEME.border} rounded-2xl shadow-lg transition-all`;
+  const surface = variant === 'paper' ? 'bg-card border-line' : `${THEME.surface} ${THEME.border}`;
+  const base = `${surface} border rounded-2xl shadow-lg transition-all`;
   const focusRing = isInteractive
     ? 'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none'
     : '';
 
-  // A real link: keyboard, middle-click / open-in-new-tab and crawlers all work.
   if (to) {
     return (
-      <Link
-        to={to}
-        className={`block ${base} ${focusRing} ${className}`}
-        onClick={onClick as ((e: MouseEvent) => void) | undefined}
-      >
+      <Link to={to} className={`block ${base} ${focusRing} ${className}`} onClick={onClick as ((e: MouseEvent) => void) | undefined}>
         {children}
       </Link>
     );
@@ -37,12 +35,8 @@ export const Card = ({ children, className = "", onClick, to, ...props }: CardPr
   };
 
   return (
-    <div
-      className={`${base} ${focusRing} ${className}`}
-      onClick={onClick}
-      {...(onClick ? { role: 'button', tabIndex: 0, onKeyDown: handleKeyDown } : {})}
-      {...props}
-    >
+    <div className={`${base} ${focusRing} ${className}`} onClick={onClick}
+      {...(onClick ? { role: 'button', tabIndex: 0, onKeyDown: handleKeyDown } : {})} {...props}>
       {children}
     </div>
   );

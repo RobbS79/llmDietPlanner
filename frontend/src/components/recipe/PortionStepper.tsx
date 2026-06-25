@@ -9,21 +9,34 @@ interface PortionStepperProps {
   onChange: (value: number) => void;
   min?: number;
   max?: number;
+  /** 'app' (default) = dark auth-app surface; 'paper' = light public surface. */
+  variant?: 'app' | 'paper';
 }
 
-const btn =
+const btnApp =
   'w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 border border-slate-600 ' +
   'text-zinc-200 transition-colors hover:border-emerald-500/60 hover:text-emerald-400 ' +
   'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-slate-600 disabled:hover:text-zinc-200';
+
+const btnPaper =
+  'w-9 h-9 flex items-center justify-center rounded-xl bg-card border border-line ' +
+  'text-ink transition-colors hover:border-green hover:text-green ' +
+  'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:text-ink';
 
 export const PortionStepper = ({
   value,
   onChange,
   min = MIN_PORTIONS,
   max = MAX_PORTIONS,
+  variant = 'app',
 }: PortionStepperProps) => {
   const canDecrement = value > min;
   const canIncrement = value < max;
+  const paper = variant === 'paper';
+  const btn = paper ? btnPaper : btnApp;
+  const valueCls = paper
+    ? 'min-w-[5.5rem] text-center text-sm font-price font-bold text-ink tabular-nums'
+    : 'min-w-[5.5rem] text-center text-sm font-black uppercase tracking-tighter italic text-white tabular-nums';
 
   return (
     <div className="flex items-center gap-3">
@@ -38,7 +51,7 @@ export const PortionStepper = ({
       </button>
       <span
         aria-live="polite"
-        className="min-w-[5.5rem] text-center text-sm font-black uppercase tracking-tighter italic text-white tabular-nums"
+        className={valueCls}
       >
         {value} {czechPlural(value, PORTION_FORMS)}
       </span>

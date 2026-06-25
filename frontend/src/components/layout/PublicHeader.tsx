@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Zap, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
   { to: '/recepty', label: 'Recepty' },
@@ -8,7 +8,7 @@ const NAV_LINKS = [
 ];
 
 const linkClass =
-  'text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors';
+  'text-ink/80 hover:text-ink font-body font-semibold transition-colors';
 
 /**
  * Marketing/public header shared across Landing, Recepty, Pricing and About.
@@ -23,12 +23,7 @@ export const PublicHeader = () => {
     <header className="relative z-50">
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
         <Link to="/" className="flex items-center gap-3" onClick={close}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
-            <Zap size={20} fill="currentColor" />
-          </div>
-          <span className="text-xl font-black tracking-tighter uppercase italic">
-            Diet<span className="text-emerald-500 not-italic">Planner.</span>
-          </span>
+          <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">vařto<span className="text-paprika">.</span></span>
         </Link>
 
         {/* Desktop nav */}
@@ -43,16 +38,16 @@ export const PublicHeader = () => {
           </Link>
           <Link
             to="/login"
-            className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+            className="bg-green hover:bg-green-mid text-white rounded-xl px-5 py-3 font-body font-bold transition-all"
           >
-            Začít zdarma
+            Vytvořit jídelníček
           </Link>
         </div>
 
         {/* Mobile hamburger */}
         <button
           type="button"
-          className="sm:hidden p-2.5 -mr-2 text-zinc-100"
+          className="sm:hidden p-2.5 -mr-2 text-ink"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Zavřít menu' : 'Otevřít menu'}
           aria-expanded={open}
@@ -63,13 +58,13 @@ export const PublicHeader = () => {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="sm:hidden absolute left-0 right-0 top-full bg-slate-900 border-y border-slate-700 px-6 py-3 flex flex-col shadow-2xl z-[100]">
+        <div className="sm:hidden absolute left-0 right-0 top-full bg-card border-y border-line px-6 py-3 flex flex-col shadow-2xl z-[100]">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.to}
               to={l.to}
               onClick={close}
-              className="py-3 text-sm font-black text-zinc-100 uppercase tracking-widest"
+              className="py-3 text-sm font-body font-semibold text-ink"
             >
               {l.label}
             </Link>
@@ -77,16 +72,16 @@ export const PublicHeader = () => {
           <Link
             to="/login"
             onClick={close}
-            className="py-3 text-sm font-black text-zinc-100 uppercase tracking-widest"
+            className="py-3 text-sm font-body font-semibold text-ink"
           >
             Přihlásit se
           </Link>
           <Link
             to="/login"
             onClick={close}
-            className="mt-2 mb-1 bg-emerald-500 text-white text-center px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
+            className="mt-2 mb-1 bg-green text-white text-center px-6 py-3 rounded-xl text-sm font-body font-bold"
           >
-            Začít zdarma
+            Vytvořit jídelníček
           </Link>
         </div>
       )}

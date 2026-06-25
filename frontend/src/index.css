@@ -67,10 +67,9 @@
 }
 
 /* Visible keyboard focus for all interactive elements.
-   Links previously fell back to the UA's near-black 1px outline, invisible on
-   the dark background. This emerald ring is high-contrast on #1e293b. */
+   Paprika is high-contrast on both the new light paper bg and the dark auth app. */
 :focus-visible {
-  outline: 2px solid #34d399; /* emerald-400 */
+  outline: 2px solid #DB5026; /* paprika — visible on light and dark */
   outline-offset: 2px;
   border-radius: 4px;
 }
