@@ -66,9 +66,18 @@
   }
 }
 
+/* Visible keyboard focus for all interactive elements.
+   Links previously fell back to the UA's near-black 1px outline, invisible on
+   the dark background. This emerald ring is high-contrast on #1e293b. */
+:focus-visible {
+  outline: 2px solid #34d399; /* emerald-400 */
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* Skip-to-content link */
 .skip-to-content {
-  @apply absolute -top-12 left-4 z-[9999] bg-emerald-600 text-white px-6 py-3 rounded-b-xl font-black text-xs uppercase tracking-widest transition-all;
+  @apply absolute -top-12 left-4 z-[9999] bg-emerald-500 text-white px-6 py-3 rounded-b-xl font-black text-xs uppercase tracking-widest transition-all;
 }
 .skip-to-content:focus {
   @apply top-0;

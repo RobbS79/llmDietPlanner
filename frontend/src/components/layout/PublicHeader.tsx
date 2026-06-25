@@ -43,7 +43,7 @@ export const PublicHeader = () => {
           </Link>
           <Link
             to="/login"
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+            className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
           >
             Začít zdarma
           </Link>
@@ -52,7 +52,7 @@ export const PublicHeader = () => {
         {/* Mobile hamburger */}
         <button
           type="button"
-          className="sm:hidden p-2 -mr-2 text-zinc-100"
+          className="sm:hidden p-2.5 -mr-2 text-zinc-100"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Zavřít menu' : 'Otevřít menu'}
           aria-expanded={open}
@@ -84,7 +84,7 @@ export const PublicHeader = () => {
           <Link
             to="/login"
             onClick={close}
-            className="mt-2 mb-1 bg-emerald-600 text-white text-center px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
+            className="mt-2 mb-1 bg-emerald-500 text-white text-center px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
           >
             Začít zdarma
           </Link>
