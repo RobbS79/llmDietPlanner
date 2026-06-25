@@ -48,7 +48,7 @@ Apply these replacements on public pages. This is the mechanical core of each pa
 | `bg-[#1e293b]` (page bg) | `bg-paper` | page background |
 | `text-white` / `text-zinc-100/200` (primary) | `text-ink` | primary text |
 | `text-zinc-300/400` (secondary) | `text-muted` | secondary text |
-| `bg-slate-700/50`, `bg-[#334155]`, `glass-card` | `bg-card border border-line` or `bg-kraft` | surfaces |
+| `bg-slate-700/50`, `bg-[#334155]`, `glass-card` | `bg-card border border-line` or `bg-kraft`; for `<Card>` pass `variant="paper"` | surfaces |
 | `border-slate-600/700` | `border-line` | dividers/borders |
 | `bg-emerald-600`/`bg-emerald-500` + `text-white` (CTA) | `bg-green hover:bg-green-mid text-white` | primary action |
 | `text-emerald-500/400` (accent) | `text-green` (brand) or `text-paprika` (prices/deals) | choose by role |
@@ -63,9 +63,10 @@ Apply these replacements on public pages. This is the mechanical core of each pa
 
 **Files:**
 - Modify: `frontend/tailwind.config.js`
-- Modify: `frontend/src/lib/theme.ts`
+- Modify: `frontend/src/components/ui/Card.tsx`
 - Modify: `frontend/index.html`
 - Modify: `frontend/src/index.css`
+- Leave UNCHANGED: `frontend/src/lib/theme.ts` (the auth app's `MainLayout` and `Card` default depend on it — see Step 2)
 
 - [ ] **Step 1: Add tokens + font families to Tailwind**
 
@@ -97,22 +98,57 @@ extend: {
 
 Note: `font-sans` is intentionally NOT overridden, so the auth app keeps its current font. Public pages opt in via `font-body`.
 
-- [ ] **Step 2: Point THEME at the new tokens**
+- [ ] **Step 2: Give Card a light `variant` (do NOT touch THEME)**
 
-Replace `frontend/src/lib/theme.ts` with:
+`THEME` (lib/theme.ts) is shared: `MainLayout` (auth) and `Card` (used by Dashboard, PlanView, CreatePlan, Onboarding — all out of scope) depend on its dark values. Leave `theme.ts` exactly as-is. Instead, add an opt-in light variant to `Card` so public pages get the Market Paper surface without changing the auth app. Replace `frontend/src/components/ui/Card.tsx` with:
 
-```ts
-export const THEME = {
-  bg: "bg-paper",
-  surface: "bg-card",
-  border: "border-line",
-  textPrimary: "text-ink",
-  textSecondary: "text-muted",
-  accent: "green",
+```tsx
+import { ReactNode, HTMLAttributes, KeyboardEvent, MouseEvent } from 'react';
+import { Link } from 'react-router-dom';
+import { THEME } from '@/lib/theme';
+
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode;
+  className?: string;
+  /** When set, the card renders as a real navigational link (<a href>). */
+  to?: string;
+  /** 'app' (default) = dark auth-app surface from THEME; 'paper' = light public surface. */
+  variant?: 'app' | 'paper';
+}
+
+export const Card = ({ children, className = "", onClick, to, variant = 'app', ...props }: CardProps) => {
+  const isInteractive = !!onClick || !!to;
+  const surface = variant === 'paper' ? 'bg-card border-line' : `${THEME.surface} ${THEME.border}`;
+  const base = `${surface} border rounded-2xl shadow-lg transition-all`;
+  const focusRing = isInteractive
+    ? 'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none'
+    : '';
+
+  if (to) {
+    return (
+      <Link to={to} className={`block ${base} ${focusRing} ${className}`} onClick={onClick as ((e: MouseEvent) => void) | undefined}>
+        {children}
+      </Link>
+    );
+  }
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick(e as any);
+    }
+  };
+
+  return (
+    <div className={`${base} ${focusRing} ${className}`} onClick={onClick}
+      {...(onClick ? { role: 'button', tabIndex: 0, onKeyDown: handleKeyDown } : {})} {...props}>
+      {children}
+    </div>
+  );
 };
 ```
 
-(This changes the `Card` default surface used on public pages; verify auth-app Cards in Step 6.)
+(Public pages will pass `variant="paper"`; auth pages keep the default and stay dark.)
 
 - [ ] **Step 3: Load fonts**
 
@@ -143,7 +179,7 @@ Expected: tsc 0 errors; build succeeds; 17 tests pass. (No visual change yet —
 
 - [ ] **Step 6: Sanity-check the auth app didn't shift**
 
-Run dev server, load `/login` (auth `Navbar` not shown there, but `Card`/inputs are): confirm it still renders dark (it uses `background`/`surface`/`sans`, all untouched). The public `Card` default now resolves to `bg-card`/`border-line`; that only affects public pages, which we re-skin next.
+`THEME` is unchanged and `Card`'s default variant stays `'app'`, so Dashboard/PlanView/CreatePlan/Onboarding and `MainLayout` render exactly as before. Confirm `npm run build` is clean; no visual change anywhere yet (public pages still use old classes until later tasks add `variant="paper"` + token classes).
 
 - [ ] **Step 7: Commit**
 
@@ -310,12 +346,12 @@ git commit -m "feat(reskin): Recepty index to Market Paper"
 ## Task 6: Recipe detail re-skin
 
 **Files:**
-- Modify: `frontend/src/pages/RecipePage.tsx` (public view)
+- Modify: `frontend/src/pages/PublicRecipePage.tsx` (THIS is the public `/recepty/:id/:slug` route — NOT `RecipePage.tsx`, which is the auth-app recipe view and is out of scope)
 - Modify: `frontend/src/components/recipe/RecipeIngredients.tsx` and sibling recipe components as encountered
 
 - [ ] **Step 1: Identify public-only recipe components**
 
-`RecipePage.tsx` renders for both the public detail route and (possibly) the auth app. Before editing shared recipe sub-components, grep their imports: if a component is used ONLY by public recipe/landing pages, re-skin it; if it's shared with the auth app, gate the palette by the page wrapper (wrap public usage in `bg-paper text-ink font-body`) rather than hardcoding light colors into the shared component. Document which components you changed in the commit body.
+`PublicRecipePage.tsx` is the public route; `RecipePage.tsx` is the auth-app view (leave it dark). Recipe sub-components may be shared between them. Before editing shared recipe sub-components, grep their imports: if a component is used ONLY by public recipe/landing pages, re-skin it; if it's shared with the auth app, gate the palette by the page wrapper (wrap public usage in `bg-paper text-ink font-body`) rather than hardcoding light colors into the shared component. Document which components you changed in the commit body.
 
 - [ ] **Step 2: Apply token map**
 
