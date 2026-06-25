@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Zap, ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, List, Star, Quote, Heart, Target, Wallet, Lightbulb, Search, Shield, SlidersHorizontal } from 'lucide-react';
+import { PublicHeader } from '@/components/layout/PublicHeader';
 
 const SAMPLE_PLAN = {
   days: [
@@ -35,31 +36,7 @@ export const Landing = () => {
       <a href="#main-content" className="skip-to-content">
         Přejít na obsah
       </a>
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg">
-            <Zap size={20} fill="currentColor" />
-          </div>
-          <span className="text-xl font-black tracking-tighter uppercase italic">
-            Diet<span className="text-emerald-500 not-italic">Planner.</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/recepty')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
-            Recepty
-          </button>
-          <button onClick={() => navigate('/pricing')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors hidden sm:block">
-            Ceník
-          </button>
-          <button onClick={() => navigate('/login')} className="text-xs font-black text-zinc-200 hover:text-white uppercase tracking-widest transition-colors">
-            Přihlásit se
-          </button>
-          <button onClick={() => navigate('/login')} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-            Začít zdarma
-          </button>
-        </div>
-      </nav>
+      <PublicHeader />
 
       {/* Hero */}
       <section id="main-content" className="relative px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">

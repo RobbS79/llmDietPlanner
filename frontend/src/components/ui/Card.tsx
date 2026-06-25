@@ -1,26 +1,46 @@
-import { ReactNode, HTMLAttributes, KeyboardEvent } from 'react';
+import { ReactNode, HTMLAttributes, KeyboardEvent, MouseEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { THEME } from '@/lib/theme';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
+  /** When set, the card renders as a real navigational link (<a href>). */
+  to?: string;
 }
 
-export const Card = ({ children, className = "", onClick, ...props }: CardProps) => {
-  const isClickable = !!onClick;
+export const Card = ({ children, className = "", onClick, to, ...props }: CardProps) => {
+  const isInteractive = !!onClick || !!to;
+  const base = `${THEME.surface} border ${THEME.border} rounded-2xl shadow-lg transition-all`;
+  const focusRing = isInteractive
+    ? 'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none'
+    : '';
+
+  // A real link: keyboard, middle-click / open-in-new-tab and crawlers all work.
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className={`block ${base} ${focusRing} ${className}`}
+        onClick={onClick as ((e: MouseEvent) => void) | undefined}
+      >
+        {children}
+      </Link>
+    );
+  }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+    if (onClick && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
-      onClick?.(e as any);
+      onClick(e as any);
     }
   };
 
   return (
     <div
-      className={`${THEME.surface} border ${THEME.border} rounded-2xl shadow-lg transition-all ${isClickable ? 'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none' : ''} ${className}`}
+      className={`${base} ${focusRing} ${className}`}
       onClick={onClick}
-      {...(isClickable ? { role: 'button', tabIndex: 0, onKeyDown: handleKeyDown } : {})}
+      {...(onClick ? { role: 'button', tabIndex: 0, onKeyDown: handleKeyDown } : {})}
       {...props}
     >
       {children}
