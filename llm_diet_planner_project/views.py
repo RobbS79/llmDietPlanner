@@ -119,28 +119,27 @@ def public_recipe_view(request, pk, slug=None):
             elif 'fat' in kl:
                 schema_ld["nutrition"]["fatContent"] = str(v)
 
-    recipe_html = f'''<div style="max-width:56rem;margin:0 auto;padding:3rem 1.5rem;color:white;">
-<nav style="margin-bottom:2rem;font-size:0.875rem;"><a href="/recepty/" style="color:#34d399;">Recepty</a> / <span>{escape(recipe.name)}</span></nav>
+    recipe_html = f'''<div style="max-width:56rem;margin:0 auto;padding:3rem 1.5rem;background:#F7F3EC;color:#241E1A;">
+<nav style="margin-bottom:2rem;font-size:0.875rem;"><a href="/recepty/" style="color:#2E6B43;">Recepty</a> / <span>{escape(recipe.name)}</span></nav>
 <div style="position:relative;height:20rem;border-radius:1.5rem;overflow:hidden;margin-bottom:2rem;">
 <img src="{img_url}" alt="{escape(recipe.name)}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.style.display='none'" />
-<div style="position:absolute;inset:0;background:linear-gradient(to top,#0a0f1e,transparent);"></div>
 </div>
 <h1 style="font-size:2.5rem;font-weight:900;">{escape(recipe.name)}</h1>
-{f'<p style="color:#a1a1aa;margin-top:0.5rem;font-style:italic;">{escape(recipe.description)}</p>' if recipe.description else ''}
-<div style="display:flex;gap:1.5rem;margin-top:1rem;font-size:0.75rem;color:#71717a;">
+{f'<p style="color:#5E564C;margin-top:0.5rem;font-style:italic;">{escape(recipe.description)}</p>' if recipe.description else ''}
+<div style="display:flex;gap:1.5rem;margin-top:1rem;font-size:0.75rem;color:#5E564C;">
 {f'<span>Priprava: {recipe.preparation_time} min</span>' if recipe.preparation_time else ''}
 {f'<span>Vareni: {recipe.cooking_time} min</span>' if recipe.cooking_time else ''}
 {f'<span>{recipe.servings} porci</span>' if recipe.servings else ''}
 </div>
 <div style="display:grid;grid-template-columns:1fr 2fr;gap:2rem;margin-top:2rem;">
-<section><h2 style="font-size:1.125rem;font-weight:900;border-bottom:1px solid #27272a;padding-bottom:0.5rem;">Ingredience</h2><ul style="margin-top:1rem;padding-left:1.25rem;">{ingredients_html}</ul></section>
+<section><h2 style="font-size:1.125rem;font-weight:900;border-bottom:1px solid #E4DAC8;padding-bottom:0.5rem;">Ingredience</h2><ul style="margin-top:1rem;padding-left:1.25rem;">{ingredients_html}</ul></section>
 <section><h2 style="font-size:1.125rem;font-weight:900;">Postup</h2><ol style="margin-top:1rem;padding-left:1.25rem;">{instructions_html}</ol></section>
 </div>
 {f'<section style="margin-top:2rem;"><h3 style="font-size:0.875rem;font-weight:900;">Nutriční hodnoty</h3><dl style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-top:0.5rem;">{nutrition_html}</dl></section>' if nutrition_html else ''}
-<div style="margin-top:3rem;padding:2rem;text-align:center;background:rgba(5,150,105,0.08);border:1px solid rgba(52,211,153,0.1);border-radius:1.5rem;">
+<div style="margin-top:3rem;padding:2rem;text-align:center;background:#FFFFFF;border:1px solid #E4DAC8;border-radius:1.5rem;">
 <p style="font-size:1.25rem;font-weight:900;">Chcete celý týden takových jídel?</p>
-<p style="color:#a1a1aa;margin-top:0.5rem;">AI vytvoří personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami.</p>
-<a href="/login" style="display:inline-block;margin-top:1rem;padding:0.875rem 2rem;background:#059669;color:white;border-radius:0.75rem;text-decoration:none;font-weight:900;">Vytvořte si jídelníček zdarma</a>
+<p style="color:#5E564C;margin-top:0.5rem;">Vařto sestaví personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami.</p>
+<a href="/login" style="display:inline-block;margin-top:1rem;padding:0.875rem 2rem;background:#2E6B43;color:white;border-radius:0.75rem;text-decoration:none;font-weight:900;">Vytvořte si jídelníček zdarma</a>
 </div>
 </div>
 <script type="application/ld+json">{json.dumps(schema_ld, ensure_ascii=False)}</script>'''
@@ -165,27 +164,27 @@ def public_recipe_index_view(request):
 
     cards = ''
     for r in page:
-        cards += f'''<a href="{r.get_absolute_url()}" style="display:block;padding:1.5rem;border:1px solid #27272a;border-radius:1rem;text-decoration:none;color:inherit;">
-<h2 style="font-size:1.125rem;font-weight:bold;color:white;">{escape(r.name)}</h2>
-{f'<p style="color:#a1a1aa;font-size:0.875rem;margin-top:0.25rem;">{escape((r.description or "")[:120])}</p>' if r.description else ''}
-<div style="margin-top:0.5rem;font-size:0.75rem;color:#71717a;">{f"{r.preparation_time} min" if r.preparation_time else ""}{f" | {r.servings} porcí" if r.servings else ""}</div>
+        cards += f'''<a href="{r.get_absolute_url()}" style="display:block;padding:1.5rem;background:#FFFFFF;border:1px solid #E4DAC8;border-radius:1rem;text-decoration:none;color:inherit;">
+<h2 style="font-size:1.125rem;font-weight:bold;color:#241E1A;">{escape(r.name)}</h2>
+{f'<p style="color:#5E564C;font-size:0.875rem;margin-top:0.25rem;">{escape((r.description or "")[:120])}</p>' if r.description else ''}
+<div style="margin-top:0.5rem;font-size:0.75rem;color:#5E564C;">{f"{r.preparation_time} min" if r.preparation_time else ""}{f" | {r.servings} porcí" if r.servings else ""}</div>
 </a>'''
 
     pagination = ''
     if page.has_previous():
-        pagination += f'<a href="?page={page.previous_page_number()}" style="color:#34d399;margin-right:1rem;">Předchozí</a>'
-    pagination += f'<span style="color:#71717a;">Strana {page.number} z {paginator.num_pages}</span>'
+        pagination += f'<a href="?page={page.previous_page_number()}" style="color:#2E6B43;margin-right:1rem;">Předchozí</a>'
+    pagination += f'<span style="color:#5E564C;">Strana {page.number} z {paginator.num_pages}</span>'
     if page.has_next():
-        pagination += f'<a href="?page={page.next_page_number()}" style="color:#34d399;margin-left:1rem;">Další</a>'
+        pagination += f'<a href="?page={page.next_page_number()}" style="color:#2E6B43;margin-left:1rem;">Další</a>'
 
-    index_html = f'''<div style="max-width:72rem;margin:0 auto;padding:3rem 1.5rem;color:white;">
+    index_html = f'''<div style="max-width:72rem;margin:0 auto;padding:3rem 1.5rem;background:#F7F3EC;color:#241E1A;">
 <h1 style="font-size:2.5rem;font-weight:900;">Recepty</h1>
-<p style="color:#a1a1aa;margin-top:0.5rem;">Prozkoumejte recepty generované AI s nutričními hodnotami a podrobnými postupy.</p>
+<p style="color:#5E564C;margin-top:0.5rem;">Prozkoumejte naše recepty s nutričními hodnotami a podrobnými postupy.</p>
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;margin-top:2rem;">{cards}</div>
 <div style="text-align:center;margin-top:2rem;">{pagination}</div>
-<div style="margin-top:3rem;padding:2rem;text-align:center;background:rgba(5,150,105,0.08);border:1px solid rgba(52,211,153,0.1);border-radius:1.5rem;">
+<div style="margin-top:3rem;padding:2rem;text-align:center;background:#FFFFFF;border:1px solid #E4DAC8;border-radius:1.5rem;">
 <p style="font-size:1.25rem;font-weight:900;">Chcete vlastní jídelníček na míru?</p>
-<a href="/login" style="display:inline-block;margin-top:1rem;padding:0.875rem 2rem;background:#059669;color:white;border-radius:0.75rem;text-decoration:none;font-weight:900;">Vytvořte si jídelníček zdarma</a>
+<a href="/login" style="display:inline-block;margin-top:1rem;padding:0.875rem 2rem;background:#2E6B43;color:white;border-radius:0.75rem;text-decoration:none;font-weight:900;">Vytvořte si jídelníček zdarma</a>
 </div>
 </div>'''
 
@@ -194,7 +193,7 @@ def public_recipe_index_view(request):
         raise Http404
     html = template.replace('<!--ssr-outlet-->', index_html)
     title = 'Recepty — Vařto'
-    desc = 'Prozkoumejte recepty generované AI s nutričními hodnotami a podrobnými postupy. Každý recept obsahuje ingredience, postup a nutriční hodnoty.'
+    desc = 'Prozkoumejte naše recepty s nutričními hodnotami a podrobnými postupy. Každý recept obsahuje ingredience, postup a nutriční hodnoty.'
     canonical = f'{SITE_URL}/recepty/'
     html = _replace_meta(html, title, desc, canonical)
 
