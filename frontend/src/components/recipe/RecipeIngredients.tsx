@@ -59,7 +59,7 @@ export const RecipeIngredients = ({ ingredients, baseServings }: RecipeIngredien
                   <span className="text-zinc-300 ml-1">— {scaled.amountLabel}</span>
                 )}
                 {scaled.optional && (
-                  <span className="text-zinc-500 italic ml-1">(volitelné)</span>
+                  <span className="text-zinc-400 italic ml-1">(volitelné)</span>
                 )}
               </span>
             </li>

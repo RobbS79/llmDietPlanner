@@ -62,7 +62,7 @@ const FAQ = [
   },
   {
     q: 'Jak přesné jsou ceny z obchodů?',
-    a: 'Ceny aktualizujeme pravidelně přímo z e-shopů jako Rohlík.cz, Košík.cz a dalších. Přesnost je obvykle 97% a vyšší.',
+    a: 'Ceny vycházejí z reálných cen v českých e-shopech a pravidelně je aktualizujeme. U akčních nabídek a podle aktuální dostupnosti se mohou drobně lišit.',
   },
   {
     q: 'Mohu plán kdykoliv zrušit?',
@@ -159,7 +159,7 @@ export const Pricing = () => {
               }`}
             >
               {plan.highlighted && (
-                <div className="inline-block px-3 py-1 bg-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest mb-6 shadow-lg">
+                <div className="inline-block px-3 py-1 bg-emerald-500 rounded-lg text-[9px] font-black uppercase tracking-widest mb-6 shadow-lg">
                   Doporučeno
                 </div>
               )}

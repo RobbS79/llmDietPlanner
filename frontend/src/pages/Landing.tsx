@@ -78,7 +78,7 @@ export const Landing = () => {
         <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
           {[
             { value: '500+', label: 'Vygenerovaných plánů' },
-            { value: '97%', label: 'Přesnost cen' },
+            { value: 'Reálné', label: 'Ceny z e-shopů' },
             { value: '<60s', label: 'Čas generování' },
           ].map((stat) => (
             <div key={stat.label}>
@@ -338,7 +338,7 @@ export const Landing = () => {
       {/* Sticky mobile CTA */}
       {showStickyCta && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#1e293b]/95 backdrop-blur-lg border-t border-slate-600 sm:hidden">
-          <button onClick={() => navigate('/login')} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+          <button onClick={() => navigate('/login')} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2">
             Vytvořit jídelníček zdarma <ArrowRight size={16} />
           </button>
         </div>
