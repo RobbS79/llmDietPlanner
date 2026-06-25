@@ -76,7 +76,7 @@
 
 /* Skip-to-content link */
 .skip-to-content {
-  @apply absolute -top-12 left-4 z-[9999] bg-emerald-500 text-white px-6 py-3 rounded-b-xl font-black text-xs uppercase tracking-widest transition-all;
+  @apply absolute -top-12 left-4 z-[9999] bg-green text-white px-6 py-3 rounded-b-xl font-black text-xs uppercase tracking-widest transition-all;
 }
 .skip-to-content:focus {
   @apply top-0;
