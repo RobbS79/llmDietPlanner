@@ -15,8 +15,8 @@ test.describe('smoke', () => {
 
     await page.goto('/login');
 
-    // Brand wordmark: "DietPlanner."
-    await expect(page.getByRole('heading', { name: /diet/i })).toBeVisible();
+    // Brand wordmark: "vařto."
+    await expect(page.getByText(/vařto/i).first()).toBeVisible();
 
     // Sign-in form elements
     await expect(page.getByText(/sign in/i).first()).toBeVisible();

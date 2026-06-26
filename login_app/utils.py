@@ -53,11 +53,11 @@ def get_password_reset_email_content(username: str, reset_url: str) -> Dict[str,
     Generate email content for password reset email.
     """
     subject = 'Reset your password'
-    from_email = f"DietPlanner <{settings.DEFAULT_FROM_EMAIL}>"
+    from_email = f"Vařto <{settings.DEFAULT_FROM_EMAIL}>"
 
     text_content = f'''Hello {username},
 
-We received a request to reset your password for your DietPlanner account.
+We received a request to reset your password for your Vařto account.
 
 Click the following link to set a new password:
 
@@ -68,7 +68,7 @@ This link will expire in 24 hours.
 If you did not request a password reset, please ignore this email. Your password will remain unchanged.
 
 Best regards,
-DietPlanner Team'''
+Vařto Team'''
 
     html_content = f'''<!DOCTYPE html>
 <html>
@@ -77,7 +77,7 @@ DietPlanner Team'''
     <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
         <h1 style="color: #2c3e50; margin-top: 0;">Reset Your Password</h1>
         <p>Hello {username},</p>
-        <p>We received a request to reset your password for your DietPlanner account.</p>
+        <p>We received a request to reset your password for your Vařto account.</p>
         <p>Click the button below to set a new password:</p>
         <div style="text-align: center; margin: 30px 0;">
             <a href="{reset_url}" style="display: inline-block; padding: 12px 30px; background-color: #4F46E5; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
@@ -87,7 +87,7 @@ DietPlanner Team'''
         <p style="font-size: 14px; color: #666;"><strong>This link will expire in 24 hours.</strong></p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
         <p style="font-size: 12px; color: #999;">If you did not request a password reset, please ignore this email.</p>
-        <p style="margin-top: 30px;">Best regards,<br><strong>DietPlanner Team</strong></p>
+        <p style="margin-top: 30px;">Best regards,<br><strong>Vařto Team</strong></p>
     </div>
 </body>
 </html>'''
