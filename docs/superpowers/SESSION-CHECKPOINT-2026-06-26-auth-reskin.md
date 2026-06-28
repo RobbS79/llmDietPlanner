@@ -1,7 +1,16 @@
-# Session Checkpoint — 2026-06-26 — Auth App Re-skin (in progress)
+# Session Checkpoint — 2026-06-26 — Auth App Re-skin (COMPLETE)
 
 Carrying the light **Market Paper** identity into the logged-in product so Vařto is one
-visual identity end-to-end. Paused mid-execution (user went offline).
+visual identity end-to-end.
+
+> **STATUS 2026-06-28: DONE.** All 10 tasks complete on `feat/auth-app-reskin` → **PR #29** open to `develop`.
+> Three plan-gaps found & fixed during review: `Badge.tsx` dark variants, PlanView macro-stat
+> legibility, and `index.css` global base (`<body>` was still dark slate). Verified via clean
+> source grep, successful build, zero dark/emerald hexes in built CSS, and creds-free Playwright
+> screenshots of every authed page (desktop+mobile) at `ux-review/reskin-app-*.png` via
+> `e2e/tests/reskin-screenshots.spec.ts`. Pre-existing finding: committed e2e dashboard/plan/recipe
+> specs fail against current develop (stale `helpers/mocks.ts`) — follow-up needed.
+> Original mid-execution notes below for history.
 
 ## Branch & artifacts
 
