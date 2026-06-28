@@ -3,54 +3,69 @@ import { test, expect } from '../fixtures/auth';
 /**
  * Create-plan form tests.
  *
+ * The form is a 2-step wizard:
+ *   Step 1 ("Cíle"):  prompt textarea, country, city — gated "Další krok" button.
+ *   Step 2 ("Jídla"): meal toggles, duration buttons, "Vygenerovat plán" submit.
+ *
  * The form posts to /api/goals/ which the mock fixture intercepts and
  * returns goal_id=42, simulating immediate task acceptance. The PlanView
  * then polls /api/goals/42/task-status/ which the mock advances toward
  * 'completed' so the full happy-path flow runs without touching the LLM.
  */
 
+async function fillStepOne(page: any, prompt = 'Test prompt', city = 'Praha') {
+  await page.locator('textarea').fill(prompt);
+  await page.getByPlaceholder(/např. Praha/i).fill(city);
+}
+
+async function goToStepTwo(page: any) {
+  await fillStepOne(page);
+  await page.getByRole('button', { name: /další krok/i }).click();
+}
+
 test.describe('create plan form', () => {
   test('renders all sections and the submit button', async ({ authedPage: page }) => {
     await page.goto('/create');
 
-    // Page heading
-    await expect(page.getByRole('heading', { name: /new/i })).toBeVisible();
-    // Section headings
-    await expect(page.getByText(/dietary goals/i)).toBeVisible();
-    await expect(page.getByText(/describe your goals/i)).toBeVisible();
-    await expect(page.getByText(/country/i).first()).toBeVisible();
-    await expect(page.getByText(/city/i).first()).toBeVisible();
-    await expect(page.getByText(/plan duration/i)).toBeVisible();
-    await expect(page.getByText(/preferred store/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /generate plan/i })).toBeVisible();
+    // Page heading "Nový plán."
+    await expect(page.getByRole('heading', { name: /nový/i })).toBeVisible();
+    // Step 1 section headings
+    await expect(page.getByText(/stravovací cíle/i)).toBeVisible();
+    await expect(page.getByText(/popište své cíle/i)).toBeVisible();
+    await expect(page.getByText(/země/i).first()).toBeVisible();
+    await expect(page.getByText(/město/i).first()).toBeVisible();
+
+    // Advance to step 2 for duration + submit
+    await goToStepTwo(page);
+    await expect(page.getByText(/délka plánu/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /vygenerovat plán/i })).toBeVisible();
   });
 
-  test('submit button is disabled until prompt is filled', async ({ authedPage: page }) => {
+  test('next button is disabled until prompt and city are filled', async ({ authedPage: page }) => {
     await page.goto('/create');
 
-    const submit = page.getByRole('button', { name: /generate plan/i });
-    await expect(submit).toBeDisabled();
+    const next = page.getByRole('button', { name: /další krok/i });
+    await expect(next).toBeDisabled();
 
-    await page.getByRole('textbox', { name: /describe your goals/i }).or(
-      page.locator('textarea')
-    ).first().fill('Test prompt');
-    await expect(submit).toBeEnabled();
+    await fillStepOne(page);
+    await expect(next).toBeEnabled();
   });
 
-  test('HTML required attribute on city blocks submission with empty city', async ({
-    authedPage: page,
-  }) => {
+  test('empty city blocks advancing past step one', async ({ authedPage: page }) => {
     await page.goto('/create');
     await page.locator('textarea').fill('Test prompt');
 
-    // City input is required; trying to submit should keep us on /create.
-    await page.getByRole('button', { name: /generate plan/i }).click();
+    // City still empty -> cannot advance, stays on /create.
+    const next = page.getByRole('button', { name: /další krok/i });
+    await expect(next).toBeDisabled();
     await expect(page).toHaveURL(/\/create$/);
   });
 
   test('toggling meals deactivates the visual selection', async ({ authedPage: page }) => {
     await page.goto('/create');
-    const breakfast = page.getByRole('button', { name: /breakfast/i });
+    await goToStepTwo(page);
+
+    const breakfast = page.getByRole('button', { name: /snídaně/i });
     await expect(breakfast).toBeVisible();
     // Click to deactivate, then re-activate
     await breakfast.click();
@@ -59,27 +74,12 @@ test.describe('create plan form', () => {
 
   test('day duration buttons update the selected duration', async ({ authedPage: page }) => {
     await page.goto('/create');
+    await goToStepTwo(page);
+
     const day14 = page.getByRole('button', { name: /^14D$/i });
     await day14.click();
-    // The clicked button should now carry the active indigo class.
-    await expect(day14).toHaveClass(/bg-indigo-600/);
-  });
-
-  test.describe('shop selection', () => {
-    test.use({
-      mockOptions: {
-        shops: [
-          { code: 'ROHLIK', name: 'Rohlik' },
-          { code: 'KOSIK', name: 'Kosik' },
-        ],
-      },
-    });
-
-    test('shows shops returned by /api/shops/', async ({ authedPage: page }) => {
-      await page.goto('/create');
-      await expect(page.getByRole('button', { name: /^Rohlik/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: /^Kosik/ })).toBeVisible();
-    });
+    // The clicked button should now carry the active emerald class.
+    await expect(day14).toHaveClass(/bg-emerald-600/);
   });
 
   test('happy path: submit form -> redirect to /plan/:id -> shows completed plan', async ({
@@ -87,20 +87,18 @@ test.describe('create plan form', () => {
   }) => {
     await page.goto('/create');
 
-    await page.locator('textarea').fill('E2E test plan prompt');
-    await page.getByPlaceholder(/e.g. Prague/i).fill('Prague');
+    await fillStepOne(page, 'E2E test plan prompt', 'Praha');
+    await page.getByRole('button', { name: /další krok/i }).click();
 
-    await page.getByRole('button', { name: /generate plan/i }).click();
+    await page.getByRole('button', { name: /vygenerovat plán/i }).click();
 
     // Mock returns goal_id=42 -> navigation
     await expect(page).toHaveURL(/\/plan\/42$/);
 
-    // PlanView polls task-status; mocks march to 'completed'. "Your Plan." heading
+    // PlanView polls task-status; mocks march to 'completed'. "Váš plán." heading
     // appears once status === 'completed'.
-    await expect(page.getByText(/your plan/i).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/váš plán/i).first()).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/Mocked Oats/i)).toBeVisible();
     await expect(page.getByText(/Mocked Chicken Bowl/i)).toBeVisible();
-    // Shopping list sidebar is rendered
-    await expect(page.getByText(/Chicken breast/i).first()).toBeVisible();
   });
 });

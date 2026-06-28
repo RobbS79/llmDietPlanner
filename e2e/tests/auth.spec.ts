@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { makeFakeJwt } from '../fixtures/auth';
 
 /**
  * Client-side auth behaviour: route guards, /login-success token handling,
@@ -37,11 +38,12 @@ test.describe('auth - client side', () => {
   });
 
   test('logout clears tokens and returns user to /login', async ({ page }) => {
-    // Seed tokens + stub API so the dashboard renders.
-    await page.addInitScript(() => {
-      localStorage.setItem('access_token', 'e2e-fake-access-token');
+    // Seed a structurally-valid JWT (the guard decodes exp) + stub API so the
+    // dashboard renders.
+    await page.addInitScript((token) => {
+      localStorage.setItem('access_token', token);
       localStorage.setItem('refresh_token', 'e2e-fake-refresh-token');
-    });
+    }, makeFakeJwt());
     await page.route('**/api/goals/list/', (route) =>
       route.fulfill({
         status: 200,
@@ -49,10 +51,17 @@ test.describe('auth - client side', () => {
         body: JSON.stringify({ status: 'success', data: [], error: null }),
       }),
     );
+    await page.route('**/api/auth/profile/', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', data: { onboarding_completed: true }, error: null }),
+      }),
+    );
 
     await page.goto('/');
-    // Dashboard heading: "Your Plans."
-    await expect(page.getByText(/plans/i).first()).toBeVisible();
+    // Dashboard heading: "Vaše plány."
+    await expect(page.getByText(/plány/i).first()).toBeVisible();
 
     // Logout button — inside the desktop nav area, after the separator.
     const logoutBtn = page.locator('header .hidden.md\\:flex button');

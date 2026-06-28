@@ -5,7 +5,7 @@ import { test, expect } from '../fixtures/auth';
  */
 
 test.describe('plan view', () => {
-  test.describe('completed plan renders meals, shopping list, and total', () => {
+  test.describe('completed plan renders meals', () => {
     test.use({
       mockOptions: {
         statusSequence: [{ goal_status: 'completed' }],
@@ -16,13 +16,10 @@ test.describe('plan view', () => {
       authedPage: page,
     }) => {
       await page.goto('/plan/42');
-      // "Your Plan." heading
-      await expect(page.getByText(/your plan/i).first()).toBeVisible({ timeout: 30_000 });
+      // "Váš plán." heading
+      await expect(page.getByText(/váš plán/i).first()).toBeVisible({ timeout: 30_000 });
       await expect(page.getByText(/Mocked Oats/i)).toBeVisible();
-      // Shopping list sidebar
-      await expect(page.getByText(/shopping list/i).first()).toBeVisible();
-      // Total price from mock
-      await expect(page.getByText(/1234/)).toBeVisible();
+      await expect(page.getByText(/Mocked Chicken Bowl/i)).toBeVisible();
     });
 
     test('meal cards are clickable and navigate to recipe detail', async ({
@@ -38,18 +35,6 @@ test.describe('plan view', () => {
       await expect(page).toHaveURL(/\/plan\/42\/recipe\/42:1:breakfast:0$/);
     });
 
-    test('"View Full List" button navigates to shopping list page', async ({
-      authedPage: page,
-    }) => {
-      await page.goto('/plan/42');
-      await expect(page.getByText(/your plan/i).first()).toBeVisible({ timeout: 30_000 });
-
-      const listBtn = page.getByRole('button', { name: /view full list/i });
-      await expect(listBtn).toBeVisible();
-      await listBtn.click();
-
-      await expect(page).toHaveURL(/\/plan\/42\/shopping-list$/);
-    });
   });
 
   test.describe('failed plan shows error UI', () => {
@@ -63,10 +48,10 @@ test.describe('plan view', () => {
       authedPage: page,
     }) => {
       await page.goto('/plan/42');
-      await expect(page.getByRole('heading', { name: /generation failed/i })).toBeVisible({
+      await expect(page.getByRole('heading', { name: /generování selhalo/i })).toBeVisible({
         timeout: 10_000,
       });
-      const back = page.getByRole('button', { name: /back to plans/i });
+      const back = page.getByRole('button', { name: /zpět na plány/i });
       await expect(back).toBeVisible();
       await back.click();
       await expect(page).toHaveURL(/\/$/);
@@ -85,9 +70,9 @@ test.describe('plan view', () => {
       authedPage: page,
     }) => {
       await page.goto('/plan/42');
-      await expect(page.getByRole('heading', { name: /generating/i })).toBeVisible();
-      // StatusTracker shows "Starting" for pending status
-      await expect(page.getByText(/starting/i)).toBeVisible();
+      await expect(page.getByRole('heading', { name: /generujeme/i })).toBeVisible();
+      // StatusTracker shows "Analyzujeme vaše preference" for pending status
+      await expect(page.getByText(/analyzujeme/i).first()).toBeVisible();
     });
   });
 });

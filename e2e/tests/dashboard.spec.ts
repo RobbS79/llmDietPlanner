@@ -8,11 +8,11 @@ test.describe('dashboard', () => {
   test('renders empty state when no goals exist', async ({ authedPage: page }) => {
     await page.goto('/');
 
-    // Dashboard heading "Your Plans."
-    await expect(page.getByText(/your/i).first()).toBeVisible();
-    await expect(page.getByText(/plans/i).first()).toBeVisible();
-    await expect(page.getByText(/no meal plans yet/i)).toBeVisible();
-    await expect(page.getByText(/create your first plan/i)).toBeVisible();
+    // Dashboard heading "Vaše plány."
+    await expect(page.getByText(/vaše/i).first()).toBeVisible();
+    await expect(page.getByText(/plány/i).first()).toBeVisible();
+    await expect(page.getByText(/zatím žádné jídelníčky/i)).toBeVisible();
+    await expect(page.getByText(/vytvořit první plán/i)).toBeVisible();
   });
 
   test.describe('with seeded goals', () => {
@@ -58,7 +58,7 @@ test.describe('dashboard', () => {
 
     test('"New Plan" button navigates to /create', async ({ authedPage: page }) => {
       await page.goto('/');
-      await page.getByRole('button', { name: /new plan/i }).click();
+      await page.getByRole('button', { name: /nový plán/i }).click();
       await expect(page).toHaveURL(/\/create$/);
     });
   });

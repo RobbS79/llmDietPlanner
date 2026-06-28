@@ -26,20 +26,20 @@ test.describe('recipe page', () => {
     await expect(page.getByText(/satiating bowl of oats/i)).toBeVisible();
 
     // Ingredients section
-    await expect(page.getByText(/ingredients/i).first()).toBeVisible();
+    await expect(page.getByText(/ingredience/i).first()).toBeVisible();
     await expect(page.getByText(/oats/i).first()).toBeVisible();
     await expect(page.getByText(/milk/i).first()).toBeVisible();
     await expect(page.getByText(/honey/i).first()).toBeVisible();
 
-    // Instructions section
-    await expect(page.getByText(/instructions/i)).toBeVisible();
+    // Instructions section (heading "Postup")
+    await expect(page.getByText(/postup/i)).toBeVisible();
     await expect(page.getByText(/bring milk to a simmer/i)).toBeVisible();
     await expect(page.getByText(/add oats and stir/i)).toBeVisible();
     await expect(page.getByText(/drizzle with honey/i)).toBeVisible();
     await expect(page.getByText(/serve warm/i)).toBeVisible();
 
-    // Nutritional info
-    await expect(page.getByText(/nutrition facts/i)).toBeVisible();
+    // Nutritional info (heading "Nutriční hodnoty")
+    await expect(page.getByText(/nutriční hodnoty/i)).toBeVisible();
     await expect(page.getByText(/450/)).toBeVisible();
   });
 
@@ -54,8 +54,8 @@ test.describe('recipe page', () => {
     await expect(page.getByText(/10 min prep/i)).toBeVisible();
     // Cook time: 5 min
     await expect(page.getByText(/5 min cook/i)).toBeVisible();
-    // Servings: 1
-    await expect(page.getByText(/1 serving/i)).toBeVisible();
+    // Servings: 1 porce
+    await expect(page.getByText(/1 porce/i).first()).toBeVisible();
   });
 
   test('"Back to Plan" button navigates back to plan view', async ({ authedPage: page }) => {
@@ -65,7 +65,7 @@ test.describe('recipe page', () => {
       timeout: 10_000,
     });
 
-    await page.getByText(/back to plan/i).click();
+    await page.getByText(/zpět na plán/i).click();
     await expect(page).toHaveURL(/\/plan\/42$/);
   });
 
@@ -74,7 +74,7 @@ test.describe('recipe page', () => {
   }) => {
     // Start at the plan view
     await page.goto('/plan/42');
-    await expect(page.getByText(/your plan/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/váš plán/i).first()).toBeVisible({ timeout: 30_000 });
 
     // Click on Mocked Oats meal card
     await page.getByText(/Mocked Oats/i).click();
@@ -87,7 +87,7 @@ test.describe('recipe page', () => {
     await expect(page.getByText(/bring milk to a simmer/i)).toBeVisible();
 
     // Navigate back
-    await page.getByText(/back to plan/i).click();
+    await page.getByText(/zpět na plán/i).click();
     await expect(page).toHaveURL(/\/plan\/42$/);
     await expect(page.getByText(/Mocked Oats/i)).toBeVisible();
   });

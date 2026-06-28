@@ -18,11 +18,11 @@ test.describe('smoke', () => {
     // Brand wordmark: "vařto."
     await expect(page.getByText(/vařto/i).first()).toBeVisible();
 
-    // Sign-in form elements
-    await expect(page.getByText(/sign in/i).first()).toBeVisible();
+    // Sign-in form elements (tab "Přihlášení" / submit "Přihlásit se")
+    await expect(page.getByText(/přihlá/i).first()).toBeVisible();
 
     // Google OAuth button
-    await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /pokračovat přes google/i })).toBeVisible();
 
     // Filter out noisy 3rd-party warnings; surface any real app errors.
     const fatal = consoleErrors.filter(
@@ -33,9 +33,12 @@ test.describe('smoke', () => {
     expect(fatal, `unexpected console errors:\n${fatal.join('\n')}`).toEqual([]);
   });
 
-  test('unauthenticated users are bounced from / to /login', async ({ page }) => {
+  test('unauthenticated users see the public landing page at /', async ({ page }) => {
+    // HomeRoute now renders a public <Landing /> for anonymous visitors instead
+    // of bouncing to /login.
     await page.goto('/');
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByText(/reálnými cenami z obchodu/i).first()).toBeVisible();
   });
 
   test('unauthenticated users are bounced from /create to /login', async ({ page }) => {
@@ -43,9 +46,10 @@ test.describe('smoke', () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('unknown routes redirect to / (which then bounces to /login)', async ({ page }) => {
+  test('unknown routes redirect to / (the public landing page when anon)', async ({ page }) => {
     await page.goto('/this-route-does-not-exist');
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByText(/reálnými cenami z obchodu/i).first()).toBeVisible();
   });
 
   test('Google button triggers the backend OAuth redirect endpoint', async ({ page }) => {
@@ -54,7 +58,7 @@ test.describe('smoke', () => {
 
     await Promise.all([
       page.waitForURL(/\/api\/auth\/google\/login\//),
-      page.getByRole('button', { name: /continue with google/i }).click(),
+      page.getByRole('button', { name: /pokračovat přes google/i }).click(),
     ]);
 
     // We stub the response so the page lands on our placeholder, not Google.
