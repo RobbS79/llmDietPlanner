@@ -20,12 +20,11 @@ test.describe('error handling', () => {
 
     await page.goto('/');
 
-    // App shouldn't crash to a white screen. The loading screen should appear
-    // and the page should still have the dark background root.
+    // App shouldn't crash to a white screen. The dashboard chrome (heading +
+    // skeletons) still renders even though the goals list never resolves.
     await expect(page.locator('body')).toBeVisible();
-    // The Generating... loader is shown while data is "loading" (which never
-    // completes here). That's acceptable graceful degradation for now.
-    await expect(page.getByRole('heading', { name: /generating/i })).toBeVisible({
+    // Dashboard heading "Vaše plány." is always rendered — graceful degradation.
+    await expect(page.getByText(/plány/i).first()).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -57,6 +56,6 @@ test.describe('error handling', () => {
     await page.goto('/nope/does/not/exist');
     await expect(page).toHaveURL(/\/$/);
     // Dashboard should render
-    await expect(page.getByText(/plans/i).first()).toBeVisible();
+    await expect(page.getByText(/plány/i).first()).toBeVisible();
   });
 });
