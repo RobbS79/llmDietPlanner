@@ -16,7 +16,7 @@ export const Card = ({ children, className = "", onClick, to, variant = 'app', .
   const surface = variant === 'paper' ? 'bg-card border-line' : `${THEME.surface} ${THEME.border}`;
   const base = `${surface} border rounded-2xl shadow-lg transition-all`;
   const focusRing = isInteractive
-    ? 'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none'
+    ? 'focus-visible:ring-2 focus-visible:ring-green focus-visible:outline-none'
     : '';
 
   if (to) {

@@ -40,23 +40,23 @@ export const LoadingScreen = ({ message, status, goalId }: { message: string; st
   const isStuck = elapsed > 120;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#1e293b]" role="status" aria-live="polite">
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-paper" role="status" aria-live="polite">
       <div className="relative mb-12 flex items-center justify-center">
-        <div className="absolute inset-0 bg-emerald-600/10 blur-[80px] rounded-full" />
-        <Loader2 className="animate-spin text-emerald-500 relative z-10" size={100} strokeWidth={1} />
+        <div className="absolute inset-0 bg-green-soft blur-[80px] rounded-full" />
+        <Loader2 className="animate-spin text-green relative z-10" size={100} strokeWidth={1} />
         <div className="absolute inset-0 flex items-center justify-center">
-          <Zap size={28} className="text-emerald-400 animate-pulse" />
+          <Zap size={28} className="text-green animate-pulse" />
         </div>
       </div>
       <div className="space-y-3 relative z-10">
-        <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none">Generujeme<span className="text-emerald-500 animate-pulse">...</span></h2>
-        <p className="text-zinc-300 text-[10px] font-bold uppercase tracking-widest italic max-w-sm mx-auto leading-relaxed">{displayMessage}</p>
+        <h2 className="text-4xl font-display font-black text-ink tracking-tighter uppercase italic leading-none">Generujeme<span className="text-green animate-pulse">...</span></h2>
+        <p className="text-muted text-[10px] font-bold uppercase tracking-widest italic max-w-sm mx-auto leading-relaxed">{displayMessage}</p>
       </div>
       {status && (
         <div className="mt-8 w-full max-w-xs mx-auto">
-          <div className="h-1 bg-slate-600 rounded-full overflow-hidden mb-2">
+          <div className="h-1 bg-kraft rounded-full overflow-hidden mb-2">
             <div
-              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 ease-out"
+              className="h-full bg-gradient-to-r from-green to-green-mid rounded-full transition-all duration-1000 ease-out"
               style={{ width: `${Math.min(((['pending', 'awaiting_payment'].includes(currentStatus) ? 1 : ['payment_confirmed', 'processing', 'processing_meal_plan'].includes(currentStatus) ? 2 : ['processing_shopping_list'].includes(currentStatus) ? 3 : ['validating'].includes(currentStatus) ? 4 : 5) / 5) * 100, 100)}%` }}
             />
           </div>
@@ -65,11 +65,11 @@ export const LoadingScreen = ({ message, status, goalId }: { message: string; st
       )}
       {isStuck && goalId && (
         <div className="mt-10 space-y-3">
-          <p className="text-zinc-400 text-xs font-bold">Generování trvá déle než obvykle.</p>
+          <p className="text-muted text-xs font-bold">Generování trvá déle než obvykle.</p>
           <button
             onClick={handleRetry}
             disabled={retrying}
-            className="flex items-center gap-2 mx-auto px-6 h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-40"
+            className="flex items-center gap-2 mx-auto px-6 h-12 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-40"
           >
             <RotateCcw size={14} className={retrying ? 'animate-spin' : ''} />
             {retrying ? 'Obnovujeme...' : 'Zkusit znovu'}

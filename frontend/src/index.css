@@ -4,39 +4,35 @@
 
 @layer base {
   body {
-    @apply bg-[#1e293b] text-white font-sans antialiased selection:bg-emerald-400/30;
-    background-image:
-      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.08) 0px, transparent 50%);
-    background-attachment: fixed;
+    @apply bg-paper text-ink font-sans antialiased selection:bg-green-soft;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-[#334155]/60 backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply bg-card/70 backdrop-blur-xl border border-line shadow-xl;
   }
 
   .btn-primary {
-    @apply bg-emerald-500 text-white font-black py-4 px-8 rounded-2xl hover:bg-emerald-400
-           transition-all duration-300 shadow-lg shadow-emerald-900/30 active:scale-[0.98]
+    @apply bg-green text-white font-black py-4 px-8 rounded-2xl hover:bg-green-mid
+           transition-all duration-300 shadow-lg active:scale-[0.98]
            disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3;
   }
 
   .input-field {
-    @apply w-full bg-[#1e293b]/60 border border-white/15 rounded-2xl p-4 text-white
-           focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder:text-slate-400;
+    @apply w-full bg-paper border border-line rounded-2xl p-4 text-ink
+           focus:ring-2 focus:ring-green outline-none transition-all placeholder:text-muted;
   }
 
   /* Unified shadow scale */
   .shadow-glow-sm {
-    box-shadow: 0 0 15px rgba(5, 150, 105, 0.3);
+    box-shadow: 0 0 15px rgba(46, 107, 67, 0.3);
   }
   .shadow-glow-md {
-    box-shadow: 0 0 30px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 30px rgba(46, 107, 67, 0.3);
   }
   .shadow-glow-lg {
-    box-shadow: 0 0 60px rgba(5, 150, 105, 0.1);
+    box-shadow: 0 0 60px rgba(46, 107, 67, 0.1);
   }
   .shadow-deep {
     box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.8);
@@ -85,4 +81,4 @@
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { @apply bg-transparent; }
-::-webkit-scrollbar-thumb { @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors; }
+::-webkit-scrollbar-thumb { @apply bg-black/15 rounded-full hover:bg-black/25 transition-colors; }

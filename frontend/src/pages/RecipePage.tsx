@@ -72,12 +72,12 @@ export const RecipePage = () => {
     return (
       <MainLayout>
         <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-emerald-600/10 flex items-center justify-center border border-emerald-500/20 animate-pulse">
-            <Loader2 size={40} className="text-emerald-500 animate-spin" />
+          <div className="w-20 h-20 rounded-2xl bg-green-soft flex items-center justify-center border border-green/40 animate-pulse">
+            <Loader2 size={40} className="text-green animate-spin" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Generujeme recept</h2>
-            <p className="text-zinc-400 text-sm italic">Náš kuchař píše postup krok za krokem...</p>
+            <h2 className="text-2xl font-black font-display text-ink uppercase tracking-tighter italic">Generujeme recept</h2>
+            <p className="text-muted text-sm italic">Náš kuchař píše postup krok za krokem...</p>
           </div>
         </div>
       </MainLayout>
@@ -88,8 +88,8 @@ export const RecipePage = () => {
     return (
       <MainLayout>
         <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Recept nenalezen</h2>
-          <button onClick={() => navigate(`/plan/${id}`)} className="px-8 h-12 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl">
+          <h2 className="text-2xl font-black font-display text-ink uppercase tracking-tighter italic">Recept nenalezen</h2>
+          <button onClick={() => navigate(`/plan/${id}`)} className="px-8 h-12 bg-green text-white font-black uppercase text-[10px] tracking-widest rounded-xl">
             Zpět na plán
           </button>
         </div>
@@ -102,7 +102,7 @@ export const RecipePage = () => {
       <div className="max-w-4xl mx-auto px-6 py-12 w-full">
         <button
           onClick={() => navigate(`/plan/${id}`)}
-          className="flex items-center gap-2 text-zinc-300 hover:text-white text-xs font-black uppercase tracking-widest mb-12 transition-colors"
+          className="flex items-center gap-2 text-muted hover:text-ink text-xs font-black uppercase tracking-widest mb-12 transition-colors"
         >
           <ArrowLeft size={16} /> Zpět na plán
         </button>
@@ -122,39 +122,39 @@ export const RecipePage = () => {
             <Badge variant="emerald">Recept</Badge>
             {recipe.source_url && <Badge variant="emerald">Ověřený recept</Badge>}
           </div>
-          <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.9] mt-6">
-            {recipe.name}<span className="text-emerald-500 not-italic">.</span>
+          <h1 className="text-5xl sm:text-6xl font-black font-display text-ink tracking-tighter uppercase italic leading-[0.9] mt-6">
+            {recipe.name}<span className="text-paprika not-italic">.</span>
           </h1>
           {recipe.description && (
-            <p className="text-zinc-300 text-lg font-medium italic mt-6 max-w-2xl leading-relaxed">"{recipe.description}"</p>
+            <p className="text-muted text-lg font-medium italic mt-6 max-w-2xl leading-relaxed">"{recipe.description}"</p>
           )}
 
           <div className="flex flex-wrap gap-4 mt-8">
             {recipe.preparation_time && (
-              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
-                <Clock size={14} className="text-emerald-500" /> {recipe.preparation_time} min prep
+              <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                <Clock size={14} className="text-green" /> {recipe.preparation_time} min prep
               </div>
             )}
             {recipe.cooking_time && (
-              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
-                <Clock size={14} className="text-emerald-500" /> {recipe.cooking_time} min cook
+              <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                <Clock size={14} className="text-green" /> {recipe.cooking_time} min cook
               </div>
             )}
             {recipe.servings && (
-              <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
-                <Users size={14} className="text-emerald-500" /> {recipe.servings} {recipe.servings > 1 ? 'porcí' : 'porce'}
+              <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                <Users size={14} className="text-green" /> {recipe.servings} {recipe.servings > 1 ? 'porcí' : 'porce'}
               </div>
             )}
           </div>
 
           {recipe.source_url && recipe.source_name && (
-            <p className="text-zinc-400 text-xs mt-6">
+            <p className="text-muted text-xs mt-6">
               Inspirováno receptem z{' '}
               <a
                 href={recipe.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-2 font-semibold"
+                className="text-green hover:text-green-mid underline underline-offset-2 font-semibold"
               >
                 {recipe.source_name}
               </a>
@@ -166,13 +166,13 @@ export const RecipePage = () => {
         {getRecipeDeals(recipe) && (() => {
           const d = getRecipeDeals(recipe)!;
           return (
-            <div className="mt-3 rounded-lg bg-emerald-50 p-3">
-              <p className="text-sm font-medium text-emerald-800">
+            <div className="mt-3 rounded-lg bg-green-soft p-3">
+              <p className="text-sm font-medium text-green">
                 {d.matched} z {d.total} surovin ve slevě tento týden
               </p>
               <ul className="mt-1 space-y-0.5">
                 {d.deals.map((deal) => (
-                  <li key={deal.canonical} className="text-[13px] text-emerald-700">
+                  <li key={deal.canonical} className="text-[13px] text-green">
                     <a href={deal.source_url} target="_blank" rel="noopener noreferrer"
                        className="hover:underline">
                       {deal.display_name} — {deal.shop}
@@ -191,34 +191,34 @@ export const RecipePage = () => {
           {/* Instructions */}
           <div className="md:col-span-2 space-y-8 text-left">
             <div className="flex items-center gap-3 mb-2">
-              <ChefHat size={24} className="text-emerald-500" />
-              <h2 className="text-lg font-black text-white uppercase tracking-tighter italic">Postup</h2>
+              <ChefHat size={24} className="text-green" />
+              <h2 className="text-lg font-black font-display text-ink uppercase tracking-tighter italic">Postup</h2>
             </div>
 
             {(recipe.instructions || []).length > 0 ? (
               <ol className="space-y-6">
                 {recipe.instructions.map((step: string, idx: number) => (
                   <li key={idx} className="flex gap-5">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-600/10 border border-emerald-500/10 flex items-center justify-center text-emerald-400 font-black text-sm italic shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-green-soft border border-green/40 flex items-center justify-center text-green font-black text-sm italic shrink-0">
                       {idx + 1}
                     </div>
-                    <p className="text-zinc-300 leading-relaxed pt-2">{step}</p>
+                    <p className="text-muted leading-relaxed pt-2">{step}</p>
                   </li>
                 ))}
               </ol>
             ) : (
-              <p className="text-zinc-400 italic">Pro tento recept nejsou k dispozici instrukce.</p>
+              <p className="text-muted italic">Pro tento recept nejsou k dispozici instrukce.</p>
             )}
 
             {/* Nutritional info */}
             {recipe.nutritional_info && Object.keys(recipe.nutritional_info).length > 0 && (
               <Card className="p-8 mt-12">
-                <h3 className="text-sm font-black text-white uppercase tracking-tighter italic mb-6">Nutriční hodnoty</h3>
+                <h3 className="text-sm font-black text-ink uppercase tracking-tighter italic mb-6">Nutriční hodnoty</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {Object.entries(recipe.nutritional_info).map(([k, v]: any) => (
                     <div key={k} className="space-y-1">
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest italic">{k}</p>
-                      <p className="text-xl font-black text-zinc-200 italic tracking-tighter">{v}</p>
+                      <p className="text-[9px] font-black text-muted uppercase tracking-widest italic">{k}</p>
+                      <p className="text-xl font-black text-ink italic tracking-tighter">{v}</p>
                     </div>
                   ))}
                 </div>

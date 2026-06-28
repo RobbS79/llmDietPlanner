@@ -53,12 +53,12 @@ const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) =>
   return (
     <div role={isSuccess ? 'status' : 'alert'} className={`flex items-center gap-3 px-5 py-4 rounded-xl border shadow-2xl backdrop-blur-lg text-sm font-bold animate-[slideIn_0.3s_ease-out] ${
       isSuccess
-        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-        : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+        ? 'bg-green-soft border-green/40 text-green'
+        : 'bg-paprika-soft border-paprika/30 text-paprika-strong'
     }`}>
       {isSuccess ? <CheckCircle2 size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
       <span className="flex-1">{toast.message}</span>
-      <button onClick={onClose} aria-label="Zavřít oznámení" className="text-zinc-300 hover:text-white shrink-0">
+      <button onClick={onClose} aria-label="Zavřít oznámení" className="text-muted hover:text-ink shrink-0">
         <X size={14} />
       </button>
     </div>

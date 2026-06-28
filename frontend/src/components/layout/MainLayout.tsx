@@ -3,7 +3,7 @@ import { THEME } from '@/lib/theme';
 import { Navbar } from './Navbar';
 
 export const MainLayout = ({ children }: { children: ReactNode }) => (
-  <div className={`h-screen flex flex-col ${THEME.bg} ${THEME.textPrimary} font-sans selection:bg-emerald-500/30 overflow-hidden`}>
+  <div className={`h-screen flex flex-col ${THEME.bg} ${THEME.textPrimary} font-sans selection:bg-green-soft overflow-hidden`}>
     <a href="#main-content" className="skip-to-content">
       Přejít na obsah
     </a>
