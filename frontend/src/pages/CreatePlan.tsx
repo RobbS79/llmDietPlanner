@@ -120,8 +120,8 @@ export const CreatePlan = () => {
     <MainLayout>
       <div className="max-w-4xl mx-auto px-6 py-12 w-full pb-32 sm:pb-12">
         <header className="mb-12 text-center space-y-4">
-          <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">
-            Nový<br /><span className="text-emerald-500 not-italic">plán.</span>
+          <h1 className="font-display text-5xl sm:text-7xl font-black text-ink tracking-tighter uppercase italic leading-[0.85]">
+            Nový<br /><span className="text-paprika not-italic">plán.</span>
           </h1>
         </header>
 
@@ -134,11 +134,11 @@ export const CreatePlan = () => {
                 type="button"
                 onClick={() => { if (i < step || (i === step) || (i <= step + 1 && canAdvance())) setStep(i); }}
                 className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  i === step ? 'text-emerald-400' : i < step ? 'text-emerald-400 cursor-pointer' : 'text-zinc-400'
+                  i === step ? 'text-green' : i < step ? 'text-green cursor-pointer' : 'text-muted'
                 }`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black transition-all ${
-                  i === step ? 'bg-emerald-600 text-white shadow-lg' : i < step ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700 text-zinc-400 border border-slate-600'
+                  i === step ? 'bg-green text-white shadow-lg' : i < step ? 'bg-green-soft text-green border border-green/40' : 'bg-kraft text-muted border border-line'
                 }`}>
                   {i < step ? <Check size={14} /> : i + 1}
                 </div>
@@ -146,22 +146,22 @@ export const CreatePlan = () => {
               </button>
             ))}
           </div>
-          <div className="h-1 bg-slate-600 rounded-full overflow-hidden">
+          <div className="h-1 bg-kraft rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-gradient-to-r from-green to-green-mid rounded-full transition-all duration-500 ease-out"
               style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
             />
           </div>
-          <p className="text-center text-[10px] font-black text-zinc-300 uppercase tracking-widest mt-3">
+          <p className="text-center text-[10px] font-black text-muted uppercase tracking-widest mt-3">
             Krok {step + 1} z {STEPS.length}
           </p>
         </div>
 
         {completedGoals.length > 0 && step === 0 && (
-          <div className="mb-12 p-6 bg-slate-700/50 border border-slate-600 rounded-2xl text-left">
+          <div className="mb-12 p-6 bg-card border border-line rounded-2xl text-left">
             <div className="flex items-center gap-3 mb-4">
-              <RotateCcw size={16} className="text-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Použít předchozí nastavení</span>
+              <RotateCcw size={16} className="text-green" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted">Použít předchozí nastavení</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {completedGoals.slice(0, 5).map((goal: any) => (
@@ -169,7 +169,7 @@ export const CreatePlan = () => {
                   key={goal.id}
                   type="button"
                   onClick={() => prefillFrom(goal)}
-                  className="px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-xl text-xs font-bold text-zinc-200 hover:text-white hover:border-emerald-500/50 transition-all truncate max-w-[220px]"
+                  className="px-4 py-2.5 bg-paper border border-line rounded-xl text-xs font-bold text-ink hover:bg-kraft hover:border-green/40 transition-all truncate max-w-[220px]"
                   title={goal.prompt}
                 >
                   {goal.city} · {goal.num_days}d — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
@@ -182,19 +182,19 @@ export const CreatePlan = () => {
         {/* Step 1: Dietary Goals */}
         {step === 0 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <div className="flex items-center gap-4 text-white">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">1</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Stravovací cíle</h2>
+            <div className="flex items-center gap-4 text-ink">
+              <div className="w-8 h-8 rounded-lg bg-green flex items-center justify-center font-black italic shadow-lg">1</div>
+              <h2 className="font-display text-2xl font-black uppercase tracking-tight italic leading-none">Stravovací cíle</h2>
             </div>
 
             <Card className="p-8 space-y-10">
               <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 italic">
-                  <BrainCircuit size={14} className="text-emerald-500" /> Popište své cíle
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted flex items-center gap-2 italic">
+                  <BrainCircuit size={14} className="text-green" /> Popište své cíle
                 </label>
                 <textarea
                   autoFocus
-                  className="w-full bg-black/40 border border-slate-600 rounded-2xl p-6 text-lg font-bold text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/50 transition-all min-h-[220px] leading-relaxed"
+                  className="w-full bg-paper border border-line rounded-2xl p-6 text-lg font-bold text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-green transition-all min-h-[220px] leading-relaxed"
                   placeholder="např. Vysoko proteinová dieta, 2400 kcal denně. Bez mléčných výrobků. Cenově dostupné suroviny v Praze..."
                   value={formData.prompt}
                   onChange={e => update('prompt', e.target.value)}
@@ -203,9 +203,9 @@ export const CreatePlan = () => {
 
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Země</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted">Země</label>
                   <select
-                    className="w-full bg-slate-900 border border-slate-600 rounded-xl h-14 px-5 text-xs font-black text-white uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
+                    className="w-full bg-paper border border-line rounded-xl h-14 px-5 text-xs font-black text-ink uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
                     value={formData.country}
                     onChange={e => {
                       const c = e.target.value;
@@ -218,28 +218,28 @@ export const CreatePlan = () => {
                   </select>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Město</label>
-                  <input type="text" className="w-full bg-slate-900 border border-slate-600 rounded-xl h-14 px-5 text-sm font-black text-white placeholder:text-zinc-400 focus:outline-none" placeholder="např. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted">Město</label>
+                  <input type="text" className="w-full bg-paper border border-line rounded-xl h-14 px-5 text-sm font-black text-ink placeholder:text-muted focus:outline-none" placeholder="např. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
                 </div>
               </div>
 
               {/* Protocol upload section */}
-              <div className="pt-8 border-t border-slate-600">
+              <div className="pt-8 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setProtocolExpanded(!protocolExpanded)}
                   className="flex items-center gap-3 w-full text-left group"
                 >
-                  <FileText size={16} className={formData.historic_plan_id ? 'text-emerald-500' : 'text-zinc-400'} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-zinc-200 transition-colors">
+                  <FileText size={16} className={formData.historic_plan_id ? 'text-green' : 'text-muted'} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted group-hover:text-ink transition-colors">
                     Máte dietní protokol od specialisty?
                   </span>
                   {formData.historic_plan_id && (
-                    <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                    <span className="text-[9px] font-bold text-green bg-green-soft px-2 py-0.5 rounded-md">
                       Připojeno
                     </span>
                   )}
-                  <ChevronDown size={14} className={`text-zinc-400 ml-auto transition-transform ${protocolExpanded ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`text-muted ml-auto transition-transform ${protocolExpanded ? 'rotate-180' : ''}`} />
                 </button>
 
                 {protocolExpanded && (
@@ -258,9 +258,9 @@ export const CreatePlan = () => {
         {/* Step 2: Meal Settings */}
         {step === 1 && (
           <section className="space-y-8 text-left animate-[fadeIn_0.3s_ease-out]">
-            <div className="flex items-center gap-4 text-white">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-black italic shadow-lg">2</div>
-              <h2 className="text-2xl font-black uppercase tracking-tight italic leading-none">Nastavení jídel</h2>
+            <div className="flex items-center gap-4 text-ink">
+              <div className="w-8 h-8 rounded-lg bg-green flex items-center justify-center font-black italic shadow-lg">2</div>
+              <h2 className="font-display text-2xl font-black uppercase tracking-tight italic leading-none">Nastavení jídel</h2>
             </div>
 
             <Card className="p-8 space-y-12">
@@ -276,8 +276,8 @@ export const CreatePlan = () => {
                     onClick={() => update(meal.id, !(formData as any)[meal.id])}
                     className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-4 ${
                       (formData as any)[meal.id]
-                        ? 'bg-emerald-600/10 border-emerald-600 text-white shadow-xl shadow-emerald-500/10'
-                        : 'bg-slate-900 border-transparent text-zinc-400 hover:text-zinc-200 grayscale opacity-40'
+                        ? 'bg-green-soft border-green text-ink shadow-xl shadow-green/10'
+                        : 'bg-paper border-transparent text-muted hover:text-ink grayscale opacity-40'
                     }`}
                   >
                     <meal.icon size={28} />
@@ -289,24 +289,24 @@ export const CreatePlan = () => {
               <div className="grid sm:grid-cols-2 gap-12">
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 italic">Svačinky</span>
-                    <span className="text-xl font-black text-emerald-500 italic">{formData.small_meals_per_day}/den</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted italic">Svačinky</span>
+                    <span className="text-xl font-black text-green italic">{formData.small_meals_per_day}/den</span>
                   </div>
-                  <input type="range" min="0" max="5" className="w-full h-2 bg-slate-600 rounded-full appearance-none accent-emerald-600 cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
+                  <input type="range" min="0" max="5" className="w-full h-2 bg-kraft rounded-full appearance-none accent-green cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 italic">Drobné snacky</span>
-                    <span className="text-xl font-black text-emerald-500 italic">{formData.snacks_per_day}/den</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted italic">Drobné snacky</span>
+                    <span className="text-xl font-black text-green italic">{formData.snacks_per_day}/den</span>
                   </div>
-                  <input type="range" min="0" max="3" className="w-full h-2 bg-slate-600 rounded-full appearance-none accent-emerald-600 cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
+                  <input type="range" min="0" max="3" className="w-full h-2 bg-kraft rounded-full appearance-none accent-green cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2.5 pt-8 border-t border-slate-600">
-                <span className="w-full text-[10px] font-black uppercase tracking-widest text-zinc-300 mb-2 italic">Délka plánu (dny)</span>
+              <div className="flex flex-wrap gap-2.5 pt-8 border-t border-line">
+                <span className="w-full text-[10px] font-black uppercase tracking-widest text-muted mb-2 italic">Délka plánu (dny)</span>
                 {[1, 3, 7, 14, 30].map(d => (
-                  <button key={d} type="button" onClick={() => update('num_days', d)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-slate-600 ${formData.num_days === d ? 'bg-emerald-600 text-white shadow-lg border-emerald-500' : 'bg-slate-900 text-zinc-400 hover:text-zinc-200'}`}>
+                  <button key={d} type="button" onClick={() => update('num_days', d)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-line ${formData.num_days === d ? 'bg-green text-white shadow-lg border-green/40' : 'bg-paper text-muted hover:text-ink'}`}>
                     {d}D
                   </button>
                 ))}
@@ -317,7 +317,7 @@ export const CreatePlan = () => {
 
         <div aria-live="polite" aria-atomic="true">
         {error && (
-          <div role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl p-5 text-sm font-bold mt-8">
+          <div role="alert" className="flex items-center gap-3 bg-paprika-soft border border-paprika/30 text-paprika-strong rounded-xl p-5 text-sm font-bold mt-8">
             <AlertCircle size={18} className="shrink-0" />
             <span>{error}</span>
           </div>
@@ -327,36 +327,36 @@ export const CreatePlan = () => {
         {/* Desktop navigation buttons */}
         <div className="hidden sm:flex items-center justify-between mt-12 gap-4">
           {step > 0 ? (
-            <button type="button" onClick={back} className="flex items-center gap-3 px-8 h-14 border border-slate-600 text-zinc-200 hover:text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
+            <button type="button" onClick={back} className="flex items-center gap-3 px-8 h-14 border border-line text-ink hover:bg-kraft rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
               <ArrowLeft size={16} /> Zpět
             </button>
           ) : <div />}
 
           {step < STEPS.length - 1 ? (
-            <button type="button" onClick={next} disabled={!canAdvance()} className="flex items-center gap-3 px-10 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
+            <button type="button" onClick={next} disabled={!canAdvance()} className="flex items-center gap-3 px-10 h-14 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 shadow-lg">
               Další krok <ArrowRight size={16} />
             </button>
           ) : (
-            <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex items-center gap-4 px-12 h-16 bg-white text-black rounded-2xl font-black text-lg uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] disabled:opacity-30">
+            <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex items-center gap-4 px-12 h-16 bg-green hover:bg-green-mid text-white rounded-2xl font-black text-lg uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] disabled:opacity-30">
               {mutation.isPending ? <><Loader2 className="animate-spin" size={24} /> Vytváří se...</> : <>Vygenerovat plán <ArrowRight size={20} /></>}
             </button>
           )}
         </div>
 
         {/* Mobile sticky bottom bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#1e293b]/95 backdrop-blur-lg border-t border-slate-600 sm:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-paper/95 backdrop-blur-lg border-t border-line sm:hidden">
           <div className="flex gap-3">
             {step > 0 && (
-              <button type="button" onClick={back} className="flex items-center justify-center w-14 h-14 border border-slate-600 text-zinc-200 rounded-xl transition-all">
+              <button type="button" onClick={back} className="flex items-center justify-center w-14 h-14 border border-line text-ink rounded-xl transition-all">
                 <ArrowLeft size={20} />
               </button>
             )}
             {step < STEPS.length - 1 ? (
-              <button type="button" onClick={next} disabled={!canAdvance()} className="flex-1 flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
+              <button type="button" onClick={next} disabled={!canAdvance()} className="flex-1 flex items-center justify-center gap-3 h-14 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
                 Další krok <ArrowRight size={16} />
               </button>
             ) : (
-              <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex-1 flex items-center justify-center gap-3 h-14 bg-white text-black rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
+              <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex-1 flex items-center justify-center gap-3 h-14 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
                 {mutation.isPending ? <><Loader2 className="animate-spin" size={20} /> Vytváří se...</> : <>Vygenerovat plán <ArrowRight size={16} /></>}
               </button>
             )}
