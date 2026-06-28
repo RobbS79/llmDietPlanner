@@ -31,6 +31,13 @@ export interface MockOptions {
   createdGoalId?: number;
   /** Recipe returned by /api/recipes/:mealId/. Default = mock recipe for Mocked Oats. */
   recipe?: any;
+  /**
+   * Profile returned by /api/auth/profile/ (HomeRoute onboarding gate +
+   * Dashboard entitlement). Default = onboarding complete with free generations.
+   */
+  profile?: any;
+  /** Meal instances returned by /api/goals/:id/meal-instances/. Default = []. */
+  mealInstances?: any[];
 }
 
 const defaultShops = [
@@ -153,6 +160,8 @@ export async function mockApi(page: Page, opts: MockOptions = {}): Promise<void>
   const goalDetail = opts.goalDetail ?? defaultGoalDetail;
   const createdGoalId = opts.createdGoalId ?? 42;
   const recipe = opts.recipe ?? defaultRecipe;
+  const profile = opts.profile ?? { onboarding_completed: true, free_generations_remaining: 3, email: 'e2e@example.com' };
+  const mealInstances = opts.mealInstances ?? [];
 
   // Shared mutable index for the status sequence
   let statusIdx = 0;
@@ -214,6 +223,24 @@ export async function mockApi(page: Page, opts: MockOptions = {}): Promise<void>
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ status: 'success', data: recipe, error: null }),
+    });
+  });
+
+  // Profile — HomeRoute's onboarding gate + Dashboard entitlement banner.
+  await page.route('**/api/auth/profile/', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'success', data: profile, error: null }),
+    });
+  });
+
+  // Per-meal cooked state for PlanView.
+  await page.route(/.*\/api\/goals\/\d+\/meal-instances\/$/, async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'success', data: mealInstances, error: null }),
     });
   });
 
