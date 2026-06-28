@@ -14,9 +14,9 @@ interface PortionStepperProps {
 }
 
 const btnApp =
-  'w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 border border-slate-600 ' +
-  'text-zinc-200 transition-colors hover:border-emerald-500/60 hover:text-emerald-400 ' +
-  'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-slate-600 disabled:hover:text-zinc-200';
+  'w-9 h-9 flex items-center justify-center rounded-xl bg-card border border-line ' +
+  'text-ink transition-colors hover:border-green/40 hover:text-green-mid ' +
+  'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:text-ink';
 
 const btnPaper =
   'w-9 h-9 flex items-center justify-center rounded-xl bg-card border border-line ' +
@@ -36,7 +36,7 @@ export const PortionStepper = ({
   const btn = paper ? btnPaper : btnApp;
   const valueCls = paper
     ? 'min-w-[5.5rem] text-center text-sm font-price font-bold text-ink tabular-nums'
-    : 'min-w-[5.5rem] text-center text-sm font-black uppercase tracking-tighter italic text-white tabular-nums';
+    : 'min-w-[5.5rem] text-center text-sm font-black uppercase tracking-tighter italic text-ink tabular-nums';
 
   return (
     <div className="flex items-center gap-3">

@@ -98,9 +98,9 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
 
   const statusIcon = (s: string) => {
     switch (s) {
-      case 'completed': return <CheckCircle size={14} className="text-emerald-500" />;
-      case 'failed': return <AlertCircle size={14} className="text-rose-500" />;
-      default: return <Loader2 size={14} className="text-blue-400 animate-spin" />;
+      case 'completed': return <CheckCircle size={14} className="text-green" />;
+      case 'failed': return <AlertCircle size={14} className="text-paprika-strong" />;
+      default: return <Loader2 size={14} className="text-blue-600 animate-spin" />;
     }
   };
 
@@ -115,7 +115,7 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
       {/* Previously uploaded protocols */}
       {completedProtocols.length > 0 && (
         <div className="space-y-2">
-          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+          <span className="text-[9px] font-black uppercase tracking-widest text-muted">
             Nahrané protokoly
           </span>
           <div className="space-y-1.5">
@@ -124,26 +124,26 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
                 key={p.id}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all cursor-pointer group ${
                   selectedProtocolId === p.id
-                    ? 'border-emerald-500 bg-emerald-500/5'
-                    : 'border-slate-600 bg-slate-900 hover:border-slate-500'
+                    ? 'border-green/40 bg-green-soft'
+                    : 'border-line bg-paper hover:border-line'
                 }`}
                 onClick={() => onProtocolSelect(selectedProtocolId === p.id ? null : p.id)}
               >
-                <FileText size={16} className={selectedProtocolId === p.id ? 'text-emerald-500' : 'text-zinc-300'} />
+                <FileText size={16} className={selectedProtocolId === p.id ? 'text-green' : 'text-muted'} />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-bold truncate ${selectedProtocolId === p.id ? 'text-white' : 'text-zinc-200'}`}>
+                  <p className={`text-xs font-bold truncate ${selectedProtocolId === p.id ? 'text-ink' : 'text-ink'}`}>
                     {p.name}
                   </p>
-                  <p className="text-[9px] text-zinc-400">{formatSize(p.pdf_size_bytes)}</p>
+                  <p className="text-[9px] text-muted">{formatSize(p.pdf_size_bytes)}</p>
                 </div>
                 {selectedProtocolId === p.id && (
-                  <CheckCircle size={16} className="text-emerald-500 shrink-0" />
+                  <CheckCircle size={16} className="text-green shrink-0" />
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(p.id); }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-600 rounded transition-all shrink-0"
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-kraft rounded transition-all shrink-0"
                 >
-                  <Trash2 size={12} className="text-zinc-300 hover:text-rose-400" />
+                  <Trash2 size={12} className="text-muted hover:text-paprika-strong" />
                 </button>
               </div>
             ))}
@@ -155,26 +155,26 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
       {processingProtocol && (
         <div className="flex items-center gap-3 px-4 py-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
           {statusIcon(processingProtocol.processing_status)}
-          <span className="text-xs font-bold text-blue-400">
+          <span className="text-xs font-bold text-blue-600">
             {processingProtocol.processing_status === 'pending' ? 'Ve frontě...' : 'Zpracovávám PDF...'}
           </span>
-          <span className="text-[9px] text-zinc-300 ml-auto">{processingProtocol.pdf_filename}</span>
+          <span className="text-[9px] text-muted ml-auto">{processingProtocol.pdf_filename}</span>
         </div>
       )}
 
       {/* Failed protocols */}
       {protocols?.filter(p => p.processing_status === 'failed').map(p => (
-        <div key={p.id} className="flex items-center gap-3 px-4 py-3 bg-rose-500/5 border border-rose-500/20 rounded-xl">
-          <AlertCircle size={14} className="text-rose-500 shrink-0" />
+        <div key={p.id} className="flex items-center gap-3 px-4 py-3 bg-paprika-soft border border-paprika/30 rounded-xl">
+          <AlertCircle size={14} className="text-paprika-strong shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-rose-400 truncate">{p.name}</p>
-            <p className="text-[9px] text-zinc-300 truncate">{p.processing_error}</p>
+            <p className="text-xs font-bold text-paprika-strong truncate">{p.name}</p>
+            <p className="text-[9px] text-muted truncate">{p.processing_error}</p>
           </div>
           <button
             onClick={() => deleteMutation.mutate(p.id)}
-            className="p-1 hover:bg-slate-600 rounded transition-all shrink-0"
+            className="p-1 hover:bg-kraft rounded transition-all shrink-0"
           >
-            <X size={12} className="text-zinc-300" />
+            <X size={12} className="text-muted" />
           </button>
         </div>
       ))}
@@ -183,8 +183,8 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
       <div
         className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
           dragActive
-            ? 'border-emerald-500 bg-emerald-500/5'
-            : 'border-slate-600 hover:border-zinc-600'
+            ? 'border-green/40 bg-green-soft'
+            : 'border-line hover:border-line'
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
         onDragLeave={() => setDragActive(false)}
@@ -200,22 +200,22 @@ export const ProtocolUpload = ({ onProtocolSelect, selectedProtocolId }: Protoco
         />
         {uploadMutation.isPending ? (
           <div className="flex items-center justify-center gap-3">
-            <Loader2 size={20} className="text-emerald-500 animate-spin" />
-            <span className="text-xs font-bold text-zinc-200">Nahrávám...</span>
+            <Loader2 size={20} className="text-green animate-spin" />
+            <span className="text-xs font-bold text-ink">Nahrávám...</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Upload size={20} className={dragActive ? 'text-emerald-500' : 'text-zinc-400'} />
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
+            <Upload size={20} className={dragActive ? 'text-green' : 'text-muted'} />
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted">
               {dragActive ? 'Pusťte soubor' : 'Nahrát PDF protokol'}
             </p>
-            <p className="text-[9px] text-zinc-400">PDF, max 10 MB</p>
+            <p className="text-[9px] text-muted">PDF, max 10 MB</p>
           </div>
         )}
       </div>
 
       {uploadError && (
-        <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
+        <div className="flex items-center gap-2 text-paprika-strong text-xs font-bold">
           <AlertCircle size={14} />
           <span>{uploadError}</span>
         </div>

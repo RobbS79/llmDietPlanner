@@ -75,33 +75,33 @@ export const BillingSuccess = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#1e293b] text-white flex flex-col items-center justify-center px-6 py-16">
-      <div className="w-full max-w-lg bg-[#0f172a] border border-white/10 rounded-3xl p-10 text-center shadow-2xl">
+    <div className="min-h-screen bg-paper text-ink flex flex-col items-center justify-center px-6 py-16">
+      <div className="w-full max-w-lg bg-card border border-line rounded-3xl p-10 text-center shadow-2xl">
         {isActive ? (
           <>
-            <CheckCircle2 size={64} className="mx-auto text-emerald-400 mb-6" />
-            <h1 className="text-3xl font-black tracking-tighter uppercase italic mb-3">
-              Předplatné aktivní<span className="text-emerald-400 not-italic">.</span>
+            <CheckCircle2 size={64} className="mx-auto text-green mb-6" />
+            <h1 className="font-display text-3xl font-black tracking-tighter uppercase italic mb-3">
+              Předplatné aktivní<span className="text-paprika not-italic">.</span>
             </h1>
-            <p className="text-zinc-300 mb-2">
-              Děkujeme! Tarif <strong className="text-white">{tierLabel}</strong> je aktivní.
+            <p className="text-muted mb-2">
+              Děkujeme! Tarif <strong className="text-ink">{tierLabel}</strong> je aktivní.
             </p>
             {periodEnd && (
-              <p className="text-zinc-400 text-sm mb-8">
+              <p className="text-muted text-sm mb-8">
                 Další platba: {periodEnd}
               </p>
             )}
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
               <Link
                 to="/create"
-                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-white text-black font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-zinc-100 transition"
+                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-green text-white font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-green-mid transition"
               >
                 Vytvořit jídelníček <ArrowRight size={16} />
               </Link>
               <button
                 onClick={handlePortal}
                 disabled={portalLoading}
-                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-transparent border border-white/20 text-white font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-white/5 transition disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-transparent border border-line text-ink font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-kraft transition disabled:opacity-50"
               >
                 {portalLoading ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
                 Faktury a fakturace
@@ -110,28 +110,28 @@ export const BillingSuccess = () => {
           </>
         ) : timedOut || isError ? (
           <>
-            <AlertCircle size={64} className="mx-auto text-amber-400 mb-6" />
-            <h1 className="text-2xl font-black tracking-tighter uppercase italic mb-3">
-              Aktivace trvá déle než obvykle<span className="text-amber-400 not-italic">.</span>
+            <AlertCircle size={64} className="mx-auto text-amber-600 mb-6" />
+            <h1 className="font-display text-2xl font-black tracking-tighter uppercase italic mb-3">
+              Aktivace trvá déle než obvykle<span className="text-amber-600 not-italic">.</span>
             </h1>
-            <p className="text-zinc-300 mb-2">
+            <p className="text-muted mb-2">
               Platba byla v pořádku přijata. Aktivace předplatného obvykle trvá pár sekund —
               někdy se zpozdí. Potvrzení dorazí i e-mailem ze Stripe.
             </p>
-            <p className="text-zinc-400 text-sm mb-8">
+            <p className="text-muted text-sm mb-8">
               Pokud se tarif za chvíli neaktivuje, klikni na „Spravovat fakturaci“ nebo nás kontaktuj.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-white text-black font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-zinc-100 transition"
+                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-green text-white font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-green-mid transition"
               >
                 Zkusit znovu
               </button>
               <button
                 onClick={handlePortal}
                 disabled={portalLoading}
-                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-transparent border border-white/20 text-white font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-white/5 transition disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-2 h-14 px-8 bg-transparent border border-line text-ink font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-kraft transition disabled:opacity-50"
               >
                 {portalLoading ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
                 Spravovat fakturaci
@@ -140,14 +140,14 @@ export const BillingSuccess = () => {
           </>
         ) : (
           <>
-            <Loader2 size={64} className="mx-auto text-emerald-400 mb-6 animate-spin" />
-            <h1 className="text-2xl font-black tracking-tighter uppercase italic mb-3">
-              Aktivujeme tvé předplatné<span className="text-emerald-400 not-italic">…</span>
+            <Loader2 size={64} className="mx-auto text-green mb-6 animate-spin" />
+            <h1 className="font-display text-2xl font-black tracking-tighter uppercase italic mb-3">
+              Aktivujeme tvé předplatné<span className="text-paprika not-italic">…</span>
             </h1>
-            <p className="text-zinc-300 mb-2">
+            <p className="text-muted mb-2">
               Platba prošla. Aktivujeme tvůj tarif — obvykle to trvá pár sekund.
             </p>
-            <p className="text-zinc-500 text-xs mt-8 break-all">
+            <p className="text-muted text-xs mt-8 break-all">
               {sessionId ? `ID platby: ${sessionId}` : ''}
             </p>
           </>

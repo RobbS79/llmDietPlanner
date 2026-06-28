@@ -27,15 +27,15 @@ export const RecipeIngredients = ({ ingredients, baseServings, variant = 'app' }
 
   const headingCls = paper
     ? 'font-display text-lg font-bold text-ink mb-6 pb-4 border-b border-line'
-    : 'text-lg font-black text-white uppercase tracking-tighter italic mb-6 pb-4 border-b border-slate-600';
+    : 'font-display text-lg font-black text-ink uppercase tracking-tighter italic mb-6 pb-4 border-b border-line';
   const eyebrowCls = paper
     ? 'text-[11px] font-bold text-muted uppercase tracking-[0.12em]'
-    : 'text-[9px] font-black text-zinc-400 uppercase tracking-widest italic';
-  const dotCls = paper ? 'bg-green' : 'bg-emerald-500';
-  const textCls = paper ? 'text-ink' : 'text-zinc-300';
-  const nameCls = paper ? 'font-bold text-ink' : 'font-bold text-white';
-  const amountCls = paper ? 'text-muted ml-1' : 'text-zinc-300 ml-1';
-  const optionalCls = paper ? 'text-muted italic ml-1' : 'text-zinc-400 italic ml-1';
+    : 'text-[9px] font-black text-muted uppercase tracking-widest italic';
+  const dotCls = paper ? 'bg-green' : 'bg-green';
+  const textCls = paper ? 'text-ink' : 'text-ink';
+  const nameCls = paper ? 'font-bold text-ink' : 'font-bold text-ink';
+  const amountCls = paper ? 'text-muted ml-1' : 'text-muted ml-1';
+  const optionalCls = paper ? 'text-muted italic ml-1' : 'text-muted italic ml-1';
 
   return (
     <Card variant={variant} className="p-8 md:col-span-1 text-left h-fit md:sticky md:top-10">
