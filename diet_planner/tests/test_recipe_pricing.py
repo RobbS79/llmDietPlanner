@@ -1,11 +1,11 @@
 from django.test import SimpleTestCase
 
-from diet_planner.services.recipe_pricing import price_recipe, PACK_OVERHEAD
+from diet_planner.services.recipe_pricing import price_recipe, price_recipe_lines, PACK_OVERHEAD
 
 # Injected fake book — tests never touch the real book file or the DB.
 BOOK = {
-    'chicken': {'unit': 'g', 'price_per_unit': 0.30, 'pack': 500.0},
-    'rice': {'unit': 'g', 'price_per_unit': 0.05, 'pack': 1000.0},
+    'chicken': {'unit': 'g', 'price_per_unit': 0.30, 'pack': 500.0, 'verified': True},
+    'rice': {'unit': 'g', 'price_per_unit': 0.05, 'pack': 1000.0, 'verified': False},
 }
 
 
@@ -85,3 +85,82 @@ class PriceRecipeEdgeTest(SimpleTestCase):
         r = price_recipe([ing('chicken', 400, 'g')], 0, book=BOOK)
         self.assertIsNone(r.per_portion_low)
         self.assertEqual(r.low, 120.0)
+
+
+class PriceRecipeLinesTest(SimpleTestCase):
+    """Per-line breakdown backing the priced shopping-list UI (Component 2)."""
+
+    def test_line_shape_for_priced_ingredient(self):
+        r = price_recipe_lines([ing('chicken', 400, 'g')], 2, book=BOOK)
+        self.assertEqual(len(r.lines), 1)
+        line = r.lines[0]
+        self.assertEqual(line.canonical, 'chicken')
+        self.assertEqual(line.consumed_cost, 120.0)
+        self.assertTrue(line.priced)
+        self.assertTrue(line.verified)  # BOOK['chicken']['verified'] is True
+
+    def test_estimate_line_is_priced_but_not_verified(self):
+        r = price_recipe_lines([ing('rice', 200, 'g')], 2, book=BOOK)
+        line = r.lines[0]
+        self.assertTrue(line.priced)
+        self.assertFalse(line.verified)  # BOOK['rice']['verified'] is False
+
+    def test_unpriced_ingredient_never_gets_a_fabricated_cost(self):
+        r = price_recipe_lines([ing('mystery', 100, 'g')], 2, book=BOOK)
+        line = r.lines[0]
+        self.assertFalse(line.priced)
+        self.assertIsNone(line.consumed_cost)
+        self.assertFalse(line.verified)
+
+    def test_totals_reflect_priced_lines_only(self):
+        r = price_recipe_lines(
+            [ing('chicken', 400, 'g'), ing('rice', 200, 'g'), ing('mystery', 100, 'g')],
+            2, book=BOOK)
+        self.assertEqual(r.priced_count, 2)
+        self.assertEqual(r.total_count, 3)
+        self.assertEqual(r.verified_count, 1)  # only chicken is verified
+        self.assertEqual(r.low, 130.0)  # chicken 120 + rice 10; mystery contributes 0
+        self.assertEqual(r.high, 130.0 * PACK_OVERHEAD)
+
+    def test_optional_ingredient_excluded_from_lines(self):
+        r = price_recipe_lines(
+            [ing('chicken', 400, 'g'), ing('rice', 200, 'g', optional=True)], 2, book=BOOK)
+        self.assertEqual(len(r.lines), 1)
+        self.assertEqual(r.total_count, 1)
+
+    def test_confident_true_at_coverage_boundary(self):
+        # 3 of 5 priced = 0.6 == COVERAGE_MIN -> confident
+        ingredients = [ing('chicken', 100, 'g'), ing('chicken', 100, 'g'),
+                       ing('chicken', 100, 'g'), ing('mystery', 100, 'g'),
+                       ing('mystery2', 100, 'g')]
+        r = price_recipe_lines(ingredients, 2, book=BOOK)
+        self.assertEqual(r.priced_count, 3)
+        self.assertEqual(r.total_count, 5)
+        self.assertTrue(r.confident)
+
+    def test_confident_false_just_below_coverage_boundary(self):
+        # 2 of 5 priced = 0.4 < COVERAGE_MIN -> not confident
+        ingredients = [ing('chicken', 100, 'g'), ing('chicken', 100, 'g'),
+                       ing('mystery', 100, 'g'), ing('mystery2', 100, 'g'),
+                       ing('mystery3', 100, 'g')]
+        r = price_recipe_lines(ingredients, 2, book=BOOK)
+        self.assertEqual(r.priced_count, 2)
+        self.assertEqual(r.total_count, 5)
+        self.assertFalse(r.confident)
+
+    def test_returns_result_with_all_unpriced_lines_when_nothing_prices(self):
+        # Unlike price_recipe (which returns None), price_recipe_lines still
+        # returns a result so the UI can render "bez ceny" per row.
+        r = price_recipe_lines([ing('mystery', 100, 'g')], 2, book=BOOK)
+        self.assertIsNotNone(r)
+        self.assertEqual(r.priced_count, 0)
+        self.assertEqual(r.low, 0.0)
+        self.assertFalse(r.confident)
+
+    def test_empty_ingredients_returns_none(self):
+        self.assertIsNone(price_recipe_lines([], 4, book=BOOK))
+
+    def test_eur_currency_scales_line_costs(self):
+        r = price_recipe_lines([ing('chicken', 400, 'g')], 2, currency='EUR', book=BOOK)
+        self.assertAlmostEqual(r.lines[0].consumed_cost, 120.0 / 25.0, places=4)
+        self.assertAlmostEqual(r.low, 120.0 / 25.0, places=4)

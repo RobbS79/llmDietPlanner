@@ -41,6 +41,8 @@ export interface RecipePriceRange {
   per_portion_high: number | null;
   currency: string;
   confident: boolean;
+  priced_count: number;
+  total_count: number;
 }
 
 // Format a from–to as "1 250–1 600" (Czech locale, en dash, no currency).
@@ -51,13 +53,43 @@ export const fmtRange = (
   decimals = 0,
 ): string => `${fmtMoney(lo, decimals)}–${fmtMoney(hi, decimals)}`;
 
-// Pull a confident price range off a recipe object, else null.
-// PIVOT 2026-06-23: absolute price display is disabled — the estimate
-// fabricated whole-pack costs for unconvertible units (see deals-headline
-// spec). The backend engine stays; we just stop surfacing it. Returns null so
-// every price block stops rendering. Replaced by getRecipeDeals (Task 5).
-export const getRecipeRange = (_recipe: any): RecipePriceRange | null => {
-  return null;
+// Pull a price range off a recipe object, else null. Un-stubbed 2026-07-13
+// (Component 2 of the priced-shopping-list spec) now that the price book
+// carries `verified`/`source` per entry and the UI labels every total
+// "odhad" (estimate) rather than implying exactness. See
+// docs/superpowers/specs/2026-07-13-per-recipe-priced-shopping-list-design.md.
+export const getRecipeRange = (recipe: any): RecipePriceRange | null => {
+  return (recipe?.price_range as RecipePriceRange | undefined) ?? null;
+};
+
+// ---- Per-recipe priced shopping list (Component 2) ----
+
+// Mirrors the backend RecipeSerializer.shopping_list payload
+// (diet_planner/serializers.py RecipeSerializer.get_shopping_list).
+export interface ShoppingListLine {
+  name: string;
+  canonical: string | null;
+  consumed_cost: number | null;
+  priced: boolean;
+  verified: boolean;
+}
+
+export interface ShoppingList {
+  lines: ShoppingListLine[];
+  total_low: number;
+  total_high: number;
+  per_portion_low: number | null;
+  per_portion_high: number | null;
+  priced_count: number;
+  total_count: number;
+  verified_count: number;
+  currency: string;
+  confident: boolean;
+}
+
+// Pull the per-line priced shopping list off a recipe object, else null.
+export const getShoppingList = (recipe: any): ShoppingList | null => {
+  return (recipe?.shopping_list as ShoppingList | undefined) ?? null;
 };
 
 // ---- Per-recipe active deals (deals-headline pivot, 2026-06-23) ----

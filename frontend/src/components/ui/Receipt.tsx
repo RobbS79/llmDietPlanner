@@ -10,7 +10,7 @@ interface ReceiptProps {
   source?: string;      // e.g. "Rohlík.cz"
   items: ReceiptItem[];
   totalLabel: string;   // e.g. "Týdenní nákup"
-  total: string;        // e.g. "1 247"
+  total: string;        // e.g. "92–115"
   currency?: string;    // default "Kč"
 }
 

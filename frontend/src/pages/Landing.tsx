@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, List, Quote, Heart, Target, Wallet, Lightbulb, Search, SlidersHorizontal } from 'lucide-react';
+import { ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, Quote, Heart, Target, Wallet, Lightbulb, Search, SlidersHorizontal } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { Receipt } from '@/components/ui/Receipt';
 
@@ -10,25 +10,27 @@ const SAMPLE_PLAN = {
     { day: 2, meals: ['Jogurt s granolou', 'Salát s tuňákem', 'Hovězí guláš s knedlíkem'] },
     { day: 3, meals: ['Vajíčka s avokádo', 'Treščí filé s brambory', 'Kuřecí curry s rýží'] },
   ],
-  shoppingList: [
-    { name: 'Kuřecí prsa', price: '159', unit: '1 kg' },
-    { name: 'Losos filet', price: '219', unit: '400 g' },
-    { name: 'Ovesné vločky', price: '42', unit: '500 g' },
-    { name: 'Brokolice', price: '39', unit: '1 ks' },
-    { name: 'Rýže basmati', price: '55', unit: '1 kg' },
-  ],
-  total: '1,247',
-  currency: 'CZK',
-  store: 'Rohlik.cz',
+  recipe: {
+    name: 'Kuřecí wok s rýží',
+    portions: '4 porce',
+    ingredients: [
+      { name: 'Kuřecí prsa', price: '41', unit: '300 g', deal: false },
+      { name: 'Rýže basmati', price: '13', unit: '240 g', deal: false },
+      { name: 'Paprika', price: '17', unit: '2 ks', deal: true },
+      { name: 'Brokolice', price: '14', unit: '1/2 ks', deal: true },
+      { name: 'Sójová omáčka', price: '7', unit: '40 ml', deal: false },
+    ],
+    estimate: '92–115',
+    dealsNote: '2 suroviny jsou tento týden ve slevě',
+  },
+  currency: 'Kč',
+  store: 'Rohlík.cz',
 };
 
-const DAY_CODES = ['PO', 'ÚT', 'ST', 'ČT', 'PÁ'];
-
-const RECEIPT_ITEMS = SAMPLE_PLAN.shoppingList.map((item, i) => ({
-  day: DAY_CODES[i],
+const RECEIPT_ITEMS = SAMPLE_PLAN.recipe.ingredients.map((item) => ({
   name: item.name,
   price: item.price,
-  deal: i === 1 || i === 3,
+  deal: item.deal,
 }));
 
 export const Landing = () => {
@@ -55,7 +57,7 @@ export const Landing = () => {
           <div>
             <div className="inline-flex items-center gap-2 bg-green-soft rounded-full px-4 py-1.5 mb-8">
               <span className="w-2 h-2 bg-green rounded-full" />
-              <span className="text-[10px] font-bold text-green uppercase tracking-widest">Jídelníček s reálnými cenami z obchodu</span>
+              <span className="text-[10px] font-bold text-green uppercase tracking-widest">Jídelníček s poctivým odhadem ceny</span>
             </div>
 
             <h1 className="font-display text-5xl sm:text-7xl font-extrabold tracking-tight leading-[0.95] mb-8">
@@ -64,7 +66,7 @@ export const Landing = () => {
             </h1>
 
             <p className="text-lg sm:text-xl text-muted max-w-xl mb-4 leading-relaxed">
-              Získáte personalizovaný jídelníček s recepty, nutričními hodnotami a nákupním seznamem s <strong className="text-ink">reálnými cenami z vašeho obchodu.</strong>
+              Získáte jídelníček na míru s recepty, nutričními hodnotami a nákupním seznamem ke každému receptu — s <strong className="text-ink">poctivým odhadem, na kolik vás vaření vyjde,</strong> a přehledem surovin ve slevě.
             </p>
 
             <p className="text-sm text-muted mb-10">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
@@ -82,12 +84,12 @@ export const Landing = () => {
           {/* Right: receipt signature */}
           <div className="lg:pl-6">
             <Receipt
-              title="Váš týden"
-              subtitle="3 jídla denně · 7 dní"
-              source={SAMPLE_PLAN.store}
+              title={SAMPLE_PLAN.recipe.name}
+              subtitle={`Ukázkový recept · ${SAMPLE_PLAN.recipe.portions}`}
+              source={`Odhad · ${SAMPLE_PLAN.store}`}
               items={RECEIPT_ITEMS}
-              totalLabel="Týdenní nákup"
-              total={SAMPLE_PLAN.total}
+              totalLabel="Odhad za recept"
+              total={SAMPLE_PLAN.recipe.estimate}
             />
           </div>
         </div>
@@ -99,7 +101,7 @@ export const Landing = () => {
           <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
             {[
               { value: '500+', label: 'Vygenerovaných plánů' },
-              { value: 'Reálné', label: 'Ceny z českých e-shopů' },
+              { value: 'Od–do', label: 'Poctivý odhad ceny každého receptu' },
               { value: '<60s', label: 'Čas generování' },
             ].map((stat) => (
               <div key={stat.label}>
@@ -117,12 +119,12 @@ export const Landing = () => {
           <div className="grid sm:grid-cols-3 gap-6">
             {[
               {
-                quote: 'Ušetřil jsem skoro 400 Kč za týden. Konečně vím, co budu vařit a kolik to bude stát.',
+                quote: 'Konečně dopředu vím, co budu vařit a na kolik to zhruba vyjde. Nákup mám vyřešený za pár minut.',
                 name: 'Marek T.',
                 location: 'Praha',
               },
               {
-                quote: 'Dřív jsem nad jídelníčkem strávila 2 hodiny týdně. Teď za 60 sekund mám plán i nákup z Rohlíku. Ušetřím čas i nervy.',
+                quote: 'Dřív jsem nad jídelníčkem strávila 2 hodiny týdně. Teď mám za minutu hotový plán i nákupní seznam ke každému receptu. Ušetřím čas i nervy.',
                 name: 'Kateřina S.',
                 location: 'Brno',
               },
@@ -155,7 +157,7 @@ export const Landing = () => {
             {[
               { icon: Heart, title: 'Chtějí jíst zdravěji', desc: 'Ale neví, kde začít a co vařit' },
               { icon: Target, title: 'Sledují makra a kalorie', desc: 'Ale nenávidí plánování jídel' },
-              { icon: Wallet, title: 'Chtějí šetřit za jídlo', desc: 'A vědět přesně, kolik utratí před nákupem' },
+              { icon: Wallet, title: 'Hlídají si rozpočet', desc: 'A chtějí ještě před nákupem vědět, na kolik vaření zhruba vyjde' },
               { icon: Lightbulb, title: 'Vaří doma', desc: 'Ale dochází jim nápady na recepty' },
             ].map((item) => (
               <div key={item.title} className="bg-card border border-line rounded-2xl p-8 text-center hover:border-green/40 transition-all">
@@ -182,7 +184,7 @@ export const Landing = () => {
                 step: '1',
                 icon: UtensilsCrossed,
                 title: 'Popište své cíle',
-                desc: 'Řekněte nám, co chcete — vysoko proteinová, levná, veganská, keto — vlastními slovy. Vyberte zemi a oblíbený obchod.',
+                desc: 'Řekněte nám vlastními slovy, co chcete — vysokoproteinová, levná, veganská, keto. Žádné dotazníky, žádné tabulky.',
               },
               {
                 step: '2',
@@ -193,8 +195,8 @@ export const Landing = () => {
               {
                 step: '3',
                 icon: ShoppingCart,
-                title: 'Nakupujte s reálnými cenami',
-                desc: 'Dostanete nákupní seznam s aktuálními cenami z vašeho obchodu. Víte přesně, co koupit a kolik to bude stát.',
+                title: 'Nakupujte s přehledem',
+                desc: 'Ke každému receptu dostanete nákupní seznam s poctivým odhadem ceny od–do. A hned vidíte, které suroviny jsou tento týden ve slevě.',
               },
             ].map((item) => (
               <div key={item.step} className="bg-card border border-line rounded-3xl p-10 hover:border-green/40 transition-all">
@@ -221,7 +223,7 @@ export const Landing = () => {
             {[
               { icon: Search, title: 'Analyzuje vaše cíle', desc: 'Pochopí vaše stravovací potřeby, omezení i rozpočet' },
               { icon: ChefHat, title: 'Vytvoří vyvážená jídla', desc: 'Každý plán splňuje nutriční doporučení pro vaše cíle' },
-              { icon: ShoppingCart, title: 'Ověřuje reálné ceny', desc: 'Stahuje aktuální ceny z vašeho oblíbeného obchodu' },
+              { icon: ShoppingCart, title: 'Odhadne cenu receptu', desc: 'Poctivý odhad od–do podle běžných cen surovin, základem je Rohlík.cz' },
               { icon: SlidersHorizontal, title: 'Vy máte kontrolu', desc: 'Upravte, regenerujte nebo změňte cokoliv kdykoliv' },
             ].map((item) => (
               <div key={item.title} className="text-center">
@@ -275,29 +277,33 @@ export const Landing = () => {
 
             {/* Shopping list preview */}
             <div className="lg:col-span-5 bg-card border border-line rounded-3xl p-8 sm:p-10">
-              <div className="flex items-center gap-3 mb-8">
+              <div className="flex items-center gap-3 mb-2">
                 <ShoppingCart size={18} className="text-green" />
-                <h3 className="font-display text-lg font-bold">Nákupní seznam</h3>
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest ml-auto">{SAMPLE_PLAN.store}</span>
+                <h3 className="font-display text-lg font-bold">Nákupní seznam k receptu</h3>
+                <span className="text-[10px] font-bold text-muted uppercase tracking-widest ml-auto">{`Odhad · ${SAMPLE_PLAN.store}`}</span>
               </div>
+              <p className="text-xs font-semibold text-muted mb-8">{SAMPLE_PLAN.recipe.name} · {SAMPLE_PLAN.recipe.portions}</p>
 
               <div className="space-y-4 mb-8">
-                {SAMPLE_PLAN.shoppingList.map((item) => (
+                {SAMPLE_PLAN.recipe.ingredients.map((item) => (
                   <div key={item.name} className="flex items-center justify-between border-b border-line pb-3">
                     <div>
-                      <p className="text-sm font-semibold text-ink">{item.name}</p>
+                      <p className="text-sm font-semibold text-ink">
+                        {item.name}
+                        {item.deal && <span className="ml-2 bg-paprika-soft text-paprika-strong font-bold text-[10px] px-1.5 py-0.5 rounded-md align-middle">ve slevě</span>}
+                      </p>
                       <p className="text-[11px] font-medium text-muted">{item.unit}</p>
                     </div>
                     <p className="font-price text-sm font-bold text-ink">{item.price} {SAMPLE_PLAN.currency}</p>
                   </div>
                 ))}
-                <div className="text-center text-muted text-xs font-semibold">+ 12 dalších položek…</div>
+                <div className="text-center text-muted text-xs font-semibold">{SAMPLE_PLAN.recipe.dealsNote}</div>
               </div>
 
               <div className="pt-6 border-t-2 border-dashed border-line">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Odhadovaná cena celkem</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Odhad ceny za recept</p>
                 <p className="font-price text-4xl font-bold text-ink tracking-tight">
-                  {SAMPLE_PLAN.total} <span className="text-paprika text-lg">{SAMPLE_PLAN.currency}</span>
+                  {SAMPLE_PLAN.recipe.estimate} <span className="text-paprika text-lg">{SAMPLE_PLAN.currency}</span>
                 </p>
               </div>
             </div>
@@ -311,7 +317,7 @@ export const Landing = () => {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: BarChart3, title: 'Nutriční hodnoty', desc: 'Kalorie, bílkoviny, sacharidy a tuky u každého jídla' },
-              { icon: List, title: 'Tisk a export', desc: 'Vezmete si nákupní seznam do obchodu nebo ho sdílíte' },
+              { icon: Wallet, title: 'Odhad ceny a slevy', desc: 'U každého receptu vidíte odhad ceny od–do i suroviny aktuálně ve slevě' },
               { icon: ChefHat, title: 'Kompletní recepty', desc: 'Postup přípravy krok za krokem se všemi ingrediencemi' },
               { icon: Check, title: 'Interaktivní seznam', desc: 'Odškrtávejte položky přímo v telefonu při nákupu' },
             ].map((f) => (
@@ -350,7 +356,7 @@ export const Landing = () => {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex flex-col gap-1">
                 <span className="font-display font-extrabold text-2xl tracking-tight lowercase text-paper">vařto<span className="text-paprika">.</span></span>
-                <span className="text-sm font-semibold text-paper/80">Jezte chytře, plaťte míň.</span>
+                <span className="text-sm font-semibold text-paper/80">Vařte chytře, nakupujte s přehledem.</span>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-6">
                 <a href="/recepty" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Recepty</a>

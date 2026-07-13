@@ -206,12 +206,75 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
         return representation
 
 
+def build_price_range(ingredients, servings, currency):
+    """Honest per-recipe from-to cost from the static book, as a JSON-ready
+    dict (or None). Factored out of `RecipeSerializer.get_price_range` so
+    callers that must re-derive it against a *filtered* ingredient list
+    (e.g. RecipeDetailView's pre-prepared-ingredient coherence pass) reuse
+    the exact same math instead of hand-rolling a second path."""
+    from .services.recipe_pricing import price_recipe
+
+    r = price_recipe(ingredients or [], servings, currency=currency)
+    if r is None:
+        return None
+    return {
+        'low': round(r.low, 2),
+        'high': round(r.high, 2),
+        'per_portion_low': round(r.per_portion_low, 2) if r.per_portion_low is not None else None,
+        'per_portion_high': round(r.per_portion_high, 2) if r.per_portion_high is not None else None,
+        'currency': r.currency,
+        'confident': r.confident,
+        'priced_count': r.priced_count,
+        'total_count': r.total_count,
+    }
+
+
+def build_shopping_list(ingredients, servings, currency):
+    """Per-line priced shopping list as a JSON-ready dict (or None). See
+    `build_price_range` for why this is a standalone function rather than a
+    serializer method."""
+    from .services.recipe_pricing import price_recipe_lines
+
+    r = price_recipe_lines(ingredients or [], servings, currency=currency)
+    if r is None:
+        return None
+    return {
+        'lines': [
+            {
+                'name': line.name,
+                'canonical': line.canonical,
+                'consumed_cost': round(line.consumed_cost, 2) if line.consumed_cost is not None else None,
+                'priced': line.priced,
+                'verified': line.verified,
+            }
+            for line in r.lines
+        ],
+        'total_low': round(r.low, 2),
+        'total_high': round(r.high, 2),
+        'per_portion_low': round(r.per_portion_low, 2) if r.per_portion_low is not None else None,
+        'per_portion_high': round(r.per_portion_high, 2) if r.per_portion_high is not None else None,
+        'priced_count': r.priced_count,
+        'total_count': r.total_count,
+        'verified_count': r.verified_count,
+        'currency': r.currency,
+        'confident': r.confident,
+    }
+
+
+def build_deals(ingredients):
+    """Currently-active leaflet deals on `ingredients`. Standalone for the
+    same reason as `build_price_range`/`build_shopping_list`."""
+    from .services.recipe_deals import recipe_deals
+    return recipe_deals(ingredients or [])
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for Recipe model."""
     dietary_goal_id = serializers.IntegerField(source='dietary_goal.id', read_only=True)
     image_url = serializers.SerializerMethodField()
     price_range = serializers.SerializerMethodField()
     deals = serializers.SerializerMethodField()
+    shopping_list = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -226,6 +289,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'image_url',
             'price_range',
             'deals',
+            'shopping_list',
             'instructions',
             'ingredients',
             'preparation_time',
@@ -243,6 +307,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'id',
             'price_range',
             'deals',
+            'shopping_list',
             'created_at',
             'updated_at',
         ]
@@ -255,26 +320,23 @@ class RecipeSerializer(serializers.ModelSerializer):
     def get_price_range(self, obj):
         """Honest per-recipe from-to cost from the static book. Null when the
         recipe has no priceable ingredients. See recipe_pricing.price_recipe."""
-        from .services.recipe_pricing import price_recipe
-
         currency = getattr(obj.dietary_goal, 'currency', None) or 'CZK'
-        r = price_recipe(obj.ingredients or [], obj.servings, currency=currency)
-        if r is None:
-            return None
-        return {
-            'low': round(r.low, 2),
-            'high': round(r.high, 2),
-            'per_portion_low': round(r.per_portion_low, 2) if r.per_portion_low is not None else None,
-            'per_portion_high': round(r.per_portion_high, 2) if r.per_portion_high is not None else None,
-            'currency': r.currency,
-            'confident': r.confident,
-        }
+        return build_price_range(obj.ingredients, obj.servings, currency)
 
     def get_deals(self, obj):
         """Currently-active leaflet deals on this recipe's ingredients.
         See services.recipe_deals — active-only, never fabricated."""
-        from .services.recipe_deals import recipe_deals
-        return recipe_deals(obj.ingredients or [])
+        return build_deals(obj.ingredients)
+
+    def get_shopping_list(self, obj):
+        """Per-line priced shopping list: one row per non-optional ingredient
+        with its consumed cost (or null if unpriced) plus the same low-high
+        total as `price_range`. Null when the recipe has no ingredients.
+        Both verified (ČSÚ-anchored) and estimate prices are surfaced — a
+        line's `verified` flag drives the "odhad" marker in the UI, never
+        whether a price is shown at all. See recipe_pricing.price_recipe_lines."""
+        currency = getattr(obj.dietary_goal, 'currency', None) or 'CZK'
+        return build_shopping_list(obj.ingredients, obj.servings, currency)
 
 
 class MealInstanceSerializer(serializers.ModelSerializer):

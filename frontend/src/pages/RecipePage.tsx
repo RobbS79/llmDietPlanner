@@ -8,7 +8,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
-import { getRecipeDeals } from '@/lib/pricing';
+import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
 
 export const RecipePage = () => {
   const { id, mealId } = useParams();
@@ -186,7 +186,12 @@ export const RecipePage = () => {
 
         <div className="grid md:grid-cols-3 gap-10">
           {/* Ingredients sidebar — scaled "shopping list" with portion stepper */}
-          <RecipeIngredients ingredients={recipe.ingredients} baseServings={recipe.servings} />
+          <RecipeIngredients
+            ingredients={recipe.ingredients}
+            baseServings={recipe.servings}
+            shoppingList={getShoppingList(recipe)}
+            deals={getRecipeDeals(recipe)}
+          />
 
           {/* Instructions */}
           <div className="md:col-span-2 space-y-8 text-left">

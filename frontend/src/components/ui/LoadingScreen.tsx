@@ -32,7 +32,7 @@ export const LoadingScreen = ({ message, status, goalId }: { message: string; st
     payment_confirmed: 'Vytváříme personalizovaný jídelníček s recepty...',
     processing: 'Vytváříme personalizovaný jídelníček s recepty...',
     processing_meal_plan: 'Vytváříme personalizovaný jídelníček s recepty...',
-    processing_shopping_list: 'Hledáme nejlepší ceny z vašeho obchodu...',
+    processing_shopping_list: 'Počítáme odhad ceny receptů...',
     validating: 'Ověřujeme nutriční hodnoty a finalizujeme plán...',
   };
 

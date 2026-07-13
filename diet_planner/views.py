@@ -35,6 +35,9 @@ from .serializers import (
     MealInstanceSerializer,
     MealInstanceCreateUpdateSerializer,
     HistoricNutritionPlanSerializer,
+    build_price_range,
+    build_shopping_list,
+    build_deals,
 )
 from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
@@ -358,7 +361,8 @@ class RecipeDetailView(APIView):
     def get(self, request, meal_identifier: str) -> Response:
         # Return existing recipe if available
         try:
-            recipe = Recipe.objects.get(meal_identifier=meal_identifier, dietary_goal__user=request.user)
+            recipe = Recipe.objects.select_related('dietary_goal').get(
+                meal_identifier=meal_identifier, dietary_goal__user=request.user)
             data = RecipeSerializer(recipe).data
             # Re-apply the coherence filter on read so previously-cached
             # recipes that were saved before the fix (e.g. plan 108
@@ -372,6 +376,15 @@ class RecipeDetailView(APIView):
             data['ingredients'] = filtered.get('ingredients', data.get('ingredients'))
             if filtered.get('pre_prepared_ingredients'):
                 data['pre_prepared_ingredients'] = filtered['pre_prepared_ingredients']
+            # price_range/shopping_list/deals were computed inside the
+            # serializer from the *unfiltered* ingredient list, before the
+            # coherence filter above ran — re-derive them from the filtered
+            # list so a "already prepared" ingredient never gets priced or
+            # shown as a shopping-list line after being hidden from view.
+            currency = getattr(recipe.dietary_goal, 'currency', None) or 'CZK'
+            data['price_range'] = build_price_range(data['ingredients'], recipe.servings, currency)
+            data['shopping_list'] = build_shopping_list(data['ingredients'], recipe.servings, currency)
+            data['deals'] = build_deals(data['ingredients'])
             return Response({"status": "success", "data": data})
         except Recipe.DoesNotExist:
             pass
@@ -561,7 +574,7 @@ class PublicRecipeListView(APIView):
     def get(self, request) -> Response:
         from django.core.paginator import Paginator
         page_num = request.query_params.get('page', 1)
-        recipes = Recipe.objects.filter(is_public=True).order_by('-created_at')
+        recipes = Recipe.objects.filter(is_public=True).select_related('dietary_goal').order_by('-created_at')
         paginator = Paginator(recipes, 24)
         page = paginator.get_page(page_num)
         serializer = RecipeSerializer(page.object_list, many=True)
@@ -583,7 +596,7 @@ class PublicRecipeDetailView(APIView):
 
     def get(self, request, pk: int) -> Response:
         try:
-            recipe = Recipe.objects.get(pk=pk, is_public=True)
+            recipe = Recipe.objects.select_related('dietary_goal').get(pk=pk, is_public=True)
             return Response({"status": "success", "data": RecipeSerializer(recipe).data})
         except Recipe.DoesNotExist:
             return Response({"status": "error", "error": "Recipe not found"}, status=404)

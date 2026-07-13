@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
-import { getRecipeDeals } from '@/lib/pricing';
+import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
 
 export const PublicRecipePage = () => {
   const { id } = useParams();
@@ -159,7 +159,13 @@ export const PublicRecipePage = () => {
         })()}
 
         <div className="grid md:grid-cols-3 gap-10">
-          <RecipeIngredients ingredients={recipe.ingredients} baseServings={recipe.servings} variant="paper" />
+          <RecipeIngredients
+            ingredients={recipe.ingredients}
+            baseServings={recipe.servings}
+            variant="paper"
+            shoppingList={getShoppingList(recipe)}
+            deals={getRecipeDeals(recipe)}
+          />
 
           <div className="md:col-span-2 space-y-8 text-left">
             <div className="flex items-center gap-3 mb-2">
@@ -200,7 +206,7 @@ export const PublicRecipePage = () => {
         <div className="mt-20 bg-green-soft border border-line rounded-3xl p-12 sm:p-16 text-center">
           <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-ink tracking-tight mb-4">Chcete celý týden takových jídel?</h2>
           <p className="text-muted text-lg mb-8 max-w-md mx-auto">
-            Vytvoříme personalizovaný jídelníček s recepty a nákupním seznamem s reálnými cenami.
+            Vytvoříme personalizovaný jídelníček s recepty a nákupním seznamem s poctivým odhadem ceny.
           </p>
           <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-body font-bold text-sm transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />

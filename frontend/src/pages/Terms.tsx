@@ -23,7 +23,7 @@ export const Terms = () => (
 
         <section>
           <h2 className="font-display text-lg font-black text-ink uppercase tracking-tight mb-4">2. Popis služby</h2>
-          <p className="text-muted">Vařto je webová aplikace, která generuje personalizované jídelníčky, recepty a nákupní seznamy s reálními cenami z českých a slovenských obchodů.</p>
+          <p className="text-muted">Vařto je webová aplikace, která generuje personalizované jídelníčky, recepty a nákupní seznamy s poctivým odhadem ceny.</p>
         </section>
 
         <section>
