@@ -85,6 +85,9 @@ class CheckoutView(APIView):
                 ),
                 cancel_url=_frontend_url('/pricing?sub=cancelled'),
                 allow_promotion_codes=True,
+                # Default is browser-language autodetect, which renders English
+                # for most CZ users; the rest of the funnel is Czech.
+                locale='cs',
             )
         except stripe.error.StripeError as exc:
             logger.exception('Stripe checkout creation failed')
@@ -124,6 +127,7 @@ class PortalView(APIView):
             session = stripe.billing_portal.Session.create(
                 customer=customer_id,
                 return_url=_frontend_url('/'),
+                locale='cs',
             )
         except stripe.error.StripeError:
             logger.exception('Stripe portal creation failed')
