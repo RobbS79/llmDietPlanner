@@ -24,12 +24,25 @@ _UNIT_ALIASES = {
     'ks': 'ks', 'kus': 'ks', 'kusy': 'ks', 'kusů': 'ks', 'kusow': 'ks',
     'piece': 'ks', 'pieces': 'ks', 'pcs': 'ks', 'pc': 'ks', 'szt': 'ks',
     'sztuk': 'ks', 'sztuki': 'ks',
+    # Cooking volume units (CZ/SK/EN) -> ml. Recipes routinely give seasonings
+    # and liquids in spoons/cups; without these they used to fall back to a
+    # whole package (a teaspoon of salt priced as a 250 g packet).
+    'lžička': 'tsp', 'lžičky': 'tsp', 'lžiček': 'tsp', 'čl': 'tsp',
+    'čajová lžička': 'tsp', 'lyzicka': 'tsp', 'tsp': 'tsp', 'teaspoon': 'tsp',
+    'lžíce': 'tbsp', 'lžic': 'tbsp', 'pl': 'tbsp', 'polévková lžíce': 'tbsp',
+    'lzice': 'tbsp', 'tbsp': 'tbsp', 'tablespoon': 'tbsp', 'polevkova lzice': 'tbsp',
+    'hrnek': 'cup', 'hrnky': 'cup', 'hrnků': 'cup', 'hrnku': 'cup',
+    'šálek': 'cup', 'šálky': 'cup', 'salek': 'cup', 'cup': 'cup', 'cups': 'cup',
+    'dl': 'dl', 'deci': 'dl', 'decilitr': 'dl', 'decilitry': 'dl',
+    'špetka': 'pinch', 'špetky': 'pinch', 'spetka': 'pinch',
 }
 
-# code → (dimension, factor to base unit)
+# code → (dimension, factor to base unit). Base: mass→g, volume→ml, count→ks.
 _TO_BASE = {
     'g': ('mass', 1.0), 'dkg': ('mass', 10.0), 'kg': ('mass', 1000.0),
     'ml': ('volume', 1.0), 'l': ('volume', 1000.0),
+    'tsp': ('volume', 5.0), 'tbsp': ('volume', 15.0), 'cup': ('volume', 250.0),
+    'dl': ('volume', 100.0), 'pinch': ('volume', 0.3),
     'ks': ('count', 1.0),
 }
 

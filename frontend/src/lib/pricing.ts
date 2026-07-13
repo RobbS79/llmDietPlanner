@@ -58,7 +58,17 @@ export const fmtRange = (
 // carries `verified`/`source` per entry and the UI labels every total
 // "odhad" (estimate) rather than implying exactness. See
 // docs/superpowers/specs/2026-07-13-per-recipe-priced-shopping-list-design.md.
+// ROLLED BACK 2026-07-13: absolute per-recipe prices are disabled again. Prod
+// verification showed the per-line engine still produces plausible-but-wrong
+// amounts for cooking-unit quantities (herbs by volume, per-bunch `ks` book
+// values, missing piece weights, canonical mis-maps). Showing those to paid
+// traffic is worse than showing none, so we revert to the deals-only surface
+// until the pricing-data project lands (density table, piece weights, per-ks
+// book audit, mapping audit). Flip PRICE_DISPLAY_ENABLED back to re-enable.
+export const PRICE_DISPLAY_ENABLED = false;
+
 export const getRecipeRange = (recipe: any): RecipePriceRange | null => {
+  if (!PRICE_DISPLAY_ENABLED) return null;
   return (recipe?.price_range as RecipePriceRange | undefined) ?? null;
 };
 
@@ -89,6 +99,7 @@ export interface ShoppingList {
 
 // Pull the per-line priced shopping list off a recipe object, else null.
 export const getShoppingList = (recipe: any): ShoppingList | null => {
+  if (!PRICE_DISPLAY_ENABLED) return null;  // rolled back — see getRecipeRange
   return (recipe?.shopping_list as ShoppingList | undefined) ?? null;
 };
 

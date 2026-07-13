@@ -43,9 +43,18 @@ def consumed_line_cost(entry, qty, unit, grams=None) -> Optional[float]:
             cost = (need_base / grams) * ppu
         else:                          # book per-gram, recipe in pieces
             cost = (need_base * grams) * ppu
+    elif (need_dim is not None and book_dim is not None
+          and {need_dim, book_dim} == {'volume', 'mass'}):
+        # Volume<->mass bridge at ~1 g/ml. Rough, but fine for a labelled
+        # estimate of the small seasoning/liquid amounts this covers, and far
+        # better than billing a whole package.
+        cost = need_base * ppu  # need_base already in ml or g; 1 g/ml
     else:
-        # Can't convert and no piece weight to bridge -> one typical pack.
-        return pack * ppu if pack > 0 else None
+        # Can't convert the quantity to the book's unit and no bridge applies.
+        # Billing a whole package for a pinch/splash is what produced absurd
+        # lines (a teaspoon of salt at 185 Kc), so treat the line as
+        # unpriceable ("bez ceny") instead of fabricating a pack cost.
+        return None
     # Guard against absurd quantities (bad data): never charge more than a
     # sane number of packs for a single line.
     if pack > 0:
