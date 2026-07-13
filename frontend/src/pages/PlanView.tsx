@@ -123,7 +123,7 @@ export const PlanView = () => {
   }
 
   if (statusData?.goal_status !== 'completed') {
-    return <LoadingScreen message="Vytváříme váš jídelníček na míru s recepty a poctivým odhadem ceny..." status={statusData} goalId={id} />;
+    return <LoadingScreen message="Vytváříme váš jídelníček na míru s recepty a nákupním seznamem..." status={statusData} goalId={id} />;
   }
 
   const plan = goalDetail?.dietary_plan;

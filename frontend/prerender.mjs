@@ -20,15 +20,15 @@ const routes = [
   {
     path: '/',
     outFile: 'index.html',
-    title: 'Vařto — Jídelníček s poctivým odhadem ceny',
-    description: 'Zadejte sve cile a Vařto sestavi jidelnicek s recepty a nakupnim seznamem ke kazdemu receptu — s poctivym odhadem ceny a prehledem surovin ve sleve. 2 jidelnicky zdarma, bez karty. Hotovo za 60s.',
+    title: 'Vařto — Jídelníček na míru s přehledem slev v obchodech',
+    description: 'Vařto sestaví jídelníček na míru s recepty a nákupním seznamem — u každého receptu vidíte, co je tento týden ve slevě. 2 jídelníčky zdarma, bez karty.',
     canonical: '/',
   },
   {
     path: '/login',
     outFile: 'login/index.html',
     title: 'Přihlášení — Vařto',
-    description: 'Prihlaste se ke svemu uctu Vařto a zacnete planovat sve jidelnicky s poctivym odhadem ceny.',
+    description: 'Přihlaste se ke svému účtu Vařto a plánujte jídelníčky s recepty, nákupními seznamy a přehledem aktuálních slev.',
     canonical: '/login',
   },
   {
@@ -42,7 +42,7 @@ const routes = [
     path: '/o-nas',
     outFile: 'o-nas/index.html',
     title: 'O nás — Vařto',
-    description: 'Vařto postavil Robert Soroka — planuje zdrava jidla a ukaze poctivy odhad, na kolik vas vyjdou. Pribeh zakladatele.',
+    description: 'Vařto postavil Robert Soroka — plánuje zdravá jídla a u každého receptu ukáže, které suroviny jsou zrovna ve slevě. Příběh zakladatele.',
     canonical: '/o-nas',
   },
   {

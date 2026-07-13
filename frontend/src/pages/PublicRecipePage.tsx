@@ -206,7 +206,7 @@ export const PublicRecipePage = () => {
         <div className="mt-20 bg-green-soft border border-line rounded-3xl p-12 sm:p-16 text-center">
           <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-ink tracking-tight mb-4">Chcete celý týden takových jídel?</h2>
           <p className="text-muted text-lg mb-8 max-w-md mx-auto">
-            Vytvoříme personalizovaný jídelníček s recepty a nákupním seznamem s poctivým odhadem ceny.
+            Vytvoříme personalizovaný jídelníček s recepty a nákupním seznamem — a u každého receptu uvidíte, co je tento týden ve slevě.
           </p>
           <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-body font-bold text-sm transition-all active:scale-[0.98] inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />

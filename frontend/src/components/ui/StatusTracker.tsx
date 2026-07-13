@@ -1,7 +1,7 @@
 const steps = [
   { label: 'Analyzujeme vaše preference', keys: ['pending', 'awaiting_payment'] },
   { label: 'Vytváříme jídelníček', keys: ['payment_confirmed', 'processing', 'processing_meal_plan'] },
-  { label: 'Počítáme odhad ceny', keys: ['processing_shopping_list'] },
+  { label: 'Sestavujeme nákupní seznam', keys: ['processing_shopping_list'] },
   { label: 'Ověřujeme plán', keys: ['validating'] },
   { label: 'Váš plán je připraven!', keys: ['completed'] },
 ];

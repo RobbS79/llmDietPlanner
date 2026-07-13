@@ -38,7 +38,7 @@ test.describe('smoke', () => {
     // of bouncing to /login.
     await page.goto('/');
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText(/Víte, co budete jíst/i).first()).toBeVisible();
+    await expect(page.getByText(/Naplánujeme týden jídla/i).first()).toBeVisible();
   });
 
   test('unauthenticated users are bounced from /create to /login', async ({ page }) => {
@@ -49,7 +49,7 @@ test.describe('smoke', () => {
   test('unknown routes redirect to / (the public landing page when anon)', async ({ page }) => {
     await page.goto('/this-route-does-not-exist');
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText(/Víte, co budete jíst/i).first()).toBeVisible();
+    await expect(page.getByText(/Naplánujeme týden jídla/i).first()).toBeVisible();
   });
 
   test('Google button triggers the backend OAuth redirect endpoint', async ({ page }) => {
