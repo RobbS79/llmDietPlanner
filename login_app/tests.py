@@ -369,3 +369,61 @@ class AuthenticationFlowTestCase(TestCase):
 
 
 
+
+
+class AdminGrantCreditsTestCase(TestCase):
+    """Admin bulk actions that assign free generation credits to users."""
+
+    def setUp(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from login_app.admin import UserProfileAdmin
+        from login_app.models import UserProfile
+
+        self.admin_user = User.objects.create_superuser('admin', 'admin@example.com', 'adminpass123')
+        self.user_a = User.objects.create_user('alice', 'alice@example.com', 'pass12345')
+        self.user_b = User.objects.create_user('bob', 'bob@example.com', 'pass12345')
+        # Profiles are created by the post_save signal with the default of 2 credits;
+        # zero one out to prove granting works from an exhausted balance.
+        self.user_b.profile.free_generations_remaining = 0
+        self.user_b.profile.save(update_fields=['free_generations_remaining'])
+
+        self.model_admin = UserProfileAdmin(UserProfile, AdminSite())
+        self.request = RequestFactory().post('/')
+        self.request.user = self.admin_user
+        self.request.session = {}
+        self.request._messages = FallbackStorage(self.request)
+
+    def _profiles(self):
+        from login_app.models import UserProfile
+        return UserProfile.objects.filter(user__in=[self.user_a, self.user_b])
+
+    def test_grant_5_credits_adds_to_existing_balance(self):
+        self.model_admin.grant_5_credits(self.request, self._profiles())
+
+        self.user_a.profile.refresh_from_db()
+        self.user_b.profile.refresh_from_db()
+        self.assertEqual(self.user_a.profile.free_generations_remaining, 7)  # 2 default + 5
+        self.assertEqual(self.user_b.profile.free_generations_remaining, 5)  # 0 + 5
+
+    def test_grant_1_credit_lets_exhausted_user_generate_again(self):
+        profile = self.user_b.profile
+        self.assertFalse(profile.has_free_generations())
+
+        self.model_admin.grant_1_credit(self.request, self._profiles().filter(user=self.user_b))
+
+        profile.refresh_from_db()
+        self.assertTrue(profile.has_free_generations())
+        self.assertTrue(profile.use_free_generation())
+        profile.refresh_from_db()
+        self.assertEqual(profile.free_generations_remaining, 0)
+        self.assertEqual(profile.total_generations, 1)
+
+    def test_grant_only_touches_selected_profiles(self):
+        self.model_admin.grant_10_credits(self.request, self._profiles().filter(user=self.user_a))
+
+        self.user_a.profile.refresh_from_db()
+        self.user_b.profile.refresh_from_db()
+        self.assertEqual(self.user_a.profile.free_generations_remaining, 12)
+        self.assertEqual(self.user_b.profile.free_generations_remaining, 0)

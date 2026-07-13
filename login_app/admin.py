@@ -14,6 +14,10 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.db.models import F
+from django.utils import timezone
+
+from login_app.models import UserProfile
 
 DEBUG_LOG_PATH = Path(__file__).parent.parent / '.cursor' / 'debug.log'
 
@@ -156,3 +160,80 @@ except Exception as e:
     error_trace = traceback.format_exc()
     print(f"[DEBUG STARTUP ERROR] login_app/admin.py: Failed to register UserAdmin: {error_msg}", file=sys.stderr, flush=True)
     print(f"[DEBUG STARTUP ERROR] Traceback: {error_trace}", file=sys.stderr, flush=True)
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    """Admin for editing free generation credits and profile fields."""
+
+    list_display = (
+        'user',
+        'user_email',
+        'free_generations_remaining',
+        'total_generations',
+        'primary_auth_provider',
+        'email_verified',
+        'onboarding_completed',
+        'updated_at',
+    )
+    list_filter = (
+        'primary_auth_provider',
+        'email_verified',
+        'onboarding_completed',
+    )
+    search_fields = ('user__username', 'user__email')
+    list_editable = ('free_generations_remaining',)
+    readonly_fields = ('created_at', 'updated_at', 'total_generations')
+    autocomplete_fields = ('user',)
+    ordering = ('-updated_at',)
+    actions = ('grant_1_credit', 'grant_5_credits', 'grant_10_credits')
+
+    def _grant_credits(self, request, queryset, amount):
+        updated = queryset.update(
+            free_generations_remaining=F('free_generations_remaining') + amount,
+            updated_at=timezone.now(),
+        )
+        self.message_user(
+            request,
+            f"Granted {amount} free credit(s) to {updated} profile(s).",
+            messages.SUCCESS,
+        )
+
+    @admin.action(description="Grant 1 free credit to selected profiles")
+    def grant_1_credit(self, request, queryset):
+        self._grant_credits(request, queryset, 1)
+
+    @admin.action(description="Grant 5 free credits to selected profiles")
+    def grant_5_credits(self, request, queryset):
+        self._grant_credits(request, queryset, 5)
+
+    @admin.action(description="Grant 10 free credits to selected profiles")
+    def grant_10_credits(self, request, queryset):
+        self._grant_credits(request, queryset, 10)
+
+    fieldsets = (
+        (None, {
+            'fields': ('user',),
+        }),
+        ('Credits', {
+            'fields': ('free_generations_remaining', 'total_generations'),
+            'description': 'Grant free meal-plan generations by increasing '
+                           '<b>free_generations_remaining</b>.',
+        }),
+        ('Auth / onboarding', {
+            'fields': (
+                'primary_auth_provider',
+                'email_verified',
+                'onboarding_completed',
+                'dietary_preferences',
+            ),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+        }),
+    )
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'Email'
+    user_email.admin_order_field = 'user__email'
