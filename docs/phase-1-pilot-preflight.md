@@ -32,13 +32,18 @@
 
 ## P1 — Fixes incorporated into Phase I (before launch)
 
-### 4. Brand fonts blocked by CSP — whole site renders in fallback fonts
-- The Django middleware CSP (`llm_diet_planner_project/middleware.py`) sends `style-src 'self' 'unsafe-inline'` without `https://fonts.googleapis.com`, overriding the correct meta CSP in `frontend/index.html`. Browsers enforce the stricter policy → Google Fonts stylesheet blocked → Bricolage Grotesque / Hanken Grotesk / Space Mono never load.
-- **Fix:** add `https://fonts.googleapis.com` to `style-src` and `https://fonts.gstatic.com` to `font-src` in the middleware header.
+### 4. Brand fonts blocked by CSP — whole site renders in fallback fonts ✅ SHIPPED 2026-07-13
+- The Django middleware CSP (`llm_diet_planner_project/middleware.py`) sent `style-src 'self' 'unsafe-inline'` without `https://fonts.googleapis.com`, overriding the correct meta CSP in `frontend/index.html`. Browsers enforce the stricter policy → Google Fonts stylesheet blocked → Bricolage Grotesque / Hanken Grotesk / Space Mono never loaded.
+- **Fix (commit `a0168ef`):** added `https://fonts.googleapis.com` to `style-src` and `https://fonts.gstatic.com` to `font-src` in the middleware header.
+- **Verified live 2026-07-13:** header correct on prod, fonts stylesheet loads, zero console errors, brand typography visually confirmed (screenshot `preflight-landing-fonts-fixed.jpeg`).
 
-### 5. Stripe Checkout branding/locale
-- Live checkout shows: business name "**mealPlanner**", product "**Eatalníček Standard**", English UI, EUR exchange-rate disclaimer ("1 CZK = 0.0429 EUR").
-- **Fix:** Stripe Dashboard → public business name → **Vařto**; rename products (`prod_UhIrrRjOFqgNOX` Standard, `prod_UhJ97VKht7zYJg` Premium) to Vařto Standard/Premium; pass `locale: 'cs'` when creating the Checkout Session (`billing/stripe_client.py`). EUR disclaimer stems from account settlement currency — verify whether CZK settlement is available; if not, accept (minor once page is Czech).
+### 5. Stripe Checkout branding/locale — ⚙️ locale SHIPPED, branding OPEN
+- Live checkout showed: business name "**mealPlanner**", product "**Eatalníček Standard**", English UI, EUR exchange-rate disclaimer ("1 CZK = 0.0429 EUR").
+- ✅ **Locale (commit `a0168ef`):** `locale='cs'` on Checkout Session and billing-portal session (`billing/views.py`). Verified live 2026-07-13 — checkout renders fully in Czech.
+- ⬜ **Still open (Stripe Dashboard/API, not code):**
+  - Public business name "mealPlanner" → **Vařto** (Dashboard → Settings → Business → Public details).
+  - Rename products `prod_UhIrrRjOFqgNOX` → "Vařto Standard", `prod_UhJ97VKht7zYJg` → "Vařto Premium".
+  - EUR disclaimer stems from account settlement currency — check whether CZK settlement is available; if not, accept (minor now that the page is Czech).
 
 ### 6. Plan generation ignores stated constraints
 Test input: "Chci šetřit za jídlo. Pro 4 osoby. Rozpočet 1500 CZK/týden. středně náročné recepty. **Max 30 minut** na přípravu." + snacks 2/den + drobné snacky 1/den.
