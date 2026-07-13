@@ -138,7 +138,7 @@ def public_recipe_view(request, pk, slug=None):
 {f'<section style="margin-top:2rem;"><h3 style="font-size:0.875rem;font-weight:900;">Nutriční hodnoty</h3><dl style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-top:0.5rem;">{nutrition_html}</dl></section>' if nutrition_html else ''}
 <div style="margin-top:3rem;padding:2rem;text-align:center;background:#FFFFFF;border:1px solid #E4DAC8;border-radius:1.5rem;">
 <p style="font-size:1.25rem;font-weight:900;">Chcete celý týden takových jídel?</p>
-<p style="color:#5E564C;margin-top:0.5rem;">Vařto sestaví personalizovaný jídelníček s recepty a nákupním seznamem s reálními cenami.</p>
+<p style="color:#5E564C;margin-top:0.5rem;">Vařto sestaví jídelníček na míru s recepty a nákupním seznamem s poctivým odhadem ceny.</p>
 <a href="/login" style="display:inline-block;margin-top:1rem;padding:0.875rem 2rem;background:#2E6B43;color:white;border-radius:0.75rem;text-decoration:none;font-weight:900;">Vytvořte si jídelníček zdarma</a>
 </div>
 </div>
