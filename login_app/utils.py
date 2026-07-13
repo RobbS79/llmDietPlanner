@@ -111,25 +111,25 @@ def get_verification_email_content(username: str, verification_url: str) -> Dict
     Returns:
         Dictionary with 'subject', 'text_content', 'html_content', and 'from_email' keys
     """
-    subject = 'Verify your email address'
-    from_email = f"LLM Diet Planner <{settings.DEFAULT_FROM_EMAIL}>"
-    
+    subject = 'Ověřte svou e-mailovou adresu'
+    from_email = f"Vařto <{settings.DEFAULT_FROM_EMAIL}>"
+
     # Plain text version
-    text_content = f'''Hello {username},
+    text_content = f'''Dobrý den {username},
 
-Thank you for registering with LLM Diet Planner!
+děkujeme za registraci ve Vařto!
 
-Please click the following link to verify your email address and activate your account:
+Kliknutím na následující odkaz potvrdíte svou e-mailovou adresu a aktivujete svůj účet:
 
 {verification_url}
 
-This link will expire in 24 hours.
+Platnost odkazu vyprší za 24 hodin.
 
-If you did not register for this account, please ignore this email.
+Pokud jste si účet nezakládali, tento e-mail prosím ignorujte.
 
-Best regards,
-LLM Diet Planner Team'''
-    
+S pozdravem,
+tým Vařto'''
+
     # HTML version (more professional, less likely to be marked as spam)
     html_content = f'''<!DOCTYPE html>
 <html>
@@ -139,28 +139,28 @@ LLM Diet Planner Team'''
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
-        <h1 style="color: #2c3e50; margin-top: 0;">Welcome to LLM Diet Planner!</h1>
-        
-        <p>Hello {username},</p>
-        
-        <p>Thank you for registering with LLM Diet Planner!</p>
-        
-        <p>Please click the button below to verify your email address and activate your account:</p>
-        
+        <h1 style="color: #2c3e50; margin-top: 0;">Vítejte ve Vařto!</h1>
+
+        <p>Dobrý den {username},</p>
+
+        <p>děkujeme za registraci ve Vařto!</p>
+
+        <p>Kliknutím na tlačítko níže potvrdíte svou e-mailovou adresu a aktivujete svůj účet:</p>
+
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{verification_url}" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
+            <a href="{verification_url}" style="display: inline-block; padding: 12px 30px; background-color: #047857; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">Ověřit e-mail</a>
         </div>
-        
-        <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
+
+        <p style="font-size: 14px; color: #666;">Nebo zkopírujte tento odkaz do prohlížeče:</p>
         <p style="font-size: 12px; color: #999; word-break: break-all; background-color: #f1f1f1; padding: 10px; border-radius: 4px;">{verification_url}</p>
-        
-        <p style="font-size: 14px; color: #666;"><strong>This link will expire in 24 hours.</strong></p>
-        
+
+        <p style="font-size: 14px; color: #666;"><strong>Platnost odkazu vyprší za 24 hodin.</strong></p>
+
         <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-        
-        <p style="font-size: 12px; color: #999;">If you did not register for this account, please ignore this email.</p>
-        
-        <p style="margin-top: 30px;">Best regards,<br><strong>LLM Diet Planner Team</strong></p>
+
+        <p style="font-size: 12px; color: #999;">Pokud jste si účet nezakládali, tento e-mail prosím ignorujte.</p>
+
+        <p style="margin-top: 30px;">S pozdravem,<br><strong>tým Vařto</strong></p>
     </div>
 </body>
 </html>'''
