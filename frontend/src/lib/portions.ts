@@ -53,10 +53,23 @@ export function pluralizeUnit(value: number, unit: string | null | undefined): s
 
 export function roundForUnit(value: number, unit: string | null | undefined): number {
   const u = (unit || '').toLowerCase();
-  if (u === 'g' || u === 'ml') return Math.round(value);
-  if (u === 'kg' || u === 'l') return Math.round(value * 10) / 10;
-  if (u === 'ks' || u === '') return Math.round(value * 2) / 2; // allow halves
-  return Math.round(value * 100) / 100; // up to 2 decimals
+  let step: number;
+  let rounded: number;
+  if (u === 'g' || u === 'ml') {
+    step = 1;
+    rounded = Math.round(value);
+  } else if (u === 'kg' || u === 'l') {
+    step = 0.1;
+    rounded = Math.round(value * 10) / 10;
+  } else if (u === 'ks' || u === '') {
+    step = 0.5; // allow halves
+    rounded = Math.round(value * 2) / 2;
+  } else {
+    step = 0.25; // counted units (lžíce, špetka…) read naturally in quarters
+    rounded = Math.round(value * 4) / 4;
+  }
+  // A positive quantity must never display as 0 — clamp to the smallest step.
+  return value > 0 && rounded === 0 ? step : rounded;
 }
 
 export function formatNumber(value: number): string {

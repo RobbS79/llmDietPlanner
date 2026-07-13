@@ -54,6 +54,13 @@ describe('roundForUnit', () => {
     expect(roundForUnit(1.24, 'ks')).toBe(1);
     expect(roundForUnit(1.3, 'ks')).toBe(1.5);
   });
+  it('never rounds a positive amount down to zero', () => {
+    expect(roundForUnit(0.125, 'ks')).toBe(0.5);
+    expect(roundForUnit(0.2, '')).toBe(0.5);
+    expect(roundForUnit(0.3, 'g')).toBe(1);
+    expect(roundForUnit(0.02, 'kg')).toBe(0.1);
+    expect(roundForUnit(0.001, 'lžíce')).toBe(0.25);
+  });
 });
 
 describe('formatNumber', () => {
@@ -83,5 +90,11 @@ describe('formatScaledIngredient', () => {
       { name: 'vejce', quantity: 2, unit: '' }, 4, 8,
     );
     expect(r.amountLabel).toBe('4');
+  });
+  it('shows a usable minimum instead of 0 when scaling down to 1 portion', () => {
+    const r = formatScaledIngredient(
+      { name: 'květák', quantity: 0.5, unit: 'ks' }, 4, 1,
+    );
+    expect(r.amountLabel).toBe('0,5 ks');
   });
 });
