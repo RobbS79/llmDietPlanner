@@ -4,6 +4,7 @@ import { Check, X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
 import { startCheckout, type BillingTier } from '@/lib/billing';
 import { isAccessTokenValid } from '@/lib/auth';
 import { PublicHeader } from '@/components/layout/PublicHeader';
+import { trackCheckoutStarted } from '@/lib/analytics';
 
 const PLANS = [
   {
@@ -98,6 +99,7 @@ export const Pricing = () => {
     setCheckoutError(null);
     setCheckoutTier(tier);
     try {
+      trackCheckoutStarted(); // fire InitiateCheckout right before Stripe redirect
       await startCheckout(tier); // redirects to Stripe on success
     } catch {
       setCheckoutError('Platbu se nepodařilo zahájit. Zkuste to prosím znovu.');
