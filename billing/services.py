@@ -14,6 +14,8 @@ from datetime import datetime, timezone as dt_timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 
+from analytics.events import track_paid
+
 from .stripe_client import stripe
 from .models import Subscription, SubscriptionPlan, StripeCustomer, Tier
 
@@ -221,6 +223,21 @@ def handle_checkout_completed(event) -> None:
         return
     logger.info('Provisioned %s subscription for user %s', tier, user.id)
     _send_welcome_email(user, tier)
+
+    # Fire server-side Purchase CAPI event (best-effort; never break the webhook).
+    # No-ops unless the user consented. Isolated so a transient broker outage
+    # can't propagate a 500 that both drops the dedup claim and re-sends email.
+    try:
+        plan = SubscriptionPlan.objects.filter(tier=tier).first()
+        if plan is None:
+            logger.warning(
+                "Purchase CAPI: no SubscriptionPlan for tier=%s (user=%s); value=0",
+                tier, user.id,
+            )
+        value = plan.price_czk if plan else 0
+        track_paid(user, value=value, currency='CZK', event_id=session.get('id'))
+    except Exception:  # pragma: no cover - analytics is non-critical
+        logger.exception("track_paid failed (non-fatal) for user=%s", user.id)
 
 
 def handle_invoice_paid(event) -> None:

@@ -5,14 +5,34 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from typing import Optional
 
 
+class AttributionPayload(BaseModel):
+    """Optional client-captured marketing attribution + consent, sent at signup.
+
+    All fields are optional/defaulted so a partial or malformed payload from the
+    client never blocks registration.
+    """
+
+    utm_source: str = Field(default="", description="UTM source parameter")
+    utm_medium: str = Field(default="", description="UTM medium parameter")
+    utm_campaign: str = Field(default="", description="UTM campaign parameter")
+    utm_content: str = Field(default="", description="UTM content parameter")
+    utm_term: str = Field(default="", description="UTM term parameter")
+    fbclid: str = Field(default="", description="Facebook click id")
+    fbp: str = Field(default="", description="Facebook browser id (_fbp cookie)")
+    fbc: str = Field(default="", description="Facebook click id cookie (_fbc)")
+    consent: bool = Field(default=False, description="Whether marketing consent was granted")
+    consent_version: str = Field(default="", description="Version of the consent copy shown")
+
+
 class RegistrationRequest(BaseModel):
     """Schema for user registration request."""
-    
+
     username: str = Field(..., min_length=3, max_length=150, description="Username (3-150 characters)")
     email: EmailStr = Field(..., description="Valid email address")
     password: str = Field(..., min_length=8, description="Password (minimum 8 characters)")
     password_confirm: str = Field(..., alias="passwordConfirm", description="Password confirmation")
-    
+    attribution: Optional[AttributionPayload] = Field(default=None, description="Optional marketing attribution + consent captured client-side")
+
     @field_validator('password')
     @classmethod
     def validate_password(cls, v: str) -> str:

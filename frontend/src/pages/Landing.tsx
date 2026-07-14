@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, Quote, Heart, Target, Wallet, Lightbulb, Search, SlidersHorizontal } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { Receipt } from '@/components/ui/Receipt';
+import { captureAttribution } from '@/lib/analytics';
 
 const SAMPLE_PLAN = {
   days: [
@@ -36,6 +37,12 @@ export const Landing = () => {
   const [showStickyCta, setShowStickyCta] = useState(false);
 
   useEffect(() => {
+    // loadPixel() (called on App mount) already fires the init-time
+    // fbq('track', 'PageView'), which serves as the landing-view signal.
+    // We intentionally do NOT call trackLandingView() here — doing so would
+    // fire a second PageView for the same visit and double-count landings.
+    captureAttribution(window.location.search);
+
     const onScroll = () => setShowStickyCta(window.scrollY > 600);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);

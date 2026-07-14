@@ -24,6 +24,7 @@ from .entitlements import allow_generation, active_subscription
 from .models import (
     Subscription, SubscriptionPlan, Tier, ProcessedWebhookEvent, StripeCustomer,
 )
+from analytics.models import MarketingAttribution
 import stripe as stripe_lib
 
 
@@ -294,3 +295,90 @@ class ReconcileCommandTests(TestCase):
         with self.assertRaises(CommandError):
             call_command('reconcile_subscription', 'sub_orphan',
                          '--email', 'nobody@x.com')
+
+
+class PaidEventTests(TestCase):
+    """checkout.session.completed must fire the server-side Purchase CAPI
+    event, priced from the tier's SubscriptionPlan, once provisioning
+    succeeds. track_paid is consent-gated itself, so this handler doesn't
+    need to check consent — it just needs to call it exactly once, with the
+    right value, on the success path."""
+
+    def setUp(self):
+        self.plan, _ = SubscriptionPlan.objects.update_or_create(
+            tier=Tier.STANDARD, defaults=dict(
+                name='Standard', price_czk=99,
+                stripe_price_id='price_standard_test', monthly_plan_quota=7,
+                edits_per_plan=10, allow_multi_store=False,
+            ),
+        )
+        self.user = User.objects.create_user('buyer', 'buyer@x.com', 'pw')
+        MarketingAttribution.objects.create(user=self.user, marketing_consent=True)
+
+    def _event(self):
+        return {'data': {'object': {
+            'id': 'cs_1', 'mode': 'subscription', 'customer': 'cus_1',
+            'subscription': 'sub_1',
+            'metadata': {'user_id': str(self.user.id), 'tier': Tier.STANDARD},
+        }}}
+
+    @patch('billing.services._send_welcome_email')
+    @patch('billing.services.upsert_subscription')
+    @patch('billing.services.stripe.Subscription.retrieve')
+    @patch('billing.services.track_paid')
+    def test_checkout_completed_fires_paid_with_tier_price(
+        self, mock_paid, mock_retrieve, mock_upsert, mock_welcome,
+    ):
+        mock_retrieve.return_value = {
+            'id': 'sub_1', 'status': 'active',
+            'items': {'data': [{'price': {'id': 'price_standard_test'}}]},
+        }
+        mock_upsert.return_value = object()  # non-None => provisioned
+        services.handle_checkout_completed(self._event())
+        mock_paid.assert_called_once()
+        self.assertEqual(mock_paid.call_args.args[0], self.user)
+        self.assertEqual(mock_paid.call_args.kwargs['value'], 99)
+        self.assertEqual(mock_paid.call_args.kwargs['currency'], 'CZK')
+        # Dedup key must be the Stripe checkout session id, not user+value —
+        # otherwise a churn->resubscribe at the same tier collides and the
+        # second real Purchase is dropped by Meta's dedup.
+        self.assertEqual(mock_paid.call_args.kwargs['event_id'], 'cs_1')
+
+    @patch('billing.services._send_welcome_email')
+    @patch('billing.services.upsert_subscription')
+    @patch('billing.services.stripe.Subscription.retrieve')
+    @patch('billing.services.track_paid')
+    def test_paid_not_fired_when_provisioning_fails(
+        self, mock_paid, mock_retrieve, mock_upsert, mock_welcome,
+    ):
+        """upsert_subscription returning None (unknown tier etc.) means we
+        never provisioned — must not report a purchase for it."""
+        mock_retrieve.return_value = {
+            'id': 'sub_1', 'status': 'active',
+            'items': {'data': [{'price': {'id': 'price_standard_test'}}]},
+        }
+        mock_upsert.return_value = None
+        services.handle_checkout_completed(self._event())
+        mock_paid.assert_not_called()
+
+    @patch('billing.services._send_welcome_email')
+    @patch('billing.services.upsert_subscription')
+    @patch('billing.services.stripe.Subscription.retrieve')
+    @patch('billing.services.track_paid', side_effect=Exception('broker down'))
+    def test_paid_failure_does_not_break_webhook(
+        self, mock_paid, mock_retrieve, mock_upsert, mock_welcome,
+    ):
+        """A transient broker outage in track_paid must NOT propagate out of
+        the handler — otherwise the webhook 500s, its dedup claim is dropped,
+        and the welcome email double-sends on Stripe's retry."""
+        mock_retrieve.return_value = {
+            'id': 'sub_1', 'status': 'active',
+            'items': {'data': [{'price': {'id': 'price_standard_test'}}]},
+        }
+        mock_upsert.return_value = object()  # provisioned
+        # Must not raise despite track_paid blowing up.
+        services.handle_checkout_completed(self._event())
+        mock_paid.assert_called_once()
+        # provisioning + welcome email still ran (they precede the analytics call)
+        mock_upsert.assert_called_once()
+        mock_welcome.assert_called_once()

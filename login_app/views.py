@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.db import transaction
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
@@ -25,6 +26,8 @@ from .models import UserProfile
 from .schemas import RegistrationRequest, LoginRequest, PasswordResetRequestSchema, PasswordResetConfirmSchema
 from .utils import generate_email_verification_token, verify_email_token
 from .tasks import send_verification_email_task, send_password_reset_email_task
+from analytics.models import MarketingAttribution
+from analytics.events import track_signup
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +160,31 @@ class RegistrationView(APIView):
                 password=schema.password,
                 is_active=False # Account disabled until email verification is complete
             )
-            
+
+            # Persist marketing attribution (optional, untrusted client input) so
+            # webhook-time CAPI events can honor consent later. This must never
+            # break registration, so failures here are logged and swallowed.
+            try:
+                attr_in = schema.attribution
+                MarketingAttribution.objects.create(
+                    user=user,
+                    utm_source=(attr_in.utm_source if attr_in else ""),
+                    utm_medium=(attr_in.utm_medium if attr_in else ""),
+                    utm_campaign=(attr_in.utm_campaign if attr_in else ""),
+                    utm_content=(attr_in.utm_content if attr_in else ""),
+                    utm_term=(attr_in.utm_term if attr_in else ""),
+                    fbclid=(attr_in.fbclid if attr_in else ""),
+                    fbp=(attr_in.fbp if attr_in else ""),
+                    fbc=(attr_in.fbc if attr_in else ""),
+                    landing_at=timezone.now(),
+                    marketing_consent=(attr_in.consent if attr_in else False),
+                    consent_at=(timezone.now() if (attr_in and attr_in.consent) else None),
+                    consent_version=(attr_in.consent_version if attr_in else ""),
+                )
+                track_signup(user)
+            except Exception:
+                logger.exception("Failed to persist marketing attribution / fire signup event for user_id=%s", user.id)
+
             # Generate verification artifacts
             uid, token = generate_email_verification_token(user)
             

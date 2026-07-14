@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/auth/", include("login_app.urls")),
     path("api/shopify/", include("shopifyin.urls")),
     path("api/billing/", include("billing.urls")),
+    path("api/analytics/", include("analytics.urls")),
     path("api/", include("diet_planner.urls")),
 
     # 4. SEO: XML Sitemap for Google & Seznam crawlers

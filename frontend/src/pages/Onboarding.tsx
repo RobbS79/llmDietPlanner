@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Target, Leaf, AlertTriangle, Home, ChefHat, Check, ArrowRight, ArrowLeft, X, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
+import { trackQuizStarted } from '@/lib/analytics';
 
 const STEPS = [
   { label: 'Cíl', icon: Target },
@@ -81,6 +82,13 @@ export const Onboarding = () => {
     country: 'CZ',
     shop: 'ROHLIK',
   });
+
+  // Fires once when the quiz mounts (start of onboarding), not per-step —
+  // step transitions below are internal state changes on this same
+  // component instance, so this effect does not re-run as `step` changes.
+  useEffect(() => {
+    trackQuizStarted();
+  }, []);
 
   const saveMutation = useMutation({
     mutationFn: (payload: { onboarding_completed: boolean; dietary_preferences: OnboardingData }) =>
