@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
+from rest_framework.test import APIClient
 
 from analytics import capi
 from analytics import events
@@ -122,3 +123,34 @@ class EventHelperTests(TestCase):
         user = User.objects.create_user(username="p3", email="p3@example.com")
         events.track_signup(user)
         mock_delay.assert_not_called()
+
+
+class ConsentEndpointTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="c1", email="c1@example.com",
+                                              password="pw12345x")
+
+    def test_requires_auth(self):
+        resp = self.client.post("/api/analytics/consent/",
+                                {"consent": True, "version": "1"}, format="json")
+        self.assertIn(resp.status_code, (401, 403))
+
+    def test_records_consent(self):
+        self.client.force_authenticate(self.user)
+        resp = self.client.post("/api/analytics/consent/",
+                                {"consent": True, "version": "1"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        attr = MarketingAttribution.objects.get(user=self.user)
+        self.assertTrue(attr.marketing_consent)
+        self.assertEqual(attr.consent_version, "1")
+        self.assertIsNotNone(attr.consent_at)
+
+    def test_withdraw_consent(self):
+        self.client.force_authenticate(self.user)
+        MarketingAttribution.objects.create(user=self.user, marketing_consent=True)
+        resp = self.client.post("/api/analytics/consent/",
+                                {"consent": False, "version": "1"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        attr = MarketingAttribution.objects.get(user=self.user)
+        self.assertFalse(attr.marketing_consent)
