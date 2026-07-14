@@ -7,6 +7,7 @@
     # Define Build Arguments
     # DigitalOcean passes "Build and Run Time" env vars as build arguments
     ARG VITE_GOOGLE_CLIENT_ID
+    ARG VITE_FB_PIXEL_ID
     
     # Copy package files first to optimize layer caching
     COPY frontend/package*.json ./
@@ -17,7 +18,9 @@
     
     # The VITE_ prefix tells Vite to include this variable in the client bundle.
     # We ensure it's available in the environment for the build command.
-    RUN VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID npm run build:prod
+    RUN VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
+        VITE_FB_PIXEL_ID=$VITE_FB_PIXEL_ID \
+        npm run build:prod
     
     # --- STAGE 2: Python / Django ---
     FROM python:3.11-slim
