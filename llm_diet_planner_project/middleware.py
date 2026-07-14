@@ -14,11 +14,11 @@ class SecurityHeadersMiddleware:
         if not request.path.startswith("/admin/"):
             response["Content-Security-Policy"] = (
                 "default-src 'self'; "
-                "script-src 'self'; "
+                "script-src 'self' https://connect.facebook.net; "
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                "img-src 'self' data:; "
+                "img-src 'self' data: https://www.facebook.com; "
                 "font-src 'self' https://fonts.gstatic.com; "
-                "connect-src 'self'; "
+                "connect-src 'self' https://www.facebook.com; "
                 "frame-src 'none'; "
                 "object-src 'none'; "
                 "base-uri 'self'; "

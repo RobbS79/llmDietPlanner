@@ -154,3 +154,11 @@ class ConsentEndpointTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         attr = MarketingAttribution.objects.get(user=self.user)
         self.assertFalse(attr.marketing_consent)
+
+
+class CSPHeaderTests(TestCase):
+    def test_csp_allows_facebook_pixel(self):
+        resp = self.client.get("/health/")
+        csp = resp.headers.get("Content-Security-Policy", "")
+        self.assertIn("https://connect.facebook.net", csp)
+        self.assertIn("https://www.facebook.com", csp)
