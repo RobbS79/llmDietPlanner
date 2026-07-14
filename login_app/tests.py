@@ -8,6 +8,8 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import generate_email_verification_token, verify_email_token
+from unittest.mock import patch
+from analytics.models import MarketingAttribution
 import json
 
 
@@ -427,3 +429,50 @@ class AdminGrantCreditsTestCase(TestCase):
         self.user_b.profile.refresh_from_db()
         self.assertEqual(self.user_a.profile.free_generations_remaining, 12)
         self.assertEqual(self.user_b.profile.free_generations_remaining, 0)
+
+
+class RegistrationAttributionTests(TestCase):
+    """Registration should persist a MarketingAttribution row and fire the
+    server-side signup CAPI event, whether or not the client sent an
+    attribution payload."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.register_url = reverse('login_app:register')
+        # The verification email is sent via Celery .delay(); mock it so these
+        # tests don't depend on a running broker (unrelated to attribution).
+        patcher = patch("login_app.views.send_verification_email_task.delay")
+        self.mock_send_email = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    @patch("login_app.views.track_signup")
+    def test_registration_persists_attribution_and_fires_signup(self, mock_track):
+        payload = {
+            "username": "newuser2", "email": "new2@example.com",
+            "password": "Abcd1234", "passwordConfirm": "Abcd1234",
+            "attribution": {"utm_source": "facebook", "utm_campaign": "pilot",
+                "fbclid": "abc", "fbp": "fb.1.2.3", "fbc": "fb.1.2.c",
+                "consent": True, "consent_version": "1"}}
+        resp = self.client.post(self.register_url, payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+        user = User.objects.get(username="newuser2")
+        attr = MarketingAttribution.objects.get(user=user)
+        self.assertEqual(attr.utm_source, "facebook")
+        self.assertEqual(attr.utm_campaign, "pilot")
+        self.assertTrue(attr.marketing_consent)
+        self.assertEqual(attr.fbp, "fb.1.2.3")
+        self.assertEqual(attr.fbc, "fb.1.2.c")
+        mock_track.assert_called_once_with(user)
+
+    @patch("login_app.views.track_signup")
+    def test_registration_without_attribution_still_works(self, mock_track):
+        payload = {"username": "plainuser", "email": "plain@example.com",
+                   "password": "Abcd1234", "passwordConfirm": "Abcd1234"}
+        resp = self.client.post(self.register_url, payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+        user = User.objects.get(username="plainuser")
+        attr = MarketingAttribution.objects.get(user=user)
+        self.assertFalse(attr.marketing_consent)
+        mock_track.assert_called_once_with(user)
