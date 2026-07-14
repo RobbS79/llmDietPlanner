@@ -137,6 +137,13 @@ SITE_ID = 1
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=config('VITE_GOOGLE_CLIENT_ID', default=None))
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default=None)
 FRONTEND_URL = config('FRONTEND_URL', default='')
+
+# --- Analytics / Meta Pixel + CAPI ---
+ANALYTICS_ENABLED = config('ANALYTICS_ENABLED', default=False, cast=bool)
+FB_PIXEL_ID = config('FB_PIXEL_ID', default='')
+FB_CAPI_ACCESS_TOKEN = config('FB_CAPI_ACCESS_TOKEN', default='')
+FB_CAPI_TEST_EVENT_CODE = config('FB_CAPI_TEST_EVENT_CODE', default='')
+
 DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'))}
 ROOT_URLCONF = "llm_diet_planner_project.urls"
 WSGI_APPLICATION = "llm_diet_planner_project.wsgi.application"
