@@ -76,6 +76,12 @@ else
   echo "DJANGO_SUPERUSER_PASSWORD not set — skipping superuser bootstrap."
 fi
 
+# 2b-qa. Seed the QA verification account (post-deploy /qa-prod).
+# SECURITY: credentials come only from DO SECRET env vars; the command no-ops
+# when they are absent. Idempotent — safe on every boot.
+echo "Seeding QA account..."
+python manage.py seed_qa_account || echo "WARN: QA account seed failed."
+
 # 2c. Bootstrap admin TOTP MFA device (console-free enrollment)
 # OTPAdminSite locks /admin/ until a confirmed TOTP device exists, and the DO
 # App Platform console is unusable, so enrollment cannot be done interactively
