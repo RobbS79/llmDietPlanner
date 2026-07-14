@@ -14,6 +14,8 @@ from datetime import datetime, timezone as dt_timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 
+from analytics.events import track_paid
+
 from .stripe_client import stripe
 from .models import Subscription, SubscriptionPlan, StripeCustomer, Tier
 
@@ -221,6 +223,11 @@ def handle_checkout_completed(event) -> None:
         return
     logger.info('Provisioned %s subscription for user %s', tier, user.id)
     _send_welcome_email(user, tier)
+
+    # Fire server-side Purchase CAPI event (no-ops unless the user consented).
+    plan = SubscriptionPlan.objects.filter(tier=tier).first()
+    value = plan.price_czk if plan else 0
+    track_paid(user, value=value, currency='CZK')
 
 
 def handle_invoice_paid(event) -> None:
