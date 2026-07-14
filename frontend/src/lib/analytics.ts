@@ -1,5 +1,6 @@
 // Meta Pixel loader + funnel event helpers. Everything is a no-op unless the
 // user has granted consent AND VITE_FB_PIXEL_ID is set.
+import axios from 'axios';
 
 export const CONSENT_KEY = 'mkt_consent_v1';
 export const CONSENT_VERSION = '1';
@@ -53,6 +54,22 @@ export function getConsent(): boolean | null {
 export function setConsent(consent: boolean): void {
   localStorage.setItem(CONSENT_KEY,
     JSON.stringify({ consent, version: CONSENT_VERSION, ts: Date.now() }));
+}
+
+// Sync a locally-stored consent decision to the server after authentication.
+// Closes the "opted in while anonymous, then LOGGED IN (not registered)" gap:
+// registration carries consent in its payload, but a plain login does not, and
+// the banner won't re-show for a returning user. No-op if there is no stored
+// decision or no auth token. Bare axios (not the shared `api` instance) so a
+// stale token can't trip the 401→/login interceptor. Best-effort — the local
+// decision remains the source of truth for the pixel.
+export async function syncConsentToServer(): Promise<void> {
+  const consent = getConsent();
+  if (consent === null) return;
+  if (!localStorage.getItem('access_token')) return;
+  try {
+    await axios.post('/api/analytics/consent/', { consent, version: CONSENT_VERSION });
+  } catch { /* offline or token expired — local decision stands */ }
 }
 
 // Read the pixel's first-party cookies (available only after the pixel loads).

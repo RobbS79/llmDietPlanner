@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound } from 'lucide-react';
 import axios from 'axios';
-import { getStoredAttribution, getConsent, CONSENT_VERSION, readCookie, type UtmParams } from '@/lib/analytics';
+import { getStoredAttribution, getConsent, syncConsentToServer, CONSENT_VERSION, readCookie, type UtmParams } from '@/lib/analytics';
 
 type Attribution = UtmParams & {
   fbp: string;
@@ -33,6 +33,7 @@ export const Login = () => {
       const { access, refresh } = res.data.data;
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
+      syncConsentToServer();
       navigate('/', { replace: true });
     },
     onError: (err: any) => {
