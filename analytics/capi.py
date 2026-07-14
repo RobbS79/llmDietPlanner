@@ -77,6 +77,8 @@ def send_event(*, event_name, event_id, email=None, fbp="", fbc="",
                            resp.status_code, resp.text[:300])
             return False
         return True
-    except requests.RequestException as exc:
-        logger.warning("CAPI %s network error: %s", event_name, exc)
+    except Exception as exc:
+        # Best-effort contract: never raise. Covers requests network errors
+        # AND payload-serialization failures (e.g. non-JSON custom_data).
+        logger.warning("CAPI %s error: %s", event_name, exc)
         return False

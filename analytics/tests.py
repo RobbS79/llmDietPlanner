@@ -82,3 +82,13 @@ class SendEventTests(TestCase):
                                  email="a@b.com")
         self.assertFalse(ok)
         mock_post.assert_not_called()
+
+    @patch("analytics.capi.requests.post")
+    def test_non_serializable_custom_data_returns_false_not_raises(self, mock_post):
+        # A non-JSON-serializable custom_data value makes requests.post raise a
+        # bare TypeError; send_event must swallow it and honor its never-raise
+        # contract by returning False.
+        mock_post.side_effect = TypeError("not serializable")
+        ok = capi.send_event(event_name="CompleteRegistration", event_id="e1",
+                             email="a@b.com", custom_data={"value": object()})
+        self.assertFalse(ok)
