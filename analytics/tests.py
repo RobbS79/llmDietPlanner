@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 
 from analytics import capi
+from analytics import events
 from analytics.models import MarketingAttribution
 from analytics.hashing import hash_email
 
@@ -92,3 +93,32 @@ class SendEventTests(TestCase):
         ok = capi.send_event(event_name="CompleteRegistration", event_id="e1",
                              email="a@b.com", custom_data={"value": object()})
         self.assertFalse(ok)
+
+
+class EventHelperTests(TestCase):
+    @patch("analytics.tasks.send_capi_event_task.delay")
+    def test_track_paid_enqueues_purchase(self, mock_delay):
+        user = User.objects.create_user(username="p1", email="p1@example.com")
+        MarketingAttribution.objects.create(
+            user=user, marketing_consent=True, fbp="fb.1.1.1", fbc="fb.1.1.c",
+        )
+        events.track_paid(user, value=99, currency="CZK")
+        self.assertTrue(mock_delay.called)
+        kwargs = mock_delay.call_args.kwargs
+        self.assertEqual(kwargs["event_name"], "Purchase")
+        self.assertEqual(kwargs["email"], "p1@example.com")
+        self.assertEqual(kwargs["custom_data"], {"value": 99, "currency": "CZK"})
+        self.assertEqual(kwargs["fbp"], "fb.1.1.1")
+
+    @patch("analytics.tasks.send_capi_event_task.delay")
+    def test_no_consent_skips(self, mock_delay):
+        user = User.objects.create_user(username="p2", email="p2@example.com")
+        MarketingAttribution.objects.create(user=user, marketing_consent=False)
+        events.track_paid(user, value=99, currency="CZK")
+        mock_delay.assert_not_called()
+
+    @patch("analytics.tasks.send_capi_event_task.delay")
+    def test_no_attribution_row_skips(self, mock_delay):
+        user = User.objects.create_user(username="p3", email="p3@example.com")
+        events.track_signup(user)
+        mock_delay.assert_not_called()
