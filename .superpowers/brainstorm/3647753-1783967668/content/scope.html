@@ -1,0 +1,58 @@
+<h2>How much price surface do we build?</h2>
+<p class="subtitle">The backend already ships an honest per-recipe range (<code>low–high</code>, per-portion, a confidence flag). The question is how much of it we show. Numbers below are illustrative. Pick the shape that feels right — click to select.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Range headline only <span style="font-weight:400;color:#888">· smallest lift</span></h3>
+      <p>Un-stub the existing range and show one honest line on the recipe, next to the deals headline. No per-ingredient prices. Ingredient list stays as it is.</p>
+      <div style="margin-top:12px;background:#fff;border:1px solid #e2ded4;border-radius:10px;padding:14px 16px;max-width:440px;color:#1a1a1a;font-family:system-ui">
+        <div style="font-size:13px;color:#2e7d32;font-weight:700">✓ 3 z 8 surovin ve slevě tento týden</div>
+        <div style="margin-top:10px;font-size:20px;font-weight:800">92–115 Kč <span style="font-size:13px;font-weight:600;color:#666">za recept</span></div>
+        <div style="font-size:13px;color:#666">23–29 Kč / porce · orientační rozsah z reálných cen (Rohlík)</div>
+        <div style="margin-top:12px;border-top:1px dashed #e2ded4;padding-top:10px;font-size:12px;color:#999">Suroviny (4 porce) — seznam beze změny, s krokovačem porcí</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Priced shopping list <span style="font-weight:400;color:#888">· recommended</span></h3>
+      <p>The ingredient list becomes a real per-recipe "nákupní seznam": each priced line shows its cost, unpriced lines are marked honestly, and a from–to total + coverage sit at the bottom. Needs a small backend change (expose per-line cost + priced/total counts).</p>
+      <div style="margin-top:12px;background:#fff;border:1px solid #e2ded4;border-radius:10px;padding:14px 16px;max-width:440px;color:#1a1a1a;font-family:system-ui">
+        <div style="font-size:13px;color:#2e7d32;font-weight:700">✓ 3 z 8 surovin ve slevě tento týden</div>
+        <div style="font-weight:800;margin:10px 0 6px">Nákupní seznam <span style="font-weight:600;color:#666;font-size:13px">· 4 porce</span></div>
+        <div style="font-size:13px;line-height:1.9">
+          <div style="display:flex;justify-content:space-between"><span>Kuřecí prsa · 500 g</span><span style="color:#333">~80 Kč</span></div>
+          <div style="display:flex;justify-content:space-between"><span>Rajčata · 400 g <span style="color:#2e7d32;font-size:11px;font-weight:700">SLEVA</span></span><span style="color:#333">~24 Kč</span></div>
+          <div style="display:flex;justify-content:space-between"><span>Mozzarella · 125 g</span><span style="color:#333">~35 Kč</span></div>
+          <div style="display:flex;justify-content:space-between;color:#999"><span>Bazalka · hrst</span><span>bez ceny</span></div>
+        </div>
+        <div style="margin-top:10px;border-top:1px solid #e2ded4;padding-top:10px;display:flex;justify-content:space-between;font-weight:800">
+          <span>Celkem</span><span>92–115 Kč</span>
+        </div>
+        <div style="font-size:12px;color:#666">6 z 8 surovin oceněno · rozsah = snědené množství → celá balení</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>B + whole-week total on the plan <span style="font-weight:400;color:#888">· closest to the current landing promise, most risk</span></h3>
+      <p>Everything in B, plus the plan/dashboard sums the recipe ranges into a weekly range. Matches the landing's "weekly receipt / 1 247 Kč" hero — but summing ranges compounds imprecision, and coverage gaps make a headline total easy to distrust.</p>
+      <div style="margin-top:12px;background:#fff;border:1px solid #e2ded4;border-radius:10px;padding:14px 16px;max-width:440px;color:#1a1a1a;font-family:system-ui">
+        <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#999;font-weight:700">Váš týden · 3 jídla / 7 dní</div>
+        <div style="margin-top:6px;font-size:22px;font-weight:800">640–800 Kč <span style="font-size:13px;font-weight:600;color:#666">odhad za týden</span></div>
+        <div style="font-size:12px;color:#666">součet orientačních rozsahů receptů · 78 % surovin oceněno</div>
+        <div style="margin-top:12px;border-top:1px dashed #e2ded4;padding-top:10px;font-size:12px;color:#999">…a plný nákupní seznam s cenami u každého receptu (jako B)</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:20px">My lean: <strong>B</strong> — it's what the landing actually needs (a truthful, itemized price picture per recipe), it stays honest about coverage, and it dodges the compounding-error trap of a single weekly headline number. We can still add a soft plan-level range later if you want C.</p>

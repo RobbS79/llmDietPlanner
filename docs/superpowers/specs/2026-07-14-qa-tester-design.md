@@ -54,7 +54,9 @@ The subagent definition.
 ### 2. `.claude/skills/qa-prod/SKILL.md`
 The `/qa-prod` launcher skill.
 - Resolves the prod base URL (default `https://eatalnicek.eu`) and reads QA creds
-  from env (`QA_TEST_EMAIL` / `QA_TEST_PASSWORD`).
+  from env (`QA_TEST_USERNAME` / `QA_TEST_PASSWORD`; `QA_TEST_EMAIL` optional).
+  Login authenticates on username (`login_app.views.LoginView`), so username is
+  the key credential.
 - Dispatches the qa-tester agent with a scoped task string (base URL, whether
   authed flow is enabled, report path).
 - On completion, echoes the **GO / NO-GO verdict + report path** inline so a
@@ -79,14 +81,14 @@ Per page, the agent verifies:
 - Click checkout; confirm it **reaches** Stripe Checkout (pk_live), then **STOP**
   — never enter payment details, never complete a purchase.
 
-If `QA_TEST_EMAIL`/`QA_TEST_PASSWORD` are unset, Flow B is **skipped** and the
+If `QA_TEST_USERNAME`/`QA_TEST_PASSWORD` are unset, Flow B is **skipped** and the
 run is public-only (report marks Flow B as SKIP with the reason).
 
 ## QA account provisioning
 
 New idempotent management command **`seed_qa_account`**:
-- Creates (or leaves intact) a known QA user from `QA_TEST_EMAIL` /
-  `QA_TEST_PASSWORD`.
+- Creates (or leaves intact) a known QA user from `QA_TEST_USERNAME` /
+  `QA_TEST_PASSWORD` (`QA_TEST_EMAIL` optional).
 - Optionally seeds a **pre-generated plan** on that account as a fallback so the
   "view plan" check still passes if live generation is slow/flaky.
 - Idempotent: safe to run on every deploy.
@@ -118,7 +120,9 @@ Stated as hard prohibitions in the agent def; the agent must not cross them:
 - Top line: **GO / NO-GO**.
 - Per-flow table: PASS / FAIL / SKIP, with severity on failures.
 - Console-error dump.
-- Screenshots-on-failure saved alongside the report.
+- Screenshots-on-failure saved to the local `.playwright-mcp/` run dir
+  (gitignored, not committed — authed-run captures may hold session data); the
+  report references those local paths.
 
 The skill surfaces the verdict + path inline.
 
