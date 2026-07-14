@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { getConsent, setConsent, loadPixel, CONSENT_VERSION } from '@/lib/analytics';
-import { api } from '@/lib/api';
 
 // Binary GDPR consent banner (Přijmout / Odmítnout, equal prominence).
 // Shows until a decision exists in localStorage. Market-Paper themed.
@@ -12,7 +12,10 @@ export function ConsentBanner() {
     setConsent(consent);
     setVisible(false);
     if (consent) loadPixel();
-    try { await api.post('/analytics/consent/', { consent, version: CONSENT_VERSION }); }
+    // Bare axios (not the shared `api` instance) — the shared instance's
+    // response interceptor redirects anonymous 401s to /login, which would
+    // hijack anonymous visitors just for clicking the consent banner.
+    try { await axios.post('/api/analytics/consent/', { consent, version: CONSENT_VERSION }); }
     catch { /* anonymous or offline — decision rides the signup payload */ }
   }
 
