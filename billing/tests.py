@@ -356,3 +356,25 @@ class PaidEventTests(TestCase):
         mock_upsert.return_value = None
         services.handle_checkout_completed(self._event())
         mock_paid.assert_not_called()
+
+    @patch('billing.services._send_welcome_email')
+    @patch('billing.services.upsert_subscription')
+    @patch('billing.services.stripe.Subscription.retrieve')
+    @patch('billing.services.track_paid', side_effect=Exception('broker down'))
+    def test_paid_failure_does_not_break_webhook(
+        self, mock_paid, mock_retrieve, mock_upsert, mock_welcome,
+    ):
+        """A transient broker outage in track_paid must NOT propagate out of
+        the handler — otherwise the webhook 500s, its dedup claim is dropped,
+        and the welcome email double-sends on Stripe's retry."""
+        mock_retrieve.return_value = {
+            'id': 'sub_1', 'status': 'active',
+            'items': {'data': [{'price': {'id': 'price_standard_test'}}]},
+        }
+        mock_upsert.return_value = object()  # provisioned
+        # Must not raise despite track_paid blowing up.
+        services.handle_checkout_completed(self._event())
+        mock_paid.assert_called_once()
+        # provisioning + welcome email still ran (they precede the analytics call)
+        mock_upsert.assert_called_once()
+        mock_welcome.assert_called_once()
