@@ -162,3 +162,15 @@ class CSPHeaderTests(TestCase):
         csp = resp.headers.get("Content-Security-Policy", "")
         self.assertIn("https://connect.facebook.net", csp)
         self.assertIn("https://www.facebook.com", csp)
+
+    def test_connect_src_allows_both_facebook_hosts(self):
+        # fbevents.js fetches its advanced-matching config from
+        # connect.facebook.net, so connect-src (not just script-src) must
+        # allow it, alongside the existing www.facebook.com CAPI/pixel host.
+        resp = self.client.get("/health/")
+        csp = resp.headers.get("Content-Security-Policy", "")
+        directives = {d.strip().split(" ", 1)[0]: d.strip()
+                      for d in csp.split(";") if d.strip()}
+        connect_src = directives.get("connect-src", "")
+        self.assertIn("https://www.facebook.com", connect_src)
+        self.assertIn("https://connect.facebook.net", connect_src)

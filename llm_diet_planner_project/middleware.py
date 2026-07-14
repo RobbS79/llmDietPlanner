@@ -18,7 +18,7 @@ class SecurityHeadersMiddleware:
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
                 "img-src 'self' data: https://www.facebook.com; "
                 "font-src 'self' https://fonts.gstatic.com; "
-                "connect-src 'self' https://www.facebook.com; "
+                "connect-src 'self' https://www.facebook.com https://connect.facebook.net; "
                 "frame-src 'none'; "
                 "object-src 'none'; "
                 "base-uri 'self'; "
