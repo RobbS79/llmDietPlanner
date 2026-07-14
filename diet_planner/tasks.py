@@ -37,6 +37,7 @@ from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
 from .services.canonical_lookup import resolve_canonical
 from .services.restrictions import RepairBudgetExhausted
+from analytics.events import track_plan_generated
 
 logger = logging.getLogger(__name__)
 
@@ -882,7 +883,12 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
         goal.status = DietaryGoal.StatusChoices.COMPLETED
         goal.completed_at = timezone.now()
         goal.save(update_fields=['status', 'completed_at'])
-        
+
+        try:
+            track_plan_generated(goal.user, goal.id)
+        except Exception:
+            logger.exception("track_plan_generated failed (non-fatal)")
+
         # Note: Shopify already charged the user when payment was received (webhook)
         # We mark as COMPLETED here to indicate fulfillment is complete
         # If this step fails, the order remains unfulfilled and can be refunded
@@ -1323,6 +1329,11 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
         goal.status = DietaryGoal.StatusChoices.COMPLETED
         goal.completed_at = timezone.now()
         goal.save(update_fields=['status', 'completed_at'])
+
+        try:
+            track_plan_generated(goal.user, goal.id)
+        except Exception:
+            logger.exception("track_plan_generated failed (non-fatal)")
 
         if goal.shopify_order_id:
             logger.info(f"{log_prefix} Order {goal.shopify_order_id} fulfillment complete")
