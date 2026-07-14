@@ -5,24 +5,23 @@ import axios from 'axios';
 import { ConsentBanner } from './ConsentBanner';
 import { CONSENT_KEY } from '@/lib/analytics';
 
-// Regression test for the critical finding: the shared `api` axios instance
-// has a response interceptor that redirects to /login on an unrefreshable
-// 401. The consent endpoint is IsAuthenticated, so an anonymous visitor
-// clicking the banner must NOT trigger that redirect — the ping has to go
-// out over bare axios instead.
+// The consent endpoint (ConsentView) is IsAuthenticated. An anonymous visitor
+// must therefore NOT hit it — otherwise every banner click on the ad funnel
+// produces a 401 console error. Anonymous consent lives in localStorage and
+// rides the signup payload; only an authenticated visitor syncs to the server.
 describe('ConsentBanner', () => {
   beforeEach(() => {
     localStorage.removeItem(CONSENT_KEY);
+    localStorage.removeItem('access_token');
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    localStorage.removeItem('access_token');
   });
 
-  it('hides and persists the decision without navigating, even when the consent ping 401s (anonymous visitor)', async () => {
-    const postSpy = vi.spyOn(axios, 'post').mockRejectedValue({
-      response: { status: 401 },
-    });
+  it('persists the decision locally WITHOUT calling the server for an anonymous visitor', async () => {
+    const postSpy = vi.spyOn(axios, 'post');
     const originalHref = window.location.href;
 
     render(<ConsentBanner />);
@@ -30,21 +29,18 @@ describe('ConsentBanner', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Odmítnout' }));
 
+    // Banner hides, decision persists locally — but no request is made (no
+    // access_token), so there is no 401 and nothing navigates us away.
     await waitFor(() => {
-      expect(postSpy).toHaveBeenCalledWith(
-        '/api/analytics/consent/',
-        { consent: false, version: expect.any(String) },
-      );
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
-
-    // Banner hides and the decision is persisted locally regardless of the
-    // 401 — and critically, nothing navigated us away.
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(postSpy).not.toHaveBeenCalled();
     expect(JSON.parse(localStorage.getItem(CONSENT_KEY) || '{}').consent).toBe(false);
     expect(window.location.href).toBe(originalHref);
   });
 
   it('posts the consent decision for an authenticated visitor', async () => {
+    localStorage.setItem('access_token', 'fake-jwt');
     const postSpy = vi.spyOn(axios, 'post').mockResolvedValue({ status: 200, data: {} });
 
     render(<ConsentBanner />);

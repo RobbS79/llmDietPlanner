@@ -12,11 +12,15 @@ export function ConsentBanner() {
     setConsent(consent);
     setVisible(false);
     if (consent) loadPixel();
-    // Bare axios (not the shared `api` instance) — the shared instance's
-    // response interceptor redirects anonymous 401s to /login, which would
-    // hijack anonymous visitors just for clicking the consent banner.
-    try { await axios.post('/api/analytics/consent/', { consent, version: CONSENT_VERSION }); }
-    catch { /* anonymous or offline — decision rides the signup payload */ }
+    // Only sync to the server when authenticated. The consent endpoint is
+    // IsAuthenticated, so an anonymous POST just 401s — noise on the ad funnel.
+    // Anonymous consent lives in localStorage and rides the signup payload.
+    // Bare axios (not the shared `api` instance) avoids the shared instance's
+    // 401 interceptor, which would redirect a token-expired user to /login.
+    if (localStorage.getItem('access_token')) {
+      try { await axios.post('/api/analytics/consent/', { consent, version: CONSENT_VERSION }); }
+      catch { /* offline or token expired — decision persists in localStorage */ }
+    }
   }
 
   if (!visible) return null;
