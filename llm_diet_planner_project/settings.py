@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     "shopifyin",
     "slack_bot",
     "billing",
+    "analytics",
     # --- Admin hardening (see section 7b) ---
     "django_otp",
     "django_otp.plugins.otp_totp",
