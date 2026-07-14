@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react';
+import { Component, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -21,8 +21,10 @@ import { PublicRecipePage } from '@/pages/PublicRecipePage';
 import { Onboarding } from '@/pages/Onboarding';
 import { ToastProvider } from '@/components/ui/Toast';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { ConsentBanner } from '@/components/ConsentBanner';
 import { api } from '@/lib/api';
 import { isAccessTokenValid } from '@/lib/auth';
+import { loadPixel } from '@/lib/analytics';
 import { AlertCircle } from 'lucide-react';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -61,11 +63,15 @@ function AuthenticatedHome() {
 }
 
 export default function App() {
+  // Returning consented users: load the pixel on boot, on every route.
+  useEffect(() => { loadPixel(); }, []);
+
   return (
     <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
       <BrowserRouter>
+        <ConsentBanner />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/login-success" element={<LoginSuccess />} />
