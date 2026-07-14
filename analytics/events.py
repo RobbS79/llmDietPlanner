@@ -41,7 +41,13 @@ def track_plan_generated(user, goal_id):
              event_id=f"plan-{goal_id}")
 
 
-def track_paid(user, *, value, currency="CZK"):
+def track_paid(user, *, value, currency="CZK", event_id=None):
+    # Prefer a caller-supplied dedup key (the Stripe checkout session id) —
+    # it's stable across webhook retries but unique per purchase, so a
+    # churn->resubscribe at the same tier/value isn't dropped by Meta's
+    # event_id dedup. Fall back to the old per-user-per-value key for
+    # backward compat with any other callers.
+    dedup_key = f"paid-{event_id}" if event_id else f"paid-{user.id}-{value}"
     _enqueue(user, event_name="Purchase",
-             event_id=f"paid-{user.id}-{value}",
+             event_id=dedup_key,
              custom_data={"value": value, "currency": currency})

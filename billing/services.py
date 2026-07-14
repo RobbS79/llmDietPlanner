@@ -235,7 +235,7 @@ def handle_checkout_completed(event) -> None:
                 tier, user.id,
             )
         value = plan.price_czk if plan else 0
-        track_paid(user, value=value, currency='CZK')
+        track_paid(user, value=value, currency='CZK', event_id=session.get('id'))
     except Exception:  # pragma: no cover - analytics is non-critical
         logger.exception("track_paid failed (non-fatal) for user=%s", user.id)
 

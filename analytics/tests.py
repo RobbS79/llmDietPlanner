@@ -112,6 +112,31 @@ class EventHelperTests(TestCase):
         self.assertEqual(kwargs["fbp"], "fb.1.1.1")
 
     @patch("analytics.tasks.send_capi_event_task.delay")
+    def test_track_paid_dedups_on_explicit_event_id(self, mock_delay):
+        # The Stripe checkout session id is the ideal dedup key: stable
+        # across webhook retries but unique per purchase, so a churn ->
+        # resubscribe by the same user at the same price isn't dropped.
+        user = User.objects.create_user(username="p1b", email="p1b@example.com")
+        MarketingAttribution.objects.create(
+            user=user, marketing_consent=True, fbp="fb.1.1.1", fbc="fb.1.1.c",
+        )
+        events.track_paid(user, value=99, currency="CZK", event_id="cs_abc")
+        kwargs = mock_delay.call_args.kwargs
+        self.assertEqual(kwargs["event_id"], "paid-cs_abc")
+
+    @patch("analytics.tasks.send_capi_event_task.delay")
+    def test_track_paid_falls_back_to_user_value_key_without_event_id(self, mock_delay):
+        # Backward compat: callers that don't pass event_id keep the old
+        # per-user-per-value dedup key.
+        user = User.objects.create_user(username="p1c", email="p1c@example.com")
+        MarketingAttribution.objects.create(
+            user=user, marketing_consent=True, fbp="fb.1.1.1", fbc="fb.1.1.c",
+        )
+        events.track_paid(user, value=99, currency="CZK")
+        kwargs = mock_delay.call_args.kwargs
+        self.assertEqual(kwargs["event_id"], f"paid-{user.id}-99")
+
+    @patch("analytics.tasks.send_capi_event_task.delay")
     def test_no_consent_skips(self, mock_delay):
         user = User.objects.create_user(username="p2", email="p2@example.com")
         MarketingAttribution.objects.create(user=user, marketing_consent=False)

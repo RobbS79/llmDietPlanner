@@ -339,6 +339,10 @@ class PaidEventTests(TestCase):
         self.assertEqual(mock_paid.call_args.args[0], self.user)
         self.assertEqual(mock_paid.call_args.kwargs['value'], 99)
         self.assertEqual(mock_paid.call_args.kwargs['currency'], 'CZK')
+        # Dedup key must be the Stripe checkout session id, not user+value —
+        # otherwise a churn->resubscribe at the same tier collides and the
+        # second real Purchase is dropped by Meta's dedup.
+        self.assertEqual(mock_paid.call_args.kwargs['event_id'], 'cs_1')
 
     @patch('billing.services._send_welcome_email')
     @patch('billing.services.upsert_subscription')
