@@ -38,7 +38,8 @@ export const Privacy = () => (
 
         <section>
           <h2 className="font-display text-lg font-black text-ink uppercase tracking-tight mb-4">4. Cookies</h2>
-          <p className="text-muted">Používáme pouze technické cookies nezbytné pro fungování aplikace (autentizace, session). Nepoužíváme sledovací ani reklamní cookies.</p>
+          <p className="text-muted">Technické cookies nezbytné pro fungování aplikace (autentizace, session) používáme vždy — bez nich by aplikace nefungovala.</p>
+          <p className="text-muted mt-3">S vaším souhlasem používáme také marketingové cookies (Meta Pixel od společnosti Meta Platforms Ireland Ltd.), abychom měřili, jak lidé přicházejí z našich reklam, a mohli reklamy zlepšovat. Tyto cookies se načtou pouze poté, co udělíte souhlas v cookies liště; bez souhlasu se nenačtou. Souhlas můžete kdykoli odmítnout a služba zůstane plně funkční. Meta při tom může zpracovávat vaše údaje i mimo EU — více v <a href="https://www.facebook.com/policy.php" target="_blank" rel="noopener noreferrer" className="text-green hover:text-green-mid">zásadách společnosti Meta</a>.</p>
         </section>
 
         <section>
@@ -51,7 +52,7 @@ export const Privacy = () => (
           <p className="text-muted">Vaše data chráníme šifrováním při přenosu (HTTPS/TLS) a bezpečným uložením v databázi. Přístup k datům mají pouze oprávněné osoby.</p>
         </section>
 
-        <p className="text-muted text-xs pt-8 border-t border-line">Poslední aktualizace: květen 2026</p>
+        <p className="text-muted text-xs pt-8 border-t border-line">Poslední aktualizace: červenec 2026</p>
       </div>
     </main>
   </div>
