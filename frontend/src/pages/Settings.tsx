@@ -8,6 +8,7 @@ import type { Profile } from '@/lib/settings';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { AccountSection } from '@/components/settings/AccountSection';
 import { SubscriptionSection } from '@/components/settings/SubscriptionSection';
+import { PrivacySection } from '@/components/settings/PrivacySection';
 
 export const Settings = () => {
   const { data: profile, isLoading } = useQuery<Profile>({
@@ -36,15 +37,6 @@ export const Settings = () => {
     </MainLayout>
   );
 };
-
-function PrivacySection({ profile }: { profile: Profile }) {
-  void profile;
-  return (
-    <Card variant="paper" className="p-8">
-      <h2 className="font-display text-xl font-black text-ink uppercase italic tracking-tight mb-4">Soukromí</h2>
-    </Card>
-  );
-}
 
 function DataSection() {
   return (
