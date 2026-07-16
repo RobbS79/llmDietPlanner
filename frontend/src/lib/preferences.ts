@@ -33,7 +33,7 @@ export const DIETARY_STYLES: PreferenceOption[] = [
   { id: 'vegan', label: 'Vegan' },
   { id: 'gluten_free', label: 'Bezlepkové' },
   { id: 'keto', label: 'Keto / Low-carb' },
-  { id: 'high_protein', label: 'Vysoko proteinové' },
+  { id: 'high_protein', label: 'Vysokoproteinové' },
 ];
 
 export const ALLERGIES: PreferenceOption[] = [

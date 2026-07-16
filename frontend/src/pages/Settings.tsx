@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -16,6 +17,8 @@ export const Settings = () => {
     queryFn: () => api.get('/auth/profile/').then(r => r.data.data),
   });
   const { data: billing } = useQuery<BillingMe>({ queryKey: ['billing-me'], queryFn: fetchBillingMe });
+
+  useEffect(() => { document.title = 'Nastavení — Vařto'; }, []);
 
   if (isLoading || !profile) return <LoadingScreen message="Načítání…" />;
 

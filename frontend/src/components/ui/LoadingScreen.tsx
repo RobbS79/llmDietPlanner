@@ -49,8 +49,14 @@ export const LoadingScreen = ({ message, status, goalId }: { message: string; st
         </div>
       </div>
       <div className="space-y-3 relative z-10">
-        <h2 className="text-4xl font-display font-black text-ink tracking-tighter uppercase italic leading-none">Generujeme<span className="text-green animate-pulse">...</span></h2>
-        <p className="text-muted text-[10px] font-bold uppercase tracking-widest italic max-w-sm mx-auto leading-relaxed">{displayMessage}</p>
+        {status ? (
+          <>
+            <h2 className="text-4xl font-display font-black text-ink tracking-tighter uppercase italic leading-none">Generujeme<span className="text-green animate-pulse">...</span></h2>
+            <p className="text-muted text-[10px] font-bold uppercase tracking-widest italic max-w-sm mx-auto leading-relaxed">{displayMessage}</p>
+          </>
+        ) : (
+          <h2 className="text-4xl font-display font-black text-ink tracking-tighter uppercase italic leading-none">{message}</h2>
+        )}
       </div>
       {status && (
         <div className="mt-8 w-full max-w-xs mx-auto">

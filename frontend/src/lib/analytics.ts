@@ -66,9 +66,14 @@ export function setConsent(consent: boolean): void {
 export async function syncConsentToServer(): Promise<void> {
   const consent = getConsent();
   if (consent === null) return;
-  if (!localStorage.getItem('access_token')) return;
+  const token = localStorage.getItem('access_token');
+  if (!token) return;
   try {
-    await axios.post('/api/analytics/consent/', { consent, version: CONSENT_VERSION });
+    // Bare axios (not the shared `api` instance) so a stale token can't trip
+    // the 401→/login interceptor — but we must still attach the token by hand,
+    // or the IsAuthenticated endpoint 401s and consent never actually syncs.
+    await axios.post('/api/analytics/consent/', { consent, version: CONSENT_VERSION },
+      { headers: { Authorization: `Bearer ${token}` } });
   } catch { /* offline or token expired — local decision stands */ }
 }
 

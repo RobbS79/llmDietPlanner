@@ -57,6 +57,7 @@ describe('syncConsentToServer', () => {
     expect(postSpy).toHaveBeenCalledWith(
       '/api/analytics/consent/',
       { consent: false, version: CONSENT_VERSION },
+      { headers: { Authorization: 'Bearer tok' } },
     );
   });
 
