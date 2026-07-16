@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { ProtocolUpload } from '@/components/ProtocolUpload';
+import { buildPreferencesPrompt } from '@/lib/preferences';
 
 const STEPS = [
   { label: 'Cíle', icon: BrainCircuit },
@@ -43,25 +44,7 @@ export const CreatePlan = () => {
     const prefs = (location.state as any)?.fromOnboarding || profile?.dietary_preferences;
     if (!prefs || Object.keys(prefs).length === 0) return;
 
-    const goalMap: Record<string, string> = { lose_weight: 'Chci zhubnout', eat_healthy: 'Chci jíst zdravěji', save_money: 'Chci šetřit za jídlo', save_time: 'Chci šetřit čas při vaření' };
-    const styleMap: Record<string, string> = { vegetarian: 'vegetariánská strava', vegan: 'veganská strava', gluten_free: 'bezlepková dieta', keto: 'keto dieta', high_protein: 'vysoko proteinová strava' };
-    const allergyMap: Record<string, string> = { lactose: 'bez laktózy', gluten: 'bez lepku', nuts: 'bez ořechů', eggs: 'bez vajec', fish: 'bez ryb', soy: 'bez sóji' };
-    const skillMap: Record<string, string> = { beginner: 'jednoduché recepty pro začátečníky', intermediate: 'středně náročné recepty', advanced: 'i složitější recepty' };
-    const timeMap: Record<string, string> = { '15min': 'Max 15 minut na přípravu', '30min': 'Max 30 minut na přípravu', '60min': 'Max 60 minut na přípravu' };
-
-    const parts: string[] = [];
-    if (prefs.goal) parts.push(goalMap[prefs.goal] || '');
-    const styles = (prefs.dietary_styles || []).filter((s: string) => s !== 'none').map((s: string) => styleMap[s]).filter(Boolean);
-    if (styles.length) parts.push(styles.join(', '));
-    const allergies = (prefs.allergies || []).filter((a: string) => a !== 'none').map((a: string) => allergyMap[a]).filter(Boolean);
-    if (allergies.length) parts.push(allergies.join(', '));
-    if (prefs.household_size) parts.push(`Pro ${prefs.household_size} ${prefs.household_size === 1 ? 'osobu' : 'osoby'}`);
-    if (prefs.weekly_budget) parts.push(`Rozpočet ${prefs.weekly_budget} ${prefs.country === 'SK' ? 'EUR' : 'CZK'}/týden`);
-    if (prefs.cooking_skill) parts.push(skillMap[prefs.cooking_skill] || '');
-    if (prefs.cooking_time && prefs.cooking_time !== 'unlimited') parts.push(timeMap[prefs.cooking_time] || '');
-
-    const prompt = parts.filter(Boolean).join('. ') + '.';
-    const restrictions = allergies.length > 0 ? allergies.join(', ') : '';
+    const { prompt, restrictions } = buildPreferencesPrompt(prefs);
 
     setFormData(prev => ({
       ...prev,
