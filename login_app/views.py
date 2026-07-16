@@ -305,6 +305,7 @@ class UserProfileView(APIView):
 
     def get(self, request) -> Response:
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        attr = getattr(request.user, 'marketing_attribution', None)
         return Response({
             "status": "success",
             "data": {
@@ -314,6 +315,10 @@ class UserProfileView(APIView):
                 "total_generations": profile.total_generations,
                 "onboarding_completed": profile.onboarding_completed,
                 "dietary_preferences": profile.dietary_preferences,
+                "primary_auth_provider": profile.primary_auth_provider,
+                "email_verified": profile.email_verified,
+                "marketing_consent": attr.marketing_consent if attr else False,
+                "consent_version": attr.consent_version if attr else "",
             },
             "error": None
         })

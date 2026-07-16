@@ -503,3 +503,31 @@ class ProfilePatchMergeTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()["status"], "error")
         self.assertIsNone(resp.json()["data"])  # error branch must include data:None
+
+
+class ProfileGetExtendedTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="g1", email="g1@example.com", password="pw12345x")
+        self.client.force_authenticate(self.user)
+
+    def test_get_includes_provider_verified_and_consent(self):
+        prof = self.user.profile
+        prof.primary_auth_provider = "google"
+        prof.email_verified = True
+        prof.save(update_fields=["primary_auth_provider", "email_verified"])
+        MarketingAttribution.objects.create(user=self.user, marketing_consent=True, consent_version="1")
+        resp = self.client.get("/api/auth/profile/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()["data"]
+        self.assertEqual(data["primary_auth_provider"], "google")
+        self.assertTrue(data["email_verified"])
+        self.assertTrue(data["marketing_consent"])
+        self.assertEqual(data["consent_version"], "1")
+
+    def test_get_consent_defaults_when_no_attribution(self):
+        resp = self.client.get("/api/auth/profile/")
+        data = resp.json()["data"]
+        self.assertEqual(data["primary_auth_provider"], "email")  # model default
+        self.assertFalse(data["marketing_consent"])
+        self.assertEqual(data["consent_version"], "")
