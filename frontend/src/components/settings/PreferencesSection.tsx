@@ -30,6 +30,9 @@ export function PreferencesSection({ profile }: { profile: Profile }) {
   const queryClient = useQueryClient();
   const [data, setData] = useState<PrefsState>(() => seedFromProfile(profile));
   const [error, setError] = useState('');
+  // Separate raw text for the num_days input so the user can clear the field
+  // while typing without `data.num_days` ever going NaN in between keystrokes.
+  const [numDaysText, setNumDaysText] = useState(() => String(seedFromProfile(profile).num_days));
 
   const update = <K extends keyof PrefsState>(field: K, value: PrefsState[K]) =>
     setData(prev => ({ ...prev, [field]: value }));
@@ -40,7 +43,12 @@ export function PreferencesSection({ profile }: { profile: Profile }) {
 
   const mutation = useMutation({
     mutationFn: () => {
-      const payload: Record<string, unknown> = { ...data };
+      // Defensive: guarantee an integer 1–30 lands in the payload even if
+      // `data.num_days` were somehow left in a transient/invalid state.
+      const num_days = Number.isFinite(data.num_days)
+        ? Math.min(30, Math.max(1, Math.round(data.num_days)))
+        : DEFAULT_NUM_DAYS;
+      const payload: Record<string, unknown> = { ...data, num_days };
       return savePreferences(payload);
     },
     onSuccess: () => {
@@ -194,10 +202,24 @@ export function PreferencesSection({ profile }: { profile: Profile }) {
             type="number"
             min={1}
             max={30}
-            value={data.num_days}
+            value={numDaysText}
             onChange={e => {
-              const n = parseInt(e.target.value, 10);
-              update('num_days', Number.isNaN(n) ? DEFAULT_NUM_DAYS : Math.min(30, Math.max(1, n)));
+              const raw = e.target.value;
+              setNumDaysText(raw);
+              if (raw === '') {
+                // Let the field show empty while the user is editing, but
+                // never let the underlying save-state go NaN in the meantime.
+                update('num_days', DEFAULT_NUM_DAYS);
+                return;
+              }
+              const n = parseInt(raw, 10);
+              if (!Number.isNaN(n)) update('num_days', Math.min(30, Math.max(1, n)));
+            }}
+            onBlur={() => {
+              if (numDaysText === '' || Number.isNaN(parseInt(numDaysText, 10))) {
+                setNumDaysText(String(DEFAULT_NUM_DAYS));
+                update('num_days', DEFAULT_NUM_DAYS);
+              }
             }}
             className="w-full bg-paper border border-line rounded-xl h-12 px-4 text-sm font-bold text-ink focus:outline-none"
           />

@@ -16,7 +16,12 @@ export interface Profile {
   consent_version: string;
 }
 
-/** Persist edited preferences. Backend merges keys (Phase-1 B3), so send only what changed. */
+/**
+ * Persist edited preferences. Callers (e.g. the Settings preferences section)
+ * send their whole local prefs object, not a diff — the backend does a
+ * shallow top-level merge into `dietary_preferences` (Phase-1 B3), so any
+ * keys the caller doesn't include (e.g. `shop`) are left untouched.
+ */
 export async function savePreferences(prefs: Record<string, unknown>): Promise<void> {
   await api.patch('/auth/profile/', { dietary_preferences: prefs });
 }

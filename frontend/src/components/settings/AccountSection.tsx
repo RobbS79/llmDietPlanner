@@ -162,6 +162,11 @@ function DeleteAccountModal({ onClose }: { onClose: () => void }) {
     onError: (err: unknown) => setError(extractApiError(err, 'Účet se nepodařilo smazat.')),
   });
 
+  const handleConfirm = () => {
+    if (mutation.isPending) return; // guard against double-submit
+    mutation.mutate();
+  };
+
   return (
     <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-[200] p-6">
       <div className="bg-card rounded-3xl p-8 max-w-md w-full space-y-6 shadow-2xl">
@@ -195,13 +200,14 @@ function DeleteAccountModal({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 h-12 border border-line text-ink hover:bg-kraft rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
+            disabled={mutation.isPending}
+            className="flex-1 h-12 border border-line text-ink hover:bg-kraft rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
           >
             Zrušit
           </button>
           <button
             type="button"
-            onClick={() => mutation.mutate()}
+            onClick={handleConfirm}
             disabled={mutation.isPending || !password}
             className="flex-1 flex items-center justify-center gap-2 h-12 bg-paprika hover:bg-paprika-strong text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:opacity-50"
           >
