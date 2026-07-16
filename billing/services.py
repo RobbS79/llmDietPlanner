@@ -16,7 +16,7 @@ from django.contrib.auth.models import User
 
 from analytics.events import track_paid
 
-from .stripe_client import stripe
+from .stripe_client import stripe, is_configured
 from .models import Subscription, SubscriptionPlan, StripeCustomer, Tier
 
 logger = logging.getLogger(__name__)
@@ -313,6 +313,25 @@ HANDLERS = {
     'customer.subscription.updated': handle_subscription_updated,
     'customer.subscription.deleted': handle_subscription_deleted,
 }
+
+
+def cancel_subscription_for_user(user) -> None:
+    """Immediately cancel the user's Stripe subscription, if any.
+
+    Idempotent: an already-canceled / missing subscription is treated as success.
+    Does NOT delete the Stripe customer (Czech invoice/VAT retention; GDPR 17(3)(b)).
+    Raises on a genuine (non-idempotent) StripeError so the caller can abort deletion.
+    """
+    sub = Subscription.objects.filter(user=user).first()
+    if not sub or not sub.stripe_subscription_id:
+        return
+    if not is_configured():
+        return
+    try:
+        stripe.Subscription.cancel(sub.stripe_subscription_id)
+    except stripe.error.InvalidRequestError:
+        # Already canceled or no longer exists — idempotent success.
+        return
 
 
 def _send_welcome_email(user: User, tier: str) -> None:

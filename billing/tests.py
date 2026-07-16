@@ -382,3 +382,33 @@ class PaidEventTests(TestCase):
         # provisioning + welcome email still ran (they precede the analytics call)
         mock_upsert.assert_called_once()
         mock_welcome.assert_called_once()
+
+
+class CancelSubscriptionHelperTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="d1", email="d1@example.com", password="pw12345x")
+
+    def test_noop_when_no_subscription(self):
+        from billing.services import cancel_subscription_for_user
+        # must not raise, must not call stripe
+        cancel_subscription_for_user(self.user)  # no subscription exists
+
+    @patch("billing.services.is_configured", return_value=True)
+    @patch("billing.services.stripe")
+    def test_cancels_active_subscription(self, mock_stripe, _cfg):
+        Subscription.objects.create(user=self.user, tier="standard", status="active",
+                                    stripe_customer_id="cus_x", stripe_subscription_id="sub_x")
+        from billing.services import cancel_subscription_for_user
+        cancel_subscription_for_user(self.user)
+        mock_stripe.Subscription.cancel.assert_called_once_with("sub_x")
+
+    @patch("billing.services.is_configured", return_value=True)
+    @patch("billing.services.stripe")
+    def test_idempotent_on_already_canceled(self, mock_stripe, _cfg):
+        import stripe as real_stripe
+        mock_stripe.error = real_stripe.error
+        mock_stripe.Subscription.cancel.side_effect = real_stripe.error.InvalidRequestError("No such subscription", param=None)
+        Subscription.objects.create(user=self.user, tier="standard", status="active",
+                                    stripe_customer_id="cus_x", stripe_subscription_id="sub_gone")
+        from billing.services import cancel_subscription_for_user
+        cancel_subscription_for_user(self.user)  # must NOT raise

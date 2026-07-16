@@ -87,5 +87,21 @@ def create_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.create(user=instance)
 
 
+class AccountDeletion(models.Model):
+    """Anonymized record of a self-service account deletion (chargeback defense).
+    Deliberately holds NO PII — only the Stripe customer id, tier, provider, timestamp."""
+    deleted_at = models.DateTimeField(auto_now_add=True)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, default="")
+    tier = models.CharField(max_length=20, blank=True, default="")
+    auth_provider = models.CharField(max_length=20, blank=True, default="")
+
+    class Meta:
+        verbose_name = "Account Deletion"
+        verbose_name_plural = "Account Deletions"
+
+    def __str__(self):
+        return f"AccountDeletion {self.deleted_at:%Y-%m-%d} ({self.tier or 'free'})"
+
+
 
 
