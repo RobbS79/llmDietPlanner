@@ -19,6 +19,9 @@ export const CreatePlan = () => {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const [protocolExpanded, setProtocolExpanded] = useState(false);
+  // Raw text for the free day-count input so the field can go empty mid-edit
+  // without formData.num_days ever becoming NaN. Kept in sync with chips + prefill.
+  const [numDaysText, setNumDaysText] = useState('7');
   const [formData, setFormData] = useState({
     prompt: '',
     dietary_restrictions: '',
@@ -76,6 +79,7 @@ export const CreatePlan = () => {
       small_meals_per_day: goal.small_meals_per_day ?? prev.small_meals_per_day,
       snacks_per_day: goal.snacks_per_day ?? prev.snacks_per_day,
     }));
+    setNumDaysText(String(goal.num_days ?? formData.num_days));
   };
 
   const mutation = useMutation({
@@ -286,13 +290,38 @@ export const CreatePlan = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2.5 pt-8 border-t border-line">
-                <span className="w-full text-[10px] font-black uppercase tracking-widest text-muted mb-2 italic">Délka plánu (dny)</span>
-                {[1, 3, 7, 14, 30].map(d => (
-                  <button key={d} type="button" onClick={() => update('num_days', d)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-line ${formData.num_days === d ? 'bg-green text-white shadow-lg border-green/40' : 'bg-paper text-muted hover:text-ink'}`}>
-                    {d}D
-                  </button>
-                ))}
+              <div className="pt-8 border-t border-line">
+                <span className="block text-[10px] font-black uppercase tracking-widest text-muted mb-3 italic">Délka plánu (dny)</span>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {[3, 7, 14].map(d => (
+                    <button key={d} type="button" onClick={() => { update('num_days', d); setNumDaysText(String(d)); }} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-line ${formData.num_days === d ? 'bg-green text-white shadow-lg border-green/40' : 'bg-paper text-muted hover:text-ink'}`}>
+                      {d}D
+                    </button>
+                  ))}
+                  <div className="flex items-center gap-2 ml-1">
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={numDaysText}
+                      aria-label="Počet dní (1 až 30)"
+                      onChange={e => {
+                        const raw = e.target.value;
+                        setNumDaysText(raw);
+                        if (raw === '') { update('num_days', 7); return; }
+                        const n = parseInt(raw, 10);
+                        if (!Number.isNaN(n)) update('num_days', Math.min(30, Math.max(1, n)));
+                      }}
+                      onBlur={() => {
+                        const n = parseInt(numDaysText, 10);
+                        if (numDaysText === '' || Number.isNaN(n)) { setNumDaysText('7'); update('num_days', 7); }
+                        else { const c = Math.min(30, Math.max(1, n)); setNumDaysText(String(c)); update('num_days', c); }
+                      }}
+                      className="w-20 bg-paper border border-line rounded-xl h-11 px-3 text-sm font-black text-ink text-center focus:outline-none focus:border-green"
+                    />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted">dní · 1–30</span>
+                  </div>
+                </div>
               </div>
             </Card>
           </section>
