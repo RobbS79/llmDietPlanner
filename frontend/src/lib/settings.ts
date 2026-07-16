@@ -1,6 +1,20 @@
 import { api } from '@/lib/api';
 import type { Preferences } from '@/lib/preferences';
 
+/** Shape of GET /auth/profile/ `.data.data` (Phase-1 B4 fields). */
+export interface Profile {
+  email: string;
+  username: string;
+  free_generations_remaining: number;
+  total_generations: number;
+  onboarding_completed: boolean;
+  dietary_preferences: Partial<Preferences> & Record<string, unknown>;
+  primary_auth_provider: 'email' | 'google' | string;
+  email_verified: boolean;
+  marketing_consent: boolean;
+  consent_version: string;
+}
+
 /** Persist edited preferences. Backend merges keys (Phase-1 B3), so send only what changed. */
 export async function savePreferences(prefs: Partial<Preferences> & Record<string, unknown>): Promise<void> {
   await api.patch('/auth/profile/', { dietary_preferences: prefs });

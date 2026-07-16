@@ -19,6 +19,7 @@ import { About } from '@/pages/About';
 import { RecipeIndexPage } from '@/pages/RecipeIndexPage';
 import { PublicRecipePage } from '@/pages/PublicRecipePage';
 import { Onboarding } from '@/pages/Onboarding';
+import { Settings } from '@/pages/Settings';
 import { ToastProvider } from '@/components/ui/Toast';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { ConsentBanner } from '@/components/ConsentBanner';
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="/" element={<HomeRoute />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
+          <Route path="/nastaveni" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/plan/:id" element={<ProtectedRoute><PlanView /></ProtectedRoute>} />
           <Route path="/plan/:id/recipe/:mealId" element={<ProtectedRoute><RecipePage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
