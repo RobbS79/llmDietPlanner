@@ -6,6 +6,16 @@ import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { trackQuizStarted } from '@/lib/analytics';
+import {
+  GOALS,
+  DIETARY_STYLES,
+  ALLERGIES,
+  COOKING_SKILLS,
+  COOKING_TIMES,
+  DEFAULT_PREFERENCES,
+  toggleMultiValue,
+  type Preferences,
+} from '@/lib/preferences';
 
 const STEPS = [
   { label: 'Cíl', icon: Target },
@@ -15,73 +25,12 @@ const STEPS = [
   { label: 'Vaření', icon: ChefHat },
 ];
 
-const GOALS = [
-  { id: 'lose_weight', label: 'Chci zhubnout', icon: '🎯', desc: 'Snížit váhu zdravým způsobem' },
-  { id: 'eat_healthy', label: 'Chci jíst zdravěji', icon: '🥗', desc: 'Vyvážená strava s nutričními hodnotami' },
-  { id: 'save_money', label: 'Chci šetřit za jídlo', icon: '💰', desc: 'Levnější nákupy bez plýtvání' },
-  { id: 'save_time', label: 'Chci šetřit čas', icon: '⏱️', desc: 'Rychlé recepty a hotový plán' },
-];
-
-const DIETARY_STYLES = [
-  { id: 'none', label: 'Bez omezení' },
-  { id: 'vegetarian', label: 'Vegetarián' },
-  { id: 'vegan', label: 'Vegan' },
-  { id: 'gluten_free', label: 'Bezlepkové' },
-  { id: 'keto', label: 'Keto / Low-carb' },
-  { id: 'high_protein', label: 'Vysoko proteinové' },
-];
-
-const ALLERGIES = [
-  { id: 'none', label: 'Žádné alergie' },
-  { id: 'lactose', label: 'Laktóza' },
-  { id: 'gluten', label: 'Lepek' },
-  { id: 'nuts', label: 'Ořechy' },
-  { id: 'eggs', label: 'Vejce' },
-  { id: 'fish', label: 'Ryby' },
-  { id: 'soy', label: 'Sója' },
-];
-
-const COOKING_SKILLS = [
-  { id: 'beginner', label: 'Začátečník', desc: 'Jednoduché recepty, málo ingrediencí' },
-  { id: 'intermediate', label: 'Pokročilý', desc: 'Středně náročné recepty' },
-  { id: 'advanced', label: 'Zkušený kuchař', desc: 'Nebojím se i složitějších receptů' },
-];
-
-const COOKING_TIMES = [
-  { id: '15min', label: 'Do 15 min' },
-  { id: '30min', label: 'Do 30 min' },
-  { id: '60min', label: 'Do 60 min' },
-  { id: 'unlimited', label: 'Čas nehraje roli' },
-];
-
-interface OnboardingData {
-  goal: string;
-  dietary_styles: string[];
-  allergies: string[];
-  household_size: number;
-  weekly_budget: number;
-  cooking_skill: string;
-  cooking_time: string;
-  country: string;
-  shop: string;
-}
-
 export const Onboarding = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
-  const [data, setData] = useState<OnboardingData>({
-    goal: '',
-    dietary_styles: [],
-    allergies: [],
-    household_size: 2,
-    weekly_budget: 1500,
-    cooking_skill: '',
-    cooking_time: '',
-    country: 'CZ',
-    shop: 'ROHLIK',
-  });
+  const [data, setData] = useState<Preferences>(DEFAULT_PREFERENCES);
 
   // Fires once when the quiz mounts (start of onboarding), not per-step —
   // step transitions below are internal state changes on this same
@@ -91,7 +40,7 @@ export const Onboarding = () => {
   }, []);
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { onboarding_completed: boolean; dietary_preferences: OnboardingData }) =>
+    mutationFn: (payload: { onboarding_completed: boolean; dietary_preferences: Preferences }) =>
       api.patch('/auth/profile/', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -107,15 +56,10 @@ export const Onboarding = () => {
     },
   });
 
-  const update = (field: keyof OnboardingData, value: any) => setData(prev => ({ ...prev, [field]: value }));
+  const update = (field: keyof Preferences, value: any) => setData(prev => ({ ...prev, [field]: value }));
 
   const toggleMulti = (field: 'dietary_styles' | 'allergies', id: string) => {
-    setData(prev => {
-      const current = prev[field];
-      if (id === 'none') return { ...prev, [field]: current.includes('none') ? [] : ['none'] };
-      const without = current.filter(v => v !== 'none');
-      return { ...prev, [field]: without.includes(id) ? without.filter(v => v !== id) : [...without, id] };
-    });
+    setData(prev => ({ ...prev, [field]: toggleMultiValue(prev[field], id) }));
   };
 
   const canAdvance = () => {
