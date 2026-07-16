@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Sparkles, Crown, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Sparkles, Crown, LogOut, Menu, X, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { clearAuthTokens } from '@/lib/auth';
 
 const navLinks = [
@@ -13,7 +15,13 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const isActive = (path: string) => location.pathname === path;
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => api.get('/auth/profile/').then(r => r.data.data),
+  });
 
   const handleLogout = () => {
     clearAuthTokens();
@@ -44,9 +52,34 @@ export const Navbar = () => {
             ))}
           </nav>
           <div className="h-6 w-px bg-line" />
-          <button onClick={handleLogout} aria-label="Odhlásit se" className="p-2 text-muted hover:text-paprika-strong hover:bg-paprika-soft rounded-lg transition-all">
-            <LogOut size={18} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setAccountOpen(!accountOpen)}
+              aria-label="Účet"
+              aria-expanded={accountOpen}
+              className="flex items-center gap-2 px-3 py-1.5 text-muted hover:text-ink hover:bg-kraft rounded-lg transition-all text-xs font-bold"
+            >
+              <span className="max-w-[160px] truncate">{profile?.email}</span>
+              <ChevronDown size={14} className={`transition-transform ${accountOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {accountOpen && (
+              <div className="absolute top-full right-0 mt-2 w-56 bg-card border border-line rounded-xl shadow-2xl p-2 z-[100]">
+                <Link
+                  to="/nastaveni"
+                  onClick={() => setAccountOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-xs uppercase tracking-widest text-ink hover:bg-kraft transition-all"
+                >
+                  <SettingsIcon size={14} /> Nastavení
+                </Link>
+                <button
+                  onClick={() => { setAccountOpen(false); handleLogout(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-xs uppercase tracking-widest text-paprika-strong hover:bg-paprika-soft transition-all"
+                >
+                  <LogOut size={14} /> Odhlásit se
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <button className="md:hidden p-2 text-ink" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Zavřít menu' : 'Otevřít menu'}>
@@ -67,6 +100,13 @@ export const Navbar = () => {
               {link.label}
             </Link>
           ))}
+          <Link
+            to="/nastaveni"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-3 p-4 rounded-xl font-bold uppercase text-xs tracking-widest text-muted"
+          >
+            <SettingsIcon size={16} /> Nastavení
+          </Link>
           <button onClick={handleLogout} className="flex items-center gap-3 p-4 rounded-xl font-bold uppercase text-xs tracking-widest text-paprika-strong">
             <LogOut size={16} /> Odhlásit se
           </button>
