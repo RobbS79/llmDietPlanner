@@ -412,3 +412,11 @@ class CancelSubscriptionHelperTests(TestCase):
                                     stripe_customer_id="cus_x", stripe_subscription_id="sub_gone")
         from billing.services import cancel_subscription_for_user
         cancel_subscription_for_user(self.user)  # must NOT raise
+
+    @patch("billing.services.is_configured", return_value=False)
+    def test_raises_when_unconfigured_but_subscription_exists(self, _cfg):
+        Subscription.objects.create(user=self.user, tier="standard", status="active",
+                                    stripe_customer_id="cus_x", stripe_subscription_id="sub_x")
+        from billing.services import cancel_subscription_for_user
+        with self.assertRaises(RuntimeError):
+            cancel_subscription_for_user(self.user)

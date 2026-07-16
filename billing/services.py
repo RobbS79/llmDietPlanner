@@ -326,7 +326,10 @@ def cancel_subscription_for_user(user) -> None:
     if not sub or not sub.stripe_subscription_id:
         return
     if not is_configured():
-        return
+        raise RuntimeError(
+            "Stripe is not configured; refusing to delete an account with an active "
+            "subscription that cannot be canceled."
+        )
     try:
         stripe.Subscription.cancel(sub.stripe_subscription_id)
     except stripe.error.InvalidRequestError:

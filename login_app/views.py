@@ -344,6 +344,8 @@ class UserProfileView(APIView):
                     status=400,
                 )
             merged = dict(profile.dietary_preferences or {})
+            # Shallow top-level merge only — a nested-object pref would be
+            # replaced wholesale, not deep-merged, by this .update().
             merged.update(prefs)
             profile.dietary_preferences = merged
             update_fields.append('dietary_preferences')
@@ -416,13 +418,14 @@ class AccountDeleteView(APIView):
                              "error": "Could not cancel your subscription. Account not deleted."},
                             status=502)
 
-        # 4. Anonymized audit row, then hard delete (cascade handles dependents).
+        # 4. Anonymized audit row + hard delete, atomically.
         from .models import AccountDeletion
-        AccountDeletion.objects.create(
-            stripe_customer_id=customer_id or '', tier=tier or '',
-            auth_provider=profile.primary_auth_provider,
-        )
-        user.delete()
+        with transaction.atomic():
+            AccountDeletion.objects.create(
+                stripe_customer_id=customer_id or '', tier=tier or '',
+                auth_provider=profile.primary_auth_provider,
+            )
+            user.delete()
         return Response({"status": "success", "data": {"deleted": True}, "error": None})
 
 
