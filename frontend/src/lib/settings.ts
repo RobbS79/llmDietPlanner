@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { api } from '@/lib/api';
 import type { Preferences } from '@/lib/preferences';
 
@@ -16,7 +17,7 @@ export interface Profile {
 }
 
 /** Persist edited preferences. Backend merges keys (Phase-1 B3), so send only what changed. */
-export async function savePreferences(prefs: Partial<Preferences> & Record<string, unknown>): Promise<void> {
+export async function savePreferences(prefs: Record<string, unknown>): Promise<void> {
   await api.patch('/auth/profile/', { dietary_preferences: prefs });
 }
 
@@ -45,4 +46,25 @@ export function downloadBlob(blob: Blob, filename: string): void {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Server error payload shapes we encounter across the settings endpoints:
+ * a flat `{error}` string (our own views) or dj_rest_auth's field-keyed
+ * validation errors (e.g. `{old_password: ["..."]}`). */
+interface ApiErrorPayload {
+  error?: string;
+  non_field_errors?: string[];
+  [field: string]: unknown;
+}
+
+/** Pull a human-readable message out of an Axios error for inline display. */
+export function extractApiError(err: unknown, fallback: string): string {
+  if (!axios.isAxiosError<ApiErrorPayload>(err)) return fallback;
+  const data = err.response?.data;
+  if (!data) return fallback;
+  if (typeof data.error === 'string' && data.error) return data.error;
+  for (const value of Object.values(data)) {
+    if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  }
+  return fallback;
 }
