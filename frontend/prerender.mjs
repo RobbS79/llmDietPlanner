@@ -20,8 +20,8 @@ const routes = [
   {
     path: '/',
     outFile: 'index.html',
-    title: 'Vařto — Jídelníček na míru s přehledem slev v obchodech',
-    description: 'Vařto sestaví jídelníček na míru s recepty a nákupním seznamem — u každého receptu vidíte, co je tento týden ve slevě. 2 jídelníčky zdarma, bez karty.',
+    title: 'Vařto — Jídelníček na míru podle vašeho cíle',
+    description: 'Popište svůj cíl a dostanete týdenní jídelníček na míru — recepty, kalorie a makra i nákupní seznam. U některých surovin navíc slevy z letáků. 2 jídelníčky zdarma.',
     canonical: '/',
   },
   {

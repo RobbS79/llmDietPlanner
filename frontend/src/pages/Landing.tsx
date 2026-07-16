@@ -62,16 +62,16 @@ export const Landing = () => {
           <div>
             <div className="inline-flex items-center gap-2 bg-green-soft rounded-full px-4 py-1.5 mb-8">
               <span className="w-2 h-2 bg-green rounded-full" />
-              <span className="text-[10px] font-bold text-green uppercase tracking-widest">Jídelníček s přehledem slev</span>
+              <span className="text-[10px] font-bold text-green uppercase tracking-widest">Jídelníček podle vašeho cíle</span>
             </div>
 
             <h1 className="font-display text-5xl sm:text-7xl font-extrabold tracking-tight leading-[0.95] mb-8">
-              Naplánujeme týden jídla.<br />
-              <span className="text-paprika">A ukážeme, co je ve slevě.</span>
+              Zhubnout, nabrat, nebo jen jíst líp?<br />
+              <span className="text-paprika">Naplánujeme vám celý týden jídla.</span>
             </h1>
 
             <p className="text-lg sm:text-xl text-muted max-w-xl mb-4 leading-relaxed">
-              Jídelníček na míru s recepty, nutričními hodnotami a nákupním seznamem — u každého receptu <strong className="text-ink">vidíte, které suroviny jsou tento týden ve slevě.</strong>
+              Popíšete svůj cíl vlastními slovy — a dostanete <strong className="text-ink">jídelníček na míru s recepty, nutričními hodnotami (kalorie a makra) a nákupním seznamem.</strong> U některých surovin navíc rovnou vidíte aktuální slevy z letáků.
             </p>
 
             <p className="text-sm text-muted mb-10">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
@@ -106,7 +106,7 @@ export const Landing = () => {
           <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
             {[
               { value: '500+', label: 'Vygenerovaných plánů' },
-              { value: 'Každý týden', label: 'Nové slevy z letáků českých obchodů' },
+              { value: 'Kalorie a makra', label: 'U každého jídla' },
               { value: '<60s', label: 'Čas generování' },
             ].map((stat) => (
               <div key={stat.label}>
@@ -124,9 +124,9 @@ export const Landing = () => {
           <div className="grid sm:grid-cols-3 gap-6">
             {[
               {
-                quote: 'Konečně dopředu vím, co budu vařit. Nákup mám vyřešený za pár minut a rovnou vidím, co je zrovna ve slevě.',
-                name: 'Marek T.',
-                location: 'Praha',
+                quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. Aplikace mi přesně spočítá kalorie a vybere recepty, co mě baví.',
+                name: 'Tomáš K.',
+                location: 'Bratislava',
               },
               {
                 quote: 'Dřív jsem nad jídelníčkem strávila 2 hodiny týdně. Teď mám za minutu hotový plán i nákupní seznam ke každému receptu. Ušetřím čas i nervy.',
@@ -134,9 +134,9 @@ export const Landing = () => {
                 location: 'Brno',
               },
               {
-                quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. Aplikace mi přesně spočítá kalorie a vybere recepty, co mě baví.',
-                name: 'Tomáš K.',
-                location: 'Bratislava',
+                quote: 'Konečně dopředu vím, co budu vařit. Nákup mám vyřešený za pár minut a rovnou vidím, co je zrovna ve slevě.',
+                name: 'Marek T.',
+                location: 'Praha',
               },
             ].map((t) => (
               <div key={t.name} className="bg-card border border-line rounded-2xl p-8">
