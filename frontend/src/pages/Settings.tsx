@@ -7,6 +7,7 @@ import { fetchBillingMe, type BillingMe } from '@/lib/billing';
 import type { Profile } from '@/lib/settings';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { AccountSection } from '@/components/settings/AccountSection';
+import { SubscriptionSection } from '@/components/settings/SubscriptionSection';
 
 export const Settings = () => {
   const { data: profile, isLoading } = useQuery<Profile>({
@@ -35,15 +36,6 @@ export const Settings = () => {
     </MainLayout>
   );
 };
-
-function SubscriptionSection({ billing }: { billing: BillingMe | undefined }) {
-  void billing;
-  return (
-    <Card variant="paper" className="p-8">
-      <h2 className="font-display text-xl font-black text-ink uppercase italic tracking-tight mb-4">Předplatné</h2>
-    </Card>
-  );
-}
 
 function PrivacySection({ profile }: { profile: Profile }) {
   void profile;
