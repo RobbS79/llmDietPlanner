@@ -58,6 +58,8 @@ urlpatterns = [
     # --- SELF-SERVICE ACCOUNT MANAGEMENT (Settings page) ---
     # URL: /api/auth/account/
     path('account/', views.AccountDeleteView.as_view(), name='account-delete'),
+    # URL: /api/auth/export/
+    path('export/', views.DataExportView.as_view(), name='data-export'),
 
     # Optional dj-rest-auth paths for profile/user management
     path('', include('dj_rest_auth.urls')),

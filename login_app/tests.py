@@ -599,3 +599,29 @@ class AccountDeleteTests(TestCase):
         resp = self.client.delete(self._url(), {"google_access_token": "tok"}, format="json")
         self.assertEqual(resp.status_code, 403)
         self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+
+class DataExportTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="e1", email="e1@example.com", password="pw12345x")
+        self.other = User.objects.create_user(username="e2", email="e2@example.com", password="pw12345x")
+
+    def test_requires_auth(self):
+        resp = self.client.get("/api/auth/export/")
+        self.assertIn(resp.status_code, (401, 403))
+
+    def test_exports_only_own_data_as_attachment(self):
+        self.client.force_authenticate(self.user)
+        prof = self.user.profile
+        prof.dietary_preferences = {"goal": "lose_weight"}
+        prof.save(update_fields=["dietary_preferences"])
+        resp = self.client.get("/api/auth/export/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment", resp["Content-Disposition"])
+        import json
+        body = json.loads(resp.content)
+        self.assertEqual(body["account"]["email"], "e1@example.com")
+        self.assertEqual(body["preferences"]["goal"], "lose_weight")
+        # must not leak the other user
+        self.assertNotIn("e2@example.com", resp.content.decode())

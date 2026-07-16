@@ -15,6 +15,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.http import JsonResponse
+from django.core.serializers.json import DjangoJSONEncoder
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -422,3 +424,48 @@ class AccountDeleteView(APIView):
         )
         user.delete()
         return Response({"status": "success", "data": {"deleted": True}, "error": None})
+
+
+class DataExportView(APIView):
+    """Return the authenticated user's data as a downloadable JSON file (GDPR portability)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from billing.models import Subscription
+        from diet_planner.models import DietaryGoal
+        user = request.user
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        sub = Subscription.objects.filter(user=user).first()
+        attr = getattr(user, 'marketing_attribution', None)
+        goals = list(DietaryGoal.objects.filter(user=user)
+                     .values('id', 'prompt', 'num_days', 'status', 'created_at'))
+
+        payload = {
+            "account": {
+                "username": user.username,
+                "email": user.email,
+                "date_joined": user.date_joined,
+                "auth_provider": profile.primary_auth_provider,
+                "email_verified": profile.email_verified,
+            },
+            "preferences": profile.dietary_preferences,
+            "usage": {
+                "free_generations_remaining": profile.free_generations_remaining,
+                "total_generations": profile.total_generations,
+            },
+            "subscription": None if not sub else {
+                "tier": sub.tier, "status": sub.status,
+                "current_period_end": sub.current_period_end,
+                "cancel_at_period_end": sub.cancel_at_period_end,
+            },
+            "marketing_consent": None if not attr else {
+                "consent": attr.marketing_consent,
+                "version": attr.consent_version,
+                "at": attr.consent_at,
+            },
+            "meal_plans": goals,
+        }
+        resp = JsonResponse(payload, encoder=DjangoJSONEncoder,
+                            json_dumps_params={"indent": 2, "ensure_ascii": False})
+        resp["Content-Disposition"] = 'attachment; filename="varto-my-data.json"'
+        return resp
