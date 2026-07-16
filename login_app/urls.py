@@ -55,6 +55,10 @@ urlpatterns = [
     # URL: /api/auth/profile/
     path('profile/', views.UserProfileView.as_view(), name='user-profile'),
 
+    # --- SELF-SERVICE ACCOUNT MANAGEMENT (Settings page) ---
+    # URL: /api/auth/account/
+    path('account/', views.AccountDeleteView.as_view(), name='account-delete'),
+
     # Optional dj-rest-auth paths for profile/user management
     path('', include('dj_rest_auth.urls')),
 ]

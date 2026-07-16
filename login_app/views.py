@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import UserProfile
@@ -28,6 +29,7 @@ from .utils import generate_email_verification_token, verify_email_token
 from .tasks import send_verification_email_task, send_password_reset_email_task
 from analytics.models import MarketingAttribution
 from analytics.events import track_signup
+from billing.services import cancel_subscription_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -353,3 +355,70 @@ class UserProfileView(APIView):
             },
             "error": None
         })
+
+
+class AccountDeleteView(APIView):
+    """Hard-delete the authenticated user's account (GDPR erasure).
+
+    Re-auth: email users send `password`; Google users send a fresh
+    `google_access_token` (verified against Google userinfo, email must match).
+    Cancels any Stripe subscription (idempotent) but does NOT delete the Stripe
+    customer (invoice retention). Writes an anonymized AccountDeletion audit row.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'account_delete'
+
+    def delete(self, request):
+        from billing.models import Subscription
+        user = request.user
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+
+        # 1. Re-authenticate.
+        if profile.primary_auth_provider == 'google':
+            token = str(request.data.get('google_access_token', '') or '')
+            if not token:
+                return Response({"status": "error", "data": None,
+                                 "error": "Google re-authentication required."}, status=400)
+            try:
+                info = requests.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={'Authorization': f'Bearer {token}'}, timeout=10)
+            except requests.RequestException:
+                return Response({"status": "error", "data": None,
+                                 "error": "Could not verify Google identity."}, status=502)
+            email = (info.json().get('email') if info.status_code == 200 else None) or ''
+            if info.status_code != 200 or email.lower() != (user.email or '').lower():
+                return Response({"status": "error", "data": None,
+                                 "error": "Re-authentication failed."}, status=403)
+        else:
+            password = str(request.data.get('password', '') or '')
+            if not user.check_password(password):
+                return Response({"status": "error", "data": None,
+                                 "error": "Nesprávné heslo."}, status=403)
+
+        # 2. Snapshot billing identifiers BEFORE any mutation.
+        sub = Subscription.objects.filter(user=user).first()
+        customer_id = sub.stripe_customer_id if sub else ''
+        if not customer_id:
+            mapping = getattr(user, 'stripe_customer', None)
+            customer_id = mapping.stripe_customer_id if mapping else ''
+        tier = sub.tier if sub else ''
+
+        # 3. Cancel Stripe subscription — abort delete on a real Stripe error.
+        try:
+            cancel_subscription_for_user(user)
+        except Exception:
+            logger.exception("Account delete: Stripe cancel failed; aborting delete")
+            return Response({"status": "error", "data": None,
+                             "error": "Could not cancel your subscription. Account not deleted."},
+                            status=502)
+
+        # 4. Anonymized audit row, then hard delete (cascade handles dependents).
+        from .models import AccountDeletion
+        AccountDeletion.objects.create(
+            stripe_customer_id=customer_id or '', tier=tier or '',
+            auth_provider=profile.primary_auth_provider,
+        )
+        user.delete()
+        return Response({"status": "success", "data": {"deleted": True}, "error": None})

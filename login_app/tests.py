@@ -531,3 +531,71 @@ class ProfileGetExtendedTests(TestCase):
         self.assertEqual(data["primary_auth_provider"], "email")  # model default
         self.assertFalse(data["marketing_consent"])
         self.assertEqual(data["consent_version"], "")
+
+
+class AccountDeleteTests(TestCase):
+    def setUp(self):
+        # ScopedRateThrottle's counters live in the process-local cache, not the
+        # DB, so they are NOT rolled back between tests. Clear them so each
+        # test gets a fresh 'account_delete' quota (avoids cross-test 429s).
+        from django.core.cache import cache
+        cache.clear()
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="del1", email="del1@example.com", password="rightpw123")
+        self.client.force_authenticate(self.user)
+
+    def _url(self):
+        return "/api/auth/account/"
+
+    @patch("login_app.views.cancel_subscription_for_user")
+    def test_email_user_wrong_password_rejected(self, mock_cancel):
+        resp = self.client.delete(self._url(), {"password": "WRONG"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+        mock_cancel.assert_not_called()
+
+    @patch("login_app.views.cancel_subscription_for_user")
+    def test_email_user_correct_password_deletes(self, mock_cancel):
+        uid = self.user.pk
+        resp = self.client.delete(self._url(), {"password": "rightpw123"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(User.objects.filter(pk=uid).exists())
+        mock_cancel.assert_called_once()
+
+    @patch("login_app.views.cancel_subscription_for_user")
+    def test_deletion_writes_anonymized_audit_row(self, mock_cancel):
+        from login_app.models import AccountDeletion
+        self.client.delete(self._url(), {"password": "rightpw123"}, format="json")
+        self.assertEqual(AccountDeletion.objects.count(), 1)
+        rec = AccountDeletion.objects.first()
+        self.assertEqual(rec.auth_provider, "email")
+
+    @patch("login_app.views.cancel_subscription_for_user", side_effect=__import__("stripe").error.APIConnectionError("boom"))
+    def test_stripe_failure_aborts_delete(self, mock_cancel):
+        uid = self.user.pk
+        resp = self.client.delete(self._url(), {"password": "rightpw123"}, format="json")
+        self.assertEqual(resp.status_code, 502)
+        self.assertTrue(User.objects.filter(pk=uid).exists())  # NOT deleted
+
+    @patch("login_app.views.requests.get")
+    @patch("login_app.views.cancel_subscription_for_user")
+    def test_google_user_requires_matching_token(self, mock_cancel, mock_get):
+        self.user.profile.primary_auth_provider = "google"
+        self.user.profile.save(update_fields=["primary_auth_provider"])
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"email": "del1@example.com"}
+        uid = self.user.pk
+        resp = self.client.delete(self._url(), {"google_access_token": "tok"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(User.objects.filter(pk=uid).exists())
+
+    @patch("login_app.views.requests.get")
+    @patch("login_app.views.cancel_subscription_for_user")
+    def test_google_user_wrong_email_rejected(self, mock_cancel, mock_get):
+        self.user.profile.primary_auth_provider = "google"
+        self.user.profile.save(update_fields=["primary_auth_provider"])
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"email": "someone-else@example.com"}
+        resp = self.client.delete(self._url(), {"google_access_token": "tok"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
