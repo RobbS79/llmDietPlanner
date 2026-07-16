@@ -329,8 +329,14 @@ class UserProfileView(APIView):
         if 'dietary_preferences' in request.data:
             prefs = request.data['dietary_preferences']
             if not isinstance(prefs, dict):
-                return Response({"status": "error", "error": "dietary_preferences must be a JSON object"}, status=400)
-            profile.dietary_preferences = prefs
+                return Response(
+                    {"status": "error", "data": None,
+                     "error": "dietary_preferences must be a JSON object"},
+                    status=400,
+                )
+            merged = dict(profile.dietary_preferences or {})
+            merged.update(prefs)
+            profile.dietary_preferences = merged
             update_fields.append('dietary_preferences')
 
         profile.save(update_fields=update_fields)

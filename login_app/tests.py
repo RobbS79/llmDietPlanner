@@ -10,6 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import generate_email_verification_token, verify_email_token
 from unittest.mock import patch
 from analytics.models import MarketingAttribution
+from login_app.models import UserProfile
 import json
 
 
@@ -476,3 +477,29 @@ class RegistrationAttributionTests(TestCase):
         attr = MarketingAttribution.objects.get(user=user)
         self.assertFalse(attr.marketing_consent)
         mock_track.assert_called_once_with(user)
+
+
+class ProfilePatchMergeTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="m1", email="m1@example.com", password="pw12345x")
+        self.client.force_authenticate(self.user)
+
+    def test_patch_merges_keys_and_preserves_existing(self):
+        profile = self.user.profile
+        profile.dietary_preferences = {"goal": "lose_weight", "shop": "ROHLIK"}
+        profile.save(update_fields=["dietary_preferences"])
+        # patch only 'goal' — 'shop' must survive
+        resp = self.client.patch("/api/auth/profile/",
+                                 {"dietary_preferences": {"goal": "eat_healthy"}}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        profile.refresh_from_db()
+        self.assertEqual(profile.dietary_preferences["goal"], "eat_healthy")
+        self.assertEqual(profile.dietary_preferences["shop"], "ROHLIK")
+
+    def test_patch_rejects_non_dict_prefs(self):
+        resp = self.client.patch("/api/auth/profile/",
+                                 {"dietary_preferences": ["not", "a", "dict"]}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["status"], "error")
+        self.assertIsNone(resp.json()["data"])  # error branch must include data:None
