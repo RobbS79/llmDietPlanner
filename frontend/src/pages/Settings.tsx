@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Card } from '@/components/ui/Card';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { fetchBillingMe, type BillingMe } from '@/lib/billing';
 import type { Profile } from '@/lib/settings';
@@ -9,6 +8,7 @@ import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { AccountSection } from '@/components/settings/AccountSection';
 import { SubscriptionSection } from '@/components/settings/SubscriptionSection';
 import { PrivacySection } from '@/components/settings/PrivacySection';
+import { DataSection } from '@/components/settings/DataSection';
 
 export const Settings = () => {
   const { data: profile, isLoading } = useQuery<Profile>({
@@ -37,11 +37,3 @@ export const Settings = () => {
     </MainLayout>
   );
 };
-
-function DataSection() {
-  return (
-    <Card variant="paper" className="p-8">
-      <h2 className="font-display text-xl font-black text-ink uppercase italic tracking-tight mb-4">Moje data</h2>
-    </Card>
-  );
-}
