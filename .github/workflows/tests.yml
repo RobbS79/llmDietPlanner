@@ -1,0 +1,69 @@
+name: tests
+
+# Test gate: runs the backend unit suite and the frontend unit tests + typecheck
+# on every PR into develop and on pushes to develop/prod. Its purpose is to stop
+# a red test from slipping in unnoticed (a stale test sat broken for days before
+# this gate existed).
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop, prod]
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (Django)
+    runs-on: ubuntu-latest
+    env:
+      # settings.py requires these two (no defaults). CI runs against an
+      # ephemeral sqlite DB (DATABASE_URL is unset, so settings default to
+      # sqlite) with no real encrypted data, so these are throwaway CI values,
+      # NOT production secrets.
+      SECRET_KEY: ci-test-secret-key
+      FIELD_ENCRYPTION_KEY: A3xtMz5NmwN6oYF5JJGiBXCxTLrf6vSL272zJSfyC-w=
+      DEBUG: "True"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run backend tests (sqlite)
+        # Scoped to the apps with a green, self-contained unit suite.
+        # EXCLUDED (pre-existing debt / not unit-testable here):
+        #   - login_app: 10 pre-existing failures — stale `verify-email` URL
+        #     name, and registration 500s because it blocks on the Celery/Redis
+        #     result backend that isn't available under tests
+        #     (CELERY_TASK_ALWAYS_EAGER is not set for the test settings).
+        #     Quarantined until fixed, then add it back here.
+        #   - e2e / slack_bot: require a real browser / Slack, not unit CI.
+        run: python manage.py test diet_planner billing analytics
+
+  frontend:
+    name: frontend (Vite/React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Run frontend unit tests
+        run: npm run test
+        # NOTE: `npm run lint` is intentionally NOT gated — the repo sits at a
+        # known ~52-error eslint baseline. Add a lint job once that is cleaned
+        # up so it can start green.
