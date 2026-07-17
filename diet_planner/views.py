@@ -9,6 +9,8 @@ import traceback
 from typing import Dict, Any
 
 from django.conf import settings
+from django.db import transaction
+from django.db.models import F
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -18,6 +20,7 @@ from .food_categories import guess_category
 from django.utils import timezone
 
 from .models import (
+    CuratedRecipe,
     DietaryGoal,
     DietaryPlan,
     Recipe,
@@ -41,6 +44,15 @@ from .serializers import (
 )
 from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
+from .services.recipe_retrieval import (
+    parse_dietary_tags,
+    published_pool,
+    published_cuisine_vocab,
+    eligible_recipes_for_slot,
+    score_recipe,
+    scale_recipe_to_meal,
+)
+from .services.prompt_facets import extract_prompt_facets
 from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
@@ -351,6 +363,64 @@ class ShopsListView(APIView):
         return Response({"status": "success", "data": {"country": country, "shops": shops}})
 
 
+def _parse_meal_identifier(meal_identifier: str):
+    """(goal_id, day_number, meal_type) from 'goal_id:day_number:meal_type:index'.
+
+    Raises ValueError when malformed. Shared by the recipe-detail GET and the
+    replace swap so the identifier contract cannot drift between them.
+    """
+    parts = meal_identifier.split(':')
+    if len(parts) < 3:
+        raise ValueError('meal identifier needs at least goal:day:type')
+    return int(parts[0]), int(parts[1]), parts[2]
+
+
+def _recipe_cache_fields(meal: Dict[str, Any], instructions) -> Dict[str, Any]:
+    """Field mapping for a cached Recipe row built from a meal dict. Shared by
+    the recipe-detail GET (LLM-generated meals) and the replace swap (curated
+    meals) so the two write paths cannot drift apart when a field is added."""
+    return dict(
+        servings=meal.get('servings') or 1,
+        name=meal.get('name', ''),
+        description=meal.get('description', '') or '',
+        food_category=meal.get('food_category', '')
+        or guess_category(meal.get('name', ''), meal.get('ingredients', [])),
+        instructions=instructions,
+        ingredients=meal.get('ingredients', []),
+        preparation_time=meal.get('preparation_time'),
+        nutritional_info=meal.get('nutritional_info', {}),
+        source_name=meal.get('source_name', '') or '',
+        source_url=meal.get('source_url', '') or '',
+        source_author=meal.get('source_author', '') or '',
+        curated_recipe_slug=meal.get('curated_recipe_slug', '') or '',
+    )
+
+
+def serialize_recipe_detail(recipe: Recipe) -> Dict[str, Any]:
+    """Serialize a cached Recipe row into the detail payload the frontend reads.
+
+    Re-applies the coherence filter and re-derives price_range/shopping_list/deals
+    from the *filtered* ingredient list, so an "already prepared" ingredient is
+    never priced or shown as a shopping-list line after being hidden from view.
+    Shared by the recipe-detail GET and the replace-recipe swap so both return
+    an identical shape.
+    """
+    data = RecipeSerializer(recipe).data
+    filtered = filter_pre_prepared({
+        'description': data.get('description') or '',
+        'instructions': data.get('instructions') or [],
+        'ingredients': data.get('ingredients') or [],
+    })
+    data['ingredients'] = filtered.get('ingredients', data.get('ingredients'))
+    if filtered.get('pre_prepared_ingredients'):
+        data['pre_prepared_ingredients'] = filtered['pre_prepared_ingredients']
+    currency = getattr(recipe.dietary_goal, 'currency', None) or 'CZK'
+    data['price_range'] = build_price_range(data['ingredients'], recipe.servings, currency)
+    data['shopping_list'] = build_shopping_list(data['ingredients'], recipe.servings, currency)
+    data['deals'] = build_deals(data['ingredients'])
+    return data
+
+
 class RecipeDetailView(APIView):
     """
     Synthesized recipe instructions.
@@ -363,38 +433,13 @@ class RecipeDetailView(APIView):
         try:
             recipe = Recipe.objects.select_related('dietary_goal').get(
                 meal_identifier=meal_identifier, dietary_goal__user=request.user)
-            data = RecipeSerializer(recipe).data
-            # Re-apply the coherence filter on read so previously-cached
-            # recipes that were saved before the fix (e.g. plan 108
-            # recipe 108:1:dinner:0) no longer show "buy klizka" when the
-            # description says the beef is already prepared.
-            filtered = filter_pre_prepared({
-                'description': data.get('description') or '',
-                'instructions': data.get('instructions') or [],
-                'ingredients': data.get('ingredients') or [],
-            })
-            data['ingredients'] = filtered.get('ingredients', data.get('ingredients'))
-            if filtered.get('pre_prepared_ingredients'):
-                data['pre_prepared_ingredients'] = filtered['pre_prepared_ingredients']
-            # price_range/shopping_list/deals were computed inside the
-            # serializer from the *unfiltered* ingredient list, before the
-            # coherence filter above ran — re-derive them from the filtered
-            # list so a "already prepared" ingredient never gets priced or
-            # shown as a shopping-list line after being hidden from view.
-            currency = getattr(recipe.dietary_goal, 'currency', None) or 'CZK'
-            data['price_range'] = build_price_range(data['ingredients'], recipe.servings, currency)
-            data['shopping_list'] = build_shopping_list(data['ingredients'], recipe.servings, currency)
-            data['deals'] = build_deals(data['ingredients'])
-            return Response({"status": "success", "data": data})
+            return Response({"status": "success", "data": serialize_recipe_detail(recipe)})
         except Recipe.DoesNotExist:
             pass
 
         # Generate on-demand: parse meal_identifier (format: goal_id:day_number:meal_type:index)
         try:
-            parts = meal_identifier.split(':')
-            if len(parts) < 3:
-                return Response({"status": "error", "error": "Invalid meal identifier"}, status=400)
-            goal_id, day_number, meal_type = int(parts[0]), int(parts[1]), parts[2]
+            goal_id, day_number, meal_type = _parse_meal_identifier(meal_identifier)
         except (ValueError, IndexError):
             return Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
 
@@ -480,20 +525,146 @@ class RecipeDetailView(APIView):
         recipe = Recipe.objects.create(
             meal_identifier=meal_identifier,
             dietary_goal=goal,
-            servings=meal.get('servings') or 1,
-            name=meal.get('name', ''),
-            description=meal.get('description', ''),
-            food_category=meal.get('food_category', '') or guess_category(meal.get('name', ''), meal.get('ingredients', [])),
-            instructions=instructions,
-            ingredients=meal.get('ingredients', []),
-            preparation_time=meal.get('preparation_time'),
-            nutritional_info=meal.get('nutritional_info', {}),
-            source_name=meal.get('source_name', '') or '',
-            source_url=meal.get('source_url', '') or '',
-            source_author=meal.get('source_author', '') or '',
-            curated_recipe_slug=meal.get('curated_recipe_slug', '') or '',
+            **_recipe_cache_fields(meal, instructions),
         )
         return Response({"status": "success", "data": RecipeSerializer(recipe).data})
+
+
+class RecipeReplaceView(APIView):
+    """Swap one plan slot for a different curated recipe.
+
+    Curated-corpus only (preserves the 100% catalog-mapping / deals integrity
+    bar): retrieval is a $0 DB query + scoring over the published corpus. The
+    only paid step is parsing a non-blank hint into facets — a single flash
+    call, skipped entirely when the hint is blank.
+    Spec: docs/superpowers/specs/2026-07-16-replace-recipe-swap-design.md.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, meal_identifier: str) -> Response:
+        try:
+            goal_id, day_number, meal_type = _parse_meal_identifier(meal_identifier)
+        except (ValueError, IndexError):
+            return Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
+
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+        except DietaryGoal.DoesNotExist:
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
+        try:
+            plan = goal.dietary_plan
+        except DietaryPlan.DoesNotExist:
+            return Response({"status": "error", "error": "Plan not found"}, status=404)
+
+        # Locate the target slot. Mirrors RecipeDetailView: the slot is a single
+        # meal object addressed by meal_type (breakfast/lunch/dinner).
+        target_day = next(
+            (d for d in (plan.days or []) if d.get('day_number') == day_number), None,
+        )
+        current_meal = target_day.get(meal_type) if isinstance(target_day, dict) else None
+        if not isinstance(current_meal, dict):
+            return Response({"status": "error", "error": "Meal not found in plan"}, status=404)
+
+        required_tags = parse_dietary_tags(getattr(goal, 'dietary_restrictions', None))
+        current_id = current_meal.get('curated_recipe_id')
+        exclude_ids = {current_id} if current_id else set()
+
+        # Curated recipes already used elsewhere in this plan, so the swap does
+        # not duplicate a dish that appears on another day/slot.
+        used_recipe_ids: set = set()
+        for d in (plan.days or []):
+            for slot in ('breakfast', 'lunch', 'dinner'):
+                m = d.get(slot)
+                if isinstance(m, dict) and m.get('curated_recipe_id'):
+                    used_recipe_ids.add(m['curated_recipe_id'])
+            for list_key in ('small_meals', 'snacks'):
+                for m in (d.get(list_key) or []):
+                    if isinstance(m, dict) and m.get('curated_recipe_id'):
+                        used_recipe_ids.add(m['curated_recipe_id'])
+        used_recipe_ids.discard(current_id)  # the slot being replaced doesn't count
+
+        # Load the corpus once and reuse it for the vocab, the used-cuisine
+        # lookup, and every eligibility pass on this interactive path.
+        pool = published_pool()
+        cuisine_by_id = {r.id: (r.cuisine or '') for r in pool}
+        used_cuisines = [cuisine_by_id[i] for i in used_recipe_ids if cuisine_by_id.get(i)]
+
+        hint = (request.data.get('hint') or '').strip()
+        facets = None
+        hint_matched = None
+        if hint:
+            facets = extract_prompt_facets(
+                hint, language=goal.language_code,
+                cuisine_vocab=published_cuisine_vocab(pool=pool),
+            )
+            # extract_prompt_facets never raises: an LLM failure (or a hint with
+            # no extractable facets) yields EMPTY facets, which match every
+            # recipe. Treat that as "could not honor the hint" — a plain
+            # next-best fallback reported as hint_matched=False — rather than
+            # letting an unsteered pick masquerade as a successful match.
+            if facets.is_empty():
+                facets = None
+                hint_matched = False
+
+        def pick(active_facets):
+            candidates = eligible_recipes_for_slot(
+                meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
+            )
+            if not candidates:
+                return None
+            return max(candidates, key=lambda r: score_recipe(
+                r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines, facets=active_facets,
+            ))
+
+        chosen = pick(facets)
+        if hint and hint_matched is None:
+            # A non-empty hint was applied — did it actually steer the pick?
+            if chosen is None:
+                # Hint too specific for the corpus — fall back to plain next-best.
+                chosen = pick(None)
+                hint_matched = False
+            else:
+                hint_matched = True
+
+        if chosen is None:
+            return Response(
+                {"status": "success", "data": {"replaced": False, "reason": "no_alternatives"}},
+                status=200,
+            )
+
+        with transaction.atomic():
+            new_meal = scale_recipe_to_meal(chosen)
+            new_meal['meal_identifier'] = meal_identifier
+            target_day[meal_type] = new_meal
+            plan.save(update_fields=['days'])
+            CuratedRecipe.objects.filter(pk=chosen.id).update(usage_count=F('usage_count') + 1)
+            # Refresh the cached Recipe row IN PLACE (same pk) rather than
+            # delete+recreate: RecipeDetailView serves this row early (ignoring
+            # plan.days), and a substantive row is auto-published at
+            # /recepty/<pk>/, so recreating with a new pk would orphan that live
+            # URL. update_or_create keeps the pk and re-runs Recipe.save()
+            # (slug + is_public recompute) for the new curated meal ($0 — it
+            # already has vetted instructions, so no LLM synthesis on next GET).
+            recipe, _ = Recipe.objects.update_or_create(
+                meal_identifier=meal_identifier,
+                defaults={
+                    'dietary_goal': goal,
+                    **_recipe_cache_fields(new_meal, new_meal.get('instructions', [])),
+                },
+            )
+            # Reset cooked state so the new dish doesn't show "Uvařeno".
+            MealInstance.objects.filter(
+                meal_identifier=meal_identifier, user=request.user,
+            ).update(is_cooked=False, cooked_at=None, meal_name=new_meal.get('name', ''))
+
+        return Response({
+            "status": "success",
+            "data": {
+                "replaced": True,
+                "hint_matched": hint_matched,
+                "recipe": serialize_recipe_detail(recipe),
+            },
+        }, status=200)
 
 
 class MealInstanceView(APIView):
