@@ -1,0 +1,6 @@
+# Test-only dependencies — NOT needed at runtime, installed in CI on top of
+# requirements.txt. The suite runs under Django's own test runner, but a few
+# test modules use pytest helpers (pytest.raises / pytest.mark.django_db), so
+# pytest must be importable for collection to succeed.
+pytest
+pytest-django
