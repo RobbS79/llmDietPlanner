@@ -15,9 +15,13 @@ class ConsumedLineCostTest(SimpleTestCase):
         self.assertIsNone(consumed_line_cost(self.G_ENTRY, 0, 'g'))
         self.assertIsNone(consumed_line_cost(self.G_ENTRY, None, 'g'))
 
-    def test_dimension_mismatch_no_grams_falls_back_to_one_pack(self):
-        # recipe in grams, book per-piece, no bridge -> one typical pack: 10 * 2.0
-        self.assertEqual(consumed_line_cost(self.KS_ENTRY, 100, 'g'), 20.0)
+    def test_dimension_mismatch_no_bridge_is_unpriceable(self):
+        # recipe in grams, book per-piece, no piece-weight bridge: grams can't be
+        # converted to pieces. Billing a whole pack for an unconvertible line is
+        # what produced absurd costs (teaspoon of salt at 185 Kč), so the line is
+        # unpriceable ("bez ceny") rather than a fabricated pack price.
+        # (Hardened 2026-07-13, commit 104ba3d; previously fell back to one pack.)
+        self.assertIsNone(consumed_line_cost(self.KS_ENTRY, 100, 'g'))
 
     def test_piece_weight_bridge(self):
         # 220 g / 110 g-per-piece = 2 pieces * 2.0 = 4.0
