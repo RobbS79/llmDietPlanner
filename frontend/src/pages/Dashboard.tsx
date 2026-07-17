@@ -195,7 +195,7 @@ export const Dashboard = () => {
             <div className="col-span-full py-40 flex flex-col items-center justify-center border border-line rounded-3xl bg-kraft/40 text-center">
               <Box size={64} className="text-muted mb-8" />
               <p className="text-muted font-bold uppercase tracking-widest text-xs mb-4 italic">Zatím žádné jídelníčky</p>
-              <p className="text-muted text-xs mb-10">Vytvořte svůj první plán a zjistíte, kolik ušetříte.</p>
+              <p className="text-muted text-xs mb-10">Vytvořte svůj první jídelníček na míru vašemu cíli.</p>
               <button onClick={() => navigate('/create')} className="text-green font-black uppercase text-[10px] tracking-widest hover:underline flex items-center gap-2">
                 Vytvořit první plán <ArrowRight size={14} />
               </button>

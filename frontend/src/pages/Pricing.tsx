@@ -223,7 +223,7 @@ export const Pricing = () => {
 
         <div className="text-center mb-16">
           <p className="text-muted text-sm">
-            Stojí méně než jedno kafe týdně. Průměrný uživatel ušetří <strong className="text-ink">850 Kč měsíčně</strong> na nákupech.
+            Stojí méně než jedno kafe týdně. Za to dostanete <strong className="text-ink">celý týden jídelníčku na míru vašemu cíli</strong> — s recepty, nutričními hodnotami a nákupním seznamem, ve kterém rovnou vidíte suroviny aktuálně ve slevě.
           </p>
         </div>
 
