@@ -39,10 +39,12 @@ class RegistrationTestCase(TestCase):
         self.assertEqual(response.data['data']['username'], 'testuser')
         self.assertEqual(response.data['data']['email'], 'test@example.com')
         
-        # Verify user was created but is inactive
+        # User can log in immediately (is_active); email verification is a
+        # separate flag that gates plan generation, not login.
         user = User.objects.get(username='testuser')
-        self.assertFalse(user.is_active)
+        self.assertTrue(user.is_active)
         self.assertEqual(user.email, 'test@example.com')
+        self.assertFalse(UserProfile.objects.get(user=user).email_verified)
     
     def test_registration_duplicate_username(self):
         """Test registration with duplicate username."""
@@ -112,65 +114,65 @@ class EmailVerificationTestCase(TestCase):
     """Test cases for email verification."""
     
     def setUp(self):
-        """Set up test client and user."""
+        """Set up test client and an unverified (but active) user."""
         self.client = APIClient()
         self.verify_url = reverse('login_app:verify-email')
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
             password='securepass123',
-            is_active=False
+            is_active=True,
         )
-    
+        # Signal-created profile starts email_verified=False.
+        self.profile = UserProfile.objects.get(user=self.user)
+
     def test_email_verification_success(self):
-        """Test successful email verification."""
+        """A valid uid+token marks the profile email_verified."""
         uid, token = generate_email_verification_token(self.user)
-        
+
         response = self.client.get(self.verify_url, {'uid': uid, 'token': token})
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'success')
         self.assertIsNone(response.data['error'])
-        
-        # Verify user is now active
-        self.user.refresh_from_db()
-        self.assertTrue(self.user.is_active)
-    
+
+        self.profile.refresh_from_db()
+        self.assertTrue(self.profile.email_verified)
+
     def test_email_verification_invalid_token(self):
-        """Test email verification with invalid token."""
+        """An invalid token is rejected and does not verify the email."""
         uid, _ = generate_email_verification_token(self.user)
         invalid_token = 'invalid-token-123'
-        
+
         response = self.client.get(self.verify_url, {'uid': uid, 'token': invalid_token})
-        
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data['status'], 'error')
         self.assertIn('Invalid or expired', response.data['error'])
-        
-        # Verify user is still inactive
-        self.user.refresh_from_db()
-        self.assertFalse(self.user.is_active)
-    
+
+        self.profile.refresh_from_db()
+        self.assertFalse(self.profile.email_verified)
+
     def test_email_verification_missing_params(self):
-        """Test email verification with missing parameters."""
+        """Missing uid/token yields a 400."""
         response = self.client.get(self.verify_url)
-        
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data['status'], 'error')
         self.assertIn('Missing uid or token', response.data['error'])
-    
+
     def test_email_verification_already_verified(self):
-        """Test email verification for already active user."""
-        self.user.is_active = True
-        self.user.save()
-        
+        """Verifying an already-verified profile is idempotent (200)."""
+        self.profile.email_verified = True
+        self.profile.save(update_fields=['email_verified'])
+
         uid, token = generate_email_verification_token(self.user)
-        
+
         response = self.client.get(self.verify_url, {'uid': uid, 'token': token})
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'success')
-        self.assertIn('already verified', response.data['data']['message'])
+        self.assertIn('již ověřený', response.data['data']['message'])
 
 
 class LoginTestCase(TestCase):
@@ -270,10 +272,13 @@ class LoginTestCase(TestCase):
         }
         
         response = self.client.post(self.login_url, data, format='json')
-        
+
+        # The auth backend rejects inactive users at authenticate() time, so the
+        # view returns the generic 401 "Invalid credentials" (it never reaches
+        # the is_active branch).
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data['status'], 'error')
-        self.assertIn('not active', response.data['error'])
+        self.assertIn('Invalid', response.data['error'])
     
     def test_login_nonexistent_user(self):
         """Test login with non-existent username."""
@@ -346,18 +351,19 @@ class AuthenticationFlowTestCase(TestCase):
         }
         register_response = self.client.post(self.register_url, register_data, format='json')
         self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
-        
+
         user = User.objects.get(username='newuser')
-        self.assertFalse(user.is_active)
-        
-        # Step 2: Verify email
+        # Active immediately; email not yet verified.
+        self.assertTrue(user.is_active)
+        self.assertFalse(UserProfile.objects.get(user=user).email_verified)
+
+        # Step 2: Verify email (the link the registration email would contain)
         uid, token = generate_email_verification_token(user)
         verify_response = self.client.get(self.verify_url, {'uid': uid, 'token': token})
         self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
-        
-        user.refresh_from_db()
-        self.assertTrue(user.is_active)
-        
+
+        self.assertTrue(UserProfile.objects.get(user=user).email_verified)
+
         # Step 3: Login
         login_data = {
             'username': 'newuser',

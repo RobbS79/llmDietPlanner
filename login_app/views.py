@@ -25,6 +25,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from pydantic import ValidationError
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
+
 from .models import UserProfile
 from .schemas import RegistrationRequest, LoginRequest, PasswordResetRequestSchema, PasswordResetConfirmSchema
 from .utils import generate_email_verification_token, verify_email_token
@@ -148,21 +152,34 @@ class RegistrationView(APIView):
     authentication_classes = []
     
     def post(self, request) -> Response:
+        # Validate input FIRST so field errors (weak password, mismatch, bad
+        # email) surface as a 400 with the real message instead of being caught
+        # by the generic handler below and returned as an opaque 500.
         try:
-            # Pydantic Schema Validation for strict typing
             schema = RegistrationRequest(**request.data)
-            
+        except ValidationError as e:
+            errs = e.errors()
+            # Pydantic prefixes custom ValueError messages with "Value error, ";
+            # strip it so the client sees the clean message.
+            msg = (errs[0].get('msg') if errs else '') or 'Invalid registration data'
+            msg = msg.replace('Value error, ', '')
+            return Response({"status": "error", "data": None, "error": msg}, status=400)
+
+        try:
             if User.objects.filter(username=schema.username).exists():
-                return Response({"status": "error", "data": None, "error": "Username already taken"}, status=400)
-            
+                return Response({"status": "error", "data": None, "error": "Username already exists"}, status=400)
+
             if User.objects.filter(email=schema.email).exists():
                 return Response({"status": "error", "data": None, "error": "Email already registered"}, status=400)
-            
+
+            # Active immediately so the user can log in and explore. Email
+            # verification (UserProfile.email_verified) is NOT a login gate — it
+            # gates plan generation (see DietaryGoalCreateView).
             user = User.objects.create_user(
                 username=schema.username,
                 email=schema.email,
                 password=schema.password,
-                is_active=False # Account disabled until email verification is complete
+                is_active=True,
             )
 
             # Persist marketing attribution (optional, untrusted client input) so
@@ -189,12 +206,16 @@ class RegistrationView(APIView):
             except Exception:
                 logger.exception("Failed to persist marketing attribution / fire signup event for user_id=%s", user.id)
 
-            # Generate verification artifacts
-            uid, token = generate_email_verification_token(user)
-            
-            # Offload email sending to Celery to maintain high response speed
-            send_verification_email_task.delay(user.id, uid, token, request.build_absolute_uri('/'))
-            
+            # Send the verification email (offloaded to Celery). A broker hiccup
+            # must NEVER 500 an otherwise-successful registration, so failures to
+            # enqueue are logged and swallowed — the account still exists and the
+            # user can request a resend.
+            try:
+                uid, token = generate_email_verification_token(user)
+                send_verification_email_task.delay(user.id, uid, token, request.build_absolute_uri('/'))
+            except Exception:
+                logger.exception("Failed to enqueue verification email for user_id=%s", user.id)
+
             return Response({
                 "status": "success", 
                 "data": {"username": user.username, "email": user.email},
@@ -204,6 +225,54 @@ class RegistrationView(APIView):
         except Exception as e:
             logger.error(f"Registration Exception: {str(e)}")
             return Response({"status": "error", "data": None, "error": "Internal registration error"}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class VerifyEmailView(APIView):
+    """Confirm a user's email from the link in the verification email.
+
+    Sets UserProfile.email_verified, which gates plan generation (NOT login).
+    Idempotent: an already-verified account returns success. Restored after the
+    endpoint was dropped in earlier churn while registration still emailed a
+    link to it (regression).
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request) -> Response:
+        uid = request.query_params.get('uid')
+        token = request.query_params.get('token')
+        if not uid or not token:
+            return Response({"status": "error", "data": None, "error": "Missing uid or token"}, status=400)
+
+        try:
+            user = User.objects.get(pk=force_str(urlsafe_base64_decode(uid)))
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+            return Response({"status": "error", "data": None, "error": "Invalid or expired verification link"}, status=400)
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        if profile.email_verified:
+            return Response({
+                "status": "success",
+                "data": {"message": "E-mail je již ověřený."},  # already verified
+                "error": None,
+            }, status=200)
+
+        if not verify_email_token(user, uid, token):
+            return Response({"status": "error", "data": None, "error": "Invalid or expired verification link"}, status=400)
+
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+        # Belt-and-suspenders: reactivate if the account was ever disabled.
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=['is_active'])
+
+        return Response({
+            "status": "success",
+            "data": {"message": "E-mail byl úspěšně ověřen."},  # email verified
+            "error": None,
+        }, status=200)
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):

@@ -57,14 +57,12 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Run backend tests (sqlite)
         # Scoped to the apps with a green, self-contained unit suite.
-        # EXCLUDED (pre-existing debt / not unit-testable here):
-        #   - login_app: 10 pre-existing failures — stale `verify-email` URL
-        #     name, and registration 500s because it blocks on the Celery/Redis
-        #     result backend that isn't available under tests
-        #     (CELERY_TASK_ALWAYS_EAGER is not set for the test settings).
-        #     Quarantined until fixed, then add it back here.
+        # EXCLUDED (not unit-testable here):
         #   - e2e / slack_bot: require a real browser / Slack, not unit CI.
-        run: python manage.py test diet_planner billing analytics
+        # (login_app was previously quarantined for 10 pre-existing failures —
+        #  the dropped verify-email endpoint and broker-blocking registration;
+        #  both fixed, so it is gated again.)
+        run: python manage.py test diet_planner billing analytics login_app
 
   frontend:
     name: frontend (Vite/React)
