@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Clock, Users, ChefHat, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -9,10 +9,14 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
+import { useToast } from '@/components/ui/Toast';
+import { replaceRecipe } from '@/lib/replaceRecipe';
 
 export const RecipePage = () => {
   const { id, mealId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['recipe', mealId],
@@ -22,6 +26,49 @@ export const RecipePage = () => {
   });
 
   const recipe = data;
+
+  // Replace-recipe swap: curated-only, optionally hint-steered. See
+  // docs/superpowers/specs/2026-07-16-replace-recipe-swap-design.md.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [hint, setHint] = useState('');
+  const [pending, setPending] = useState(false);
+  const [noAlternative, setNoAlternative] = useState(false);
+
+  const closePanel = () => {
+    setPanelOpen(false);
+    setHint('');
+    setNoAlternative(false);
+  };
+
+  const handleReplace = async () => {
+    if (!mealId || pending) return;
+    setPending(true);
+    setNoAlternative(false);
+    try {
+      const result = await replaceRecipe(mealId, hint.trim());
+      if (result.replaced) {
+        if (result.recipe) queryClient.setQueryData(['recipe', mealId], result.recipe);
+        queryClient.invalidateQueries({ queryKey: ['plan', id] });
+        // The swap resets MealInstance.is_cooked server-side; PlanView derives
+        // its cooked badges from this separate query, so it must refresh too.
+        queryClient.invalidateQueries({ queryKey: ['mealInstances', id] });
+        closePanel();
+        // One toast: the advisory when the hint could not be honored (it still
+        // implies a successful swap), otherwise the plain success.
+        if (result.hint_matched === false) {
+          toast.success('Nenašli jsme recept přesně podle přání, vybrali jsme jinou variantu.');
+        } else {
+          toast.success('Recept byl vyměněn.');
+        }
+      } else {
+        setNoAlternative(true);
+      }
+    } catch {
+      toast.error('Výměna se nezdařila, zkuste to prosím znovu.');
+    } finally {
+      setPending(false);
+    }
+  };
 
   useEffect(() => {
     if (!recipe) return;
@@ -162,6 +209,54 @@ export const RecipePage = () => {
             </p>
           )}
         </header>
+
+        {/* Replace-recipe swap */}
+        <div className="mb-12">
+          {!panelOpen ? (
+            <button
+              onClick={() => { setPanelOpen(true); setNoAlternative(false); }}
+              className="flex items-center gap-2 px-5 h-11 bg-card border border-line rounded-xl text-[10px] font-black uppercase tracking-widest text-ink hover:border-green/50 transition-colors"
+            >
+              <RefreshCw size={14} className="text-green" /> Vyměnit recept
+            </button>
+          ) : (
+            <div className="rounded-2xl border border-line bg-card p-5 max-w-xl">
+              <label htmlFor="replace-hint" className="block text-sm font-bold text-ink mb-2">
+                Na co máte chuť? (nepovinné)
+              </label>
+              <input
+                id="replace-hint"
+                type="text"
+                value={hint}
+                onChange={(e) => setHint(e.target.value)}
+                placeholder="např. něco s kuřecím, něco lehčího"
+                disabled={pending}
+                className="w-full h-11 px-4 bg-bg border border-line rounded-xl text-sm text-ink placeholder:text-muted focus:border-green/60 focus:outline-none disabled:opacity-60"
+              />
+              {noAlternative && (
+                <p className="mt-3 text-sm font-medium text-paprika-strong">
+                  Pro tento typ jídla teď nemáme jinou alternativu.
+                </p>
+              )}
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={handleReplace}
+                  disabled={pending}
+                  className="flex items-center gap-2 px-6 h-11 bg-green text-white font-black uppercase text-[10px] tracking-widest rounded-xl disabled:opacity-60"
+                >
+                  {pending && <Loader2 size={14} className="animate-spin" />} Vyměnit
+                </button>
+                <button
+                  onClick={closePanel}
+                  disabled={pending}
+                  className="px-6 h-11 text-muted hover:text-ink font-black uppercase text-[10px] tracking-widest rounded-xl disabled:opacity-60"
+                >
+                  Zrušit
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {getRecipeDeals(recipe) && (() => {
           const d = getRecipeDeals(recipe)!;
