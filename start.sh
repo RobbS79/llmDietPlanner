@@ -29,32 +29,47 @@ fi
 echo "Synchronizing Schema..."
 python manage.py migrate --noinput
 
-# 2a. Seed the canonical ingredient dictionary
-# CanonicalIngredient + IngredientAlias rows drive recipe ingredient→catalog
-# mapping (and thus real pricing). They live in data/canonical_ingredients.yaml,
-# NOT in a migration, so a schema-only deploy would never pick up dictionary
-# growth. The seed is idempotent (upsert by slug; get_or_create on aliases), so
-# running it on every boot is safe and keeps prod in lockstep with the YAML.
-# Non-fatal: a malformed YAML must not brick the deploy (set -e is active).
-echo "Seeding canonical ingredient dictionary..."
-python manage.py seed_canonical_ingredients || echo "WARN: canonical ingredient seed failed (dictionary may be stale)."
+# 3. Static Asset Aggregation (needed before serving).
+# Kept on the critical path, but --clear dropped: a fresh container's
+# staticfiles/ is already empty, so the extra delete pass only slowed startup.
+echo "Collecting UI Assets..."
+python manage.py collectstatic --noinput
 
-# 2b. Ensure superuser exists
-# SECURITY (incident 2026-06-02-dbminer): the superuser password must NEVER be
-# hard-coded here — this file is committed to git, so any literal becomes a
-# leaked production admin credential. Source it from a DO App Platform SECRET
-# env var (DJANGO_SUPERUSER_PASSWORD). If the secret is absent we skip creation
-# rather than fall back to a known/default password.
-echo "Ensuring superuser..."
-if [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
-  # Idempotent upsert: create the superuser if absent, otherwise RESET its
-  # password. `createsuperuser --noinput` only *creates* — it no-ops when the
-  # user already exists, so it cannot recover a lost prod admin password (the
-  # real lockout mode). Resetting from the secret on every boot keeps /admin/
-  # reachable with a known credential.
-  DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}" \
-  DJANGO_SUPERUSER_EMAIL="${DJANGO_SUPERUSER_EMAIL:-soroka.robert8@gmail.com}" \
-  python manage.py shell <<'PYEOF'
+# 4. Deferred bootstrap — idempotent, NON-serving setup.
+# WHY DEFERRED: the canonical-dictionary seed, superuser upsert, QA account, and
+# admin TOTP enrollment each cold-boot Django (~seconds) and NONE is required to
+# serve traffic or to answer the platform's TCP readiness probe on :8000.
+# Running them inline (as before) meant Gunicorn only bound the port after ~5
+# sequential manage.py commands, so a slow cold start lost the race with the
+# default health-check window and the whole deploy was rolled back. We now run
+# them in the background after a short delay: Gunicorn binds promptly (right
+# after migrate + collectstatic), the probe passes, and this work lands a few
+# seconds into serving without contending for memory during the probe window.
+# Every step stays idempotent and non-fatal (a failure only WARNs; the next
+# deploy re-runs it).
+echo "Scheduling deferred bootstrap (dictionary, superuser, QA, TOTP)..."
+(
+  # Let Gunicorn bind and pass the readiness probe before we spend memory here.
+  sleep 20
+
+  # 4a. Canonical ingredient dictionary (recipe→catalog mapping / real pricing).
+  # Lives in data/canonical_ingredients.yaml, not a migration, so a schema-only
+  # deploy would miss dictionary growth. Idempotent (upsert by slug).
+  echo "[deferred] Seeding canonical ingredient dictionary..."
+  python manage.py seed_canonical_ingredients || echo "WARN: canonical ingredient seed failed (dictionary may be stale)."
+
+  # 4b. Superuser upsert.
+  # SECURITY (incident 2026-06-02-dbminer): the password must NEVER be hard-coded
+  # here — this file is committed to git. Source it from the DO SECRET env var
+  # DJANGO_SUPERUSER_PASSWORD; if absent, skip rather than use a default.
+  # Idempotent: create if absent, otherwise RESET the password from the secret
+  # so /admin/ stays reachable with a known credential (createsuperuser --noinput
+  # only creates and cannot recover a lost password).
+  if [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+    echo "[deferred] Ensuring superuser..."
+    DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}" \
+    DJANGO_SUPERUSER_EMAIL="${DJANGO_SUPERUSER_EMAIL:-soroka.robert8@gmail.com}" \
+    python manage.py shell <<'PYEOF' || echo "WARN: superuser bootstrap failed."
 import os
 from django.contrib.auth import get_user_model
 
@@ -72,46 +87,40 @@ user.set_password(password)
 user.save()
 print("Superuser created." if created else "Superuser password reset.")
 PYEOF
-else
-  echo "DJANGO_SUPERUSER_PASSWORD not set — skipping superuser bootstrap."
-fi
+  else
+    echo "[deferred] DJANGO_SUPERUSER_PASSWORD not set — skipping superuser bootstrap."
+  fi
 
-# 2b-qa. Seed the QA verification account (post-deploy /qa-prod).
-# SECURITY: credentials come only from DO SECRET env vars; the command no-ops
-# when they are absent. Idempotent — safe on every boot.
-echo "Seeding QA account..."
-python manage.py seed_qa_account || echo "WARN: QA account seed failed."
+  # 4c. QA verification account (post-deploy /qa-prod). Credentials come only
+  # from DO SECRET env vars; the command no-ops when they are absent. Idempotent.
+  echo "[deferred] Seeding QA account..."
+  python manage.py seed_qa_account || echo "WARN: QA account seed failed."
 
-# 2c. Bootstrap admin TOTP MFA device (console-free enrollment)
-# OTPAdminSite locks /admin/ until a confirmed TOTP device exists, and the DO
-# App Platform console is unusable, so enrollment cannot be done interactively
-# in prod. Instead the operator supplies the secret as a DO SECRET env var; we
-# seed the device from it on every boot. Idempotent: --secret derives a fixed
-# key, so redeploys keep the same code sequence already in the authenticator.
-# --quiet keeps the secret out of the deploy logs.
-if [ -n "$ADMIN_TOTP_SECRET" ]; then
-  echo "Enrolling admin TOTP device from ADMIN_TOTP_SECRET..."
-  python manage.py setup_admin_totp "${DJANGO_SUPERUSER_USERNAME:-admin}" \
-    --secret "$ADMIN_TOTP_SECRET" --quiet || echo "WARN: admin TOTP enrollment failed (admin may be locked)."
-else
-  echo "ADMIN_TOTP_SECRET not set — admin MFA device not bootstrapped."
-fi
+  # 4d. Admin TOTP MFA device (console-free enrollment). OTPAdminSite locks
+  # /admin/ until a confirmed TOTP device exists; the operator supplies the
+  # secret as a DO SECRET env var and we seed the device on every boot.
+  # Idempotent (--secret derives a fixed key). --quiet keeps it out of logs.
+  if [ -n "$ADMIN_TOTP_SECRET" ]; then
+    echo "[deferred] Enrolling admin TOTP device from ADMIN_TOTP_SECRET..."
+    python manage.py setup_admin_totp "${DJANGO_SUPERUSER_USERNAME:-admin}" \
+      --secret "$ADMIN_TOTP_SECRET" --quiet || echo "WARN: admin TOTP enrollment failed (admin may be locked)."
+  else
+    echo "[deferred] ADMIN_TOTP_SECRET not set — admin MFA device not bootstrapped."
+  fi
+) &
 
-# 3. Static Asset Aggregation
-echo "Collecting UI Assets..."
-python manage.py collectstatic --noinput --clear
-
-# 4. Launch Synthesis Worker
-# Concurrency limited to 2 to optimize memory footprint on basic-xxs instances
+# 5. Launch Synthesis Worker
+# Concurrency limited to 1 to optimize memory footprint on basic instances
 echo "Starting Synthesis Worker (Celery)..."
 celery -A llm_diet_planner_project worker --concurrency=1 --loglevel=info &
 
-# 5. Launch Beat Scheduler (proactive scraping + freshness lifecycle)
+# 6. Launch Beat Scheduler (proactive scraping + freshness lifecycle)
 # Disabled on basic-xxs to save ~100MB RAM for the worker
 # Re-enable when upgrading to basic-xs or larger
 # echo "Starting Beat Scheduler..."
 # celery -A llm_diet_planner_project beat --loglevel=info &
 
-# 6. Launch Application Server
+# 7. Launch Application Server
+# exec so Gunicorn is PID 1 and receives SIGTERM directly for graceful drain.
 echo "Starting Application Hub (Gunicorn)..."
 exec gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 llm_diet_planner_project.wsgi:application
