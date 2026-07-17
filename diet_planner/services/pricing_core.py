@@ -22,9 +22,10 @@ def consumed_line_cost(entry, qty, unit, grams=None) -> Optional[float]:
 
     Charges only the consumed amount (10 ml of a 1 L bottle ~ the price of
     10 ml). Bridges count<->mass via `grams` (typical piece weight) when the
-    line and the book disagree on dimension. Falls back to one typical pack
-    when the quantity can't be converted at all. Returns None when not
-    priceable (no/zero price, missing or non-positive quantity).
+    line and the book disagree on dimension. Returns None when not priceable:
+    no/zero price, missing or non-positive quantity, or a quantity that can't
+    be converted to the book's unit with no bridge (billing a whole pack for an
+    unconvertible pinch fabricates absurd costs, so it's left "bez ceny").
     """
     if qty is None or qty <= 0:
         return None
