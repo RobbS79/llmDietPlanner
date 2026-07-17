@@ -41,6 +41,12 @@ jobs:
       SECRET_KEY: ci-test-secret-key
       FIELD_ENCRYPTION_KEY: A3xtMz5NmwN6oYF5JJGiBXCxTLrf6vSL272zJSfyC-w=
       DEBUG: "True"
+      # Dummy, non-functional value. A couple of catalog-task tests construct
+      # GeminiService() (whose __init__ requires the key) but mock the actual
+      # generation method, so this only needs to be PRESENT — no real API call
+      # is made. (Locally the suite picked this up from the box's .env file,
+      # which CI does not have.)
+      GEMINI_API_KEY: ci-dummy-not-a-real-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
