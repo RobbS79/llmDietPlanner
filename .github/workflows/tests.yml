@@ -18,6 +18,21 @@ jobs:
   backend:
     name: backend (Django)
     runs-on: ubuntu-latest
+    # A few task-integration tests call Celery tasks via `.apply().get()`; on
+    # failure the task's `.retry()` re-enqueues through the broker, so without a
+    # reachable Redis the run hangs 20x on "Connection to Redis lost". The
+    # CELERY_BROKER_URL / RESULT_BACKEND settings default to redis://127.0.0.1:6379,
+    # which this service satisfies.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       # settings.py requires these two (no defaults). CI runs against an
       # ephemeral sqlite DB (DATABASE_URL is unset, so settings default to
