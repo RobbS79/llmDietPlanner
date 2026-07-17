@@ -163,6 +163,7 @@ REST_FRAMEWORK = {
         'anon': '100/hour',
         'user': '1000/hour',
         'account_delete': '5/hour',
+        'resend_verification': '5/hour',
     },
 }
 

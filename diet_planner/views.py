@@ -340,6 +340,23 @@ class AdminRetryGoalView(APIView):
             goal.save(update_fields=['status', 'error_message'])
             return Response({"status": "success", "data": {"goal_id": goal_id, "new_status": "failed"}})
 
+        # A retry re-runs the LLM plan generation, so it must carry the SAME
+        # email-verification gate as first-time generation — otherwise an
+        # unverified user could draft a goal (draft path is un-gated) and then
+        # "retry" it to bypass the gate. Staff bypass for support/debugging.
+        if not request.user.is_staff:
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            if not profile.email_verified:
+                return Response(
+                    {
+                        "status": "error",
+                        "code": "EMAIL_NOT_VERIFIED",
+                        "error": "Než vygenerujete jídelníček, potvrďte prosím svou e-mailovou adresu "
+                                 "podle odkazu v e-mailu, který jsme vám poslali.",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         goal.status = DietaryGoal.StatusChoices.PENDING
         goal.error_message = ''
         goal.save(update_fields=['status', 'error_message'])

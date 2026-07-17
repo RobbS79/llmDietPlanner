@@ -127,42 +127,36 @@ class EmailVerificationTestCase(TestCase):
         self.profile = UserProfile.objects.get(user=self.user)
 
     def test_email_verification_success(self):
-        """A valid uid+token marks the profile email_verified."""
+        """A valid uid+token verifies the email and redirects to /login?verified=1."""
         uid, token = generate_email_verification_token(self.user)
 
         response = self.client.get(self.verify_url, {'uid': uid, 'token': token})
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'success')
-        self.assertIsNone(response.data['error'])
-
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login?verified=1', response['Location'])
         self.profile.refresh_from_db()
         self.assertTrue(self.profile.email_verified)
 
     def test_email_verification_invalid_token(self):
-        """An invalid token is rejected and does not verify the email."""
+        """An invalid token redirects with verified=0 and does not verify."""
         uid, _ = generate_email_verification_token(self.user)
-        invalid_token = 'invalid-token-123'
 
-        response = self.client.get(self.verify_url, {'uid': uid, 'token': invalid_token})
+        response = self.client.get(self.verify_url, {'uid': uid, 'token': 'invalid-token-123'})
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data['status'], 'error')
-        self.assertIn('Invalid or expired', response.data['error'])
-
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('verified=0', response['Location'])
         self.profile.refresh_from_db()
         self.assertFalse(self.profile.email_verified)
 
     def test_email_verification_missing_params(self):
-        """Missing uid/token yields a 400."""
+        """Missing uid/token redirects with verified=0 (friendly failure)."""
         response = self.client.get(self.verify_url)
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data['status'], 'error')
-        self.assertIn('Missing uid or token', response.data['error'])
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('verified=0', response['Location'])
 
     def test_email_verification_already_verified(self):
-        """Verifying an already-verified profile is idempotent (200)."""
+        """Verifying an already-verified profile is idempotent (verified=1)."""
         self.profile.email_verified = True
         self.profile.save(update_fields=['email_verified'])
 
@@ -170,9 +164,64 @@ class EmailVerificationTestCase(TestCase):
 
         response = self.client.get(self.verify_url, {'uid': uid, 'token': token})
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'success')
-        self.assertIn('již ověřený', response.data['data']['message'])
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('verified=1', response['Location'])
+
+    def test_no_account_enumeration(self):
+        """A bogus uid yields the SAME failure redirect as a real user with a
+        bad token — the endpoint leaks nothing about which accounts exist."""
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        bogus = self.client.get(self.verify_url, {'uid': urlsafe_base64_encode(force_bytes(999999)), 'token': 'x'})
+        real_bad = self.client.get(self.verify_url, {'uid': urlsafe_base64_encode(force_bytes(self.user.pk)), 'token': 'x'})
+        self.assertEqual(bogus.status_code, 302)
+        self.assertEqual(real_bad.status_code, 302)
+        self.assertIn('verified=0', bogus['Location'])
+        self.assertIn('verified=0', real_bad['Location'])
+
+    def test_verify_does_not_reactivate_disabled_account(self):
+        """An admin-disabled account is NOT silently re-activated by verifying."""
+        self.user.is_active = False
+        self.user.save(update_fields=['is_active'])
+        uid, token = generate_email_verification_token(self.user)
+
+        self.client.get(self.verify_url, {'uid': uid, 'token': token})
+
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+
+
+class ResendVerificationTests(TestCase):
+    """Recovery path: resend the verification email."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.url = reverse('login_app:resend-verification')
+        self.user = User.objects.create_user(
+            username='pending', email='pending@example.com', password='securepass123', is_active=True,
+        )
+
+    @patch('login_app.views.send_verification_email_task.delay')
+    def test_resend_for_unverified_user_enqueues_email(self, mock_delay):
+        resp = self.client.post(self.url, {'email': 'pending@example.com'}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['status'], 'success')
+        mock_delay.assert_called_once()
+
+    @patch('login_app.views.send_verification_email_task.delay')
+    def test_resend_for_verified_user_sends_nothing_but_same_response(self, mock_delay):
+        UserProfile.objects.filter(user=self.user).update(email_verified=True)
+        resp = self.client.post(self.url, {'email': 'pending@example.com'}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['status'], 'success')  # generic — no enumeration
+        mock_delay.assert_not_called()
+
+    @patch('login_app.views.send_verification_email_task.delay')
+    def test_resend_for_unknown_email_gives_same_generic_success(self, mock_delay):
+        resp = self.client.post(self.url, {'email': 'nobody@example.com'}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['status'], 'success')
+        mock_delay.assert_not_called()
 
 
 class LoginTestCase(TestCase):
@@ -360,7 +409,8 @@ class AuthenticationFlowTestCase(TestCase):
         # Step 2: Verify email (the link the registration email would contain)
         uid, token = generate_email_verification_token(user)
         verify_response = self.client.get(self.verify_url, {'uid': uid, 'token': token})
-        self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(verify_response.status_code, 302)
+        self.assertIn('verified=1', verify_response['Location'])
 
         self.assertTrue(UserProfile.objects.get(user=user).email_verified)
 

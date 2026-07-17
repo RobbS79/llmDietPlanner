@@ -212,7 +212,12 @@ class RegistrationView(APIView):
             # user can request a resend.
             try:
                 uid, token = generate_email_verification_token(user)
-                send_verification_email_task.delay(user.id, uid, token, request.build_absolute_uri('/'))
+                # rstrip('/') — build_absolute_uri('/') has a trailing slash and
+                # the task appends "/api/auth/verify-email/...", which would make
+                # a "//api/..." link that resolves to the SPA catch-all instead
+                # of this API view.
+                base_url = request.build_absolute_uri('/').rstrip('/')
+                send_verification_email_task.delay(user.id, uid, token, base_url)
             except Exception:
                 logger.exception("Failed to enqueue verification email for user_id=%s", user.id)
 
@@ -228,48 +233,75 @@ class RegistrationView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class VerifyEmailView(APIView):
-    """Confirm a user's email from the link in the verification email.
+    """Confirm a user's email from the emailed link, then redirect to the
+    frontend login page (?verified=1 on success, 0 otherwise).
 
-    Sets UserProfile.email_verified, which gates plan generation (NOT login).
-    Idempotent: an already-verified account returns success. Restored after the
-    endpoint was dropped in earlier churn while registration still emailed a
-    link to it (regression).
+    Sets UserProfile.email_verified, which gates plan generation — NOT login —
+    so it deliberately does NOT touch is_active (never un-bans an
+    admin-disabled account). The token is checked BEFORE anything else, and
+    EVERY failure mode (missing params, unknown uid, bad token, already
+    verified) yields the identical redirect, so the endpoint cannot be used to
+    enumerate which accounts exist or are verified. Restored after the endpoint
+    was dropped in earlier churn while registration still emailed a link to it.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    def get(self, request) -> Response:
+    def _redirect(self, ok: bool):
+        # Relative redirect: the SPA is served from the same host, so this lands
+        # the user on the real /login page rather than a raw JSON body.
+        return redirect(f"/login?verified={'1' if ok else '0'}")
+
+    def get(self, request):
         uid = request.query_params.get('uid')
         token = request.query_params.get('token')
         if not uid or not token:
-            return Response({"status": "error", "data": None, "error": "Missing uid or token"}, status=400)
+            return self._redirect(False)
 
         try:
             user = User.objects.get(pk=force_str(urlsafe_base64_decode(uid)))
         except (User.DoesNotExist, ValueError, TypeError, OverflowError):
-            return Response({"status": "error", "data": None, "error": "Invalid or expired verification link"}, status=400)
+            return self._redirect(False)
+
+        # Token first — a caller without a valid token always gets the failure
+        # redirect, whether or not the account exists / is already verified.
+        if not verify_email_token(user, uid, token):
+            return self._redirect(False)
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
-        if profile.email_verified:
-            return Response({
-                "status": "success",
-                "data": {"message": "E-mail je již ověřený."},  # already verified
-                "error": None,
-            }, status=200)
+        if not profile.email_verified:
+            profile.email_verified = True
+            profile.save(update_fields=['email_verified'])
+        return self._redirect(True)
 
-        if not verify_email_token(user, uid, token):
-            return Response({"status": "error", "data": None, "error": "Invalid or expired verification link"}, status=400)
 
-        profile.email_verified = True
-        profile.save(update_fields=['email_verified'])
-        # Belt-and-suspenders: reactivate if the account was ever disabled.
-        if not user.is_active:
-            user.is_active = True
-            user.save(update_fields=['is_active'])
+@method_decorator(csrf_exempt, name='dispatch')
+class ResendVerificationView(APIView):
+    """Resend the verification email (recovery path: e.g. the enqueue failed at
+    signup during a broker outage, or the first mail was lost). Always returns
+    the same generic success so it cannot be used to enumerate accounts.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'resend_verification'
 
+    def post(self, request) -> Response:
+        email = (request.data.get('email') or '').strip()
+        if email:
+            user = User.objects.filter(email__iexact=email).first()
+            if user:
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                if not profile.email_verified:
+                    try:
+                        uid, token = generate_email_verification_token(user)
+                        base_url = request.build_absolute_uri('/').rstrip('/')
+                        send_verification_email_task.delay(user.id, uid, token, base_url)
+                    except Exception:
+                        logger.exception("Failed to enqueue resend verification for user_id=%s", user.id)
         return Response({
             "status": "success",
-            "data": {"message": "E-mail byl úspěšně ověřen."},  # email verified
+            "data": {"message": "Pokud účet existuje a není ověřený, poslali jsme ověřovací e-mail."},
             "error": None,
         }, status=200)
 

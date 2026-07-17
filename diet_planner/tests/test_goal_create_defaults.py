@@ -47,3 +47,16 @@ class GoalCreateDefaultsTests(TestCase):
         self.assertEqual(resp.status_code, 403, resp.content)
         self.assertEqual(resp.json().get('code'), 'EMAIL_NOT_VERIFIED')
         self.assertFalse(DietaryGoal.objects.filter(user=self.user).exists())
+
+    def test_unverified_email_blocks_retry_bypass(self):
+        # Draft-then-retry must not bypass the verification gate: a goal created
+        # via the un-gated draft path cannot be pushed through generation by an
+        # unverified user via the retry endpoint.
+        UserProfile.objects.filter(user=self.user).update(email_verified=False)
+        goal = DietaryGoal.objects.create(
+            user=self.user, prompt='draft', country='CZ',
+            status=DietaryGoal.StatusChoices.PENDING,
+        )
+        resp = self.client.post(f'/api/goals/{goal.id}/admin-retry/', {'action': 'retry'}, format='json')
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertEqual(resp.json().get('code'), 'EMAIL_NOT_VERIFIED')

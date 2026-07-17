@@ -43,6 +43,8 @@ urlpatterns = [
     # Email verification — activates UserProfile.email_verified (gates plan
     # generation, not login). The registration email links here.
     path('verify-email/', views.VerifyEmailView.as_view(), name='verify-email'),
+    # Recovery: resend the verification email (e.g. first mail lost / enqueue failed).
+    path('resend-verification/', views.ResendVerificationView.as_view(), name='resend-verification'),
     
     # URL: /api/auth/refresh/
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
