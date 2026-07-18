@@ -21,8 +21,10 @@ export const Login = () => {
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  // verify-email endpoint redirects here with ?verified=1 (success) or ?verified=0 (bad/expired link)
+  const verifiedParam = searchParams.get('verified');
+  const [error, setError] = useState(verifiedParam === '0' ? 'Ověřovací odkaz je neplatný nebo už vypršel. Po přihlášení si můžete nechat poslat nový.' : '');
+  const [success, setSuccess] = useState(verifiedParam === '1' ? 'E-mail ověřen! Přihlaste se a vygenerujte si jídelníček.' : '');
   const [form, setForm] = useState({ username: '', email: '', password: '', passwordConfirm: '' });
 
   const urlError = searchParams.get('error');
@@ -38,19 +40,21 @@ export const Login = () => {
     },
     onError: (err: any) => {
       const msg = err.response?.data?.error;
-      setError(msg === 'Account pending verification' ? 'Check your email to verify your account before logging in.' : msg || 'Login failed');
+      if (msg === 'Invalid credentials') setError('Nesprávné jméno nebo heslo.');
+      else if (msg === 'Account pending verification') setError('Před přihlášením potvrďte svůj e-mail podle odkazu, který jsme vám poslali.');
+      else setError(msg || 'Přihlášení se nezdařilo. Zkuste to prosím znovu.');
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: (data: { username: string; email: string; password: string; passwordConfirm: string; attribution?: Attribution }) => axios.post('/api/auth/register/', data),
     onSuccess: () => {
-      setSuccess('Account created! Check your email to verify, then log in.');
+      setSuccess('Účet vytvořen! Přihlásit se můžete hned — pro generování jídelníčku pak potvrďte e-mail podle odkazu, který jsme vám poslali.');
       setError('');
       setMode('login');
       setForm(prev => ({ ...prev, password: '', passwordConfirm: '' }));
     },
-    onError: (err: any) => setError(err.response?.data?.error || 'Registration failed'),
+    onError: (err: any) => setError(err.response?.data?.error || 'Registrace se nezdařila. Zkuste to prosím znovu.'),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -58,7 +62,7 @@ export const Login = () => {
     setError('');
     setSuccess('');
     if (mode === 'register') {
-      if (form.password !== form.passwordConfirm) { setError('Passwords do not match'); return; }
+      if (form.password !== form.passwordConfirm) { setError('Hesla se neshodují.'); return; }
       const attribution: Attribution = {
         ...getStoredAttribution(),
         fbp: readCookie('_fbp'),

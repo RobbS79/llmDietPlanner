@@ -161,16 +161,16 @@ class RegistrationView(APIView):
             errs = e.errors()
             # Pydantic prefixes custom ValueError messages with "Value error, ";
             # strip it so the client sees the clean message.
-            msg = (errs[0].get('msg') if errs else '') or 'Invalid registration data'
+            msg = (errs[0].get('msg') if errs else '') or 'Neplatné registrační údaje.'
             msg = msg.replace('Value error, ', '')
             return Response({"status": "error", "data": None, "error": msg}, status=400)
 
         try:
             if User.objects.filter(username=schema.username).exists():
-                return Response({"status": "error", "data": None, "error": "Username already exists"}, status=400)
+                return Response({"status": "error", "data": None, "error": "Toto uživatelské jméno už existuje."}, status=400)
 
             if User.objects.filter(email=schema.email).exists():
-                return Response({"status": "error", "data": None, "error": "Email already registered"}, status=400)
+                return Response({"status": "error", "data": None, "error": "Tento e-mail je už zaregistrovaný."}, status=400)
 
             # Active immediately so the user can log in and explore. Email
             # verification (UserProfile.email_verified) is NOT a login gate — it
