@@ -839,7 +839,28 @@ class RecipeRefineView(APIView):
         }, status=200)
 
     def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool):
-        return Response({"status": "error", "error": "Not implemented"}, status=501)
+        try:
+            accept_id = int(request.data.get('accept'))
+        except (TypeError, ValueError):
+            return Response({"status": "error", "error": "Invalid accept id"}, status=400)
+        # Re-validate against the SAME eligibility gate the preview used — the
+        # corpus or plan may have changed between preview and accept, and a
+        # crafted id must never bypass slot/dietary rules.
+        exclude_ids = {current_id} if current_id else set()
+        candidates = eligible_recipes_for_slot(
+            ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=None,
+        )
+        chosen = next((r for r in candidates if r.id == accept_id), None)
+        if chosen is None:
+            return Response({"status": "error", "error": "Recipe not eligible for this slot"}, status=400)
+        recipe = _commit_slot_swap(
+            goal=ctx.goal, plan=ctx.plan, target_day=ctx.target_day, meal_type=ctx.meal_type,
+            meal_identifier=meal_identifier, chosen=chosen, user=request.user,
+        )
+        return Response({
+            "status": "success",
+            "data": {"replaced": True, "recipe": serialize_recipe_detail(recipe)},
+        }, status=200)
 
 
 class MealInstanceView(APIView):

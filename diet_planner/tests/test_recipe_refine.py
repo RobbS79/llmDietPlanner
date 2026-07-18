@@ -171,3 +171,70 @@ class PreviewTurnTest(RefineTestBase):
         other.force_authenticate(user=intruder)
         resp = other.post(self._url(), {'messages': USER_MSG, 'rejected_ids': []}, format='json')
         self.assertEqual(resp.status_code, 404)
+
+
+class AcceptTurnTest(RefineTestBase):
+    def test_accept_commits_the_swap_with_all_side_effects(self):
+        from django.utils import timezone
+        current = make_recipe(name_cs='Kuře s rýží')
+        other = make_recipe(name_cs='Hovězí guláš')
+        plan = self._plan_with_lunch(current)
+        ident = f'{self.goal.id}:1:lunch:0'
+        MealInstance.objects.create(
+            user=self.user, dietary_goal=self.goal, meal_identifier=ident,
+            meal_name='Kuře s rýží', day_number=1, meal_type='lunch',
+            is_cooked=True, cooked_at=timezone.now(),
+        )
+
+        resp = self.client.post(self._url(), {'accept': other.id}, format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        body = resp.data['data']
+        self.assertTrue(body['replaced'])
+        self.assertEqual(body['recipe']['name'], 'Hovězí guláš')
+        plan.refresh_from_db()
+        lunch = plan.days[0]['lunch']
+        self.assertEqual(lunch['curated_recipe_id'], other.id)
+        self.assertEqual(lunch['meal_identifier'], ident)
+        other.refresh_from_db()
+        self.assertEqual(other.usage_count, 1)
+        mi = MealInstance.objects.get(meal_identifier=ident, user=self.user)
+        self.assertFalse(mi.is_cooked)
+        self.assertIsNone(mi.cooked_at)
+
+    def test_accept_makes_no_llm_call(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        other = make_recipe(name_cs='Hovězí guláš')
+        self._plan_with_lunch(current)
+        with patch('diet_planner.views.refine_conversation') as m:
+            resp = self.client.post(self._url(), {'accept': other.id}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        m.assert_not_called()
+
+    def test_accept_rejects_ineligible_recipe_without_writing(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        # Wrong slot: breakfast-only recipe is NOT eligible for lunch.
+        breakfast_only = make_recipe(name_cs='Ovesná kaše', meal_types=['breakfast'])
+        plan = self._plan_with_lunch(current)
+        before = plan.days
+
+        resp = self.client.post(self._url(), {'accept': breakfast_only.id}, format='json')
+
+        self.assertEqual(resp.status_code, 400)
+        plan.refresh_from_db()
+        self.assertEqual(plan.days, before)
+        breakfast_only.refresh_from_db()
+        self.assertEqual(breakfast_only.usage_count, 0)
+
+    def test_accept_rejects_the_current_recipe_itself(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Hovězí guláš')
+        self._plan_with_lunch(current)
+        resp = self.client.post(self._url(), {'accept': current.id}, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_accept_rejects_garbage_id(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        self._plan_with_lunch(current)
+        resp = self.client.post(self._url(), {'accept': 'DROP TABLE'}, format='json')
+        self.assertEqual(resp.status_code, 400)
