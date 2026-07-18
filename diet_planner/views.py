@@ -728,6 +728,30 @@ _EMPHASIS_CZ = {
     'budget': 'úsporné',
 }
 
+# Cuisine slugs are curator-normalized English; the why-line is user-facing
+# Czech, so unknown slugs are dropped rather than leaked untranslated.
+_CUISINE_CZ = {
+    'czech': 'česká kuchyně',
+    'slovak': 'slovenská kuchyně',
+    'american': 'americká kuchyně',
+    'mediterranean': 'středomořská kuchyně',
+    'italian': 'italská kuchyně',
+    'asian': 'asijská kuchyně',
+    'mexican': 'mexická kuchyně',
+    'middle eastern': 'blízkovýchodní kuchyně',
+    'french': 'francouzská kuchyně',
+    'indian': 'indická kuchyně',
+    'thai': 'thajská kuchyně',
+    'greek': 'řecká kuchyně',
+    'spanish': 'španělská kuchyně',
+    'japanese': 'japonská kuchyně',
+    'chinese': 'čínská kuchyně',
+    'vietnamese': 'vietnamská kuchyně',
+    'balkan': 'balkánská kuchyně',
+    'german': 'německá kuchyně',
+    'international': 'mezinárodní kuchyně',
+}
+
 
 def _candidate_why(recipe, facets) -> str | None:
     """Czech 'why this candidate' line, derived IN CODE from which facets the
@@ -738,8 +762,9 @@ def _candidate_why(recipe, facets) -> str | None:
     parts: list = []
     tokens = _recipe_ingredient_tokens(recipe)
     parts += [w for w in sorted(facets.wanted_ingredients) if _ingredient_present(w, tokens)]
-    if recipe.cuisine and recipe.cuisine.lower() in facets.cuisines:
-        parts.append(recipe.cuisine.lower())
+    cuisine = (recipe.cuisine or '').strip().lower()
+    if cuisine in facets.cuisines and cuisine in _CUISINE_CZ:
+        parts.append(_CUISINE_CZ[cuisine])
     tags = set(recipe.dietary_tags or [])
     parts += [_EMPHASIS_CZ[e] for e in sorted(facets.emphases & tags) if e in _EMPHASIS_CZ]
     if 'quick' in facets.styles and recipe.total_time and recipe.total_time <= 20:

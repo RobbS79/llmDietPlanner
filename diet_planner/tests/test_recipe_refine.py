@@ -162,6 +162,33 @@ class PreviewTurnTest(RefineTestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data['data']['candidate']['curated_recipe_id'], other.id)
 
+    def test_cuisine_in_why_line_is_czech_never_raw_slug(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Svíčková', cuisine='czech')
+        self._plan_with_lunch(current)
+
+        facets = PromptFacets(cuisines={'czech'})
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview(USER_MSG)
+
+        why = resp.data['data']['candidate']['why']
+        self.assertEqual(why, 'Odpovídá: česká kuchyně')
+
+    def test_unknown_cuisine_slug_is_dropped_from_why_line(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Kimchi bowl', cuisine='korean')
+        self._plan_with_lunch(current)
+
+        facets = PromptFacets(cuisines={'korean'})
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview(USER_MSG)
+
+        # Matched on cuisine (hint honored) but the slug has no Czech label:
+        # better no why-line than an English leak.
+        body = resp.data['data']
+        self.assertTrue(body['hint_matched'])
+        self.assertIsNone(body['candidate']['why'])
+
     def test_other_users_meal_is_404(self):
         current = make_recipe(name_cs='Kuře')
         make_recipe(name_cs='Hovezí')
