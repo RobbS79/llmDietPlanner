@@ -53,6 +53,7 @@ from .services.recipe_retrieval import (
     scale_recipe_to_meal,
 )
 from .services.prompt_facets import extract_prompt_facets
+from .services.refine_chat import clamp_messages, refine_conversation
 from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
@@ -718,6 +719,127 @@ class RecipeReplaceView(APIView):
                 "recipe": serialize_recipe_detail(recipe),
             },
         }, status=200)
+
+
+_EMPHASIS_CZ = {
+    'high_protein': 'hodně bílkovin',
+    'low_carb': 'málo sacharidů',
+    'low_calorie': 'nízkokalorické',
+    'budget': 'úsporné',
+}
+
+
+def _candidate_why(recipe, facets) -> str | None:
+    """Czech 'why this candidate' line, derived IN CODE from which facets the
+    candidate actually matches — never LLM-written."""
+    if facets is None:
+        return None
+    from .services.recipe_retrieval import _ingredient_present, _recipe_ingredient_tokens
+    parts: list = []
+    tokens = _recipe_ingredient_tokens(recipe)
+    parts += [w for w in sorted(facets.wanted_ingredients) if _ingredient_present(w, tokens)]
+    if recipe.cuisine and recipe.cuisine.lower() in facets.cuisines:
+        parts.append(recipe.cuisine.lower())
+    tags = set(recipe.dietary_tags or [])
+    parts += [_EMPHASIS_CZ[e] for e in sorted(facets.emphases & tags) if e in _EMPHASIS_CZ]
+    if 'quick' in facets.styles and recipe.total_time and recipe.total_time <= 20:
+        parts.append('rychlé')
+    return f"Odpovídá: {', '.join(parts)}" if parts else None
+
+
+def _candidate_payload(recipe, facets) -> dict:
+    """Card-sized preview of a candidate. Rendered from scale_recipe_to_meal so
+    the fields match exactly what an accepted swap would write."""
+    meal = scale_recipe_to_meal(recipe)
+    return {
+        'curated_recipe_id': recipe.id,
+        'name': meal['name'],
+        'description': meal['description'],
+        'food_category': meal['food_category'],
+        'preparation_time': meal['preparation_time'],
+        'calories': (meal.get('nutritional_info') or {}).get('calories'),
+        'why': _candidate_why(recipe, facets),
+    }
+
+
+class RecipeRefineView(APIView):
+    """Conversational curated swap: preview candidates turn-by-turn, commit only
+    on accept. Preview turns make exactly one flash call (facets + Czech
+    follow-up question) and NEVER write; every candidate is a published
+    CuratedRecipe, so the catalog-mapping integrity bar is preserved.
+    Spec: docs/superpowers/specs/2026-07-18-recipe-refine-chat-design.md.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, meal_identifier: str) -> Response:
+        ctx, err = _locate_plan_slot(request.user, meal_identifier)
+        if err:
+            return err
+        goal = ctx.goal
+        required_tags = parse_dietary_tags(getattr(goal, 'dietary_restrictions', None))
+        current_id = ctx.current_meal.get('curated_recipe_id')
+        pool, used_recipe_ids, used_cuisines = _plan_swap_state(ctx.plan, current_id)
+
+        if request.data.get('accept') is not None:
+            return self._accept(
+                request, ctx=ctx, meal_identifier=meal_identifier,
+                required_tags=required_tags, current_id=current_id, pool=pool,
+            )
+
+        messages = clamp_messages(request.data.get('messages'))
+        rejected = {
+            int(i) for i in (request.data.get('rejected_ids') or [])
+            if isinstance(i, int) or (isinstance(i, str) and i.isdigit())
+        }
+        exclude_ids = ({current_id} if current_id else set()) | rejected
+
+        facets, question = refine_conversation(
+            messages, language=goal.language_code,
+            cuisine_vocab=published_cuisine_vocab(pool=pool),
+        )
+        hint_matched = None
+        if facets.is_empty():
+            # Mirrors the replace endpoint: empty facets (LLM failure or nothing
+            # extractable) match everything — report the pick as unsteered.
+            facets = None
+            hint_matched = False
+
+        def pick(active_facets):
+            candidates = eligible_recipes_for_slot(
+                ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
+            )
+            if not candidates:
+                return None
+            return max(candidates, key=lambda r: score_recipe(
+                r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines, facets=active_facets,
+            ))
+
+        chosen = pick(facets)
+        if facets is not None:
+            if chosen is None:
+                chosen = pick(None)
+                hint_matched = False
+            else:
+                hint_matched = True
+
+        if chosen is None:
+            return Response({
+                "status": "success",
+                "data": {"candidate": None, "question": None,
+                         "hint_matched": hint_matched, "reason": "no_alternatives"},
+            }, status=200)
+
+        return Response({
+            "status": "success",
+            "data": {
+                "candidate": _candidate_payload(chosen, facets),
+                "question": question,
+                "hint_matched": hint_matched,
+            },
+        }, status=200)
+
+    def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool):
+        return Response({"status": "error", "error": "Not implemented"}, status=501)
 
 
 class MealInstanceView(APIView):
