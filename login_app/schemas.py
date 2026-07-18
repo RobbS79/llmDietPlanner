@@ -38,18 +38,18 @@ class RegistrationRequest(BaseModel):
     def validate_password(cls, v: str) -> str:
         """Validate password meets requirements."""
         if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
+            raise ValueError("Heslo musí mít alespoň 8 znaků.")
         if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
+            raise ValueError("Heslo musí obsahovat alespoň jednu číslici.")
         if not any(c.isalpha() for c in v):
-            raise ValueError("Password must contain at least one letter")
+            raise ValueError("Heslo musí obsahovat alespoň jedno písmeno.")
         return v
     
     @model_validator(mode='after')
     def validate_password_match(self):
         """Validate password confirmation matches password."""
         if self.password != self.password_confirm:
-            raise ValueError("Passwords do not match")
+            raise ValueError("Hesla se neshodují.")
         return self
     
     class Config:
@@ -89,15 +89,15 @@ class PasswordResetConfirmSchema(BaseModel):
     @classmethod
     def validate_password(cls, v: str) -> str:
         if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
+            raise ValueError("Heslo musí obsahovat alespoň jednu číslici.")
         if not any(c.isalpha() for c in v):
-            raise ValueError("Password must contain at least one letter")
+            raise ValueError("Heslo musí obsahovat alespoň jedno písmeno.")
         return v
 
     @model_validator(mode='after')
     def validate_password_match(self):
         if self.password != self.password_confirm:
-            raise ValueError("Passwords do not match")
+            raise ValueError("Hesla se neshodují.")
         return self
 
     class Config:

@@ -61,7 +61,7 @@ class RegistrationTestCase(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data['status'], 'error')
-        self.assertIn('already exists', response.data['error'])
+        self.assertIn('už existuje', response.data['error'])
     
     def test_registration_duplicate_email(self):
         """Test registration with duplicate email."""
@@ -78,7 +78,7 @@ class RegistrationTestCase(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data['status'], 'error')
-        self.assertIn('already registered', response.data['error'])
+        self.assertIn('už zaregistrovaný', response.data['error'])
     
     def test_registration_password_mismatch(self):
         """Test registration with mismatched passwords."""
@@ -93,7 +93,7 @@ class RegistrationTestCase(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data['status'], 'error')
-        self.assertIn('do not match', response.data['error'])
+        self.assertIn('neshodují', response.data['error'])
     
     def test_registration_weak_password(self):
         """Test registration with weak password."""
