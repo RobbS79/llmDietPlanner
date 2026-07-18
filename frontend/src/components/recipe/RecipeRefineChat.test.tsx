@@ -31,7 +31,8 @@ async function send(text: string) {
 }
 
 describe('RecipeRefineChat', () => {
-  beforeEach(() => vi.clearAllMocks());
+  // resetAllMocks also drains mockResolvedValueOnce queues a failed test leaves behind.
+  beforeEach(() => vi.resetAllMocks());
 
   it('first turn shows the candidate card and the follow-up question', async () => {
     vi.mocked(refinePreview).mockResolvedValue({
@@ -152,5 +153,86 @@ describe('RecipeRefineChat', () => {
     const { onClose } = setup();
     await userEvent.click(screen.getByRole('button', { name: 'Zavřít' }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  describe('past suggestions stay clickable', () => {
+    const CANDIDATE2 = { ...CANDIDATE, curated_recipe_id: 8, name: 'Těstoviny', why: null };
+
+    /** Two preview turns: Kuřecí salát (7), then Těstoviny (8) active. */
+    async function twoTurns() {
+      vi.mocked(refinePreview)
+        .mockResolvedValueOnce({ candidate: CANDIDATE, question: null, hint_matched: true })
+        .mockResolvedValueOnce({ candidate: CANDIDATE2, question: null, hint_matched: true });
+      const cb = setup();
+      await send('něco s kuřecím');
+      await screen.findByText(/Co třeba: Kuřecí salát\?/);
+      await send('něco jiného');
+      await screen.findByText(/Co třeba: Těstoviny\?/);
+      return cb;
+    }
+
+    it('clicking a past suggestion line re-expands its card and collapses the displaced one', async () => {
+      await twoTurns();
+      const firstLine = screen.getByRole('button', { name: 'Zobrazit tento návrh' });
+      expect(firstLine).toHaveTextContent('Co třeba: Kuřecí salát?');
+      await userEvent.click(firstLine);
+      // The old candidate is the full card again…
+      expect(screen.getByText('Kuřecí salát')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Použít tento recept' })).toBeInTheDocument();
+      // …and the displaced candidate's line became clickable (symmetric swap).
+      expect(screen.getByRole('button', { name: 'Zobrazit tento návrh' }))
+        .toHaveTextContent('Co třeba: Těstoviny?');
+    });
+
+    it('accepting a re-expanded old suggestion commits the old id', async () => {
+      const { onAccepted } = await twoTurns();
+      vi.mocked(refineAccept).mockResolvedValue({ replaced: true, recipe: { name: 'Kuřecí salát' } });
+      await userEvent.click(screen.getByRole('button', { name: 'Zobrazit tento návrh' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Použít tento recept' }));
+      expect(refineAccept).toHaveBeenCalledWith(MEAL_ID, 7);
+      expect(onAccepted).toHaveBeenCalledWith({ name: 'Kuřecí salát' });
+    });
+
+    it('typing after re-expanding rejects the re-expanded candidate only', async () => {
+      await twoTurns();
+      vi.mocked(refinePreview).mockResolvedValueOnce({
+        candidate: { ...CANDIDATE, curated_recipe_id: 9, name: 'Polévka' },
+        question: null, hint_matched: true,
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Zobrazit tento návrh' }));
+      await send('ještě něco jiného');
+      const third = vi.mocked(refinePreview).mock.calls[2];
+      // 7 was re-expanded and is implicitly rejected again (no duplicate);
+      // 8 was displaced by a manual click, never rejected.
+      expect(third[2]).toEqual([7]);
+    });
+
+    it('past-suggestion lines remain clickable after the 8-message cap', async () => {
+      for (let i = 0; i < 8; i++) {
+        vi.mocked(refinePreview).mockResolvedValueOnce({
+          candidate: { ...CANDIDATE, curated_recipe_id: i + 1, name: `Recept ${i + 1}` },
+          question: null, hint_matched: true,
+        });
+      }
+      setup();
+      for (let i = 0; i < 8; i++) {
+        await send(`zpráva ${i}`);
+        await screen.findByText(new RegExp(`Co třeba: Recept ${i + 1}\\?`));
+      }
+      await screen.findByText('To je pro dnešek vše — vyberte si recept, nebo začněte znovu.');
+      const lines = screen.getAllByRole('button', { name: 'Zobrazit tento návrh' });
+      expect(lines).toHaveLength(7);
+      await userEvent.click(lines[0]);
+      expect(screen.getByText('Recept 1')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Použít tento recept' })).toBeInTheDocument();
+    });
+
+    it('refinePreview payload carries only {role, text} entries', async () => {
+      await twoTurns();
+      const second = vi.mocked(refinePreview).mock.calls[1];
+      for (const m of second[1]) {
+        expect(Object.keys(m).sort()).toEqual(['role', 'text']);
+      }
+    });
   });
 });
