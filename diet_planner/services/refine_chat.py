@@ -37,8 +37,12 @@ _SYSTEM_PROMPT_TEMPLATE = (
     '  "avoided_ingredients": ingredients the user wants to avoid;\n'
     '  "styles": e.g. quick, comfort, light;\n'
     '  "emphases": choose from high_protein, low_carb, low_calorie, budget;\n'
+    '  "dietary": diets the user REQUIRES (e.g. says they do not eat gluten), '
+    "choose from vegetarian, vegan, gluten_free, dairy_free, low_carb;\n"
     '  "question": one short question in Czech (max 15 words), or null when the '
     "conversation already gives enough signal.\n"
+    "Never repeat or rephrase a question already asked in the conversation "
+    "(assistant lines) — ask about a different aspect, or use null.\n"
     "The question must never mention prices, availability, or name a specific "
     "recipe. No prose, JSON only."
 )
@@ -65,6 +69,18 @@ def clamp_messages(messages) -> List[dict]:
     return clean
 
 
+def _question_already_asked(question: str, convo: List[dict]) -> bool:
+    """True when an assistant transcript line already contains this question
+    (case-folded, whitespace-normalized substring match)."""
+    norm = ' '.join(question.casefold().split())
+    for m in convo:
+        if m['role'] != 'assistant':
+            continue
+        if norm in ' '.join(m['text'].casefold().split()):
+            return True
+    return False
+
+
 def refine_conversation(
     messages: List[dict],
     *,
@@ -86,6 +102,10 @@ def refine_conversation(
         facets = _coerce_facets(data, cuisine_vocab=cuisine_vocab)
         q = data.get('question') if isinstance(data, dict) else None
         question = str(q).strip() if isinstance(q, str) and str(q).strip() else None
+        if question and _question_already_asked(question, convo):
+            # Belt to the prompt's no-repeat instruction: the model re-asking
+            # a transcript question is dropped rather than shown twice.
+            question = None
         return facets, question
     except Exception as exc:  # noqa: BLE001 - defensive by design
         logger.warning("Refine-chat extraction failed, using empty facets: %s", exc)

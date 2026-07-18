@@ -16,6 +16,10 @@ from typing import Callable, List, Optional, Set
 logger = logging.getLogger(__name__)
 
 
+# Dietary requirements the corpus can actually enforce (dietary_tags vocab).
+ENFORCEABLE_DIETARY_TAGS = {'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'low_carb'}
+
+
 @dataclass
 class PromptFacets:
     cuisines: Set[str] = field(default_factory=set)
@@ -23,11 +27,14 @@ class PromptFacets:
     avoided_ingredients: Set[str] = field(default_factory=set)
     styles: Set[str] = field(default_factory=set)
     emphases: Set[str] = field(default_factory=set)
+    # Restrictions stated in the text itself ("nejím lepek"); unlike the soft
+    # facets above these are enforced as a HARD gate and never relaxed.
+    dietary: Set[str] = field(default_factory=set)
 
     def is_empty(self) -> bool:
         return not (
             self.cuisines or self.wanted_ingredients or self.avoided_ingredients
-            or self.styles or self.emphases
+            or self.styles or self.emphases or self.dietary
         )
 
     def to_debug(self) -> dict:
@@ -37,6 +44,7 @@ class PromptFacets:
             'avoided_ingredients': sorted(self.avoided_ingredients),
             'styles': sorted(self.styles),
             'emphases': sorted(self.emphases),
+            'dietary': sorted(self.dietary),
         }
 
 
@@ -58,6 +66,7 @@ def _coerce_facets(data: dict, *, cuisine_vocab: List[str]) -> PromptFacets:
         avoided_ingredients=_clean_list(data.get('avoided_ingredients')),
         styles=_clean_list(data.get('styles')),
         emphases=_clean_list(data.get('emphases')),
+        dietary=_clean_list(data.get('dietary')) & ENFORCEABLE_DIETARY_TAGS,
     )
 
 

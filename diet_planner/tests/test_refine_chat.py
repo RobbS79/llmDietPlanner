@@ -97,6 +97,45 @@ class RefineConversationTest(SimpleTestCase):
         self.assertTrue(facets.is_empty())
         self.assertIsNone(question)
 
+    def test_dietary_restrictions_stated_in_chat_are_extracted(self):
+        def fake_gen(sp, ut):
+            return '{"dietary": ["gluten_free", "bogus_diet"], "question": null}'
+        facets, question = refine_conversation(
+            msgs(('user', 'nejím lepek')), language='cs', cuisine_vocab=[], generate=fake_gen,
+        )
+        self.assertEqual(facets.dietary, {'gluten_free'})
+        self.assertFalse(facets.is_empty())
+
+    def test_repeated_question_is_suppressed(self):
+        # The LLM re-asking a question already visible in the transcript is
+        # dropped to None — never show the user the same question twice.
+        q = 'Máte chuť na maso, nebo byste raději bezmasé jídlo?'
+        def fake_gen(sp, ut):
+            return '{"wanted_ingredients": ["kuřecí"], "question": "%s"}' % q
+        facets, question = refine_conversation(
+            msgs(
+                ('user', 'něco dobrého'),
+                ('assistant', f'Co třeba: Kulajda? {q}'),
+                ('user', 'něco s kuřecím'),
+            ),
+            language='cs', cuisine_vocab=[], generate=fake_gen,
+        )
+        self.assertEqual(facets.wanted_ingredients, {'kuřecí'})
+        self.assertIsNone(question)
+
+    def test_fresh_question_is_kept(self):
+        def fake_gen(sp, ut):
+            return '{"question": "Chcete to spíš rychlé?"}'
+        facets, question = refine_conversation(
+            msgs(
+                ('user', 'něco dobrého'),
+                ('assistant', 'Co třeba: Kulajda? Máte chuť na maso, nebo bezmasé?'),
+                ('user', 'jiné'),
+            ),
+            language='cs', cuisine_vocab=[], generate=fake_gen,
+        )
+        self.assertEqual(question, 'Chcete to spíš rychlé?')
+
     def test_no_user_messages_makes_no_llm_call(self):
         calls = []
         def spy(sp, ut):

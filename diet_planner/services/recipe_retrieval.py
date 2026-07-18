@@ -71,6 +71,44 @@ def parse_dietary_tags(text: Optional[str]) -> Set[str]:
     return {tag for needle, tag in _DIETARY_KEYWORDS.items() if needle in low}
 
 
+# Profile preference ids (login_app onboarding quiz) -> enforceable corpus tags.
+# high_protein is deliberately absent: it is a preference, not a restriction —
+# hard-gating it would starve the pool. Allergies without a corpus tag
+# (nuts/eggs/fish/soy) cannot be enforced yet and are skipped.
+_PROFILE_STYLE_TAGS = {
+    'vegetarian': 'vegetarian',
+    'vegan': 'vegan',
+    'gluten_free': 'gluten_free',
+    'keto': 'low_carb',
+}
+_PROFILE_ALLERGY_TAGS = {
+    'gluten': 'gluten_free',
+    'lactose': 'dairy_free',
+}
+
+
+def required_tags_for_goal(goal) -> Set[str]:
+    """The effective hard dietary gate for a goal: free-text restrictions on the
+    goal UNIONed with the user's live profile styles/allergies. Preferences the
+    user stored once apply everywhere (generation, replace, refine) without
+    re-stating them per plan; profile edits take effect immediately. Never
+    raises — any missing/malformed piece just contributes nothing."""
+    tags = parse_dietary_tags(getattr(goal, 'dietary_restrictions', None))
+    try:
+        prefs = goal.user.profile.dietary_preferences or {}
+    except AttributeError:
+        return tags
+    if not isinstance(prefs, dict):
+        return tags
+    styles = prefs.get('dietary_styles')
+    if isinstance(styles, list):
+        tags |= {_PROFILE_STYLE_TAGS[s] for s in styles if s in _PROFILE_STYLE_TAGS}
+    allergies = prefs.get('allergies')
+    if isinstance(allergies, list):
+        tags |= {_PROFILE_ALLERGY_TAGS[a] for a in allergies if a in _PROFILE_ALLERGY_TAGS}
+    return tags
+
+
 def published_pool(status: str = CuratedRecipe.Status.PUBLISHED) -> List[CuratedRecipe]:
     """All recipes of a status, loaded once. Membership in meal_types/dietary_tags
     is filtered in Python — JSONField `__contains` is unsupported on SQLite, and
@@ -234,7 +272,7 @@ def select_recipes_for_plan(
     'breakfast'/'lunch'/'dinner' or 'small_meal:N'/'snack:N'. Uncovered slots
     are simply absent — the caller falls back to the generated meal.
     """
-    required_tags = parse_dietary_tags(getattr(goal, 'dietary_restrictions', None))
+    required_tags = required_tags_for_goal(goal)
     num_days = int(getattr(goal, 'num_days', 7) or 7)
     small_n = int(getattr(goal, 'small_meals_per_day', 0) or 0)
     snack_n = int(getattr(goal, 'snacks_per_day', 0) or 0)

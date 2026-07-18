@@ -40,6 +40,7 @@ class CoerceFacetsTest(SimpleTestCase):
                 'avoided_ingredients': [],
                 'styles': [],
                 'emphases': ['high_protein'],
+                'dietary': [],
             },
         )
 
