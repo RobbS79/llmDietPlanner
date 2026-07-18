@@ -45,7 +45,7 @@ from .serializers import (
 from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
 from .services.recipe_retrieval import (
-    parse_dietary_tags,
+    required_tags_for_goal,
     published_pool,
     published_cuisine_vocab,
     eligible_recipes_for_slot,
@@ -659,7 +659,7 @@ class RecipeReplaceView(APIView):
             return err
 
         goal, plan = ctx.goal, ctx.plan
-        required_tags = parse_dietary_tags(getattr(goal, 'dietary_restrictions', None))
+        required_tags = required_tags_for_goal(goal)
         current_id = ctx.current_meal.get('curated_recipe_id')
         exclude_ids = {current_id} if current_id else set()
         pool, used_recipe_ids, used_cuisines = _plan_swap_state(plan, current_id)
@@ -801,7 +801,7 @@ class RecipeRefineView(APIView):
         if err:
             return err
         goal = ctx.goal
-        required_tags = parse_dietary_tags(getattr(goal, 'dietary_restrictions', None))
+        required_tags = required_tags_for_goal(goal)
         current_id = ctx.current_meal.get('curated_recipe_id')
         pool, used_recipe_ids, used_cuisines = _plan_swap_state(ctx.plan, current_id)
 

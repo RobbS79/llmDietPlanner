@@ -8,6 +8,7 @@ from diet_planner.services.recipe_retrieval import (
     eligible_recipes_for_slot,
     overlay_curated_recipes,
     parse_dietary_tags,
+    required_tags_for_goal,
     scale_recipe_to_meal,
     score_recipe,
     select_recipes_for_plan,
@@ -49,6 +50,59 @@ class ParseDietaryTagsTest(TestCase):
         self.assertIn('gluten_free', parse_dietary_tags('bezlepková dieta, celiakie'))
         self.assertEqual(parse_dietary_tags(''), set())
         self.assertEqual(parse_dietary_tags(None), set())
+
+
+class RequiredTagsForGoalTest(TestCase):
+    """Profile preferences must be enforced, not just collected: the effective
+    gate is goal.dietary_restrictions ∪ live profile styles/allergies."""
+
+    _seq = 0
+
+    def _goal(self, prefs=None, restrictions=''):
+        from django.contrib.auth import get_user_model
+        RequiredTagsForGoalTest._seq += 1
+        user = get_user_model().objects.create(username=f'tag-user-{self._seq}')
+        if prefs is not None:
+            profile = user.profile
+            profile.dietary_preferences = prefs
+            profile.save()
+        return SimpleNamespace(id=1, user=user, dietary_restrictions=restrictions)
+
+    def test_profile_style_gluten_free_is_enforced(self):
+        goal = self._goal({'dietary_styles': ['gluten_free'], 'allergies': ['none']})
+        self.assertEqual(required_tags_for_goal(goal), {'gluten_free'})
+
+    def test_profile_styles_map_to_corpus_tags(self):
+        goal = self._goal({'dietary_styles': ['vegetarian', 'keto']})
+        self.assertEqual(required_tags_for_goal(goal), {'vegetarian', 'low_carb'})
+
+    def test_profile_allergies_map_to_corpus_tags(self):
+        goal = self._goal({'dietary_styles': ['none'], 'allergies': ['lactose', 'gluten']})
+        self.assertEqual(required_tags_for_goal(goal), {'dairy_free', 'gluten_free'})
+
+    def test_high_protein_style_is_not_a_hard_gate(self):
+        # A preference, not a restriction — hard-gating it would starve the pool.
+        goal = self._goal({'dietary_styles': ['high_protein']})
+        self.assertEqual(required_tags_for_goal(goal), set())
+
+    def test_unenforceable_allergies_add_nothing(self):
+        # No corpus tags exist for these; silently unenforced (documented gap).
+        goal = self._goal({'allergies': ['nuts', 'eggs', 'fish', 'soy']})
+        self.assertEqual(required_tags_for_goal(goal), set())
+
+    def test_unions_with_restrictions_text(self):
+        goal = self._goal({'dietary_styles': ['gluten_free']}, restrictions='vegan prosím')
+        self.assertEqual(required_tags_for_goal(goal), {'vegan', 'gluten_free'})
+
+    def test_goal_without_user_or_profile_falls_back_to_restrictions(self):
+        bare = SimpleNamespace(id=1, dietary_restrictions='bezlepková dieta')
+        self.assertEqual(required_tags_for_goal(bare), {'gluten_free'})
+
+    def test_malformed_preferences_never_raise(self):
+        goal = self._goal('not-a-dict')
+        self.assertEqual(required_tags_for_goal(goal), set())
+        goal2 = self._goal({'dietary_styles': 'gluten_free'})  # str, not list
+        self.assertEqual(required_tags_for_goal(goal2), set())
 
 
 class HardGateTest(TestCase):

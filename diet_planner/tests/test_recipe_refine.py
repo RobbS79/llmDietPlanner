@@ -200,6 +200,50 @@ class PreviewTurnTest(RefineTestBase):
         self.assertEqual(resp.status_code, 404)
 
 
+class ProfilePreferencesGateTest(RefineTestBase):
+    """Profile dietary preferences must constrain refine candidates — the user
+    set them once; every surface honors them (no re-stating in chat needed)."""
+
+    def _set_profile_styles(self, styles):
+        profile = self.user.profile
+        profile.dietary_preferences = {'dietary_styles': styles, 'allergies': ['none']}
+        profile.save()
+
+    def test_preview_offers_only_profile_compatible_candidates(self):
+        self._set_profile_styles(['gluten_free'])
+        current = make_recipe(name_cs='Kuře s rýží', dietary_tags=['gluten_free'])
+        make_recipe(name_cs='Zapečené těstoviny')  # not gluten-free
+        self._plan_with_lunch(current)
+
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(PromptFacets(), None)):
+            resp = self._preview(USER_MSG)
+
+        # The only alternative violates the profile → honest no-alternatives,
+        # never a gluten dish for a gluten-free profile.
+        self.assertIsNone(resp.data['data']['candidate'])
+        self.assertEqual(resp.data['data']['reason'], 'no_alternatives')
+
+        safe = make_recipe(name_cs='Rizoto', dietary_tags=['gluten_free'])
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(PromptFacets(), None)):
+            resp = self._preview(USER_MSG)
+        self.assertEqual(resp.data['data']['candidate']['curated_recipe_id'], safe.id)
+
+    def test_accept_rejects_profile_incompatible_recipe(self):
+        self._set_profile_styles(['gluten_free'])
+        current = make_recipe(name_cs='Kuře s rýží', dietary_tags=['gluten_free'])
+        gluten = make_recipe(name_cs='Zapečené těstoviny')
+        plan = self._plan_with_lunch(current)
+        before = plan.days
+
+        resp = self.client.post(self._url(), {'accept': gluten.id}, format='json')
+
+        self.assertEqual(resp.status_code, 400)
+        plan.refresh_from_db()
+        self.assertEqual(plan.days, before)
+
+
 class AcceptTurnTest(RefineTestBase):
     def test_accept_commits_the_swap_with_all_side_effects(self):
         from django.utils import timezone
