@@ -135,4 +135,22 @@ describe('RecipeRefineChat', () => {
     expect(screen.getByPlaceholderText('Napište, na co máte chuť…')).toHaveValue('něco s kuřecím');
     expect(refinePreview).toHaveBeenCalledTimes(1);
   });
+
+  it('Enter key sends the message', async () => {
+    vi.mocked(refinePreview).mockResolvedValue({
+      candidate: CANDIDATE, question: null, hint_matched: true,
+    });
+    setup();
+    await userEvent.type(
+      screen.getByPlaceholderText('Napište, na co máte chuť…'), 'něco s kuřecím{enter}',
+    );
+    expect(await screen.findByText(/Co třeba: Kuřecí salát\?/)).toBeInTheDocument();
+    expect(refinePreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('Zavřít calls onClose', async () => {
+    const { onClose } = setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Zavřít' }));
+    expect(onClose).toHaveBeenCalled();
+  });
 });

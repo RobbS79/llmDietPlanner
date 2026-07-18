@@ -112,7 +112,7 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
               key={idx}
               className={m.role === 'user'
                 ? 'ml-8 rounded-xl bg-green-soft px-4 py-2 text-sm text-ink'
-                : 'mr-8 rounded-xl bg-bg border border-line px-4 py-2 text-sm text-muted'}
+                : 'mr-8 rounded-xl bg-paper border border-line px-4 py-2 text-sm text-muted'}
             >
               {m.text}
             </li>
@@ -121,7 +121,7 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
       )}
 
       {candidate && (
-        <div className="rounded-xl border border-green/40 bg-bg p-4 mb-4">
+        <div className="rounded-xl border border-green/40 bg-paper p-4 mb-4">
           {imgUrl && (
             <img src={imgUrl} alt={candidate.name} className="w-full h-32 object-cover rounded-lg mb-3" />
           )}
@@ -165,8 +165,9 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
             placeholder="Napište, na co máte chuť…"
+            aria-label="Napište, na co máte chuť…"
             disabled={pending}
-            className="flex-1 h-11 px-4 bg-bg border border-line rounded-xl text-sm text-ink placeholder:text-muted focus:border-green/60 focus:outline-none disabled:opacity-60"
+            className="flex-1 h-11 px-4 bg-paper border border-line rounded-xl text-sm text-ink placeholder:text-muted focus:border-green/60 focus:outline-none disabled:opacity-60"
           />
           <button
             onClick={send}
