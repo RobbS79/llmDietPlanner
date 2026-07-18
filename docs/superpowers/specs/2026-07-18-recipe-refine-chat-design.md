@@ -23,7 +23,7 @@ selection.
 | Entry point | Replaces the existing one-shot hint panel behind the "Vyměnit recept" button |
 | Follow-up questions | LLM-generated in Czech (not a fixed question bank) |
 | Architecture | Stateless backend, one combined Gemini flash call per turn, no new DB models |
-| Conversation cap | **8 messages total** (4 user + 4 assistant turns) |
+| Conversation cap | **8 user messages** (up to 16 messages total incl. assistant turns) |
 
 ## Architecture
 
@@ -45,8 +45,9 @@ Request:
 
 Flow:
 
-1. Server truncates `messages` to the last 8 entries (hard cap; also the
-   frontend never sends more — see UI section).
+1. Server rejects/truncates histories containing more than 8 user messages
+   (keeps the last 16 entries total; the frontend never sends more — see UI
+   section).
 2. One Gemini flash call (`gemini-2.5-flash`, same model setting as
    `extract_prompt_facets`) receives the conversation and returns JSON:
    - `facets` — cumulative structured facets over the *whole* conversation,
@@ -109,7 +110,7 @@ cache-swap logic is reused.
   2. The assistant's follow-up question (omitted when `question` is null).
 - Typing a new message implicitly rejects the currently shown candidate (its id
   is appended to `rejectedIds`).
-- **8-message cap:** once the conversation holds 8 messages, the input is
+- **8-user-message cap:** once the user has sent 8 messages, the input is
   disabled and the chat shows a closing prompt — accept the shown candidate or
   "Začít znovu" (start over), which clears all state and restarts.
 - Accept: calls the endpoint's accept mode, then performs the same react-query
@@ -136,7 +137,7 @@ cache-swap logic is reused.
 - Accept commits: `Recipe` updated in place, `plan.days` rewritten,
   `is_cooked` reset.
 - `rejected_ids` and current recipe excluded from selection.
-- History truncation to 8 messages.
+- History cap: more than 8 user messages → truncated to the last 16 entries.
 - Ownership: foreign user's meal id → 404/403.
 
 **Frontend (vitest, existing CI gate):**
