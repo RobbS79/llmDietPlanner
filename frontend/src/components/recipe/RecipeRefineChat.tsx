@@ -166,6 +166,7 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
             onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
             placeholder="Napište, na co máte chuť…"
             aria-label="Napište, na co máte chuť…"
+            maxLength={500}
             disabled={pending}
             className="flex-1 h-11 px-4 bg-paper border border-line rounded-xl text-sm text-ink placeholder:text-muted focus:border-green/60 focus:outline-none disabled:opacity-60"
           />
