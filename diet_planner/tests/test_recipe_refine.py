@@ -71,7 +71,7 @@ class PreviewTurnTest(RefineTestBase):
         body = resp.data['data']
         self.assertEqual(body['candidate']['curated_recipe_id'], chicken.id)
         self.assertEqual(body['candidate']['name'], 'Kuřecí salát')
-        self.assertEqual(body['candidate']['why'], 'Odpovídá: kuřecí')
+        self.assertEqual(body['candidate']['why'], 'Odpovídá: kuřecí prsa')
         self.assertEqual(body['question'], 'Chcete to spíš rychlé?')
         self.assertTrue(body['hint_matched'])
         # PREVIEW MUST NOT WRITE: plan untouched, no Recipe row churn,
@@ -242,6 +242,55 @@ class ProfilePreferencesGateTest(RefineTestBase):
         self.assertEqual(resp.status_code, 400)
         plan.refresh_from_db()
         self.assertEqual(plan.days, before)
+
+
+class ChatStatedRestrictionsTest(RefineTestBase):
+    def test_chat_dietary_is_a_hard_gate_never_relaxed_by_fallback(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Zapečené těstoviny')  # not gluten-free
+        self._plan_with_lunch(current)
+
+        facets = PromptFacets(dietary={'gluten_free'})
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview([{'role': 'user', 'text': 'nejím lepek'}])
+
+        # "nejím lepek" must NOT degrade to offering a gluten dish.
+        body = resp.data['data']
+        self.assertIsNone(body['candidate'])
+        self.assertEqual(body['reason'], 'no_alternatives')
+
+    def test_chat_dietary_offers_compatible_candidate(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Zapečené těstoviny')
+        safe = make_recipe(name_cs='Rizoto', dietary_tags=['gluten_free'])
+        self._plan_with_lunch(current)
+
+        facets = PromptFacets(dietary={'gluten_free'})
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview([{'role': 'user', 'text': 'nejím lepek'}])
+
+        body = resp.data['data']
+        self.assertEqual(body['candidate']['curated_recipe_id'], safe.id)
+        self.assertTrue(body['hint_matched'])
+
+
+class WhyLineIngredientTest(RefineTestBase):
+    def test_why_line_shows_recipe_ingredient_not_facet_token(self):
+        # The LLM normalizes "testoviny" -> token "pasta"; the user must see
+        # the recipe's actual Czech ingredient, never the internal token.
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Boloňské špagety', ingredients=[
+            {'name': 'těstoviny penne', 'quantity': 100, 'unit': 'g', 'canonical': 'pasta-penne'},
+        ])
+        self._plan_with_lunch(current)
+
+        facets = PromptFacets(wanted_ingredients={'pasta'})
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview(USER_MSG)
+
+        why = resp.data['data']['candidate']['why']
+        self.assertEqual(why, 'Odpovídá: těstoviny penne')
+        self.assertNotIn('pasta', why)
 
 
 class AcceptTurnTest(RefineTestBase):

@@ -753,15 +753,28 @@ _CUISINE_CZ = {
 }
 
 
+def _matched_ingredient_names(recipe, wanted) -> list:
+    """The recipe's own (Czech) ingredient names that match wanted-ingredient
+    tokens. The LLM normalizes tokens (often to English, e.g. 'pasta'); the
+    user must see the real ingredient, never the internal token."""
+    names: list = []
+    for w in sorted(wanted):
+        for ing in (recipe.ingredients or []):
+            name = str(ing.get('name') or '').strip()
+            canonical = str(ing.get('canonical') or '').strip().lower()
+            if name and (w in name.lower() or w in canonical) and name not in names:
+                names.append(name)
+                break
+    return names
+
+
 def _candidate_why(recipe, facets) -> str | None:
     """Czech 'why this candidate' line, derived IN CODE from which facets the
     candidate actually matches — never LLM-written."""
     if facets is None:
         return None
-    from .services.recipe_retrieval import _ingredient_present, _recipe_ingredient_tokens
     parts: list = []
-    tokens = _recipe_ingredient_tokens(recipe)
-    parts += [w for w in sorted(facets.wanted_ingredients) if _ingredient_present(w, tokens)]
+    parts += _matched_ingredient_names(recipe, facets.wanted_ingredients)
     cuisine = (recipe.cuisine or '').strip().lower()
     if cuisine in facets.cuisines and cuisine in _CUISINE_CZ:
         parts.append(_CUISINE_CZ[cuisine])
@@ -822,6 +835,10 @@ class RecipeRefineView(APIView):
             messages, language=goal.language_code,
             cuisine_vocab=published_cuisine_vocab(pool=pool),
         )
+        # Restrictions stated IN the chat ("nejím lepek") join the profile/goal
+        # gate as HARD requirements — used by both picks below, so the
+        # unmatched-facets fallback can never relax them.
+        required_tags = required_tags | facets.dietary
         hint_matched = None
         if facets.is_empty():
             # Mirrors the replace endpoint: empty facets (LLM failure or nothing
