@@ -108,6 +108,22 @@ class DietaryGoalCreateView(APIView):
             # Free path: the lifetime free-generation counter (unchanged).
             # Neither -> hard 402 (the paywall that did not exist before).
             profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+            # Email-verification gate: only verified users may generate a plan.
+            # Registration lets users log in immediately (is_active=True); email
+            # verification (login_app VerifyEmailView) unlocks the core action.
+            # Google-OAuth users are marked email_verified on login.
+            if not profile.email_verified:
+                return Response(
+                    {
+                        "status": "error",
+                        "code": "EMAIL_NOT_VERIFIED",
+                        "error": "Než vygenerujete jídelníček, potvrďte prosím svou e-mailovou adresu "
+                                 "podle odkazu v e-mailu, který jsme vám poslali.",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             subscription = active_subscription(request.user)
             is_paid_generation = bool(subscription and subscription.within_monthly_quota())
             is_free_generation = (not is_paid_generation) and profile.has_free_generations()
@@ -323,6 +339,23 @@ class AdminRetryGoalView(APIView):
             goal.error_message = request.data.get('reason', 'Manually marked as failed by admin')
             goal.save(update_fields=['status', 'error_message'])
             return Response({"status": "success", "data": {"goal_id": goal_id, "new_status": "failed"}})
+
+        # A retry re-runs the LLM plan generation, so it must carry the SAME
+        # email-verification gate as first-time generation — otherwise an
+        # unverified user could draft a goal (draft path is un-gated) and then
+        # "retry" it to bypass the gate. Staff bypass for support/debugging.
+        if not request.user.is_staff:
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            if not profile.email_verified:
+                return Response(
+                    {
+                        "status": "error",
+                        "code": "EMAIL_NOT_VERIFIED",
+                        "error": "Než vygenerujete jídelníček, potvrďte prosím svou e-mailovou adresu "
+                                 "podle odkazu v e-mailu, který jsme vám poslali.",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         goal.status = DietaryGoal.StatusChoices.PENDING
         goal.error_message = ''

@@ -13,10 +13,13 @@ class GoalCreateDefaultsTests(TestCase):
         self.user = get_user_model().objects.create_user(
             username='u1', email='u1@example.com', password='pw'
         )
-        # Give the user a free generation so creation isn't blocked by the paywall.
+        # Give the user a free generation so creation isn't blocked by the
+        # paywall, and mark the email verified so the verification gate allows
+        # generation.
         profile, _ = UserProfile.objects.get_or_create(user=self.user)
         profile.free_generations_remaining = max(profile.free_generations_remaining, 1)
-        profile.save(update_fields=['free_generations_remaining'])
+        profile.email_verified = True
+        profile.save(update_fields=['free_generations_remaining', 'email_verified'])
         self.client = APIClient()
         self.client.force_authenticate(self.user)
 
@@ -35,3 +38,25 @@ class GoalCreateDefaultsTests(TestCase):
         goal = DietaryGoal.objects.get(id=resp.json()['data']['goal_id'])
         self.assertEqual(goal.shop, 'ROHLIK')
         self.assertEqual(goal.store_mode, 'single')
+
+    def test_unverified_email_blocks_generation(self):
+        # A user who has not verified their email cannot generate a plan; the
+        # request is refused before any goal is created.
+        UserProfile.objects.filter(user=self.user).update(email_verified=False)
+        resp = self.client.post('/api/goals/', self._payload(), format='json')
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertEqual(resp.json().get('code'), 'EMAIL_NOT_VERIFIED')
+        self.assertFalse(DietaryGoal.objects.filter(user=self.user).exists())
+
+    def test_unverified_email_blocks_retry_bypass(self):
+        # Draft-then-retry must not bypass the verification gate: a goal created
+        # via the un-gated draft path cannot be pushed through generation by an
+        # unverified user via the retry endpoint.
+        UserProfile.objects.filter(user=self.user).update(email_verified=False)
+        goal = DietaryGoal.objects.create(
+            user=self.user, prompt='draft', country='CZ',
+            status=DietaryGoal.StatusChoices.PENDING,
+        )
+        resp = self.client.post(f'/api/goals/{goal.id}/admin-retry/', {'action': 'retry'}, format='json')
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertEqual(resp.json().get('code'), 'EMAIL_NOT_VERIFIED')
