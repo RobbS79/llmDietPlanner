@@ -71,6 +71,7 @@ class PreviewTurnTest(RefineTestBase):
         body = resp.data['data']
         self.assertEqual(body['candidate']['curated_recipe_id'], chicken.id)
         self.assertEqual(body['candidate']['name'], 'Kuřecí salát')
+        self.assertEqual(body['candidate']['why'], 'Odpovídá: kuřecí')
         self.assertEqual(body['question'], 'Chcete to spíš rychlé?')
         self.assertTrue(body['hint_matched'])
         # PREVIEW MUST NOT WRITE: plan untouched, no Recipe row churn,
@@ -107,6 +108,7 @@ class PreviewTurnTest(RefineTestBase):
         self.assertEqual(body['candidate']['curated_recipe_id'], other.id)
         self.assertFalse(body['hint_matched'])
         self.assertIsNone(body['question'])
+        self.assertIsNone(body['candidate']['why'])
 
     def test_unmatchable_facets_fall_back_to_next_best(self):
         current = make_recipe(name_cs='Kuře s rýží')
@@ -149,6 +151,16 @@ class PreviewTurnTest(RefineTestBase):
         passed = m.call_args.args[0]
         self.assertLessEqual(len(passed), 16)
         self.assertLessEqual(sum(1 for x in passed if x['role'] == 'user'), 8)
+
+    def test_oversized_rejected_id_string_is_ignored_not_500(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        other = make_recipe(name_cs='Hovězí guláš')
+        self._plan_with_lunch(current)
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(PromptFacets(), None)):
+            resp = self._preview(USER_MSG, rejected_ids=['9' * 5000])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['data']['candidate']['curated_recipe_id'], other.id)
 
     def test_other_users_meal_is_404(self):
         current = make_recipe(name_cs='Kuře')

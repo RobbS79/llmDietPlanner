@@ -789,7 +789,7 @@ class RecipeRefineView(APIView):
         messages = clamp_messages(request.data.get('messages'))
         rejected = {
             int(i) for i in (request.data.get('rejected_ids') or [])
-            if isinstance(i, int) or (isinstance(i, str) and i.isdigit())
+            if isinstance(i, int) or (isinstance(i, str) and i.isdigit() and len(i) <= 18)
         }
         exclude_ids = ({current_id} if current_id else set()) | rejected
 
