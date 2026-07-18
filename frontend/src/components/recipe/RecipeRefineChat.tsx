@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Flame, Loader2, Send } from 'lucide-react';
+import { ChevronRight, Clock, Flame, Loader2, Send } from 'lucide-react';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -10,6 +10,13 @@ import {
 } from '@/lib/refineRecipe';
 
 const MAX_USER_MESSAGES = 8;
+
+/** Local transcript entry: assistant turns keep their suggestion attached so a
+ * past suggestion can be re-expanded by clicking its line. Never sent to the
+ * backend — the preview payload is mapped down to `{role, text}`. */
+interface LocalMessage extends ChatMessage {
+  candidate?: RefineCandidate;
+}
 
 interface RecipeRefineChatProps {
   mealId: string;
@@ -28,7 +35,7 @@ const assistantText = (c: RefineCandidate, question: string | null, matched: boo
 
 export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineChatProps) => {
   const toast = useToast();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [candidate, setCandidate] = useState<RefineCandidate | null>(null);
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
   const [noAlternatives, setNoAlternatives] = useState(false);
@@ -49,9 +56,12 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
   const send = async () => {
     const text = input.trim();
     if (!text || pending || capReached) return;
-    // Typing a new message implicitly rejects the currently shown candidate.
-    const nextRejected = candidate ? [...rejectedIds, candidate.curated_recipe_id] : rejectedIds;
-    const nextMessages: ChatMessage[] = [...messages, { role: 'user', text }];
+    // Typing a new message implicitly rejects the currently active candidate.
+    // A re-expanded candidate may already be in the list — don't duplicate it.
+    const nextRejected = candidate && !rejectedIds.includes(candidate.curated_recipe_id)
+      ? [...rejectedIds, candidate.curated_recipe_id]
+      : rejectedIds;
+    const nextMessages: LocalMessage[] = [...messages, { role: 'user', text }];
     setMessages(nextMessages);
     setRejectedIds(nextRejected);
     setCandidate(null);
@@ -59,7 +69,9 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
     setNoAlternatives(false);
     setPending(true);
     try {
-      const r = await refinePreview(mealId, nextMessages, nextRejected);
+      // Map down to the wire shape — attached card data never leaves the client.
+      const wireMessages: ChatMessage[] = nextMessages.map(({ role, text }) => ({ role, text }));
+      const r = await refinePreview(mealId, wireMessages, nextRejected);
       if (!r.candidate) {
         setNoAlternatives(true);
         return;
@@ -67,7 +79,11 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
       setCandidate(r.candidate);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', text: assistantText(r.candidate!, r.question, r.hint_matched) },
+        {
+          role: 'assistant',
+          text: assistantText(r.candidate!, r.question, r.hint_matched),
+          candidate: r.candidate!,
+        },
       ]);
     } catch {
       // Roll back the turn so it isn't burned from the 8-message budget, and
@@ -107,16 +123,36 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
 
       {messages.length > 0 && (
         <ul className="space-y-2 mb-4">
-          {messages.map((m, idx) => (
-            <li
-              key={idx}
-              className={m.role === 'user'
-                ? 'ml-8 rounded-xl bg-green-soft px-4 py-2 text-sm text-ink'
-                : 'mr-8 rounded-xl bg-paper border border-line px-4 py-2 text-sm text-muted'}
-            >
-              {m.text}
-            </li>
-          ))}
+          {messages.map((m, idx) => {
+            const pastSuggestion = m.candidate != null
+              && m.candidate.curated_recipe_id !== candidate?.curated_recipe_id;
+            if (pastSuggestion) {
+              return (
+                <li key={idx} className="mr-8">
+                  <button
+                    type="button"
+                    onClick={() => setCandidate(m.candidate!)}
+                    disabled={pending}
+                    aria-label="Zobrazit tento návrh"
+                    className="w-full flex items-center justify-between gap-2 text-left rounded-xl bg-paper border border-line px-4 py-2 text-sm text-muted hover:border-green/60 hover:text-ink disabled:opacity-60"
+                  >
+                    <span>{m.text}</span>
+                    <ChevronRight size={14} className="shrink-0 text-green" />
+                  </button>
+                </li>
+              );
+            }
+            return (
+              <li
+                key={idx}
+                className={m.role === 'user'
+                  ? 'ml-8 rounded-xl bg-green-soft px-4 py-2 text-sm text-ink'
+                  : 'mr-8 rounded-xl bg-paper border border-line px-4 py-2 text-sm text-muted'}
+              >
+                {m.text}
+              </li>
+            );
+          })}
         </ul>
       )}
 
