@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, Quote, Heart, Target, Wallet, Lightbulb, Search, SlidersHorizontal } from 'lucide-react';
+import { ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, Heart, Target, Wallet, Lightbulb, Search, SlidersHorizontal } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { Receipt } from '@/components/ui/Receipt';
 import { captureAttribution } from '@/lib/analytics';
@@ -105,46 +105,13 @@ export const Landing = () => {
         <div className="px-6 sm:px-12 py-12 max-w-7xl mx-auto">
           <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
             {[
-              { value: '500+', label: 'Vygenerovaných plánů' },
+              { value: '300+', label: 'Prověřených receptů' },
               { value: 'Kalorie a makra', label: 'U každého jídla' },
-              { value: '<60s', label: 'Čas generování' },
+              { value: 'Nákupní seznam', label: 'Ke každému receptu' },
             ].map((stat) => (
               <div key={stat.label}>
                 <p className="font-display text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{stat.value}</p>
                 <p className="text-xs font-semibold text-muted mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="bg-paper">
-        <div className="px-6 sm:px-12 py-20 max-w-7xl mx-auto">
-          <div className="grid sm:grid-cols-3 gap-6">
-            {[
-              {
-                quote: 'Zhubl jsem 3 kg za měsíc bez hladovění. Aplikace mi přesně spočítá kalorie a vybere recepty, co mě baví.',
-                name: 'Tomáš K.',
-                location: 'Bratislava',
-              },
-              {
-                quote: 'Dřív jsem nad jídelníčkem strávila 2 hodiny týdně. Teď mám za minutu hotový plán i nákupní seznam ke každému receptu. Ušetřím čas i nervy.',
-                name: 'Kateřina S.',
-                location: 'Brno',
-              },
-              {
-                quote: 'Konečně dopředu vím, co budu vařit. Nákup mám vyřešený za pár minut a rovnou vidím, co je zrovna ve slevě.',
-                name: 'Marek T.',
-                location: 'Praha',
-              },
-            ].map((t) => (
-              <div key={t.name} className="bg-card border border-line rounded-2xl p-8">
-                <Quote size={20} className="text-green/40 mb-4" />
-                <p className="text-sm text-muted leading-relaxed mb-6">{t.quote}</p>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-ink">{t.name}, {t.location}</span>
-                </div>
               </div>
             ))}
           </div>

@@ -185,7 +185,7 @@ export const Login = () => {
           <GoogleIcon /> Pokračovat přes Google
         </button>
 
-        <p className="text-center text-[10px] text-muted mt-6">Přidejte se k 500+ lidem, kteří už plánují chytřeji.</p>
+        <p className="text-center text-[10px] text-muted mt-6">Jídelníček na míru zdarma — hotový za pár minut.</p>
       </div>
     </div>
   );
