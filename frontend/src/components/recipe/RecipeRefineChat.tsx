@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, Clock, Flame, Loader2, Send } from 'lucide-react';
+import { ChevronRight, Clock, Flame, Loader2, MessageCircle, Send } from 'lucide-react';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -10,6 +10,10 @@ import {
 } from '@/lib/refineRecipe';
 
 const MAX_USER_MESSAGES = 8;
+
+// One-tap starters for the empty chat — the fastest way to teach that this is
+// a conversation about the current meal, not a form field.
+const QUICK_PROMPTS = ['Něco bez masa', 'Něco rychlejšího', 'Něco lehčího'];
 
 /** Local transcript entry: assistant turns keep their suggestion attached so a
  * past suggestion can be re-expanded by clicking its line. Never sent to the
@@ -53,8 +57,8 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
     setInput('');
   };
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (rawText?: string) => {
+    const text = (rawText ?? input).trim();
     if (!text || pending || capReached) return;
     // Typing a new message implicitly rejects the currently active candidate.
     // A re-expanded candidate may already be in the list — don't duplicate it.
@@ -119,7 +123,31 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
 
   return (
     <div className="rounded-2xl border border-line bg-card p-5 max-w-xl">
-      <p className="text-sm font-bold text-ink mb-3">Na co máte chuť? Poradíme vám s výběrem.</p>
+      <p className="flex items-center gap-2 text-sm font-bold text-ink mb-3">
+        <MessageCircle size={16} className="text-green" /> Chat s asistentem
+      </p>
+
+      {messages.length === 0 && (
+        <>
+          <div className="mr-8 rounded-xl bg-paper border border-line px-4 py-3 text-sm text-muted mb-3">
+            Napište mi, na co máte chuť, co vám na tomhle jídle nevyhovuje nebo co
+            máte doma v lednici — a navrhnu vám jinou variantu.
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {QUICK_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => send(prompt)}
+                disabled={pending}
+                className="h-10 px-4 rounded-full border border-line bg-paper text-sm font-semibold text-ink hover:border-green/60 hover:text-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 disabled:opacity-60 transition-colors"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {messages.length > 0 && (
         <ul className="space-y-2 mb-4">
@@ -199,7 +227,7 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void send(); }}
             placeholder="Napište, na co máte chuť…"
             aria-label="Napište, na co máte chuť…"
             maxLength={500}
@@ -207,10 +235,10 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
             className="flex-1 h-11 px-4 bg-paper border border-line rounded-xl text-sm text-ink placeholder:text-muted focus:border-green/60 focus:outline-none disabled:opacity-60"
           />
           <button
-            onClick={send}
+            onClick={() => send()}
             disabled={pending}
             aria-label="Odeslat"
-            className="w-11 h-11 flex items-center justify-center bg-green text-white rounded-xl disabled:opacity-60"
+            className="w-11 h-11 flex items-center justify-center bg-green text-white rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:ring-offset-2 disabled:opacity-60"
           >
             {pending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>

@@ -47,11 +47,8 @@ export const RecipeIngredients = ({
   const eyebrowCls = paper
     ? 'text-[11px] font-bold text-muted uppercase tracking-[0.12em]'
     : 'text-[9px] font-black text-muted uppercase tracking-widest italic';
-  const dotCls = paper ? 'bg-green' : 'bg-green';
   const textCls = paper ? 'text-ink' : 'text-ink';
-  const nameCls = paper ? 'font-bold text-ink' : 'font-bold text-ink';
-  const amountCls = paper ? 'text-muted ml-1' : 'text-muted ml-1';
-  const optionalCls = paper ? 'text-muted italic ml-1' : 'text-muted italic ml-1';
+  const amountCls = 'w-20 shrink-0 text-right font-price font-semibold text-ink tabular-nums';
   const dealChipCls = 'bg-paprika-soft text-paprika-strong font-bold text-[10px] px-1.5 py-0.5 rounded-md ml-1.5 uppercase tracking-wide align-middle';
   const priceCls = 'font-price font-bold text-ink ml-auto pl-3 shrink-0 whitespace-nowrap';
   const unpricedCls = 'text-muted italic ml-auto pl-3 shrink-0 whitespace-nowrap text-xs';
@@ -61,10 +58,63 @@ export const RecipeIngredients = ({
     : 'font-price text-base font-bold text-ink';
   const coverageCls = 'text-[11px] text-muted';
 
+  // Optional ingredients render in their own group below the required ones —
+  // a "(volitelné)" suffix on every other row drowns the core ingredients on
+  // topping-heavy recipes. Required keeps the original relative order, so the
+  // running price index over non-optional rows still lines up with
+  // shopping_list.lines (price_recipe_lines skips optional ingredients).
+  const entries = list.map((ing, idx) => ({ ing, idx }));
+  const requiredEntries = entries.filter((e) => typeof e.ing === 'string' || !e.ing.optional);
+  const optionalEntries = entries.filter((e) => typeof e.ing !== 'string' && !!e.ing.optional);
+
   let priceIdx = -1;
 
+  const renderRow = ({ ing, idx }: { ing: IngredientInput | string; idx: number }) => {
+    if (typeof ing === 'string') {
+      return (
+        <li key={idx} className="flex items-baseline gap-3 text-sm">
+          <span className={amountCls} aria-hidden="true" />
+          <span className={`${textCls} flex-1 min-w-0`}>{ing}</span>
+        </li>
+      );
+    }
+    const isOptional = !!ing.optional;
+    let line = undefined as ShoppingList['lines'][number] | undefined;
+    if (!isOptional) {
+      priceIdx += 1;
+      line = shoppingList?.lines[priceIdx];
+    }
+    const scaled = formatScaledIngredient(
+      { ...ing, quantity: coerceQuantity(ing.quantity) },
+      base,
+      chosen,
+    );
+    const isDeal = !!(line?.canonical && dealCanonicals.has(line.canonical));
+    return (
+      <li key={idx} className="flex items-baseline gap-3 text-sm">
+        {/* Amount-first fixed column: quantities align vertically so the list
+          * scans like a shopping list; empty for "to taste" rows. */}
+        <span className={amountCls}>{scaled.amountLabel}</span>
+        <span className={`${textCls} flex-1 min-w-0`}>
+          {scaled.name}
+          {isDeal && <span className={dealChipCls}>Sleva</span>}
+        </span>
+        {line && (
+          line.priced ? (
+            <span className={priceCls}>
+              ~{fmtMoney((line.consumed_cost || 0) * scale)}&nbsp;Kč
+              {!line.verified && <span className={estimateTagCls}>odhad</span>}
+            </span>
+          ) : (
+            <span className={unpricedCls}>bez ceny</span>
+          )
+        )}
+      </li>
+    );
+  };
+
   return (
-    <Card variant={variant} className="p-8 md:col-span-1 text-left h-fit md:sticky md:top-10">
+    <Card variant={variant} className="p-6 md:col-span-2 text-left h-fit md:sticky md:top-10">
       <h2 className={headingCls}>
         Ingredience
       </h2>
@@ -76,59 +126,18 @@ export const RecipeIngredients = ({
         <PortionStepper value={chosen} onChange={setChosen} variant={variant} />
       </div>
 
-      <ul className="space-y-3">
-        {list.map((ing, idx) => {
-          if (typeof ing === 'string') {
-            return (
-              <li key={idx} className="flex items-start gap-3 text-sm">
-                <span className={`w-1.5 h-1.5 rounded-full ${dotCls} mt-2 shrink-0`} />
-                <span className={textCls}>{ing}</span>
-              </li>
-            );
-          }
-          const isOptional = !!ing.optional;
-          // shopping_list.lines mirrors the same non-optional-only order the
-          // backend iterates (price_recipe_lines skips optional ingredients),
-          // so a running index over non-optional rows lines them up without
-          // needing a name/canonical match.
-          let line = undefined as ShoppingList['lines'][number] | undefined;
-          if (!isOptional) {
-            priceIdx += 1;
-            line = shoppingList?.lines[priceIdx];
-          }
-          const scaled = formatScaledIngredient(
-            { ...ing, quantity: coerceQuantity(ing.quantity) },
-            base,
-            chosen,
-          );
-          const isDeal = !!(line?.canonical && dealCanonicals.has(line.canonical));
-          return (
-            <li key={idx} className="flex items-start gap-3 text-sm">
-              <span className={`w-1.5 h-1.5 rounded-full ${dotCls} mt-2 shrink-0`} />
-              <span className={`${textCls} flex-1`}>
-                <span className={nameCls}>{scaled.name}</span>
-                {scaled.amountLabel && (
-                  <span className={amountCls}>— {scaled.amountLabel}</span>
-                )}
-                {scaled.optional && (
-                  <span className={optionalCls}>(volitelné)</span>
-                )}
-                {isDeal && <span className={dealChipCls}>Sleva</span>}
-              </span>
-              {line && (
-                line.priced ? (
-                  <span className={priceCls}>
-                    ~{fmtMoney((line.consumed_cost || 0) * scale)}&nbsp;Kč
-                    {!line.verified && <span className={estimateTagCls}>odhad</span>}
-                  </span>
-                ) : (
-                  <span className={unpricedCls}>bez ceny</span>
-                )
-              )}
-            </li>
-          );
-        })}
+      <ul className="space-y-2.5">
+        {requiredEntries.map(renderRow)}
       </ul>
+
+      {optionalEntries.length > 0 && (
+        <>
+          <h3 className={`${eyebrowCls} block mt-6 mb-3`}>Volitelné</h3>
+          <ul className="space-y-2.5">
+            {optionalEntries.map(renderRow)}
+          </ul>
+        </>
+      )}
 
       {shoppingList && (
         <div className="mt-6 pt-4 border-t border-line space-y-1.5">

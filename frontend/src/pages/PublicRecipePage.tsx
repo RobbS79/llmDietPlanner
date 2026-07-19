@@ -1,12 +1,15 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
+import { ArrowRight, BadgePercent, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
+import { PublicHeader } from '@/components/layout/PublicHeader';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
+import { normalizeNutrition } from '@/lib/nutrition';
+import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 
 export const PublicRecipePage = () => {
   const { id } = useParams();
@@ -39,14 +42,16 @@ export const PublicRecipePage = () => {
     if (recipe.preparation_time) schema.prepTime = `PT${recipe.preparation_time}M`;
     if (recipe.cooking_time) schema.cookTime = `PT${recipe.cooking_time}M`;
     if (recipe.servings) schema.recipeYield = `${recipe.servings}`;
-    if (recipe.nutritional_info) {
+    // Only emit nutrition Google should trust — same normalized per-portion
+    // values the visible card shows, nothing when the data is implausible.
+    const nutrition = normalizeNutrition(recipe.nutritional_info, recipe.servings);
+    if (nutrition) {
       schema.nutrition = { '@type': 'NutritionInformation' };
-      for (const [k, v] of Object.entries(recipe.nutritional_info)) {
-        const kl = k.toLowerCase();
-        if (kl.includes('calor') || kl === 'kcal') schema.nutrition.calories = `${v}`;
-        else if (kl.includes('protein')) schema.nutrition.proteinContent = `${v}`;
-        else if (kl.includes('carb')) schema.nutrition.carbohydrateContent = `${v}`;
-        else if (kl.includes('fat')) schema.nutrition.fatContent = `${v}`;
+      for (const row of nutrition) {
+        if (row.key === 'calories') schema.nutrition.calories = `${row.value} kcal`;
+        else if (row.key === 'protein') schema.nutrition.proteinContent = `${row.value} g`;
+        else if (row.key === 'carbs') schema.nutrition.carbohydrateContent = `${row.value} g`;
+        else if (row.key === 'fat') schema.nutrition.fatContent = `${row.value} g`;
       }
     }
     const script = document.createElement('script');
@@ -83,20 +88,11 @@ export const PublicRecipePage = () => {
 
   return (
     <div className="min-h-screen bg-paper text-ink font-body">
-      <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
-        <Link to="/" className="flex items-center gap-3">
-          <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">vařto<span className="text-paprika">.</span></span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/recepty')} className="text-ink/80 hover:text-ink font-body font-semibold transition-colors hidden sm:block">Recepty</button>
-          <button onClick={() => navigate('/pricing')} className="text-ink/80 hover:text-ink font-body font-semibold transition-colors hidden sm:block">Ceník</button>
-          <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-5 py-3 rounded-xl font-body font-bold transition-all">Začít zdarma</button>
-        </div>
-      </nav>
+      <PublicHeader />
 
       <div className="max-w-4xl mx-auto px-6 py-12 w-full">
-        <div className="flex items-center gap-2 text-xs font-semibold text-muted mb-8">
-          <Link to="/recepty" className="text-green hover:text-green-mid transition-colors">Recepty</Link>
+        <div className="flex items-center gap-2 text-sm font-semibold text-muted mb-8">
+          <Link to="/recepty" className="inline-flex py-2 text-green hover:text-green-mid transition-colors">Recepty</Link>
           <span>/</span>
           <span className="truncate">{recipe.name}</span>
         </div>
@@ -104,19 +100,37 @@ export const PublicRecipePage = () => {
         {(() => {
           const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);
           return imgUrl ? (
-            <div className="relative h-64 sm:h-80 rounded-3xl overflow-hidden mb-12">
+            <div className="relative aspect-[16/9] w-full rounded-3xl overflow-hidden mb-12">
               <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent" />
+              {/* Stock images are category-based, not photos of the actual dish —
+                * say so instead of letting visitors catch the mismatch. */}
+              <span className="absolute bottom-3 right-3 rounded-lg bg-ink/60 px-2 py-1 text-[10px] font-semibold text-white/90">
+                Ilustrační foto
+              </span>
             </div>
           ) : null;
         })()}
 
-        <header className="mb-16 text-left">
+        <header className="mb-12 text-left">
           <h1 className="font-display text-5xl sm:text-6xl font-extrabold text-ink tracking-tight leading-[0.95]">
             {recipe.name}<span className="text-paprika">.</span>
           </h1>
           {recipe.description && (
             <p className="text-muted text-lg mt-6 max-w-2xl leading-relaxed">{recipe.description}</p>
+          )}
+          {recipe.source_name && recipe.source_url && (
+            <p className="text-muted text-sm mt-4">
+              Podle receptu z{' '}
+              <a
+                href={recipe.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green hover:text-green-mid underline underline-offset-2 font-semibold"
+              >
+                {recipe.source_name}
+              </a>
+              {recipe.source_author ? ` (${recipe.source_author})` : ''}.
+            </p>
           )}
           <div className="flex flex-wrap gap-4 mt-8">
             {recipe.preparation_time && (
@@ -131,7 +145,7 @@ export const PublicRecipePage = () => {
             )}
             {recipe.servings && (
               <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-xs font-semibold text-muted">
-                <Users size={14} className="text-green" /> {recipe.servings} {recipe.servings > 1 ? 'porcí' : 'porce'}
+                <Users size={14} className="text-green" /> {recipe.servings} {czechPlural(recipe.servings, PORTION_FORMS)}
               </div>
             )}
           </div>
@@ -140,25 +154,38 @@ export const PublicRecipePage = () => {
         {getRecipeDeals(recipe) && (() => {
           const d = getRecipeDeals(recipe)!;
           return (
-            <div className="mt-3 rounded-xl bg-paprika-soft p-4">
-              <p className="text-sm font-bold text-paprika-strong">
-                {d.matched} z {d.total} surovin ve slevě tento týden
-              </p>
-              <ul className="mt-1.5 space-y-0.5">
+            <section className="mb-12 rounded-2xl border border-paprika/30 bg-paprika-soft/60 p-5">
+              <div className="flex items-center gap-2.5">
+                <BadgePercent size={20} className="text-paprika-strong shrink-0" />
+                <h2 className="font-display text-base font-bold text-ink">
+                  {d.matched} z {d.total} surovin ve slevě tento týden
+                </h2>
+              </div>
+              <ul className="mt-3 divide-y divide-paprika/15">
                 {d.deals.map((deal) => (
-                  <li key={deal.canonical} className="text-[13px] text-paprika-strong/90">
-                    <a href={deal.source_url} target="_blank" rel="noopener noreferrer"
-                       className="hover:underline">
-                      {deal.display_name} — {deal.shop}
+                  <li key={deal.canonical}>
+                    <a
+                      href={deal.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between gap-3 py-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paprika/50"
+                    >
+                      <span className="text-sm font-semibold text-ink underline decoration-paprika/40 underline-offset-2 group-hover:decoration-paprika transition-colors">
+                        {deal.display_name}
+                      </span>
+                      <span className="shrink-0 rounded-md bg-card border border-line px-2 py-0.5 text-[11px] font-semibold text-muted">
+                        {deal.shop}
+                      </span>
                     </a>
                   </li>
                 ))}
               </ul>
-            </div>
+              <p className="mt-3 text-[11px] text-muted">Podle aktuálních letáků obchodů.</p>
+            </section>
           );
         })()}
 
-        <div className="grid md:grid-cols-3 gap-10">
+        <div className="grid md:grid-cols-5 gap-10">
           <RecipeIngredients
             ingredients={recipe.ingredients}
             baseServings={recipe.servings}
@@ -167,7 +194,7 @@ export const PublicRecipePage = () => {
             deals={getRecipeDeals(recipe)}
           />
 
-          <div className="md:col-span-2 space-y-8 text-left">
+          <div className="md:col-span-3 space-y-8 text-left">
             <div className="flex items-center gap-3 mb-2">
               <ChefHat size={24} className="text-green" />
               <h2 className="font-display text-lg font-bold text-ink">Postup</h2>
@@ -187,28 +214,33 @@ export const PublicRecipePage = () => {
               <p className="text-muted italic">Pro tento recept nejsou k dispozici instrukce.</p>
             )}
 
-            {recipe.nutritional_info && Object.keys(recipe.nutritional_info).length > 0 && (
-              <Card variant="paper" className="p-8 mt-12">
-                <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-6">Nutriční hodnoty</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {Object.entries(recipe.nutritional_info).map(([k, v]: any) => (
-                    <div key={k} className="space-y-1">
-                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{k}</p>
-                      <p className="font-price text-xl font-bold text-ink">{v}</p>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+            {(() => {
+              const nutrition = normalizeNutrition(recipe.nutritional_info, recipe.servings);
+              return nutrition && (
+                <Card variant="paper" className="p-8 mt-12">
+                  <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-6">
+                    Nutriční hodnoty <span className="text-muted font-semibold normal-case tracking-normal">· na porci</span>
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {nutrition.map((row) => (
+                      <div key={row.key} className="space-y-1">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{row.label}</p>
+                        <p className="font-price text-xl font-bold text-ink">{row.value} {row.unit}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })()}
           </div>
         </div>
 
-        <div className="mt-20 bg-green-soft border border-line rounded-3xl p-12 sm:p-16 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-ink tracking-tight mb-4">Chcete celý týden takových jídel?</h2>
+        <div className="mt-20 bg-green-soft border border-line rounded-3xl p-8 sm:p-16 text-center">
+          <h2 className="font-display text-2xl sm:text-4xl font-extrabold text-ink tracking-tight mb-4">Chcete celý týden takových jídel?</h2>
           <p className="text-muted text-lg mb-8 max-w-md mx-auto">
             Vytvoříme personalizovaný jídelníček s recepty a nákupním seznamem — a u každého receptu uvidíte, co je tento týden ve slevě.
           </p>
-          <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-body font-bold text-sm transition-all active:scale-[0.98] inline-flex items-center gap-3">
+          <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-body font-bold text-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:ring-offset-2 inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />
           </button>
           <p className="text-muted text-xs font-semibold mt-6">2 jídelníčky zdarma. Bez kreditní karty.</p>

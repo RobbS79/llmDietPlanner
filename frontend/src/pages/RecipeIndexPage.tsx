@@ -7,6 +7,7 @@ import { getFoodImageUrl } from '@/lib/food-image';
 import { Card } from '@/components/ui/Card';
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { getRecipeDeals } from '@/lib/pricing';
+import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 
 export const RecipeIndexPage = () => {
   const navigate = useNavigate();
@@ -96,7 +97,7 @@ export const RecipeIndexPage = () => {
                       )}
                       {recipe.servings && (
                         <span className="flex items-center gap-1.5">
-                          <Users size={12} className="text-green" /> {recipe.servings} porcí
+                          <Users size={12} className="text-green" /> {recipe.servings} {czechPlural(recipe.servings, PORTION_FORMS)}
                         </span>
                       )}
                     </div>
