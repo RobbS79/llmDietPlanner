@@ -760,7 +760,10 @@ class Recipe(models.Model):
 
     def save(self, *args, **kwargs):
         from django.utils.text import slugify
-        if not self.slug and self.name:
+        # Always derive the slug from the current name — a row whose name was
+        # later rewritten (e.g. meal regenerated in place) must not keep the
+        # old dish's slug in its URL. Old URLs still resolve: routing is by pk.
+        if self.name:
             self.slug = slugify(self.name)[:255]
         # Auto-promote to public only when there's enough cooking guidance
         # to be worth indexing. Never auto-demote — admins / the backfill

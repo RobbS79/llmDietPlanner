@@ -314,6 +314,10 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         from .food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
+        from .food_images import dish_image_url, has_dish_image
+        # Per-dish image (generate_recipe_images) beats the category stock one.
+        if has_dish_image(obj.slug):
+            return dish_image_url(obj.slug)
         category = obj.food_category if obj.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
         return f"/static/food-images/{category}.webp"
 

@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
+import { normalizeNutrition } from '@/lib/nutrition';
+import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 import { useToast } from '@/components/ui/Toast';
 import { RecipeRefineChat } from '@/components/recipe/RecipeRefineChat';
 
@@ -160,7 +162,7 @@ export const RecipePage = () => {
             )}
             {recipe.servings && (
               <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
-                <Users size={14} className="text-green" /> {recipe.servings} {recipe.servings > 1 ? 'porcí' : 'porce'}
+                <Users size={14} className="text-green" /> {recipe.servings} {czechPlural(recipe.servings, PORTION_FORMS)}
               </div>
             )}
           </div>
@@ -220,7 +222,7 @@ export const RecipePage = () => {
           );
         })()}
 
-        <div className="grid md:grid-cols-3 gap-10">
+        <div className="grid md:grid-cols-5 gap-10">
           {/* Ingredients sidebar — scaled "shopping list" with portion stepper */}
           <RecipeIngredients
             ingredients={recipe.ingredients}
@@ -230,7 +232,7 @@ export const RecipePage = () => {
           />
 
           {/* Instructions */}
-          <div className="md:col-span-2 space-y-8 text-left">
+          <div className="md:col-span-3 space-y-8 text-left">
             <div className="flex items-center gap-3 mb-2">
               <ChefHat size={24} className="text-green" />
               <h2 className="text-lg font-black font-display text-ink uppercase tracking-tighter italic">Postup</h2>
@@ -252,19 +254,24 @@ export const RecipePage = () => {
             )}
 
             {/* Nutritional info */}
-            {recipe.nutritional_info && Object.keys(recipe.nutritional_info).length > 0 && (
-              <Card className="p-8 mt-12">
-                <h3 className="text-sm font-black text-ink uppercase tracking-tighter italic mb-6">Nutriční hodnoty</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {Object.entries(recipe.nutritional_info).map(([k, v]: any) => (
-                    <div key={k} className="space-y-1">
-                      <p className="text-[9px] font-black text-muted uppercase tracking-widest italic">{k}</p>
-                      <p className="text-xl font-black text-ink italic tracking-tighter">{v}</p>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+            {(() => {
+              const nutrition = normalizeNutrition(recipe.nutritional_info, recipe.servings);
+              return nutrition && (
+                <Card className="p-8 mt-12">
+                  <h3 className="text-sm font-black text-ink uppercase tracking-tighter italic mb-6">
+                    Nutriční hodnoty <span className="text-muted font-bold normal-case not-italic tracking-normal">· na porci</span>
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {nutrition.map((row) => (
+                      <div key={row.key} className="space-y-1">
+                        <p className="text-[9px] font-black text-muted uppercase tracking-widest italic">{row.label}</p>
+                        <p className="text-xl font-black text-ink italic tracking-tighter">{row.value} {row.unit}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })()}
           </div>
         </div>
       </div>

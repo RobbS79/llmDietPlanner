@@ -13,14 +13,17 @@ interface PortionStepperProps {
   variant?: 'app' | 'paper';
 }
 
+// 44×44px buttons — the minimum comfortable touch target on mobile.
 const btnApp =
-  'w-9 h-9 flex items-center justify-center rounded-xl bg-card border border-line ' +
+  'w-11 h-11 flex items-center justify-center rounded-xl bg-card border border-line ' +
   'text-ink transition-colors hover:border-green/40 hover:text-green-mid ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 ' +
   'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:text-ink';
 
 const btnPaper =
-  'w-9 h-9 flex items-center justify-center rounded-xl bg-card border border-line ' +
+  'w-11 h-11 flex items-center justify-center rounded-xl bg-card border border-line ' +
   'text-ink transition-colors hover:border-green hover:text-green ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 ' +
   'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:text-ink';
 
 export const PortionStepper = ({

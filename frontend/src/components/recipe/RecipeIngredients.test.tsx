@@ -154,3 +154,54 @@ describe('RecipeIngredients — priced shopping list', () => {
     expect(screen.queryByText(/surovin oceněno/)).not.toBeInTheDocument();
   });
 });
+
+describe('RecipeIngredients — optional grouping', () => {
+  const mixed = [
+    { name: 'Ovesné vločky', quantity: 80, unit: 'g' },
+    { name: 'Skořice', quantity: 1, unit: 'špetka', optional: true },
+    { name: 'Mléko', quantity: 250, unit: 'ml' },
+    { name: 'Javorový sirup', quantity: 1, unit: 'lžíce', optional: true },
+  ];
+
+  it('groups optional ingredients under a "Volitelné" heading, no per-row suffix', () => {
+    render(<RecipeIngredients ingredients={mixed} baseServings={1} />);
+    expect(screen.getByText('Volitelné')).toBeInTheDocument();
+    expect(screen.queryByText(/volitelné\)/)).not.toBeInTheDocument();
+    expect(screen.getByText('Skořice')).toBeInTheDocument();
+    expect(screen.getByText('Javorový sirup')).toBeInTheDocument();
+  });
+
+  it('omits the heading when nothing is optional', () => {
+    render(
+      <RecipeIngredients
+        ingredients={[{ name: 'Mléko', quantity: 250, unit: 'ml' }]}
+        baseServings={1}
+      />,
+    );
+    expect(screen.queryByText('Volitelné')).not.toBeInTheDocument();
+  });
+
+  it('keeps prices aligned to non-optional rows when optional rows are regrouped', () => {
+    // shopping_list.lines only covers non-optional rows, in original order.
+    const shoppingList = {
+      lines: [
+        { name: 'Ovesné vločky', canonical: 'oats', consumed_cost: 6, priced: true, verified: true },
+        { name: 'Mléko', canonical: 'milk', consumed_cost: 5, priced: true, verified: true },
+      ],
+      total_low: 11,
+      total_high: 14,
+      per_portion_low: 11,
+      per_portion_high: 14,
+      priced_count: 2,
+      total_count: 2,
+      verified_count: 2,
+      currency: 'CZK',
+      confident: true,
+    };
+    render(<RecipeIngredients ingredients={mixed} baseServings={1} shoppingList={shoppingList} />);
+    const oatsRow = screen.getByText('Ovesné vločky').closest('li')!;
+    const milkRow = screen.getByText('Mléko').closest('li')!;
+    expect(oatsRow.textContent).toContain('~6');
+    expect(milkRow.textContent).toContain('~5');
+  });
+});

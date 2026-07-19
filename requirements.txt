@@ -24,6 +24,11 @@ django-axes>=7.0.0
 celery>=5.3.0
 redis>=5.0.0
 
+# Image encoding for generate_food_images / generate_recipe_images (already a
+# transitive dep via llama-index-core; pinned so the commands don't break if
+# that changes).
+Pillow>=10.0
+
 # Validation
 pydantic>=2.5.0
 pydantic[email]>=2.5.0

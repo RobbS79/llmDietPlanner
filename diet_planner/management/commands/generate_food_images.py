@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from diet_planner.food_categories import FOOD_CATEGORIES
+from diet_planner.food_images import encode_webp
 
 
 class Command(BaseCommand):
@@ -83,10 +84,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING('no image in response'))
                     continue
 
-                with open(filepath, 'wb') as f:
-                    f.write(image_data)
-
-                size_kb = len(image_data) / 1024
+                size_kb = encode_webp(image_data, filepath) / 1024
                 self.stdout.write(self.style.SUCCESS(f'saved ({size_kb:.0f} KB)'))
                 generated += 1
 
