@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ToastProvider } from '@/components/ui/Toast';
 import { RecipeRefineChat } from './RecipeRefineChat';
-import { refinePreview, refineAccept } from '@/lib/refineRecipe';
+import { refinePreview, refineAccept, researchStatus } from '@/lib/refineRecipe';
 
-vi.mock('@/lib/refineRecipe', () => ({ refinePreview: vi.fn(), refineAccept: vi.fn() }));
+vi.mock('@/lib/refineRecipe', () => ({
+  refinePreview: vi.fn(), refineAccept: vi.fn(), researchStatus: vi.fn(),
+}));
 vi.mock('@/lib/food-image', () => ({ getFoodImageUrl: () => '' }));
 
 const MEAL_ID = '12:1:lunch:0';
@@ -232,6 +234,94 @@ describe('RecipeRefineChat', () => {
       const second = vi.mocked(refinePreview).mock.calls[1];
       for (const m of second[1]) {
         expect(Object.keys(m).sort()).toEqual(['role', 'text']);
+      }
+    });
+  });
+
+  describe('v2 agent replies', () => {
+    /** RTL's asyncWrapper drains microtasks via a real `setTimeout(0)` and only
+     * auto-advances it when a `jest` global exists — under vitest fake timers
+     * every userEvent action would deadlock. Stub the one method it calls. */
+    function useFakeTimersRtlSafe() {
+      vi.stubGlobal('jest', { advanceTimersByTime: (ms: number) => vi.advanceTimersByTime(ms) });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    }
+
+    /** send() variant for fake-timer tests: delay:null keeps userEvent off the
+     * (mocked) clock entirely. */
+    async function sendFake(text: string) {
+      const user = userEvent.setup({ delay: null });
+      await user.type(screen.getByPlaceholderText('Napište, na co máte chuť…'), text);
+      await user.click(screen.getByRole('button', { name: 'Odeslat' }));
+    }
+
+    it('renders reply_text verbatim when present', async () => {
+      vi.mocked(refinePreview).mockResolvedValueOnce({
+        candidate: null, question: null, hint_matched: null,
+        reply_text: 'Menemen vám přijde snídaňový? Chcete něco vydatnějšího?',
+        research_job_id: null,
+      });
+      setup();
+      await send('Vypadá to jak snídaně');
+      expect(await screen.findByText(/Chcete něco vydatnějšího/)).toBeInTheDocument();
+      // A null candidate with reply_text is a conversational turn, NOT a dead end.
+      expect(screen.queryByText('Pro tento typ jídla už nemáme další alternativu.')).toBeNull();
+    });
+
+    it('starts polling when research_job_id returned and pops the card on ready', async () => {
+      useFakeTimersRtlSafe();
+      try {
+        vi.mocked(refinePreview).mockResolvedValueOnce({
+          candidate: null, question: null, hint_matched: null,
+          reply_text: 'Hledám recept na webu…', research_job_id: 42,
+        });
+        vi.mocked(researchStatus)
+          .mockResolvedValueOnce({ status: 'searching', reply_text: null, candidate: null })
+          .mockResolvedValueOnce({
+            status: 'ready',
+            reply_text: 'Našel jsem: Pravý ramen.',
+            candidate: { curated_recipe_id: 7, name: 'Pravý ramen', description: '',
+                         food_category: '', preparation_time: 40, calories: 600, why: null },
+          });
+        setup();
+        await sendFake('pravý ramen');
+        await act(async () => {});
+        // Bubble text + persistent searching indicator both mention the search.
+        expect(screen.getAllByText(/Hledám recept na webu/).length).toBeGreaterThan(0);
+        await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+        await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+        expect(screen.getByText(/Našel jsem: Pravý ramen/)).toBeInTheDocument();
+        expect(screen.getByText('Pravý ramen')).toBeInTheDocument(); // card
+        expect(screen.getByRole('button', { name: 'Použít tento recept' })).toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('renders failure reply_text and stops polling on failed', async () => {
+      useFakeTimersRtlSafe();
+      try {
+        vi.mocked(refinePreview).mockResolvedValueOnce({
+          candidate: null, question: null, hint_matched: null,
+          reply_text: 'Hledám…', research_job_id: 43,
+        });
+        vi.mocked(researchStatus).mockResolvedValueOnce({
+          status: 'failed',
+          reply_text: 'Bohužel jsem na webu nenašel žádný vhodný recept.',
+          candidate: null,
+        });
+        setup();
+        await sendFake('jednorožčí guláš');
+        await act(async () => {});
+        await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+        expect(screen.getByText(/nenašel žádný vhodný recept/)).toBeInTheDocument();
+        expect(vi.mocked(researchStatus)).toHaveBeenCalledTimes(1);
+        await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+        expect(vi.mocked(researchStatus)).toHaveBeenCalledTimes(1); // stopped
+      } finally {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
       }
     });
   });

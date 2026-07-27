@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Clock, Flame, Loader2, MessageCircle, Send } from 'lucide-react';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { useToast } from '@/components/ui/Toast';
 import {
   refineAccept,
   refinePreview,
+  researchStatus,
   type ChatMessage,
   type RefineCandidate,
 } from '@/lib/refineRecipe';
@@ -45,6 +46,9 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
   const [noAlternatives, setNoAlternatives] = useState(false);
   const [input, setInput] = useState('');
   const [pending, setPending] = useState(false);
+  const [researchJobId, setResearchJobId] = useState<number | null>(null);
+  const [researching, setResearching] = useState(false);
+  const researchStartedAt = useRef<number>(0);
 
   const userCount = messages.filter((m) => m.role === 'user').length;
   const capReached = userCount >= MAX_USER_MESSAGES;
@@ -55,6 +59,8 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
     setRejectedIds([]);
     setNoAlternatives(false);
     setInput('');
+    setResearchJobId(null);
+    setResearching(false);
   };
 
   const send = async (rawText?: string) => {
@@ -76,19 +82,31 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
       // Map down to the wire shape — attached card data never leaves the client.
       const wireMessages: ChatMessage[] = nextMessages.map(({ role, text }) => ({ role, text }));
       const r = await refinePreview(mealId, wireMessages, nextRejected);
-      if (!r.candidate) {
+      if (r.reply_text != null) {
+        // v2 agent turn: LLM-authored reply; candidate/research are optional.
+        setCandidate(r.candidate ?? null);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', text: r.reply_text!, candidate: r.candidate ?? undefined },
+        ]);
+        if (r.research_job_id != null) {
+          researchStartedAt.current = Date.now();
+          setResearchJobId(r.research_job_id);
+          setResearching(true);
+        }
+      } else if (!r.candidate) {
         setNoAlternatives(true);
-        return;
+      } else {
+        setCandidate(r.candidate);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: assistantText(r.candidate!, r.question, r.hint_matched),
+            candidate: r.candidate!,
+          },
+        ]);
       }
-      setCandidate(r.candidate);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: assistantText(r.candidate!, r.question, r.hint_matched),
-          candidate: r.candidate!,
-        },
-      ]);
     } catch {
       // Roll back the turn so it isn't burned from the 8-message budget, and
       // put the draft back so the user can just hit send again.
@@ -101,6 +119,47 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
       setPending(false);
     }
   };
+
+  useEffect(() => {
+    if (researchJobId == null) return;
+    const POLL_MS = 5_000;
+    const TIMEOUT_MS = 5 * 60_000;
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      if (cancelled) return;
+      if (Date.now() - researchStartedAt.current > TIMEOUT_MS) {
+        setResearching(false);
+        setResearchJobId(null);
+        setMessages((prev) => [...prev, {
+          role: 'assistant',
+          text: 'Hledání trvá déle, než jsem čekal — recept se objeví ve vašich návrzích, jakmile bude hotový.',
+        }]);
+        return;
+      }
+      try {
+        const s = await researchStatus(researchJobId);
+        if (cancelled || (s.status !== 'ready' && s.status !== 'failed')) return;
+        setResearching(false);
+        setResearchJobId(null);
+        if (s.status === 'ready' && s.candidate) {
+          setCandidate(s.candidate);
+          setMessages((prev) => [...prev, {
+            role: 'assistant',
+            text: s.reply_text ?? `Co třeba: ${s.candidate!.name}?`,
+            candidate: s.candidate!,
+          }]);
+        } else {
+          setMessages((prev) => [...prev, {
+            role: 'assistant',
+            text: s.reply_text ?? 'Recept se nepodařilo najít, zkuste to prosím jinak.',
+          }]);
+        }
+      } catch {
+        /* transient poll error — keep polling until timeout */
+      }
+    }, POLL_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [researchJobId]);
 
   const accept = async () => {
     if (!candidate || pending) return;
@@ -182,6 +241,12 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
             );
           })}
         </ul>
+      )}
+
+      {researching && (
+        <div className="mr-8 flex items-center gap-2 rounded-xl bg-paper border border-line px-4 py-2 text-sm text-muted mb-4">
+          <Loader2 size={14} className="animate-spin text-green" /> Hledám recept na webu…
+        </div>
       )}
 
       {candidate && (
