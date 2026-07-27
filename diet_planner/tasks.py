@@ -427,6 +427,15 @@ def scrape_leaflet_task(self, shop: str, country: str) -> Dict[str, Any]:
         raise self.retry(exc=exc, countdown=60)
 
 
+@shared_task(bind=True, max_retries=0)
+def research_recipe_task(self, job_id: int) -> Dict[str, Any]:
+    """Refine-chat web recipe research (spec 2026-07-27). No Celery retries:
+    the runner is internally fail-soft and always leaves the job in a terminal
+    ready/failed state the chat can render honestly."""
+    from diet_planner.services import recipe_research
+    return recipe_research.run_research_job(job_id)
+
+
 @shared_task(bind=True, max_retries=2)
 def process_protocol_pdf_task(self, plan_id: int) -> Dict[str, Any]:
     try:

@@ -27,6 +27,7 @@ from .models import (
     MealInstance,
     GroceryStore,
     HistoricNutritionPlan,
+    RecipeResearchJob,
     get_currency_for_country,
     get_shops_for_country,
     SHOP_CHOICES
@@ -53,6 +54,7 @@ from .services.recipe_retrieval import (
     scale_recipe_to_meal,
 )
 from .services.prompt_facets import extract_prompt_facets
+from .services.refine_agent import run_refine_turn
 from .services.refine_chat import clamp_messages, refine_conversation
 from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
@@ -831,6 +833,37 @@ class RecipeRefineView(APIView):
         }
         exclude_ids = ({current_id} if current_id else set()) | rejected
 
+        if getattr(settings, 'REFINE_CHAT_AGENT_ENABLED', False):
+            try:
+                turn = run_refine_turn(
+                    user=request.user,
+                    meal_identifier=meal_identifier,
+                    meal_type=ctx.meal_type,
+                    current_meal=ctx.current_meal,
+                    required_tags=required_tags,
+                    pool=pool,
+                    exclude_ids=exclude_ids,
+                    used_recipe_ids=used_recipe_ids,
+                    used_cuisines=used_cuisines,
+                    messages=messages,
+                )
+                return Response({
+                    "status": "success",
+                    "data": {
+                        "reply_text": turn.reply_text,
+                        "candidate": (
+                            _candidate_payload(turn.candidate, None)
+                            if turn.candidate else None
+                        ),
+                        "research_job_id": turn.research_job_id,
+                        "question": None,
+                        "hint_matched": None,
+                    },
+                }, status=200)
+            except Exception:
+                # refine_agent_fallback: v1 path below still serves the turn.
+                logger.warning("refine_agent_fallback", exc_info=True)
+
         facets, question = refine_conversation(
             messages, language=goal.language_code,
             cuisine_vocab=published_cuisine_vocab(pool=pool),
@@ -892,6 +925,18 @@ class RecipeRefineView(APIView):
         candidates = eligible_recipes_for_slot(
             ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=None,
         )
+        # Spec 2026-07-27 decision 1: the requester's own chat_web drafts are
+        # acceptable without full catalog mapping (their unmapped ingredients
+        # simply carry no price/deals data).
+        own_drafts = list(CuratedRecipe.objects.filter(
+            origin=CuratedRecipe.Origin.CHAT_WEB,
+            created_for_user=request.user,
+            status=CuratedRecipe.Status.DRAFT,
+        ))
+        candidates += eligible_recipes_for_slot(
+            ctx.meal_type, required_tags, pool=own_drafts, exclude_ids=exclude_ids,
+            facets=None, enforce_mapping=False,
+        )
         chosen = next((r for r in candidates if r.id == accept_id), None)
         if chosen is None:
             return Response({"status": "error", "error": "Recipe not eligible for this slot"}, status=400)
@@ -902,6 +947,28 @@ class RecipeRefineView(APIView):
         return Response({
             "status": "success",
             "data": {"replaced": True, "recipe": serialize_recipe_detail(recipe)},
+        }, status=200)
+
+
+class RecipeResearchJobView(APIView):
+    """Poll target for chat web-research jobs. Owner-only; foreign ids 404."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, job_id: int) -> Response:
+        try:
+            job = RecipeResearchJob.objects.get(id=job_id, user=request.user)
+        except RecipeResearchJob.DoesNotExist:
+            return Response({"status": "error", "error": "Not found"}, status=404)
+        candidate = None
+        if job.status == RecipeResearchJob.Status.READY and job.result_recipe:
+            candidate = _candidate_payload(job.result_recipe, None)
+        return Response({
+            "status": "success",
+            "data": {
+                "status": job.status,
+                "reply_text": job.reply_text or None,
+                "candidate": candidate,
+            },
         }, status=200)
 
 
