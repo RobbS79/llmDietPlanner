@@ -48,10 +48,15 @@ _SYSTEM_PROMPT = (
     "zavolej research_web — a řekni uživateli, že hledáš na internetu (najde se "
     "to na pozadí, výsledek přijde do chatu).\n"
     "3. Nikdy nezmiňuj ceny ani dostupnost surovin.\n"
-    "4. Nikdy netvrď, že jsi něco hledal, pokud jsi nástroj nezavolal.\n"
+    "4. Nikdy netvrď, že něco hledáš nebo budeš hledat na internetu, pokud jsi "
+    "v TOMTO tahu skutečně nezavolal nástroj research_web. Slíbené hledání, "
+    "které neproběhne, je pro uživatele slepá ulička.\n"
     "5. Respektuj uvedená stravovací omezení uživatele i v konverzaci.\n"
-    "Poslední zpráva každého tahu MUSÍ být pouze JSON objekt: "
-    '{"reply": "<tvá česká odpověď>", "candidate_id": <id z search_corpus nebo null>}.'
+    "Poslední zpráva každého tahu MUSÍ být POUZE tento JSON objekt a nic víc — "
+    "žádný text před ním ani za ním: "
+    '{"reply": "<tvá česká odpověď>", "candidate_id": <číselné id z posledního '
+    "search_corpus, jinak null>}. Celá tvá odpověď uživateli patří do pole "
+    '"reply".'
 )
 
 _SEARCH_CORPUS_DECL = {
@@ -236,19 +241,44 @@ def _tool_research_web(args: Dict, *, user, meal_identifier: str):
     return {'job_id': job.id, 'status': 'queued'}, job.id
 
 
+def _coerce_candidate_id(cid) -> Optional[int]:
+    """Model emits ints AND quoted ints ("18944" — seen in prod QA 2026-07-27)."""
+    if isinstance(cid, bool):
+        return None
+    if isinstance(cid, int):
+        return cid
+    if isinstance(cid, str) and cid.strip().isdigit():
+        return int(cid.strip())
+    return None
+
+
+def _extract_contract(text: str) -> Optional[Dict]:
+    """Find the LAST parseable JSON object with a string "reply" anywhere in the
+    text. Gemini routinely prefixes the contract with prose (prod QA
+    2026-07-27: 5/6 turns) — the prose is a paraphrase of the reply, so only
+    the JSON is surfaced and nothing leaks into the chat bubble."""
+    decoder = json.JSONDecoder()
+    found = None
+    idx = text.find('{')
+    while idx != -1:
+        try:
+            data, _ = decoder.raw_decode(text, idx)
+            if isinstance(data, dict) and isinstance(data.get('reply'), str):
+                found = data
+        except ValueError:
+            pass
+        idx = text.find('{', idx + 1)
+    return found
+
+
 def _parse_final(text: str) -> Dict:
-    """Final-message contract: JSON {reply, candidate_id}. A non-JSON reply
-    degrades to plain text (reply=text, no candidate)."""
+    """Final-message contract: JSON {reply, candidate_id}, possibly wrapped in
+    code fences or prose. A reply with no JSON degrades to plain text."""
     from diet_planner.services.prompt_facets import _strip_code_fence
-    stripped = _strip_code_fence(text or '')
-    try:
-        data = json.loads(stripped)
-        if isinstance(data, dict) and isinstance(data.get('reply'), str):
-            cid = data.get('candidate_id')
-            return {'reply': data['reply'].strip(),
-                    'candidate_id': cid if isinstance(cid, int) else None}
-    except Exception:
-        pass
+    data = _extract_contract(_strip_code_fence(text or ''))
+    if data is not None:
+        return {'reply': data['reply'].strip(),
+                'candidate_id': _coerce_candidate_id(data.get('candidate_id'))}
     return {'reply': (text or '').strip(), 'candidate_id': None}
 
 
