@@ -1,0 +1,139 @@
+"""Refine agent tool loop (refine chat v2).
+
+Spec: docs/superpowers/specs/2026-07-27-chat-recipe-acquisition-design.md.
+"""
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from diet_planner.models import RecipeResearchJob
+from diet_planner.services import refine_agent
+from diet_planner.tests.test_recipe_replace import make_recipe
+
+
+class FakeSession:
+    """Scripted agent session. Each entry is what send()/send_tool_result()
+    should return next: {'text': ..., 'tool_call': ...}."""
+
+    def __init__(self, steps):
+        self.steps = list(steps)
+        self.tool_results = []
+
+    def send_text(self, text):
+        self.first_message = text
+        return self.steps.pop(0)
+
+    def send_tool_result(self, name, payload):
+        self.tool_results.append((name, payload))
+        return self.steps.pop(0)
+
+
+def _final(reply, candidate_id=None):
+    import json
+    return {'tool_call': None,
+            'text': json.dumps({'reply': reply, 'candidate_id': candidate_id})}
+
+
+def _call(name, **args):
+    return {'tool_call': {'name': name, 'args': args}, 'text': None}
+
+
+class RefineAgentTest(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create(username='agentik')
+        self.recipe = make_recipe(name_cs='Kuřecí rizoto')
+
+    def _turn(self, steps, **kw):
+        session = FakeSession(steps)
+        result = refine_agent.run_refine_turn(
+            user=self.user,
+            meal_identifier=kw.pop('meal_identifier', '1:1:lunch:0'),
+            meal_type='lunch',
+            current_meal={'name': 'Menemen', 'description': 'vejce s rajčaty'},
+            required_tags=kw.pop('required_tags', set()),
+            pool=kw.pop('pool', [self.recipe]),
+            exclude_ids=set(),
+            used_recipe_ids=set(),
+            used_cuisines=[],
+            messages=[{'role': 'user', 'text': 'něco jiného k obědu'}],
+            session_factory=lambda system_prompt: session,
+        )
+        return result, session
+
+    def test_plain_conversation_no_tools(self):
+        result, session = self._turn([_final('Rád pomůžu — na co máte chuť?')])
+        self.assertEqual(result.reply_text, 'Rád pomůžu — na co máte chuť?')
+        self.assertIsNone(result.candidate)
+        self.assertIsNone(result.research_job_id)
+        # Current recipe context must reach the model.
+        self.assertIn('Menemen', session.first_message)
+        self.assertIn('lunch', session.first_message)
+
+    def test_corpus_pick_resolves_candidate_from_tool_results(self):
+        result, session = self._turn([
+            _call('search_corpus', wanted_ingredients=['kuřecí']),
+            _final('Co třeba Kuřecí rizoto?', candidate_id=self.recipe.id),
+        ])
+        self.assertEqual(result.candidate.id, self.recipe.id)
+        name, payload = session.tool_results[0]
+        self.assertEqual(name, 'search_corpus')
+        self.assertEqual(payload['candidates'][0]['id'], self.recipe.id)
+
+    def test_fabricated_candidate_id_is_dropped(self):
+        result, _ = self._turn([
+            _call('search_corpus'),
+            _final('Co třeba tohle?', candidate_id=999999),
+        ])
+        self.assertIsNone(result.candidate)
+        self.assertEqual(result.reply_text, 'Co třeba tohle?')
+
+    def test_dietary_tags_always_reach_the_gate(self):
+        # Pool recipe lacks the vegan tag -> tool must return zero candidates
+        # no matter what the model asked for.
+        result, session = self._turn(
+            [
+                _call('search_corpus', wanted_ingredients=['kuřecí']),
+                _final('Nic veganského tu nemám.'),
+            ],
+            required_tags={'vegan'},
+        )
+        _, payload = session.tool_results[0]
+        self.assertEqual(payload['candidates'], [])
+
+    def test_research_web_creates_job_and_returns_id(self):
+        result, session = self._turn([
+            _call('research_web', query='pravý ramen'),
+            _final('Hledám recept na webu, chvilku strpení…'),
+        ])
+        job = RecipeResearchJob.objects.get(id=result.research_job_id)
+        self.assertEqual(job.user, self.user)
+        self.assertEqual(job.query, 'pravý ramen')
+        self.assertEqual(job.meal_identifier, '1:1:lunch:0')
+
+    def test_cap_reached_is_reported_as_tool_error(self):
+        from diet_planner.services import recipe_research
+        for i in range(recipe_research.DAILY_CAP):
+            RecipeResearchJob.objects.create(
+                user=self.user, meal_identifier='1:1:lunch:0', query=f'q{i}',
+            )
+        result, session = self._turn([
+            _call('research_web', query='pátý pokus'),
+            _final('Dnes už jsme limit hledání vyčerpali.'),
+        ])
+        self.assertIsNone(result.research_job_id)
+        _, payload = session.tool_results[0]
+        self.assertEqual(payload.get('error'), 'cap_reached')
+        # No sixth job row.
+        self.assertEqual(RecipeResearchJob.objects.filter(user=self.user).count(),
+                         recipe_research.DAILY_CAP)
+
+    def test_tool_round_bound_forces_reply(self):
+        # Model keeps calling tools; after MAX_TOOL_ROUNDS the loop must stop
+        # and surface whatever text is available (fallback line).
+        steps = [_call('search_corpus')] * (refine_agent.MAX_TOOL_ROUNDS + 1)
+        result, _ = self._turn(steps)
+        self.assertTrue(result.reply_text)  # never empty
+
+    def test_unparseable_final_message_degrades_to_raw_text(self):
+        result, _ = self._turn([{'tool_call': None, 'text': 'prostě text bez JSONu'}])
+        self.assertEqual(result.reply_text, 'prostě text bez JSONu')
+        self.assertIsNone(result.candidate)
