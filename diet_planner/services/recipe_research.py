@@ -41,6 +41,7 @@ _FAIL_REPLIES = {
     'no_sources': 'Bohužel jsem na webu nenašel žádný vhodný recept. Zkuste to prosím popsat jinak.',
     'all_sources_failed': 'Našel jsem pár receptů, ale žádný se nepodařilo spolehlivě zpracovat. Zkuste to prosím jinak nebo později.',
     'gates_failed': 'Recept jsem našel, ale neodpovídá vašim stravovacím omezením, takže ho nenabídnu.',
+    'not_relevant': 'Našel jsem několik receptů, ale žádný doopravdy neodpovídal tomu, co hledáte. Zkuste to prosím popsat jinak.',
     'error': 'Při hledání receptu se něco pokazilo. Zkuste to prosím znovu.',
 }
 
@@ -116,6 +117,70 @@ def discover_recipe_sources(
 
 
 # ---------------------------------------------------------------------------
+# Relevance + URL canonicalization (QA 2026-07-27 P1-A)
+# ---------------------------------------------------------------------------
+
+_RELEVANCE_PROMPT = (
+    'A user asked for a recipe for: "{query}".\n'
+    'A web pipeline produced this recipe: name "{name}", description '
+    '"{description}".\n'
+    'Is this recipe genuinely the dish the user asked for (same dish or a '
+    'faithful variant — NOT merely the same cuisine or a random other dish)? '
+    'Return ONLY JSON: {{"relevant": true}} or {{"relevant": false}}.'
+)
+
+
+def _default_relevance_generate(prompt: str) -> str:
+    import google.generativeai as genai
+
+    genai.configure(api_key=getattr(settings, 'GEMINI_API_KEY', None))
+    model = genai.GenerativeModel(getattr(settings, 'GEMINI_MODEL', 'gemini-2.5-flash'))
+    resp = model.generate_content(prompt)
+    return getattr(resp, 'text', '') or ''
+
+
+def check_relevance(
+    query: str, name: str, description: str,
+    *, generate: Optional[Callable[[str], str]] = None,
+) -> bool:
+    """LLM judge: is the curated recipe actually the requested dish? Discovery
+    fabricates URL slugs that sites 301 to unrelated articles (prod QA: asked
+    ramen, got bean salad), so a curated recipe is NOT evidence of relevance.
+    Fail-CLOSED: announcing the wrong dish as success is worse than a miss."""
+    from diet_planner.services.prompt_facets import _strip_code_fence
+
+    gen = generate or _default_relevance_generate
+    try:
+        raw = gen(_RELEVANCE_PROMPT.format(
+            query=query.strip(), name=(name or '').strip(),
+            description=(description or '').strip()[:300],
+        ))
+        data = json.loads(_strip_code_fence(raw))
+        return isinstance(data, dict) and data.get('relevant') is True
+    except Exception as exc:
+        logger.warning("recipe_research: relevance check failed for %r: %s", query, exc)
+        return False
+
+
+def _canonicalize_url(url: str) -> str:
+    """Follow redirects to the page's real URL. A fabricated slug that a site
+    301s elsewhere must be seen by dedup and curation as its TRUE target."""
+    import requests
+    try:
+        resp = requests.get(
+            url, allow_redirects=True, timeout=10, stream=True,
+            headers={'User-Agent': 'Mozilla/5.0 (compatible; VartoBot/1.0)'},
+        )
+        final = str(resp.url or '')
+        resp.close()
+        if resp.status_code < 400 and final:
+            return final
+    except Exception as exc:
+        logger.info("recipe_research: canonicalize failed for %s: %s", url, exc)
+    return url
+
+
+# ---------------------------------------------------------------------------
 # Job runner
 # ---------------------------------------------------------------------------
 
@@ -179,7 +244,11 @@ def _run(job: RecipeResearchJob) -> Dict[str, str]:
     job.save(update_fields=['status', 'updated_at'])
 
     saw_gate_failure = False
+    saw_irrelevant = False
     for src in sources:
+        # Discovery URLs may carry fabricated slugs the site redirects
+        # elsewhere — dedup and curation must both see the real target.
+        src = {**src, 'url': _canonicalize_url(src['url'])}
         result = curate_from_source(
             {'dish_name': job.query, 'source_url': src['url'], 'source_name': src['name']},
             persist=False,
@@ -193,6 +262,9 @@ def _run(job: RecipeResearchJob) -> Dict[str, str]:
             ):
                 if not required_tags.issubset(set(existing.dietary_tags or [])):
                     saw_gate_failure = True
+                    continue
+                if not check_relevance(job.query, existing.name_cs, existing.description):
+                    saw_irrelevant = True
                     continue
                 # Guarantee the requested slot so the accept gate can pass —
                 # same requirement as the fresh-curation path below.
@@ -220,6 +292,11 @@ def _run(job: RecipeResearchJob) -> Dict[str, str]:
         if not required_tags.issubset(set(recipe.dietary_tags or [])):
             saw_gate_failure = True
             continue
+        # A successfully curated page can still be the WRONG dish (redirected
+        # fabricated slug) — never announce an unrelated recipe as success.
+        if not check_relevance(job.query, recipe.name_cs, recipe.description):
+            saw_irrelevant = True
+            continue
         # Guarantee the requested slot so the accept gate can pass.
         if slot not in (recipe.meal_types or []):
             recipe.meal_types = list(recipe.meal_types or []) + [slot]
@@ -237,7 +314,12 @@ def _run(job: RecipeResearchJob) -> Dict[str, str]:
         )
         return {'status': 'ready'}
 
-    reason = 'gates_failed' if saw_gate_failure else 'all_sources_failed'
+    if saw_gate_failure:
+        reason = 'gates_failed'
+    elif saw_irrelevant:
+        reason = 'not_relevant'
+    else:
+        reason = 'all_sources_failed'
     _finish(job, status=RecipeResearchJob.Status.FAILED, fail_reason=reason)
     return {'status': 'failed', 'reason': reason}
 

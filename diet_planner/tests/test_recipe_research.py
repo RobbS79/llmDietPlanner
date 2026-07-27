@@ -131,6 +131,17 @@ class RunResearchJobTest(TestCase):
             user=self.user, meal_identifier=f'{self.goal.id}:1:lunch:0',
             query='thajské zelené curry',
         )
+        # The QA-driven gates (relevance judge, URL canonicalization) default
+        # to permissive here; RelevanceGateTest / CanonicalUrlTest exercise
+        # them explicitly.
+        rel = patch('diet_planner.services.recipe_research.check_relevance',
+                    return_value=True)
+        rel.start()
+        self.addCleanup(rel.stop)
+        canon = patch('diet_planner.services.recipe_research._canonicalize_url',
+                      side_effect=lambda u: u)
+        canon.start()
+        self.addCleanup(canon.stop)
 
     def _draft(self, **kw):
         """In-memory unsaved draft, as curate_from_source(persist=False) yields."""
@@ -315,3 +326,141 @@ class ResearchTaskTest(TestCase):
             out = research_recipe_task.run(123)
         run.assert_called_once_with(123)
         self.assertEqual(out, {'status': 'ready'})
+
+
+class RelevanceGateTest(TestCase):
+    """QA 2026-07-27 P1-A: discovery fabricated a URL slug that 301'd to an
+    unrelated dish (asked ramen, delivered bean salad) and the job announced
+    success. The runner must refuse to serve an irrelevant recipe."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create(username='ramenista')
+        from diet_planner.models import DietaryGoal
+        self.goal = DietaryGoal.objects.create(
+            user=self.user, prompt='týden jídel', num_days=1,
+            country='CZ', currency='CZK', language_code='cs',
+        )
+        self.job = RecipeResearchJob.objects.create(
+            user=self.user, meal_identifier=f'{self.goal.id}:1:lunch:0',
+            query='pravý japonský ramen',
+        )
+        canon = patch('diet_planner.services.recipe_research._canonicalize_url',
+                      side_effect=lambda u: u)
+        canon.start()
+        self.addCleanup(canon.stop)
+
+    def _draft(self, name_cs='Fazolový salát základní'):
+        return CuratedRecipe(
+            name_cs=name_cs, meal_types=['lunch'], dietary_tags=[],
+            ingredients=[{'name': 'fazole', 'quantity': 200, 'unit': 'g'}],
+            instructions=[{'text': 'Smíchej.', 'time_min': 10, 'tip': None}],
+            base_servings=2, source_url='https://x.example/r', source_name='X',
+            status=CuratedRecipe.Status.DRAFT,
+        )
+
+    @patch('diet_planner.services.recipe_research.check_relevance', return_value=False)
+    @patch('diet_planner.services.recipe_research.curate_from_source')
+    @patch('diet_planner.services.recipe_research.discover_recipe_sources')
+    def test_irrelevant_recipe_fails_honestly_and_saves_nothing(self, disc, curate, rel):
+        disc.return_value = [{'url': 'https://x.example/r', 'name': 'X'}]
+        curate.return_value = _ok_result('https://x.example/r', self._draft())
+        recipe_research.run_research_job(self.job.id)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, RecipeResearchJob.Status.FAILED)
+        self.assertEqual(self.job.fail_reason, 'not_relevant')
+        self.assertTrue(self.job.reply_text)
+        self.assertEqual(
+            CuratedRecipe.objects.filter(origin=CuratedRecipe.Origin.CHAT_WEB).count(), 0)
+
+    @patch('diet_planner.services.recipe_research.check_relevance')
+    @patch('diet_planner.services.recipe_research.curate_from_source')
+    @patch('diet_planner.services.recipe_research.discover_recipe_sources')
+    def test_falls_through_irrelevant_to_relevant_source(self, disc, curate, rel):
+        disc.return_value = [
+            {'url': 'https://x.example/salat', 'name': 'X'},
+            {'url': 'https://y.example/ramen', 'name': 'Y'},
+        ]
+        curate.side_effect = [
+            _ok_result('https://x.example/salat', self._draft('Fazolový salát')),
+            _ok_result('https://y.example/ramen', self._draft('Japonský ramen')),
+        ]
+        rel.side_effect = [False, True]
+        recipe_research.run_research_job(self.job.id)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, RecipeResearchJob.Status.READY)
+        self.assertEqual(self.job.result_recipe.name_cs, 'Japonský ramen')
+
+    @patch('diet_planner.services.recipe_research.check_relevance', return_value=False)
+    @patch('diet_planner.services.recipe_research.curate_from_source')
+    @patch('diet_planner.services.recipe_research.discover_recipe_sources')
+    def test_reuse_path_is_also_gated(self, disc, curate, rel):
+        make_recipe(name_cs='Fazolový salát', source_url='https://known.example/r')
+        disc.return_value = [{'url': 'https://known.example/r', 'name': 'Known'}]
+        skipped = CurationResult(source_url='https://known.example/r')
+        skipped.ok = True
+        skipped.skipped = True
+        curate.return_value = skipped
+        recipe_research.run_research_job(self.job.id)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, RecipeResearchJob.Status.FAILED)
+        self.assertEqual(self.job.fail_reason, 'not_relevant')
+
+
+class CheckRelevanceTest(TestCase):
+    def test_yes_no_and_garbage(self):
+        yes = lambda p: '{"relevant": true}'
+        no = lambda p: '{"relevant": false}'
+        fenced = lambda p: '```json\n{"relevant": true}\n```'
+        garbage = lambda p: 'nevím'
+        def boom(p):
+            raise RuntimeError('down')
+        self.assertTrue(recipe_research.check_relevance('ramen', 'Ramen', '', generate=yes))
+        self.assertFalse(recipe_research.check_relevance('ramen', 'Salát', '', generate=no))
+        self.assertTrue(recipe_research.check_relevance('ramen', 'Ramen', '', generate=fenced))
+        # Fail-closed: a wrong dish announced as success is worse than a miss.
+        self.assertFalse(recipe_research.check_relevance('ramen', 'X', '', generate=garbage))
+        self.assertFalse(recipe_research.check_relevance('ramen', 'X', '', generate=boom))
+
+
+class CanonicalUrlTest(TestCase):
+    def test_follows_redirects_to_final_url(self):
+        with patch('requests.get') as get:
+            get.return_value.status_code = 200
+            get.return_value.url = 'https://site.example/47545-fazolovy-salat'
+            out = recipe_research._canonicalize_url('https://site.example/47545-ramen')
+        self.assertEqual(out, 'https://site.example/47545-fazolovy-salat')
+
+    def test_failure_keeps_original(self):
+        with patch('requests.get', side_effect=OSError('net down')):
+            out = recipe_research._canonicalize_url('https://site.example/r')
+        self.assertEqual(out, 'https://site.example/r')
+
+    @patch('diet_planner.services.recipe_research.check_relevance', return_value=True)
+    @patch('diet_planner.services.recipe_research.curate_from_source')
+    @patch('diet_planner.services.recipe_research.discover_recipe_sources')
+    def test_runner_curates_and_dedups_on_canonical_url(self, disc, curate, rel):
+        user = get_user_model().objects.create(username='kanonik')
+        from diet_planner.models import DietaryGoal
+        goal = DietaryGoal.objects.create(
+            user=user, prompt='týden jídel', num_days=1,
+            country='CZ', currency='CZK', language_code='cs',
+        )
+        job = RecipeResearchJob.objects.create(
+            user=user, meal_identifier=f'{goal.id}:1:lunch:0', query='ramen',
+        )
+        existing = make_recipe(name_cs='Ramen (už máme)',
+                               source_url='https://site.example/real-ramen')
+        disc.return_value = [{'url': 'https://site.example/fabricated-slug', 'name': 'S'}]
+        skipped = CurationResult(source_url='https://site.example/real-ramen')
+        skipped.ok = True
+        skipped.skipped = True
+        curate.return_value = skipped
+        with patch('diet_planner.services.recipe_research._canonicalize_url',
+                   return_value='https://site.example/real-ramen') as canon:
+            recipe_research.run_research_job(job.id)
+        canon.assert_called_once_with('https://site.example/fabricated-slug')
+        # Curation AND the corpus-dedup lookup both saw the canonical URL.
+        self.assertEqual(curate.call_args.args[0]['source_url'],
+                         'https://site.example/real-ramen')
+        job.refresh_from_db()
+        self.assertEqual(job.result_recipe_id, existing.id)
