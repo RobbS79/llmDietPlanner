@@ -219,3 +219,89 @@ class RunResearchJobTest(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, RecipeResearchJob.Status.READY)
         self.assertEqual(self.job.result_recipe_id, existing.id)
+
+    @patch('diet_planner.services.recipe_research.curate_from_source')
+    @patch('diet_planner.services.recipe_research.discover_recipe_sources')
+    def test_reused_published_recipe_missing_slot_falls_through(self, disc, curate):
+        # Published, but doesn't cover the requested slot and isn't ours to
+        # amend -> must not be served (accept would 400 on meal_type gate);
+        # the job should fall through to the next source instead.
+        existing = make_recipe(
+            name_cs='Publikovaná večeře', source_url='https://known.example/r',
+            meal_types=['dinner'],
+        )
+        disc.return_value = [
+            {'url': 'https://known.example/r', 'name': 'Known'},
+            {'url': 'https://curry.example/r', 'name': 'Curry Example'},
+        ]
+        skipped = CurationResult(source_url='https://known.example/r')
+        skipped.ok = True
+        skipped.skipped = True
+        curate.side_effect = [
+            skipped,
+            _ok_result('https://curry.example/r', self._draft()),
+        ]
+        recipe_research.run_research_job(self.job.id)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, RecipeResearchJob.Status.READY)
+        self.assertNotEqual(self.job.result_recipe_id, existing.id)
+
+    @patch('diet_planner.services.recipe_research.curate_from_source')
+    @patch('diet_planner.services.recipe_research.discover_recipe_sources')
+    def test_reused_own_draft_missing_slot_is_amended(self, disc, curate):
+        # Our own prior chat_web draft: we own it, so it's fine to append the
+        # requested slot rather than skip a recipe we could otherwise reuse.
+        existing = make_recipe(
+            name_cs='Můj dřívější nález', source_url='https://known.example/r',
+            meal_types=['dinner'], status=CuratedRecipe.Status.DRAFT,
+            origin=CuratedRecipe.Origin.CHAT_WEB, created_for_user=self.user,
+        )
+        disc.return_value = [{'url': 'https://known.example/r', 'name': 'Known'}]
+        skipped = CurationResult(source_url='https://known.example/r')
+        skipped.ok = True
+        skipped.skipped = True
+        curate.return_value = skipped
+        recipe_research.run_research_job(self.job.id)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, RecipeResearchJob.Status.READY)
+        self.assertEqual(self.job.result_recipe_id, existing.id)
+        existing.refresh_from_db()
+        self.assertIn('lunch', existing.meal_types)
+
+    @patch('diet_planner.services.recipe_research.curate_from_source')
+    @patch('diet_planner.services.recipe_research.discover_recipe_sources')
+    def test_curate_from_source_crash_is_caught(self, disc, curate):
+        # Core never-raises contract: any exception mid-pipeline must end the
+        # job FAILED/error, not escape run_research_job.
+        disc.return_value = [{'url': 'https://curry.example/r', 'name': 'Curry Example'}]
+        curate.side_effect = RuntimeError('boom')
+        result = recipe_research.run_research_job(self.job.id)
+        self.job.refresh_from_db()
+        self.assertEqual(result, {'status': 'failed', 'reason': 'error'})
+        self.assertEqual(self.job.status, RecipeResearchJob.Status.FAILED)
+        self.assertEqual(self.job.fail_reason, 'error')
+
+
+class GoalResolutionTest(TestCase):
+    """A HARD gate (dietary tags) can't be checked without the goal, so a job
+    whose goal can't be resolved must hard-fail rather than silently skip it."""
+
+    def test_missing_goal_hard_fails(self):
+        user = get_user_model().objects.create(username='bezcile')
+        job = RecipeResearchJob.objects.create(
+            user=user, meal_identifier='999999:1:lunch:0', query='cokoliv',
+        )
+        recipe_research.run_research_job(job.id)
+        job.refresh_from_db()
+        self.assertEqual(job.status, RecipeResearchJob.Status.FAILED)
+        self.assertEqual(job.fail_reason, 'error')
+
+    def test_malformed_meal_identifier_hard_fails(self):
+        user = get_user_model().objects.create(username='divnyid')
+        job = RecipeResearchJob.objects.create(
+            user=user, meal_identifier='not-an-identifier', query='cokoliv',
+        )
+        recipe_research.run_research_job(job.id)
+        job.refresh_from_db()
+        self.assertEqual(job.status, RecipeResearchJob.Status.FAILED)
+        self.assertEqual(job.fail_reason, 'error')

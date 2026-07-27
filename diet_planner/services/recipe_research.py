@@ -159,7 +159,14 @@ def run_research_job(job_id: int) -> Dict[str, str]:
 def _run(job: RecipeResearchJob) -> Dict[str, str]:
     slot = _slot_of(job.meal_identifier)
     goal = _goal_of(job)
-    required_tags = required_tags_for_goal(goal) if goal else set()
+    if goal is None:
+        # No goal to check the dietary gate against — a recipe found now
+        # could never be honestly vetted, and the job couldn't be accepted
+        # anyway (accept resolves the same goal). Hard-fail rather than
+        # silently dropping the HARD dietary-tags policy.
+        _finish(job, status=RecipeResearchJob.Status.FAILED, fail_reason='error')
+        return {'status': 'failed', 'reason': 'error'}
+    required_tags = required_tags_for_goal(goal)
 
     job.status = RecipeResearchJob.Status.SEARCHING
     job.save(update_fields=['status', 'updated_at'])
@@ -187,6 +194,17 @@ def _run(job: RecipeResearchJob) -> Dict[str, str]:
                 if not required_tags.issubset(set(existing.dietary_tags or [])):
                     saw_gate_failure = True
                     continue
+                # Guarantee the requested slot so the accept gate can pass —
+                # same requirement as the fresh-curation path below.
+                if slot not in (existing.meal_types or []):
+                    if existing.created_for_user_id == job.user_id:
+                        existing.meal_types = list(existing.meal_types or []) + [slot]
+                        existing.save(update_fields=['meal_types'])
+                    else:
+                        # A published corpus recipe we can't amend: not usable
+                        # for this slot, but this isn't a dietary violation —
+                        # just try the next source.
+                        continue
                 _finish(
                     job, status=RecipeResearchJob.Status.READY, recipe=existing,
                     reply_text=_ready_reply(existing),
