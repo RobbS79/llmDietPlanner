@@ -181,8 +181,13 @@ def eligible_recipes_for_slot(
     status: str = CuratedRecipe.Status.PUBLISHED,
     exclude_ids: Optional[Set[int]] = None,
     facets: Optional[PromptFacets] = None,
+    enforce_mapping: bool = True,
 ) -> List[CuratedRecipe]:
-    """Recipes that pass the HARD GATE for one slot (incl. prompt facets)."""
+    """Recipes that pass the HARD GATE for one slot (incl. prompt facets).
+
+    `enforce_mapping=False` relaxes ONLY the catalog-mapping gate — used for a
+    user's own chat_web drafts (spec 2026-07-27, decision 1). All other gates
+    (slot, dietary, facets) always apply."""
     meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)
     candidates = pool if pool is not None else published_pool(status)
     exclude_ids = exclude_ids or set()
@@ -195,7 +200,7 @@ def eligible_recipes_for_slot(
             continue
         if not required_tags.issubset(set(r.dietary_tags or [])):
             continue
-        if not r.is_catalog_mapped():
+        if enforce_mapping and not r.is_catalog_mapped():
             continue
         if facets is not None and not recipe_matches_facets(r, facets):
             continue
