@@ -137,3 +137,50 @@ class RefineAgentTest(TestCase):
         result, _ = self._turn([{'tool_call': None, 'text': 'prostě text bez JSONu'}])
         self.assertEqual(result.reply_text, 'prostě text bez JSONu')
         self.assertIsNone(result.candidate)
+
+    # --- prod QA 2026-07-27 regressions: Gemini emits prose+JSON and string ids ---
+
+    def test_prose_prefixed_json_does_not_leak_into_reply(self):
+        # 5/6 prod turns: model narrates, then appends the JSON contract.
+        leaked = ('Rozumím, najdu ti něco jiného k obědu. '
+                  '{"reply": "Co třeba Kuřecí rizoto?", "candidate_id": %d}' % self.recipe.id)
+        result, _ = self._turn([
+            _call('search_corpus'),
+            {'tool_call': None, 'text': leaked},
+        ])
+        self.assertEqual(result.reply_text, 'Co třeba Kuřecí rizoto?')
+        self.assertNotIn('{', result.reply_text)
+        self.assertEqual(result.candidate.id, self.recipe.id)
+
+    def test_string_candidate_id_resolves(self):
+        # Prod: model emitted candidate_id as a string ("18944").
+        import json
+        result, _ = self._turn([
+            _call('search_corpus'),
+            {'tool_call': None,
+             'text': json.dumps({'reply': 'Co třeba Kuřecí rizoto?',
+                                 'candidate_id': str(self.recipe.id)})},
+        ])
+        self.assertEqual(result.candidate.id, self.recipe.id)
+
+    def test_prose_with_string_id_full_prod_shape(self):
+        # The exact prod failure shape: prose + JSON with a quoted id.
+        leaked = ('Je to syté a chutné jídlo.'
+                  '{"reply": "Co bys řekl na Kuřecí rizoto?", "candidate_id": "%d"}'
+                  % self.recipe.id)
+        result, _ = self._turn([
+            _call('search_corpus'),
+            {'tool_call': None, 'text': leaked},
+        ])
+        self.assertEqual(result.reply_text, 'Co bys řekl na Kuřecí rizoto?')
+        self.assertEqual(result.candidate.id, self.recipe.id)
+
+    def test_non_numeric_string_candidate_id_is_dropped(self):
+        import json
+        result, _ = self._turn([
+            _call('search_corpus'),
+            {'tool_call': None,
+             'text': json.dumps({'reply': 'Tohle?', 'candidate_id': 'abc'})},
+        ])
+        self.assertEqual(result.reply_text, 'Tohle?')
+        self.assertIsNone(result.candidate)
