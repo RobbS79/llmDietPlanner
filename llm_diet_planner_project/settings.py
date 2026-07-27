@@ -384,6 +384,11 @@ RECIPE_HUMAN_JUDGE_EFFORT = config('RECIPE_HUMAN_JUDGE_EFFORT', default='low')
 # can be populated/promoted in prod before retrieval goes live.
 RECIPE_GROUNDING_ENABLED = config('RECIPE_GROUNDING_ENABLED', default=False, cast=bool)
 
+# Refine chat v2: Gemini tool-loop agent + web recipe acquisition (spec
+# 2026-07-27). Off by default; the v1 facet path serves the turn when the flag
+# is off or the agent raises.
+REFINE_CHAT_AGENT_ENABLED = config('REFINE_CHAT_AGENT_ENABLED', default=False, cast=bool)
+
 # --- 9b. STRIPE BILLING ---
 # Subscriptions run on Stripe Billing (not Shopify; decided 2026-06-10).
 # Sandbox/test keys in dev; live keys are set as encrypted env vars on DO App

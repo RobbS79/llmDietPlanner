@@ -21,6 +21,7 @@ urlpatterns = [
     path('recipes/public/', views.PublicRecipeListView.as_view(), name='public-recipe-list'),
     path('recipes/public/<int:pk>/', views.PublicRecipeDetailView.as_view(), name='public-recipe-detail'),
     # Authenticated recipe endpoints
+    path('recipes/research/<int:job_id>/', views.RecipeResearchJobView.as_view(), name='recipe-research-job'),
     path('recipes/<str:meal_identifier>/replace/', views.RecipeReplaceView.as_view(), name='recipe-replace'),
     path('recipes/<str:meal_identifier>/refine/', views.RecipeRefineView.as_view(), name='recipe-refine'),
     path('recipes/<str:meal_identifier>/', views.RecipeDetailView.as_view(), name='recipe-detail'),
