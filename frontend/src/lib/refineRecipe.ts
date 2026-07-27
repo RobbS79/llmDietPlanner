@@ -23,6 +23,17 @@ export interface RefinePreviewResult {
   question: string | null;
   hint_matched: boolean | null;
   reason?: string;
+  /** v2 agent fields — present iff REFINE_CHAT_AGENT_ENABLED on the backend. */
+  reply_text?: string | null;
+  research_job_id?: number | null;
+}
+
+export type ResearchJobStatus = 'queued' | 'searching' | 'curating' | 'ready' | 'failed';
+
+export interface ResearchStatusResult {
+  status: ResearchJobStatus;
+  reply_text: string | null;
+  candidate: RefineCandidate | null;
 }
 
 export interface RefineAcceptResult {
@@ -41,6 +52,12 @@ export async function refinePreview(
     rejected_ids: rejectedIds,
   });
   return res.data.data as RefinePreviewResult;
+}
+
+/** Poll one web-research job (v2). Owner-only on the backend. */
+export async function researchStatus(jobId: number): Promise<ResearchStatusResult> {
+  const res = await api.get(`/recipes/research/${jobId}/`);
+  return res.data.data as ResearchStatusResult;
 }
 
 /** Accept turn: commit the previewed candidate into the plan slot. */
