@@ -305,3 +305,13 @@ class GoalResolutionTest(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.status, RecipeResearchJob.Status.FAILED)
         self.assertEqual(job.fail_reason, 'error')
+
+
+class ResearchTaskTest(TestCase):
+    def test_task_delegates_to_runner(self):
+        from diet_planner.tasks import research_recipe_task
+        with patch('diet_planner.services.recipe_research.run_research_job') as run:
+            run.return_value = {'status': 'ready'}
+            out = research_recipe_task.run(123)
+        run.assert_called_once_with(123)
+        self.assertEqual(out, {'status': 'ready'})
