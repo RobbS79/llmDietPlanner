@@ -44,4 +44,5 @@ from .scraping import (  # noqa: F401
 
 from .curated import (  # noqa: F401
     CuratedRecipe,
+    RecipeResearchJob,
 )

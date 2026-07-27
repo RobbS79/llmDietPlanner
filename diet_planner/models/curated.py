@@ -15,6 +15,7 @@ See docs/recipe-grounding-plan.md §3.
 """
 from __future__ import annotations
 
+from django.conf import settings as django_settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.text import slugify
@@ -31,6 +32,10 @@ class CuratedRecipe(models.Model):
         DRAFT = 'draft', 'Draft'
         VETTED = 'vetted', 'Vetted'
         PUBLISHED = 'published', 'Published'
+
+    class Origin(models.TextChoices):
+        CURATED = 'curated', 'Curated batch'
+        CHAT_WEB = 'chat_web', 'Chat web research'
 
     # --- Identity / presentation -------------------------------------------
     slug = models.SlugField(max_length=255, unique=True, db_index=True)
@@ -102,6 +107,21 @@ class CuratedRecipe(models.Model):
         default=Status.DRAFT,
         db_index=True,
     )
+    origin = models.CharField(
+        max_length=10,
+        choices=Origin.choices,
+        default=Origin.CURATED,
+        db_index=True,
+        help_text="curated = batch pipeline; chat_web = user-triggered web research",
+    )
+    created_for_user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='chat_recipes',
+        help_text="Requester of a chat_web draft; only their plan may use it pre-publish",
+    )
     quality_score = models.JSONField(
         null=True,
         blank=True,
@@ -140,3 +160,43 @@ class CuratedRecipe(models.Model):
             if not ing.get('catalog_id') and not ing.get('canonical'):
                 return False
         return True
+
+
+class RecipeResearchJob(models.Model):
+    """One user-triggered web recipe research run, polled by the refine chat."""
+
+    class Status(models.TextChoices):
+        QUEUED = 'queued', 'Queued'
+        SEARCHING = 'searching', 'Searching'
+        CURATING = 'curating', 'Curating'
+        READY = 'ready', 'Ready'
+        FAILED = 'failed', 'Failed'
+
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='research_jobs',
+    )
+    meal_identifier = models.CharField(max_length=64)
+    query = models.CharField(max_length=300)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True,
+    )
+    result_recipe = models.ForeignKey(
+        CuratedRecipe, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='research_jobs',
+    )
+    fail_reason = models.CharField(
+        max_length=60, blank=True,
+        help_text="machine code: no_sources / all_sources_failed / gates_failed / error",
+    )
+    reply_text = models.TextField(
+        blank=True, help_text="Czech chat line shown when the job finishes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"research #{self.pk} [{self.status}] {self.query[:40]}"
