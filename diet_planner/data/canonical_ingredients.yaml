@@ -106,6 +106,7 @@
     - { alias: "kuře", language_code: cs }
     - { alias: "kuřecí stehna vykostěná", language_code: cs }
     - { alias: "kuřecí prsa bez kosti a kůže", language_code: cs }
+    - { alias: "kuřecí prsa bez kůže a kostí", language_code: cs }
     - { alias: "kuřecí prsa bez kůže", language_code: cs }
 
 - name: chicken thigh
@@ -136,6 +137,8 @@
   aliases:
     - { alias: "losos", language_code: cs }
     - { alias: "losos čerstvý", language_code: cs }
+    - { alias: "filety z lososa", language_code: cs }
+    - { alias: "filet z lososa", language_code: cs }
 
 - name: tuna canned
   name_cs: tuňák v konzervě
@@ -439,6 +442,7 @@
     - { alias: "parmezán", language_code: cs }
     - { alias: "tvrdý sýr", language_code: cs }
     - { alias: "strouhaný sýr", language_code: cs }
+    - { alias: "parmazán sýr", language_code: cs }
 
 - name: cheese
   name_cs: sýr
@@ -593,6 +597,7 @@
     - { alias: "portobello houby", language_code: cs }
     - { alias: "houby portobello", language_code: cs }
     - { alias: "žampiony baby bella", language_code: cs }
+    - { alias: "žampiony cremini", language_code: cs }
     - { alias: "baby bella", language_code: cs }
     - { alias: "lesní houby", language_code: cs }
     - { alias: "hlíva ústřičná", language_code: cs }
@@ -628,6 +633,7 @@
   aliases:
     - { alias: "salát", language_code: cs }
     - { alias: "ledový salát", language_code: cs }
+    - { alias: "listy ledového salátu", language_code: cs }
     - { alias: "římský salát", language_code: cs }
 
 - name: arugula
@@ -2415,3 +2421,53 @@
   aliases:
     - { alias: "koření gyros směs", language_code: cs }
     - { alias: "gyros koření", language_code: cs }
+
+- name: ricotta
+  name_cs: ricotta
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "sýr ricotta", language_code: cs }
+
+- name: pesto
+  name_cs: bazalkové pesto
+  category: condiments
+  default_unit: g
+  aliases:
+    - { alias: "pesto", language_code: cs }
+    - { alias: "zelené pesto", language_code: cs }
+
+- name: cauliflower rice
+  name_cs: květáková rýže
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "rýže z květáku", language_code: cs }
+    - { alias: "uvařená rýže z květáku", language_code: cs }
+
+- name: hoisin sauce
+  name_cs: hoisin omáčka
+  category: condiments
+  default_unit: ml
+
+- name: sriracha
+  name_cs: sriracha
+  category: condiments
+  default_unit: ml
+  aliases:
+    - { alias: "chilli omáčka", language_code: cs }
+    - { alias: "chilli omáčka sriracha", language_code: cs }
+
+- name: fajita seasoning
+  name_cs: koření fajitas
+  category: spices
+  default_unit: g
+  aliases:
+    - { alias: "koření na fajitas", language_code: cs }
+
+- name: shredded cheese mix
+  name_cs: strouhaná sýrová směs
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "mexická sýrová směs", language_code: cs }
