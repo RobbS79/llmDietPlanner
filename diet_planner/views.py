@@ -52,6 +52,7 @@ from .services.recipe_retrieval import (
     eligible_recipes_for_slot,
     score_recipe,
     scale_recipe_to_meal,
+    wanted_matcher,
 )
 from .services.prompt_facets import extract_prompt_facets
 from .services.refine_agent import run_refine_turn
@@ -700,6 +701,10 @@ class RecipeReplaceView(APIView):
                 # Hint too specific for the corpus — fall back to plain next-best.
                 chosen = pick(None)
                 hint_matched = False
+            elif facets.wanted_ingredients:
+                # Wanted ingredients rank rather than gate (issue #47), so an
+                # eligible pick may still miss the hint's point — check the fit.
+                hint_matched = wanted_matcher(facets).hits(chosen) > 0
             else:
                 hint_matched = True
 
@@ -894,6 +899,10 @@ class RecipeRefineView(APIView):
             if chosen is None:
                 chosen = pick(None)
                 hint_matched = False
+            elif facets.wanted_ingredients:
+                # Wanted ingredients rank rather than gate (issue #47), so an
+                # eligible pick may still miss the hint's point — check the fit.
+                hint_matched = wanted_matcher(facets).hits(chosen) > 0
             else:
                 hint_matched = True
 

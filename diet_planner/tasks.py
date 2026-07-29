@@ -240,24 +240,29 @@ def transform_days_to_new_format(days_data: List[Dict[str, Any]], goal: DietaryG
     wants_lunch = getattr(goal, 'lunch', True)
     wants_dinner = getattr(goal, 'dinner', True)
 
+    def _has_name(meal) -> bool:
+        # The LLM occasionally emits meal stubs with name=None/'' (issue #47);
+        # they'd render as blank cards, so drop them here.
+        return isinstance(meal, dict) and bool(meal.get('name'))
+
     for day in days_data:
         day_number = day.get('day_number', len(transformed_days) + 1)
         transformed_day = {
             'day_number': day_number,
-            'small_meals': day.get('small_meals', []),
-            'snacks': day.get('snacks', []),
+            'small_meals': [m for m in day.get('small_meals', []) if _has_name(m)],
+            'snacks': [m for m in day.get('snacks', []) if _has_name(m)],
         }
 
         if 'breakfast' in day or 'lunch' in day or 'dinner' in day:
-            if wants_breakfast and day.get('breakfast'):
+            if wants_breakfast and _has_name(day.get('breakfast')):
                 meal = day['breakfast']
                 meal['meal_identifier'] = f"{goal.id}:{day_number}:breakfast:0"
                 transformed_day['breakfast'] = meal
-            if wants_lunch and day.get('lunch'):
+            if wants_lunch and _has_name(day.get('lunch')):
                 meal = day['lunch']
                 meal['meal_identifier'] = f"{goal.id}:{day_number}:lunch:0"
                 transformed_day['lunch'] = meal
-            if wants_dinner and day.get('dinner'):
+            if wants_dinner and _has_name(day.get('dinner')):
                 meal = day['dinner']
                 meal['meal_identifier'] = f"{goal.id}:{day_number}:dinner:0"
                 transformed_day['dinner'] = meal
@@ -830,7 +835,10 @@ def process_dietary_goal_task(self, goal_id: int) -> Dict[str, Any]:
             result = overlay_curated_recipes(transformed_days, goal)
             transformed_days = result['days']
             cov = result['coverage']
-            grounding_debug = {'facets': result['facets'], 'coverage': cov}
+            grounding_debug = {
+                'facets': result['facets'], 'coverage': cov,
+                'gaps': result['gaps'],
+            }
             logger.info(f"{log_prefix} Recipe grounding: {cov['filled']}/{cov['total']} slots curated")
 
         # Never ship an empty/degenerate plan as COMPLETED.
@@ -1310,7 +1318,10 @@ def process_dietary_goal_catalog_task(self, goal_id: int) -> Dict[str, Any]:
         if grounding_enabled():
             _grounded = overlay_curated_recipes(transformed_days, goal)
             transformed_days = _grounded['days']
-            grounding_debug = {'facets': _grounded['facets'], 'coverage': _grounded['coverage']}
+            grounding_debug = {
+                'facets': _grounded['facets'], 'coverage': _grounded['coverage'],
+                'gaps': _grounded['gaps'],
+            }
             logger.info(
                 f"{log_prefix} Recipe grounding: "
                 f"{_grounded['coverage']['filled']}/{_grounded['coverage']['total']} slots curated"
