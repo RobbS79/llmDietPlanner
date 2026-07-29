@@ -29,13 +29,18 @@ corpus and gets stronger as the corpus grows (B2).
 """
 from __future__ import annotations
 
+import logging
+import re
 from typing import Any, Dict, List, Optional, Sequence, Set
 
 from django.conf import settings
 from django.db.models import F
 
-from diet_planner.models import CuratedRecipe
+from diet_planner.models import CanonicalIngredient, CuratedRecipe
+from diet_planner.services.canonical_lookup import resolve_canonical
 from diet_planner.services.prompt_facets import PromptFacets, extract_prompt_facets
+
+logger = logging.getLogger(__name__)
 
 
 # Free-text dietary restrictions -> structured dietary_tags. Substring match,
@@ -156,19 +161,141 @@ def _recipe_canonicals(recipe: CuratedRecipe) -> Set[str]:
     return out
 
 
+# Broad food-group words (EN + common Czech forms) -> CanonicalIngredient
+# category. "maso nebo ryba" is a claim about ingredient CATEGORIES, not about
+# any substring — the plan-131 bug was matching these as English substrings
+# against Czech names (zero hits corpus-wide).
+_WANTED_CATEGORY_WORDS: Dict[str, str] = {
+    'meat': 'meat', 'maso': 'meat', 'masa': 'meat', 'masem': 'meat',
+    'fish': 'fish', 'ryba': 'fish', 'ryby': 'fish', 'rybu': 'fish',
+    'seafood': 'fish',
+    'vegetable': 'vegetables', 'vegetables': 'vegetables',
+    'zelenina': 'vegetables', 'zeleninu': 'vegetables', 'zeleniny': 'vegetables',
+    'fruit': 'fruits', 'fruits': 'fruits', 'ovoce': 'fruits',
+    'legumes': 'legumes', 'luštěniny': 'legumes',
+    'nuts': 'nuts', 'ořechy': 'nuts',
+    'egg': 'eggs', 'eggs': 'eggs', 'vejce': 'eggs',
+    'dairy': 'dairy',
+}
+
+
+class WantedIngredientMatcher:
+    """Match a user's ingredient tokens against a recipe's ingredients.
+
+    Each token becomes one concept, resolved at build time (one DB pass):
+      1. a broad food-group word ("maso", "fish") -> any ingredient whose
+         canonical belongs to that CanonicalIngredient.category;
+      2. a resolvable ingredient name ("rýže" -> canonical `rice`, grains) ->
+         slug equality, or slug-token superset within the SAME category, so
+         basmati-rice counts as rice but rice-vinegar (condiments) never does;
+      3. otherwise a word-boundary text match on ingredient names/canonicals
+         (no substring false positives).
+
+    `hits()` returns the number of DISTINCT concepts a recipe satisfies —
+    the ranking weight in `score_recipe`, and the prompt-fit signal for the
+    overlay threshold.
+    """
+
+    def __init__(self, concepts: List[tuple], slug_category: Dict[str, str]):
+        self._concepts = concepts
+        self._slug_category = slug_category
+
+    @classmethod
+    def build(cls, tokens) -> 'WantedIngredientMatcher':
+        clean = {str(t).strip().lower() for t in (tokens or ()) if str(t).strip()}
+        if not clean:
+            return cls([], {})
+        slug_category = dict(CanonicalIngredient.objects.values_list('slug', 'category'))
+        concepts: List[tuple] = []
+        for tok in sorted(clean):
+            category = _WANTED_CATEGORY_WORDS.get(tok)
+            if category:
+                concepts.append(('category', category))
+                continue
+            ci = resolve_canonical(tok)
+            if ci is not None:
+                concepts.append((
+                    'canonical', ci.slug, ci.category, frozenset(ci.slug.split('-')),
+                ))
+                continue
+            concepts.append(('text', re.compile(
+                r'\b' + re.escape(tok) + r'\b', re.IGNORECASE,
+            )))
+        return cls(concepts, slug_category)
+
+    def has_concepts(self) -> bool:
+        return bool(self._concepts)
+
+    def hits(self, recipe: CuratedRecipe) -> int:
+        ings = recipe.ingredients or []
+        slugs = [
+            str(i.get('canonical')).strip().lower()
+            for i in ings if i.get('canonical')
+        ]
+        texts = [
+            str(i.get(key)).replace('-', ' ')
+            for i in ings for key in ('name', 'canonical') if i.get(key)
+        ]
+        count = 0
+        for concept in self._concepts:
+            kind = concept[0]
+            if kind == 'category':
+                matched = any(self._slug_category.get(s) == concept[1] for s in slugs)
+            elif kind == 'canonical':
+                _, slug, category, slug_tokens = concept
+                matched = any(
+                    s == slug
+                    or (slug_tokens <= set(s.split('-'))
+                        and self._slug_category.get(s) == category)
+                    for s in slugs
+                )
+            else:
+                matched = any(concept[1].search(t) for t in texts)
+            if matched:
+                count += 1
+        return count
+
+
+def _facet_matcher(facets: PromptFacets, attr: str, tokens) -> WantedIngredientMatcher:
+    """Build lazily, cache on the facets instance so per-candidate scoring in a
+    max()/sorted() loop does the DB work exactly once per selection run."""
+    matcher = facets.__dict__.get(attr)
+    if matcher is None:
+        matcher = WantedIngredientMatcher.build(tokens)
+        facets.__dict__[attr] = matcher
+    return matcher
+
+
+def wanted_matcher(facets: PromptFacets) -> WantedIngredientMatcher:
+    return _facet_matcher(facets, '_wanted_matcher', facets.wanted_ingredients)
+
+
+def _avoided_matcher(facets: PromptFacets) -> WantedIngredientMatcher:
+    return _facet_matcher(facets, '_avoided_matcher', facets.avoided_ingredients)
+
+
 def recipe_matches_facets(recipe: CuratedRecipe, facets: PromptFacets) -> bool:
-    """Hard gate. Only non-empty facet sets constrain eligibility."""
+    """Hard gate: EXCLUSIONS only (issue #47 — restrictions gate, preferences
+    rank). Gates on explicitly requested cuisine, a stated time limit, and
+    avoided ingredients. Wanted ingredients rank in `score_recipe` instead."""
     if facets.cuisines:
         cuisine = (recipe.cuisine or '').strip().lower()
         if not cuisine or cuisine not in facets.cuisines:
             return False
 
-    tokens = _recipe_ingredient_tokens(recipe)
-    if facets.wanted_ingredients:
-        if not any(_ingredient_present(w, tokens) for w in facets.wanted_ingredients):
+    # Stated time budget is a hard cap; recipes with unknown time pass.
+    if facets.max_time_minutes:
+        total = recipe.total_time
+        if total and total > facets.max_time_minutes:
             return False
+
     if facets.avoided_ingredients:
+        tokens = _recipe_ingredient_tokens(recipe)
         if any(_ingredient_present(a, tokens) for a in facets.avoided_ingredients):
+            return False
+        # Substring is kept for backward compat; the matcher adds category /
+        # canonical / Czech-aware avoidance ("nechci ryby" blocks all fish).
+        if _avoided_matcher(facets).hits(recipe):
             return False
     return True
 
@@ -208,6 +335,15 @@ def eligible_recipes_for_slot(
     return out
 
 
+# One matched wanted concept must outrank the sum of all comfort terms.
+_WANTED_HIT_WEIGHT = 20.0
+
+# Wanted tokens describe the plan's MAIN components ("maso nebo ryba" is about
+# lunches/dinners, not breakfast or snacks) — the prompt-fit threshold below
+# only applies to these slots.
+_WANTED_FIT_SLOTS = ('lunch', 'dinner')
+
+
 def score_recipe(
     recipe: CuratedRecipe,
     *,
@@ -241,12 +377,11 @@ def score_recipe(
             rel = abs(base_cal - target_calories) / target_calories
             score += max(0.0, 3.0 * (1.0 - rel))  # full 3 pts at exact, 0 at >=100% off
 
-    # Soft prompt-fit bonuses (additive; never override the variety/difficulty
-    # /popularity terms above). Only the best-fitting *eligible* recipe wins.
+    # Prompt fit. Wanted-ingredient hits are what the user actually asked for
+    # ("maso nebo ryba"), so they carry a weight that DOMINATES the comfort
+    # terms above (difficulty+popularity+reuse+calorie sum to ~12 worst case).
     if facets is not None:
-        tokens = _recipe_ingredient_tokens(recipe)
-        wanted_hits = sum(1 for w in facets.wanted_ingredients if _ingredient_present(w, tokens))
-        score += 0.5 * wanted_hits
+        score += _WANTED_HIT_WEIGHT * wanted_matcher(facets).hits(recipe)
         tags = set(recipe.dietary_tags or [])
         score += 1.0 * len(facets.emphases & tags)
         if 'quick' in facets.styles and recipe.total_time and recipe.total_time <= 20:
@@ -269,13 +404,21 @@ def select_recipes_for_plan(
     *,
     status: str = CuratedRecipe.Status.PUBLISHED,
     facets: Optional[PromptFacets] = None,
+    calorie_targets: Optional[Dict[int, Dict[str, float]]] = None,
 ) -> Dict[str, Any]:
     """Greedy per-slot selection across the whole plan.
 
+    `calorie_targets` is {day_number: {slot_key: kcal}} (the overlay derives it
+    from the generated plan) and feeds the size-sanity term in `score_recipe`
+    so a 400-kcal side can't win a 700-kcal main slot.
+
     Returns {'days': [{'day_number', 'slots': {slot_key: CuratedRecipe}}, ...],
-             'coverage': {'filled': int, 'total': int}} where slot_key is
+             'coverage': {'filled': int, 'total': int},
+             'gaps': [{day_number, slot, reason, required_tags,
+                       unmatched_wanted}, ...]} where slot_key is
     'breakfast'/'lunch'/'dinner' or 'small_meal:N'/'snack:N'. Uncovered slots
-    are simply absent — the caller falls back to the generated meal.
+    are simply absent — the caller falls back to the generated meal — and every
+    one is recorded in `gaps` as a corpus-acquisition signal.
     """
     required_tags = required_tags_for_goal(goal)
     num_days = int(getattr(goal, 'num_days', 7) or 7)
@@ -292,7 +435,19 @@ def select_recipes_for_plan(
     used_cuisines: List[str] = []
     used_canonicals: Set[str] = set()  # ingredient reuse across the whole plan
     days: List[Dict[str, Any]] = []
+    gaps: List[Dict[str, Any]] = []
     filled = total = 0
+
+    def record_gap(day_number: int, slot_key: str, reason: str) -> None:
+        gap = {
+            'day_number': day_number,
+            'slot': slot_key,
+            'reason': reason,
+            'required_tags': sorted(required_tags),
+            'unmatched_wanted': sorted(facets.wanted_ingredients) if facets else [],
+        }
+        gaps.append(gap)
+        logger.info("Recipe grounding corpus gap: %s", gap)
 
     for day_number in range(1, num_days + 1):
         chosen: Dict[str, Any] = {}
@@ -300,11 +455,24 @@ def select_recipes_for_plan(
             total += 1
             candidates = eligible_recipes_for_slot(slot_type, required_tags, pool=pool, facets=facets)
             if not candidates:
+                record_gap(day_number, slot_key, 'no_eligible_recipes')
                 continue
+            target = (calorie_targets or {}).get(day_number, {}).get(slot_key)
             best = max(candidates, key=lambda r: score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
                 facets=facets, used_canonicals=used_canonicals,
+                target_calories=target,
             ))
+            # Prompt-fit threshold (main slots only): if even the best curated
+            # candidate matches nothing the user asked for, the generated meal
+            # — written with full prompt context — is the better answer.
+            if (
+                facets is not None and facets.wanted_ingredients
+                and slot_type in _WANTED_FIT_SLOTS
+                and wanted_matcher(facets).hits(best) == 0
+            ):
+                record_gap(day_number, slot_key, 'wanted_fit_below_threshold')
+                continue
             chosen[slot_key] = best
             used_recipe_ids.add(best.id)
             if best.cuisine:
@@ -313,7 +481,7 @@ def select_recipes_for_plan(
             filled += 1
         days.append({'day_number': day_number, 'slots': chosen})
 
-    return {'days': days, 'coverage': {'filled': filled, 'total': total}}
+    return {'days': days, 'coverage': {'filled': filled, 'total': total}, 'gaps': gaps}
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +549,33 @@ def scale_recipe_to_meal(
     }
 
 
+def _calorie_targets_from_days(
+    transformed_days: List[Dict[str, Any]],
+) -> Dict[int, Dict[str, float]]:
+    """Per-slot calorie targets read off the generated plan itself — the LLM
+    already sized each meal for this user, so its calories are the best
+    available 'how big should this slot be' signal (no goal field needed)."""
+    targets: Dict[int, Dict[str, float]] = {}
+    for idx, day in enumerate(transformed_days):
+        day_number = day.get('day_number', idx + 1)
+        per_slot: Dict[str, float] = {}
+
+        def add(slot_key: str, meal: Any) -> None:
+            if not isinstance(meal, dict):
+                return
+            calories = (meal.get('nutritional_info') or {}).get('calories')
+            if isinstance(calories, (int, float)) and calories > 0:
+                per_slot[slot_key] = float(calories)
+
+        for slot in ('breakfast', 'lunch', 'dinner'):
+            add(slot, day.get(slot))
+        for slot_type, list_key in (('small_meal', 'small_meals'), ('snack', 'snacks')):
+            for i, meal in enumerate(day.get(list_key) or []):
+                add(f'{slot_type}:{i}', meal)
+        targets[day_number] = per_slot
+    return targets
+
+
 def overlay_curated_recipes(
     transformed_days: List[Dict[str, Any]],
     goal: Any,
@@ -391,7 +586,7 @@ def overlay_curated_recipes(
     """Overlay real curated recipes onto facet-eligible slots of an already-
     generated plan. Uncovered/ineligible slots keep their generated meal
     (flagged source=generated). Preserves each meal's existing `meal_identifier`.
-    Returns {'days', 'coverage', 'facets'}.
+    Returns {'days', 'coverage', 'facets', 'gaps'}.
     """
     if facets is None:
         vocab = published_cuisine_vocab(status=status)
@@ -401,7 +596,10 @@ def overlay_curated_recipes(
             cuisine_vocab=vocab,
         )
 
-    selection = select_recipes_for_plan(goal, status=status, facets=facets)
+    selection = select_recipes_for_plan(
+        goal, status=status, facets=facets,
+        calorie_targets=_calorie_targets_from_days(transformed_days),
+    )
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
 
     promoted_ids: Set[int] = set()
@@ -453,6 +651,7 @@ def overlay_curated_recipes(
         'days': transformed_days,
         'coverage': selection['coverage'],
         'facets': facets.to_debug(),
+        'gaps': selection['gaps'],
     }
 
 

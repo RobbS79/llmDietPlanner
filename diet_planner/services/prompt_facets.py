@@ -30,11 +30,15 @@ class PromptFacets:
     # Restrictions stated in the text itself ("nejím lepek"); unlike the soft
     # facets above these are enforced as a HARD gate and never relaxed.
     dietary: Set[str] = field(default_factory=set)
+    # Stated total-time budget ("max 30 minut"), enforced as a HARD gate on
+    # recipe total_time; recipes with unknown time are let through.
+    max_time_minutes: Optional[int] = None
 
     def is_empty(self) -> bool:
         return not (
             self.cuisines or self.wanted_ingredients or self.avoided_ingredients
             or self.styles or self.emphases or self.dietary
+            or self.max_time_minutes
         )
 
     def to_debug(self) -> dict:
@@ -45,6 +49,7 @@ class PromptFacets:
             'styles': sorted(self.styles),
             'emphases': sorted(self.emphases),
             'dietary': sorted(self.dietary),
+            'max_time_minutes': self.max_time_minutes,
         }
 
 
@@ -53,6 +58,17 @@ def _clean_list(value) -> Set[str]:
     if not isinstance(value, list):
         return set()
     return {str(v).strip().lower() for v in value if str(v).strip()}
+
+
+def _coerce_time_minutes(value) -> Optional[int]:
+    """Positive int minutes, else None (bools excluded: True is not a time)."""
+    if isinstance(value, bool):
+        return None
+    try:
+        minutes = int(value)
+    except (TypeError, ValueError):
+        return None
+    return minutes if minutes > 0 else None
 
 
 def _coerce_facets(data: dict, *, cuisine_vocab: List[str]) -> PromptFacets:
@@ -67,18 +83,25 @@ def _coerce_facets(data: dict, *, cuisine_vocab: List[str]) -> PromptFacets:
         styles=_clean_list(data.get('styles')),
         emphases=_clean_list(data.get('emphases')),
         dietary=_clean_list(data.get('dietary')) & ENFORCEABLE_DIETARY_TAGS,
+        max_time_minutes=_coerce_time_minutes(data.get('max_time_minutes')),
     )
 
 
 _SYSTEM_PROMPT_TEMPLATE = (
     "You extract structured facets from a user's free-text meal-plan request. "
-    "Return ONLY a JSON object with these keys (all arrays of short lowercase "
-    "strings, omit or use [] when unsure):\n"
-    '  "cuisines": choose only from this exact list: {vocab};\n'
-    '  "wanted_ingredients": key ingredients the user explicitly wants;\n'
-    '  "avoided_ingredients": ingredients the user wants to avoid (beyond allergies);\n'
+    "Return ONLY a JSON object with these keys (arrays of short lowercase "
+    "strings unless stated otherwise, omit or use [] when unsure):\n"
+    '  "cuisines": ONLY if the user explicitly asks for a cuisine, choose from '
+    "this exact list: {vocab}; never infer a cuisine from dish or ingredient names;\n"
+    '  "wanted_ingredients": key ingredients or food groups the user explicitly '
+    "wants, as simple singular nouns in the language of the request "
+    '(e.g. "maso", "ryba", "rýže", "zelenina" — not sentences);\n'
+    '  "avoided_ingredients": ingredients the user wants to avoid (beyond '
+    "allergies), same form as wanted_ingredients;\n"
     '  "styles": e.g. quick, comfort, light;\n'
-    '  "emphases": choose from high_protein, low_carb, low_calorie, budget.\n'
+    '  "emphases": choose from high_protein, low_carb, low_calorie, budget;\n'
+    '  "max_time_minutes": integer — ONLY if the user states an explicit cooking '
+    'time limit (e.g. "max 30 minut" -> 30), else null.\n'
     "Do not invent cuisines outside the provided list. No prose, JSON only."
 )
 

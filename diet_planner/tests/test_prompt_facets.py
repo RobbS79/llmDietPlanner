@@ -41,8 +41,23 @@ class CoerceFacetsTest(SimpleTestCase):
                 'styles': [],
                 'emphases': ['high_protein'],
                 'dietary': [],
+                'max_time_minutes': None,
             },
         )
+
+    def test_max_time_minutes_parsed(self):
+        facets = _coerce_facets({'max_time_minutes': 30}, cuisine_vocab=self.VOCAB)
+        self.assertEqual(facets.max_time_minutes, 30)
+        self.assertFalse(facets.is_empty())  # a time limit alone is a real constraint
+
+    def test_max_time_minutes_numeric_string_parsed(self):
+        facets = _coerce_facets({'max_time_minutes': '30'}, cuisine_vocab=self.VOCAB)
+        self.assertEqual(facets.max_time_minutes, 30)
+
+    def test_max_time_minutes_invalid_or_nonpositive_is_none(self):
+        for bad in (None, 'soon', -5, 0, []):
+            facets = _coerce_facets({'max_time_minutes': bad}, cuisine_vocab=self.VOCAB)
+            self.assertIsNone(facets.max_time_minutes, msg=repr(bad))
 
 
 from diet_planner.services.prompt_facets import extract_prompt_facets
@@ -93,6 +108,28 @@ class ExtractPromptFacetsTest(SimpleTestCase):
             'whatever', language='en', cuisine_vocab=self.VOCAB, generate=fake_generate,
         )
         self.assertTrue(facets.is_empty())
+
+    def test_max_time_minutes_extracted(self):
+        def fake_generate(system_prompt, user_text):
+            return '{"max_time_minutes": 30, "styles": ["quick"]}'
+
+        facets = extract_prompt_facets(
+            'Max 30 minut na vaření', language='cs', cuisine_vocab=self.VOCAB,
+            generate=fake_generate,
+        )
+        self.assertEqual(facets.max_time_minutes, 30)
+
+    def test_system_prompt_mentions_time_limit_key(self):
+        seen = {}
+
+        def fake_generate(system_prompt, user_text):
+            seen['system'] = system_prompt
+            return '{}'
+
+        extract_prompt_facets(
+            'cokoliv', language='cs', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertIn('max_time_minutes', seen['system'])
 
     def test_generate_exception_returns_empty(self):
         def fake_generate(system_prompt, user_text):

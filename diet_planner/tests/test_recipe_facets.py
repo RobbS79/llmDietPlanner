@@ -42,9 +42,10 @@ class RecipeMatchesFacetsTest(TestCase):
         r = _recipe(slug='e')  # has canonical 'chicken'
         self.assertTrue(recipe_matches_facets(r, PromptFacets(wanted_ingredients={'chicken'})))
 
-    def test_wanted_ingredient_miss_blocked(self):
+    def test_wanted_ingredient_miss_no_longer_blocks(self):
+        # Issue #47: wanted ingredients are preferences -> they rank, not gate.
         r = _recipe(slug='f')
-        self.assertFalse(recipe_matches_facets(r, PromptFacets(wanted_ingredients={'tofu'})))
+        self.assertTrue(recipe_matches_facets(r, PromptFacets(wanted_ingredients={'tofu'})))
 
     def test_avoided_ingredient_present_blocked(self):
         r = _recipe(slug='g')  # name 'Chicken breast'
