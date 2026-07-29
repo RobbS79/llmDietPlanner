@@ -34,6 +34,8 @@
   category: spices
   default_unit: g
   is_pantry_staple: true
+  aliases:
+    - { alias: "hrubě mletý černý pepř", language_code: cs }
   estimated_price_czk: 25.0
   estimated_price_eur: 1.00
 
@@ -108,6 +110,7 @@
     - { alias: "kuřecí prsa bez kosti a kůže", language_code: cs }
     - { alias: "kuřecí prsa bez kůže a kostí", language_code: cs }
     - { alias: "kuřecí prsa bez kůže", language_code: cs }
+    - { alias: "kuřecí kousky", language_code: cs }
 
 - name: chicken thigh
   name_cs: kuřecí stehna
@@ -139,6 +142,8 @@
     - { alias: "losos čerstvý", language_code: cs }
     - { alias: "filety z lososa", language_code: cs }
     - { alias: "filet z lososa", language_code: cs }
+    - { alias: "lososové filety", language_code: cs }
+    - { alias: "lososový filet", language_code: cs }
 
 - name: tuna canned
   name_cs: tuňák v konzervě
@@ -516,6 +521,7 @@
     - { alias: "hovězí vysoký roštěnec", language_code: cs }
     - { alias: "hovězí roštěnec", language_code: cs }
     - { alias: "hovězí roštěná", language_code: cs }
+    - { alias: "newyorský steak", language_code: cs }
 
 - name: pork
   name_cs: vepřové maso
@@ -533,6 +539,8 @@
     - { alias: "vepřové plecko", language_code: cs }
     - { alias: "vepřový bůček", language_code: cs }
     - { alias: "vepřová krkovice v celku", language_code: cs }
+    - { alias: "vepřové kotlety", language_code: cs }
+    - { alias: "vepřová kotleta", language_code: cs }
 
 - name: bacon
   name_cs: slanina
@@ -598,6 +606,7 @@
     - { alias: "houby portobello", language_code: cs }
     - { alias: "žampiony baby bella", language_code: cs }
     - { alias: "žampiony cremini", language_code: cs }
+    - { alias: "hnědé žampiony", language_code: cs }
     - { alias: "baby bella", language_code: cs }
     - { alias: "lesní houby", language_code: cs }
     - { alias: "hlíva ústřičná", language_code: cs }
@@ -1748,8 +1757,6 @@
   name_cs: smetanový sýr
   category: dairy
   default_unit: g
-  aliases:
-    - { alias: "šlehaný krémový sýr", language_code: cs }
   typical_package_sizes: [150, 200]
   estimated_price_czk: 45.0
   estimated_price_eur: 1.80
@@ -1758,6 +1765,7 @@
     - { alias: "lučina", language_code: cs }
     - { alias: "krémový sýr", language_code: cs }
     - { alias: "philadelphia", language_code: cs }
+    - { alias: "šlehaný krémový sýr", language_code: cs }
 
 # --- Meat (premium cut, distinct price from base beef) ---
 - name: beef tenderloin
@@ -2471,3 +2479,11 @@
   default_unit: g
   aliases:
     - { alias: "mexická sýrová směs", language_code: cs }
+
+- name: harissa
+  name_cs: harissa
+  category: condiments
+  default_unit: g
+  aliases:
+    - { alias: "harissa omáčka", language_code: cs }
+    - { alias: "harissa pasta", language_code: cs }
