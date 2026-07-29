@@ -166,3 +166,34 @@ targeted top-up (≤ 50 URLs) after the mapping gate trims the corpus:
 - **low_carb** has no dedicated depth — only incidental on the
   salmon/roast-chicken dinners. Not a doc-flagged gap; defer unless QA shows
   demand.
+
+---
+
+## Batch06 — targeted meat/fish + GF/keto top-up (issue #49, 2026-07-29)
+
+The prod matrix after batches 01–05 confirmed the inverse gap: only 63/192
+unrestricted lunches contain meat/fish, GF∩lunch = 18 with a single meat
+recipe, keto lunch/dinner ≈ 17–18. Batch06
+(`curated-recipe-index-batch06.json`, **93 URLs**) fills exactly those cells
+instead of a balanced slice:
+
+| Cell | URLs | Notes |
+|---|---:|---|
+| International naturally-GF meat/fish mains | 24 | TMD, Natasha's, Downshiftology, Cafe Delites, Budget Bytes, Gimme Some Oven, Well Plated |
+| CZ-traditional meat mains | 25 | toprecepty/recepty.cz; 8 chicken, 6 pork, 5 beef/minced, 4 fish, rabbit+turkey; 12 naturally GF |
+| Low-carb/keto meat+veg mains | 24 | Wholesome Yum, Downshiftology, Skinnytaste; no rice/pasta/bread |
+| High-protein breakfasts | 20 | egg/cottage-cheese based, 15–37 g protein; 16 of 20 ≤30 min |
+
+Aggregate: 33 lunch / 40 dinner / 20 breakfast; 69 GF-suitable, 33 low_carb,
+46 with total time ≤30 min. Every URL was fetched and verified to carry
+`schema.org/Recipe` JSON-LD; deduped by URL and by dish against the existing
+487-URL corpus (index rows carry advisory `slot`/`diet`/`time_min`/`note`
+metadata — the build command ignores unknown keys).
+
+Dictionary co-scaling shipped with the batch (`canonical_ingredients.yaml`
+230→237): whole chicken, chicken drumsticks, turkey breast, pork tenderloin,
+cod, trout, shrimp.
+
+Acceptance (issue #49): GF∩lunch ≥15 incl. meat/fish options; unrestricted
+lunch meat/fish share ≥50%; keto lunch and dinner ≥15 each — measure with
+`coverage_matrix_report` after promotion.
