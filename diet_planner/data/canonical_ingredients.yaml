@@ -121,6 +121,8 @@
     - { alias: "kuřecí stehna s kůží a kostí", language_code: cs }
     - { alias: "kuřecí stehna s kostí a kůží", language_code: cs }
     - { alias: "kuřecí horní stehna", language_code: cs }
+    - { alias: "kuřecí kousky s kostí a kůží", language_code: cs }
+    - { alias: "kuřecí stehna s kostí", language_code: cs }
 
 - name: beef mince
   name_cs: hovězí mleté
@@ -211,6 +213,7 @@
   typical_package_sizes: [500, 1000]
   aliases:
     - { alias: "rýže", language_code: cs }
+    - { alias: "rýže se středně dlouhými zrny", language_code: cs }
     - { alias: "rýže dlouhozrnná", language_code: cs }
     - { alias: "rýže kulatozrnná", language_code: cs }
 
@@ -1921,6 +1924,9 @@
   is_pantry_staple: true
   estimated_price_czk: 50.0
   estimated_price_eur: 2.00
+  aliases:
+    - { alias: "kardamom zelený mletý", language_code: cs }
+    - { alias: "zelený kardamom", language_code: cs }
 
 - name: saffron
   name_cs: šafrán
@@ -2369,6 +2375,7 @@
     - { alias: "treska", language_code: cs }
     - { alias: "filé z tresky", language_code: cs }
     - { alias: "treska filet", language_code: cs }
+    - { alias: "treska filety", language_code: cs }
     - { alias: "filet z tresky bez kůže", language_code: cs }
     - { alias: "rybí filé", language_code: cs }
 
@@ -2487,3 +2494,21 @@
   aliases:
     - { alias: "harissa omáčka", language_code: cs }
     - { alias: "harissa pasta", language_code: cs }
+
+- name: smoked paprika
+  name_cs: uzená paprika
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  estimated_price_czk: 45.0
+  estimated_price_eur: 1.80
+  aliases:
+    - { alias: "uzenou papriku", language_code: cs }
+    - { alias: "paprika uzená", language_code: cs }
+
+- name: chorizo
+  name_cs: chorizo
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "klobása chorizo", language_code: cs }
