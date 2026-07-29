@@ -24,6 +24,7 @@
   estimated_price_eur: 0.60
   aliases:
     - { alias: "kořenící sůl", language_code: cs }
+    - { alias: "košer sůl", language_code: cs }
     - { alias: "hrubozrnná sůl", language_code: cs }
     - { alias: "jemnozrnná sůl", language_code: cs }
     - { alias: "sůl a pepř", language_code: cs }  # batch-03: bare "salt & pepper" line — buyable as salt; pepper alongside resolved elsewhere
@@ -104,11 +105,18 @@
     - { alias: "kuřecí řízek", language_code: cs }
     - { alias: "kuře", language_code: cs }
     - { alias: "kuřecí stehna vykostěná", language_code: cs }
+    - { alias: "kuřecí prsa bez kosti a kůže", language_code: cs }
+    - { alias: "kuřecí prsa bez kůže", language_code: cs }
 
 - name: chicken thigh
   name_cs: kuřecí stehna
   category: meat
   default_unit: g
+  aliases:
+    - { alias: "kuřecí stehna bez kosti a kůže", language_code: cs }
+    - { alias: "kuřecí stehna s kůží a kostí", language_code: cs }
+    - { alias: "kuřecí stehna s kostí a kůží", language_code: cs }
+    - { alias: "kuřecí horní stehna", language_code: cs }
 
 - name: beef mince
   name_cs: hovězí mleté
@@ -179,6 +187,7 @@
   default_unit: g
   aliases:
     - { alias: "měkký tvaroh", language_code: cs }
+    - { alias: "nízkotučný cottage sýr", language_code: cs }
     - { alias: "tvrdý tvaroh", language_code: cs }
     - { alias: "hrudkovitý tvaroh", language_code: cs }
     - { alias: "zrnitý tvaroh", language_code: cs }
@@ -250,6 +259,7 @@
   aliases:
     - { alias: "rajče", language_code: cs }
     - { alias: "cherry rajčata", language_code: cs }
+    - { alias: "cherry rajčátka", language_code: cs }
     - { alias: "rajčata krájená", language_code: cs }
     - { alias: "drcená rajčata", language_code: cs }
     - { alias: "loupaná rajčata", language_code: cs }
@@ -264,6 +274,7 @@
   default_unit: ks
   aliases:
     - { alias: "okurka perská", language_code: cs }
+    - { alias: "mini okurky", language_code: cs }
     - { alias: "salátová okurka", language_code: cs }
     - { alias: "okurka hadovka", language_code: cs }
 
@@ -496,6 +507,11 @@
     - { alias: "hovězí žebro", language_code: cs }
     - { alias: "hovězí žebra", language_code: cs }
     - { alias: "hovězí zadní maso", language_code: cs }
+    - { alias: "hovězí steak", language_code: cs }
+    - { alias: "sirloin steak", language_code: cs }
+    - { alias: "hovězí vysoký roštěnec", language_code: cs }
+    - { alias: "hovězí roštěnec", language_code: cs }
+    - { alias: "hovězí roštěná", language_code: cs }
 
 - name: pork
   name_cs: vepřové maso
@@ -510,6 +526,9 @@
     - { alias: "žebra", language_code: cs }
     - { alias: "uzená žebra", language_code: cs }
     - { alias: "vepřová žebra", language_code: cs }
+    - { alias: "vepřové plecko", language_code: cs }
+    - { alias: "vepřový bůček", language_code: cs }
+    - { alias: "vepřová krkovice v celku", language_code: cs }
 
 - name: bacon
   name_cs: slanina
@@ -527,6 +546,7 @@
   default_unit: g
   aliases:
     - { alias: "dušená šunka", language_code: cs }
+    - { alias: "kanadská slanina", language_code: cs }
     - { alias: "plátky šunky", language_code: cs }
 
 - name: lard
@@ -566,6 +586,7 @@
   default_unit: g
   aliases:
     - { alias: "houby", language_code: cs }
+    - { alias: "dušené houby", language_code: cs }
     - { alias: "hřiby", language_code: cs }
     - { alias: "houby shiitake", language_code: cs }
     - { alias: "žampiony portobello", language_code: cs }
@@ -654,6 +675,9 @@
   default_unit: ks
   aliases:
     - { alias: "chilli papričky", language_code: cs }
+    - { alias: "zelené chilli papričky", language_code: cs }
+    - { alias: "konzervované zelené chilli papričky", language_code: cs }
+    - { alias: "krájené zelené chilli papričky", language_code: cs }
     - { alias: "feferonka", language_code: cs }
     - { alias: "jalapeño", language_code: cs }
     - { alias: "jalapeño paprička", language_code: cs }
@@ -804,6 +828,8 @@
   default_unit: ks
   aliases:
     - { alias: "tortilla", language_code: cs }
+    - { alias: "celozrnná tortilla", language_code: cs }
+    - { alias: "celozrnné tortilly", language_code: cs }
     - { alias: "pšeničná tortilla", language_code: cs }
     - { alias: "pšeničné tortilly", language_code: cs }
     - { alias: "kukuřičné tortilly", language_code: cs }
@@ -1477,6 +1503,7 @@
   default_unit: g
   aliases:
     - { alias: "uzená klobása", language_code: cs }
+    - { alias: "snídaňová klobása", language_code: cs }
     - { alias: "párek", language_code: cs }
     - { alias: "párky", language_code: cs }
 
@@ -1715,6 +1742,8 @@
   name_cs: smetanový sýr
   category: dairy
   default_unit: g
+  aliases:
+    - { alias: "šlehaný krémový sýr", language_code: cs }
   typical_package_sizes: [150, 200]
   estimated_price_czk: 45.0
   estimated_price_eur: 1.80
@@ -2132,6 +2161,7 @@
   default_unit: g
   aliases:
     - { alias: "salám herkules", language_code: cs }
+    - { alias: "šunkový salám", language_code: cs }
     - { alias: "uzenina", language_code: cs }
 
 # --- Fats ---
@@ -2324,6 +2354,8 @@
   aliases:
     - { alias: "treska", language_code: cs }
     - { alias: "filé z tresky", language_code: cs }
+    - { alias: "treska filet", language_code: cs }
+    - { alias: "filet z tresky bez kůže", language_code: cs }
     - { alias: "rybí filé", language_code: cs }
 
 - name: trout
@@ -2341,3 +2373,45 @@
   aliases:
     - { alias: "krevety loupané", language_code: cs }
     - { alias: "garnáty", language_code: cs }
+
+- name: soy sauce
+  name_cs: sójová omáčka
+  category: condiments
+  default_unit: ml
+  is_pantry_staple: true
+  estimated_price_czk: 60.0
+  estimated_price_eur: 2.40
+  aliases:
+    - { alias: "tmavá sójová omáčka", language_code: cs }
+    - { alias: "sójová omáčka se sníženým obsahem soli", language_code: cs }
+    - { alias: "světlá sójová omáčka", language_code: cs }
+
+- name: red wine
+  name_cs: červené víno
+  category: beverages
+  default_unit: ml
+  aliases:
+    - { alias: "suché červené víno", language_code: cs }
+
+- name: blue cheese
+  name_cs: niva
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "sýr niva", language_code: cs }
+    - { alias: "plísňový sýr", language_code: cs }
+
+- name: rabbit
+  name_cs: králík
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "králičí maso", language_code: cs }
+
+- name: gyros seasoning
+  name_cs: koření gyros
+  category: spices
+  default_unit: g
+  aliases:
+    - { alias: "koření gyros směs", language_code: cs }
+    - { alias: "gyros koření", language_code: cs }
