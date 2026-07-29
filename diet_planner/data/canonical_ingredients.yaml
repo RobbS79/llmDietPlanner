@@ -2279,3 +2279,65 @@
   estimated_price_eur: 2.80
   aliases:
     - { alias: "bezlepková směs na pečení", language_code: cs }
+
+# --- Batch06 top-up (issue #49): meat cuts & fish for the meat-mains batch ---
+# Distinct canonicals (not aliases) where the store SKU genuinely differs;
+# see memory/ingredient-mapping-normalizer — priced variants must be distinct.
+
+- name: whole chicken
+  name_cs: kuře celé
+  category: meat
+  default_unit: g
+  typical_package_sizes: [1200, 1500]
+  aliases:
+    - { alias: "celé kuře na pečení", language_code: cs }
+
+- name: chicken drumsticks
+  name_cs: kuřecí paličky
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "kuřecí spodní stehna", language_code: cs }
+    - { alias: "kuřecí paličky spodní", language_code: cs }
+
+- name: turkey breast
+  name_cs: krůtí prsa
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "krůtí maso", language_code: cs }
+    - { alias: "krůtí plátky", language_code: cs }
+
+- name: pork tenderloin
+  name_cs: vepřová panenka
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "panenka", language_code: cs }
+    - { alias: "vepřová panenská svíčková", language_code: cs }
+
+- name: cod fillet
+  name_cs: treska filé
+  category: fish
+  default_unit: g
+  typical_package_sizes: [200, 400]
+  aliases:
+    - { alias: "treska", language_code: cs }
+    - { alias: "filé z tresky", language_code: cs }
+    - { alias: "rybí filé", language_code: cs }
+
+- name: trout
+  name_cs: pstruh
+  category: fish
+  default_unit: g
+  aliases:
+    - { alias: "pstruh duhový", language_code: cs }
+
+- name: shrimp
+  name_cs: krevety
+  category: fish
+  default_unit: g
+  typical_package_sizes: [200, 250]
+  aliases:
+    - { alias: "krevety loupané", language_code: cs }
+    - { alias: "garnáty", language_code: cs }

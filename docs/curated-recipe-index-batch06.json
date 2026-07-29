@@ -1,0 +1,1113 @@
+[
+ {
+  "dish_name": "Cilantro Lime Salmon",
+  "source_url": "https://www.themediterraneandish.com/baked-salmon-recipe/",
+  "source_name": "The Mediterranean Dish",
+  "source_author": "Suzy Karadsheh",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 15,
+  "note": "Baked salmon, herb-citrus, no flour"
+ },
+ {
+  "dish_name": "Grilled Salmon Recipe with Mint Mango Salsa",
+  "source_url": "https://www.themediterraneandish.com/grilled-salmon/",
+  "source_name": "The Mediterranean Dish",
+  "source_author": "Suzy Karadsheh",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 28,
+  "note": "Grilled salmon, spice rub plus fruit salsa"
+ },
+ {
+  "dish_name": "Easy One-Pot Chicken and Rice Recipe",
+  "source_url": "https://www.themediterraneandish.com/middle-eastern-chicken-and-rice/",
+  "source_name": "The Mediterranean Dish",
+  "source_author": "Suzy Karadsheh",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 40,
+  "note": "Chicken thighs with spiced rice"
+ },
+ {
+  "dish_name": "Honey Mustard Chicken Thighs",
+  "source_url": "https://www.themediterraneandish.com/honey-mustard-chicken-thighs/",
+  "source_name": "The Mediterranean Dish",
+  "source_author": "Suzy Karadsheh",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 50,
+  "note": "Roasted chicken, honey-mustard glaze, flourless"
+ },
+ {
+  "dish_name": "Baked Chicken Thighs Recipe",
+  "source_url": "https://www.themediterraneandish.com/baked-chicken-thighs/",
+  "source_name": "The Mediterranean Dish",
+  "source_author": "Suzy Karadsheh",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 60,
+  "note": "Chicken thighs, tomato-onion base, flourless"
+ },
+ {
+  "dish_name": "Greek Chicken and Potatoes Recipe",
+  "source_url": "https://www.themediterraneandish.com/greek-chicken-and-potato-dinner/",
+  "source_name": "The Mediterranean Dish",
+  "source_author": "Suzy Karadsheh",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 75,
+  "note": "Chicken and potatoes, lemon-garlic, flourless"
+ },
+ {
+  "dish_name": "One Pan Spanish Chicken and Rice Recipe (Arroz con Pollo)",
+  "source_url": "https://www.themediterraneandish.com/spanish-chicken-rice-recipe-chorizo/",
+  "source_name": "The Mediterranean Dish",
+  "source_author": "Suzy Karadsheh",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 75,
+  "note": "Chicken, chorizo and rice, naturally GF"
+ },
+ {
+  "dish_name": "The Best Baked Salmon Recipe",
+  "source_url": "https://natashaskitchen.com/baked-salmon-with-garlic-and-dijon/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 20,
+  "note": "Salmon, garlic-Dijon glaze, no flour"
+ },
+ {
+  "dish_name": "Pan-Seared Steak with Garlic Butter",
+  "source_url": "https://natashaskitchen.com/pan-seared-steak/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 20,
+  "note": "Beef steak, butter-basted, flourless"
+ },
+ {
+  "dish_name": "Pan-Seared Cod Recipe",
+  "source_url": "https://natashaskitchen.com/pan-seared-cod/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 15,
+  "note": "Cod fillets, tomato-garlic pan sauce"
+ },
+ {
+  "dish_name": "Salmon Bowls",
+  "source_url": "https://natashaskitchen.com/salmon-bowls/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "note": "Salmon rice bowl, spice-rubbed, no soy"
+ },
+ {
+  "dish_name": "Grilled Salmon Skewers with Garlic and Dijon",
+  "source_url": "https://natashaskitchen.com/grilled-salmon/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 28,
+  "note": "Salmon skewers, lemon-Dijon marinade"
+ },
+ {
+  "dish_name": "Grilled Pork Tenderloin Recipe",
+  "source_url": "https://natashaskitchen.com/grilled-pork-tenderloin-with-peaches/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 30,
+  "note": "Pork tenderloin, dry spice rub"
+ },
+ {
+  "dish_name": "Chicken Korma Recipe",
+  "source_url": "https://natashaskitchen.com/chicken-korma/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "note": "Chicken curry, almond-flour thickened GF"
+ },
+ {
+  "dish_name": "Cilantro Lime Chicken Recipe",
+  "source_url": "https://natashaskitchen.com/grilled-cilantro-lime-chicken/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 45,
+  "note": "Grilled chicken, lime-honey marinade"
+ },
+ {
+  "dish_name": "Super Easy Baked Pork Chops",
+  "source_url": "https://downshiftology.com/recipes/baked-pork-chops/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 25,
+  "note": "Pork chops, paprika spice rub"
+ },
+ {
+  "dish_name": "Browned Butter Honey Garlic Salmon",
+  "source_url": "https://cafedelites.com/browned-butter-honey-garlic-salmon/",
+  "source_name": "Cafe Delites",
+  "source_author": "Karina",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 20,
+  "note": "Salmon, honey-garlic butter, no soy"
+ },
+ {
+  "dish_name": "Pan Seared Garlic Butter Steak & Mushroom Cream Sauce",
+  "source_url": "https://cafedelites.com/pan-seared-garlic-butter-steak/",
+  "source_name": "Cafe Delites",
+  "source_author": "Karina",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "note": "Beef steak, mushroom cream, flourless"
+ },
+ {
+  "dish_name": "Bruschetta Chicken",
+  "source_url": "https://www.budgetbytes.com/bruschetta-chicken/",
+  "source_name": "Budget Bytes",
+  "source_author": "Beth Moncel",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 25,
+  "note": "Chicken breast, tomato-basil topping, breadless"
+ },
+ {
+  "dish_name": "Garlic Marinated Chicken",
+  "source_url": "https://www.budgetbytes.com/garlic-marinated-chicken/",
+  "source_name": "Budget Bytes",
+  "source_author": "Beth Moncel",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 60,
+  "note": "Chicken, lemon-garlic-oregano marinade"
+ },
+ {
+  "dish_name": "Greek Chicken",
+  "source_url": "https://www.budgetbytes.com/greek-marinated-chicken/",
+  "source_name": "Budget Bytes",
+  "source_author": "Beth Moncel",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 75,
+  "note": "Roast chicken pieces, yogurt marinade"
+ },
+ {
+  "dish_name": "Oven Baked Chicken Drumsticks",
+  "source_url": "https://www.budgetbytes.com/baked-chicken-drumsticks/",
+  "source_name": "Budget Bytes",
+  "source_author": "Beth Moncel",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 45,
+  "note": "Chicken drumsticks, dry spice rub"
+ },
+ {
+  "dish_name": "Lemon Pepper Grilled Chicken",
+  "source_url": "https://www.gimmesomeoven.com/lemon-pepper-grilled-chicken/",
+  "source_name": "Gimme Some Oven",
+  "source_author": "Ali Martin",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free",
+   "dairy_free"
+  ],
+  "time_min": 55,
+  "note": "Chicken thighs, lemon marinade, no soy"
+ },
+ {
+  "dish_name": "Harissa Chicken",
+  "source_url": "https://www.wellplated.com/harissa-chicken/",
+  "source_name": "Well Plated",
+  "source_author": "Erin Clarke",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 55,
+  "note": "Chicken thighs, harissa-cumin marinade"
+ },
+ {
+  "dish_name": "Garlic Butter Steak Bites (10-Min Recipe)",
+  "source_url": "https://www.wholesomeyum.com/garlic-butter-steak-bites/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 10,
+  "note": "quick keto steak skillet"
+ },
+ {
+  "dish_name": "Egg Roll In A Bowl (Easy 15-Minute Dinner)",
+  "source_url": "https://www.wholesomeyum.com/egg-roll-in-a-bowl/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "lunch",
+  "diet": [
+   "low_carb"
+  ],
+  "time_min": 15,
+  "note": "deconstructed wrap; soy sauce ok"
+ },
+ {
+  "dish_name": "Creamy Garlic Chicken",
+  "source_url": "https://www.wholesomeyum.com/creamy-garlic-chicken-recipe/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 25,
+  "note": "creamy chicken skillet"
+ },
+ {
+  "dish_name": "Creamy Mushroom Chicken (20-Min Recipe)",
+  "source_url": "https://www.wholesomeyum.com/creamy-mushroom-chicken/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 20,
+  "note": "creamy mushroom chicken skillet"
+ },
+ {
+  "dish_name": "Tuscan Salmon (Creamy 20-Min Recipe)",
+  "source_url": "https://www.wholesomeyum.com/tuscan-salmon/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 20,
+  "note": "creamy salmon spinach tomatoes"
+ },
+ {
+  "dish_name": "Sheet Pan Chicken Thighs (With Veggies)",
+  "source_url": "https://www.wholesomeyum.com/sheet-pan-chicken-dinner/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 60,
+  "note": "sheet-pan chicken thighs veggies"
+ },
+ {
+  "dish_name": "Garlic Butter Shrimp (10 Minutes)",
+  "source_url": "https://www.wholesomeyum.com/lemon-garlic-butter-shrimp/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "lunch",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 10,
+  "note": "10-min garlic butter shrimp"
+ },
+ {
+  "dish_name": "Mexican Taco Skillet (30 Min)",
+  "source_url": "https://www.wholesomeyum.com/taco-skillet/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "lunch",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "note": "beef pepper taco skillet"
+ },
+ {
+  "dish_name": "Chicken Broccoli Stir Fry (20 Minutes)",
+  "source_url": "https://www.wholesomeyum.com/chicken-broccoli-stir-fry/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "lunch",
+  "diet": [
+   "low_carb"
+  ],
+  "time_min": 20,
+  "note": "stir fry; tamari for GF"
+ },
+ {
+  "dish_name": "Chicken Stuffed Peppers (Mexican Flavors)",
+  "source_url": "https://www.wholesomeyum.com/chicken-stuffed-peppers/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 80,
+  "note": "stuffed peppers, cauliflower rice"
+ },
+ {
+  "dish_name": "Cabbage And Sausage",
+  "source_url": "https://www.wholesomeyum.com/fried-cabbage-and-sausage/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "lunch",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "note": "one-pan cabbage sausage"
+ },
+ {
+  "dish_name": "Pesto Chicken (5 Ingredients!)",
+  "source_url": "https://www.wholesomeyum.com/pesto-chicken/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 25,
+  "note": "5-ingredient baked pesto chicken"
+ },
+ {
+  "dish_name": "Mexican Chicken Zucchini Noodles",
+  "source_url": "https://downshiftology.com/recipes/mexican-chicken-zucchini-noodles/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "lunch",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "note": "zoodles with chicken, quick"
+ },
+ {
+  "dish_name": "Zucchini Noodle Spaghetti Bolognese",
+  "source_url": "https://downshiftology.com/recipes/zucchini-noodle-spaghetti-bolognese/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 60,
+  "note": "beef bolognese over zoodles"
+ },
+ {
+  "dish_name": "Taco Stuffed Zucchini Boats",
+  "source_url": "https://downshiftology.com/recipes/taco-stuffed-zucchini-boats/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 40,
+  "note": "beef taco zucchini boats"
+ },
+ {
+  "dish_name": "Creamy Tuscan Chicken",
+  "source_url": "https://downshiftology.com/recipes/creamy-tuscan-chicken/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 35,
+  "note": "dairy-free creamy tuscan chicken"
+ },
+ {
+  "dish_name": "Asian Cauliflower Rice with Ginger Shrimp",
+  "source_url": "https://downshiftology.com/recipes/asian-cauliflower-rice-ginger-shrimp/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 40,
+  "note": "shrimp cauliflower rice; tamari"
+ },
+ {
+  "dish_name": "Greek Sheet Pan Chicken Dinner",
+  "source_url": "https://downshiftology.com/recipes/greek-sheet-pan-chicken/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 60,
+  "note": "sheet-pan chicken feta olives"
+ },
+ {
+  "dish_name": "Zucchini Lasagna Recipe (Not Watery)",
+  "source_url": "https://downshiftology.com/recipes/zucchini-lasagna/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 80,
+  "note": "no-noodle beef lasagna"
+ },
+ {
+  "dish_name": "Grilled Shrimp Piccata in Foil",
+  "source_url": "https://www.skinnytaste.com/shrimp-piccata-foil-packets/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 21,
+  "note": "shrimp lemon caper packets"
+ },
+ {
+  "dish_name": "Zesty Lime Shrimp and Avocado Salad",
+  "source_url": "https://www.skinnytaste.com/zesty-lime-shrimp-and-avocado-salad/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "lunch",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 20,
+  "note": "no-cook shrimp avocado salad"
+ },
+ {
+  "dish_name": "Hasselback Chicken Primavera",
+  "source_url": "https://www.skinnytaste.com/hasselback-chicken-primavera/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "dinner",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 35,
+  "note": "veg-stuffed baked chicken breast"
+ },
+ {
+  "dish_name": "Taco Salad Recipe",
+  "source_url": "https://www.skinnytaste.com/taco-salad-meal-prep/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "lunch",
+  "diet": [
+   "low_carb",
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "note": "turkey taco salad, no chips"
+ },
+ {
+  "dish_name": "Asian Chicken Lettuce Wraps",
+  "source_url": "https://www.skinnytaste.com/asian-chicken-lettuce-wraps/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "lunch",
+  "diet": [
+   "low_carb"
+  ],
+  "time_min": 50,
+  "note": "lettuce wraps; common asian sauces"
+ },
+ {
+  "dish_name": "Kuře na paprice",
+  "source_url": "https://www.toprecepty.cz/recept/1432-kure-na-paprice/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [],
+  "time_min": 80,
+  "note": "chicken, flour-thickened, not GF"
+ },
+ {
+  "dish_name": "Pečená kuřecí stehna na rozmarýnu",
+  "source_url": "https://www.recepty.cz/recept/pecena-kureci-stehna-na-rozmarynu-9182",
+  "source_name": "Recepty.cz",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 55,
+  "note": "chicken thighs, naturally GF"
+ },
+ {
+  "dish_name": "Kuře na medu",
+  "source_url": "https://www.toprecepty.cz/recept/10498-kure-na-medu/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 75,
+  "note": "honey chicken, naturally GF"
+ },
+ {
+  "dish_name": "Kuřecí \"čína\"",
+  "source_url": "https://www.toprecepty.cz/recept/10743-kureci-cina/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [],
+  "time_min": 50,
+  "note": "chicken strips, flour-thickened, not GF"
+ },
+ {
+  "dish_name": "Kuřecí perkelt I.",
+  "source_url": "https://www.toprecepty.cz/recept/362-kureci-perkelt-i/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [],
+  "time_min": 65,
+  "note": "chicken paprika stew, not GF"
+ },
+ {
+  "dish_name": "Kuře na česneku",
+  "source_url": "https://www.toprecepty.cz/recept/24509-kure-na-cesneku/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 60,
+  "note": "garlic chicken, naturally GF"
+ },
+ {
+  "dish_name": "Kuřecí nudličky na kari",
+  "source_url": "https://www.toprecepty.cz/recept/3176-kureci-nudlicky-na-kari/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [],
+  "time_min": 35,
+  "note": "chicken curry strips, not GF"
+ },
+ {
+  "dish_name": "Kuřecí přírodní řízek s Nivou",
+  "source_url": "https://www.toprecepty.cz/recept/2529-kureci-prirodni-rizek-s-nivou/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [],
+  "time_min": 40,
+  "note": "chicken natural cutlet, flour dredge"
+ },
+ {
+  "dish_name": "Pečená vepřová panenka se zeleninou",
+  "source_url": "https://www.recepty.cz/recept/pecena-veprova-panenka-se-zeleninou-18238",
+  "source_name": "Recepty.cz",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 50,
+  "note": "pork tenderloin, naturally GF"
+ },
+ {
+  "dish_name": "Moravský vrabec",
+  "source_url": "https://www.toprecepty.cz/recept/2177-moravsky-vrabec/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [],
+  "time_min": 105,
+  "note": "pork roast, flour-dusted, not GF"
+ },
+ {
+  "dish_name": "Vepřové výpečky",
+  "source_url": "https://www.toprecepty.cz/recept/16062-veprove-vypecky/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 120,
+  "note": "pork belly roast, naturally GF"
+ },
+ {
+  "dish_name": "Vepřové na kmíně",
+  "source_url": "https://www.toprecepty.cz/recept/5084-veprove-na-kmine/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [],
+  "time_min": 60,
+  "note": "caraway pork, flour-thickened, not GF"
+ },
+ {
+  "dish_name": "Pečená krkovice na rozmarýnu",
+  "source_url": "https://www.recepty.cz/recept/pecena-krkovice-na-rozmarynu-18007",
+  "source_name": "Recepty.cz",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 180,
+  "note": "pork neck roast, naturally GF"
+ },
+ {
+  "dish_name": "Přírodní vepřový řízek",
+  "source_url": "https://www.toprecepty.cz/recept/4315-prirodni-veprovy-rizek/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [],
+  "time_min": 35,
+  "note": "pork natural cutlet, flour dredge"
+ },
+ {
+  "dish_name": "Španělské ptáčky",
+  "source_url": "https://www.toprecepty.cz/recept/394-spanelske-ptacky/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [],
+  "time_min": 105,
+  "note": "beef rolls, flour-thickened, not GF"
+ },
+ {
+  "dish_name": "Hovězí na houbách",
+  "source_url": "https://www.toprecepty.cz/recept/40252-hovezi-na-houbach/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 90,
+  "note": "beef mushroom braise, naturally GF"
+ },
+ {
+  "dish_name": "Hovězí na červeném víně",
+  "source_url": "https://www.recepty.cz/recept/hovezi-na-cervenem-vine-792",
+  "source_name": "Recepty.cz",
+  "slot": "lunch",
+  "diet": [],
+  "time_min": 120,
+  "note": "beef wine braise, not GF"
+ },
+ {
+  "dish_name": "Hovězí roštěná na česneku",
+  "source_url": "https://www.toprecepty.cz/recept/395-hovezi-rostena-na-cesneku/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 90,
+  "note": "beef sirloin garlic, naturally GF"
+ },
+ {
+  "dish_name": "Čevabčiči",
+  "source_url": "https://www.toprecepty.cz/recept/12094-cevabcici/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 40,
+  "note": "minced meat rolls, naturally GF"
+ },
+ {
+  "dish_name": "Pstruh na másle",
+  "source_url": "https://www.toprecepty.cz/recept/1782-pstruh-na-masle/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [],
+  "time_min": 35,
+  "note": "trout, flour-dusted, not GF"
+ },
+ {
+  "dish_name": "Losos pečený v alobalu na másle s bylinkami",
+  "source_url": "https://www.recepty.cz/recept/losos-peceny-v-alobalu-na-masle-s-bylinkami-143678",
+  "source_name": "Recepty.cz",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 25,
+  "note": "salmon, naturally GF"
+ },
+ {
+  "dish_name": "Treska na másle",
+  "source_url": "https://www.toprecepty.cz/recept/58098-treska-na-masle/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 20,
+  "note": "cod, naturally GF"
+ },
+ {
+  "dish_name": "Treska na smetaně",
+  "source_url": "https://www.toprecepty.cz/recept/401-treska-na-smetane/",
+  "source_name": "Toprecepty.cz",
+  "slot": "dinner",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 15,
+  "note": "cod, sour cream, naturally GF"
+ },
+ {
+  "dish_name": "Králík na smetaně",
+  "source_url": "https://www.toprecepty.cz/recept/17550-kralik-na-smetane/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 170,
+  "note": "rabbit cream braise, naturally GF"
+ },
+ {
+  "dish_name": "Krůtí plátky s petrželovou omáčkou",
+  "source_url": "https://www.toprecepty.cz/recept/6137-kruti-platky-s-petrzelovou-omackou/",
+  "source_name": "Toprecepty.cz",
+  "slot": "lunch",
+  "diet": [],
+  "time_min": 60,
+  "note": "turkey cutlets, flour-thickened, not GF"
+ },
+ {
+  "dish_name": "Turkish Eggs",
+  "source_url": "https://downshiftology.com/recipes/turkish-eggs/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 20,
+  "protein_g": 22,
+  "note": "Cilbir: poached eggs on garlic yogurt"
+ },
+ {
+  "dish_name": "Fluffy Cottage Cheese Pancakes Recipe",
+  "source_url": "https://natashaskitchen.com/fluffy-cottage-cheese-pancakes/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 25,
+  "protein_g": 15,
+  "note": "Protein pancakes without protein powder"
+ },
+ {
+  "dish_name": "Eggs Benedict Recipe",
+  "source_url": "https://natashaskitchen.com/eggs-benedict-recipe/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 30,
+  "note": "Ham, poached egg"
+ },
+ {
+  "dish_name": "Ukrainian Syrniki Recipe (Cheese Pancakes)",
+  "source_url": "https://natashaskitchen.com/ukrainian-syrniki-recipe/",
+  "source_name": "Natasha's Kitchen",
+  "source_author": "Natasha Kravchuk",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 18,
+  "note": "Tvaroh patties"
+ },
+ {
+  "dish_name": "Western Omelette",
+  "source_url": "https://www.wellplated.com/western-omelette/",
+  "source_name": "Well Plated",
+  "source_author": "Erin Clarke",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 30,
+  "protein_g": 30,
+  "note": "Denver omelet with ham and peppers"
+ },
+ {
+  "dish_name": "Huevos Rancheros (Easy & Authentic)",
+  "source_url": "https://downshiftology.com/recipes/huevos-rancheros/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 30,
+  "protein_g": 15,
+  "note": "Corn tortillas, beans, fried eggs"
+ },
+ {
+  "dish_name": "Greek Scrambled Eggs",
+  "source_url": "https://downshiftology.com/recipes/greek-scrambled-eggs/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 15,
+  "protein_g": 17,
+  "note": "Feta-tomato scramble"
+ },
+ {
+  "dish_name": "Smoked Salmon Frittata",
+  "source_url": "https://downshiftology.com/recipes/smoked-salmon-frittata/",
+  "source_name": "Downshiftology",
+  "source_author": "Lisa Bryan",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 40,
+  "protein_g": 23.8,
+  "note": "Salmon+goat cheese frittata"
+ },
+ {
+  "dish_name": "Low Carb Keto Breakfast Casserole (Easy!)",
+  "source_url": "https://www.wholesomeyum.com/recipes/low-carb-breakfast-casserole-with-sausage-cheese-gluten-free/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 50,
+  "protein_g": 25.7,
+  "note": "Sausage-egg-cheese bake"
+ },
+ {
+  "dish_name": "Steak And Eggs (Easy Breakfast Recipe)",
+  "source_url": "https://www.wholesomeyum.com/steak-and-eggs/",
+  "source_name": "Wholesome Yum",
+  "source_author": "Maya Krampf",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 20,
+  "protein_g": 37.5,
+  "note": "Sirloin plus fried eggs"
+ },
+ {
+  "dish_name": "Greek Cottage Cheese Bowl",
+  "source_url": "https://www.skinnytaste.com/greek-cottage-cheese-bowl/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 15,
+  "protein_g": 21.5,
+  "note": "No-cook savory bowl"
+ },
+ {
+  "dish_name": "Savory Cottage Cheese Bowl",
+  "source_url": "https://www.skinnytaste.com/savory-cottage-cheese-bowl/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free"
+  ],
+  "time_min": 5,
+  "protein_g": 25,
+  "note": "5-minute bowl"
+ },
+ {
+  "dish_name": "Smoked Salmon Platter",
+  "source_url": "https://www.skinnytaste.com/smoked-salmon-platter/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 40,
+  "protein_g": 22,
+  "note": "Brunch plate with boiled eggs"
+ },
+ {
+  "dish_name": "High Protein Scrambled Eggs with Cottage Cheese",
+  "source_url": "https://www.skinnytaste.com/high-protein-scrambled-eggs-with-cottage-cheese/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 6,
+  "protein_g": 17.5,
+  "note": "Cottage-cheese-boosted eggs"
+ },
+ {
+  "dish_name": "Omelet Tortilla Breakfast Wrap",
+  "source_url": "https://www.skinnytaste.com/omelet-tortilla-breakfast-wrap/",
+  "source_name": "Skinnytaste",
+  "source_author": "Gina Homolka",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 15,
+  "protein_g": 28,
+  "note": "Bacon-spinach omelet wrap"
+ },
+ {
+  "dish_name": "Southwest Tortilla Baked Eggs",
+  "source_url": "https://www.budgetbytes.com/southwest-tortilla-baked-eggs/",
+  "source_name": "Budget Bytes",
+  "source_author": "Beth Moncel",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 30,
+  "protein_g": 22.05,
+  "note": "Eggs baked on tortilla"
+ },
+ {
+  "dish_name": "Green Chile Migas",
+  "source_url": "https://www.budgetbytes.com/green-chile-migas/",
+  "source_name": "Budget Bytes",
+  "source_author": "Beth Moncel",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 35,
+  "protein_g": 18,
+  "note": "Scrambled eggs with crispy tortillas"
+ },
+ {
+  "dish_name": "Southwest Breakfast Scramble",
+  "source_url": "https://www.budgetbytes.com/southwest-breakfast-scramble/",
+  "source_name": "Budget Bytes",
+  "source_author": "Beth Moncel",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 25,
+  "protein_g": 25.33,
+  "note": "Hearty skillet scramble with beans"
+ },
+ {
+  "dish_name": "Breakfast Quesadilla",
+  "source_url": "https://www.wellplated.com/breakfast-quesadilla/",
+  "source_name": "Well Plated",
+  "source_author": "Erin Clarke",
+  "slot": "breakfast",
+  "diet": [],
+  "time_min": 20,
+  "protein_g": 21,
+  "note": "Egg-spinach-bean quesadilla"
+ },
+ {
+  "dish_name": "Vejce se šunkou ala Hemenex",
+  "source_url": "https://www.recepty.cz/recept/vejce-se-sunkou-ala-hemenex-19100",
+  "source_name": "Recepty.cz",
+  "source_author": "recepty73",
+  "slot": "breakfast",
+  "diet": [
+   "gluten_free",
+   "low_carb"
+  ],
+  "time_min": 10,
+  "note": "CZ classic hemenex"
+ }
+]
