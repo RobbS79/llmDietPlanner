@@ -30,6 +30,7 @@ corpus and gets stronger as the corpus grows (B2).
 from __future__ import annotations
 
 import logging
+import random
 import re
 from typing import Any, Dict, List, Optional, Sequence, Set
 
@@ -37,7 +38,7 @@ from django.conf import settings
 from django.db.models import F
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
-from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
 from diet_planner.services.prompt_facets import PromptFacets, extract_prompt_facets
 
 logger = logging.getLogger(__name__)
@@ -178,6 +179,12 @@ _WANTED_CATEGORY_WORDS: Dict[str, str] = {
     'dairy': 'dairy',
 }
 
+# Accent-free lookup ("lusteniny", "orechy") — folded keys must not shadow
+# exact ones, so this is a separate fallback dict.
+_WANTED_CATEGORY_WORDS_FOLDED = {
+    fold_diacritics(k): v for k, v in _WANTED_CATEGORY_WORDS.items()
+}
+
 
 class WantedIngredientMatcher:
     """Match a user's ingredient tokens against a recipe's ingredients.
@@ -208,7 +215,8 @@ class WantedIngredientMatcher:
         slug_category = dict(CanonicalIngredient.objects.values_list('slug', 'category'))
         concepts: List[tuple] = []
         for tok in sorted(clean):
-            category = _WANTED_CATEGORY_WORDS.get(tok)
+            category = (_WANTED_CATEGORY_WORDS.get(tok)
+                        or _WANTED_CATEGORY_WORDS_FOLDED.get(fold_diacritics(tok)))
             if category:
                 concepts.append(('category', category))
                 continue
@@ -338,6 +346,53 @@ def eligible_recipes_for_slot(
 # One matched wanted concept must outrank the sum of all comfort terms.
 _WANTED_HIT_WEIGHT = 20.0
 
+# Novelty: a recipe this user was already served recently ranks below fresh
+# near-peers, but the penalty stays under _WANTED_HIT_WEIGHT so prompt fit
+# still wins ("kuřecí" beats a fresh cabbage salad even on a repeat).
+_RECENT_SERVE_PENALTY = 8.0
+
+# Near-tied candidates (within this score distance of the top) are sampled,
+# not argmax'd, so equally-good dishes rotate across plans instead of one
+# fixed winner serving forever. Sized so deliberate orderings stay strict:
+# wanted hits (20), cuisine variety (5), same-dish reuse (100), difficulty
+# (2), strong ingredient reuse (up to 6) — and crucially the calorie
+# size-sanity spread (a 414-kcal side vs a 680-kcal main at a 700 target
+# differs by ~1.15, which must stay a deterministic win for the main).
+_SAMPLING_WINDOW = 1.0
+
+# How far back a user's plans count as "recent" for the novelty penalty.
+_RECENT_SERVE_WINDOW_DAYS = 14
+
+
+def recently_served_curated_ids(goal: Any, *, window_days: int = _RECENT_SERVE_WINDOW_DAYS) -> Set[int]:
+    """CuratedRecipe ids served to this goal's user in their recent plans.
+
+    Reads Recipe.curated_recipe_slug across the user's other goals inside the
+    window. Never raises: goals without a persisted user (tests, simulation
+    namespaces) yield an empty set — the penalty simply doesn't apply.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from diet_planner.models import Recipe
+
+    user_id = getattr(goal, 'user_id', None)
+    goal_pk = getattr(goal, 'pk', None)
+    if not user_id or not goal_pk:
+        return set()
+    since = timezone.now() - timedelta(days=window_days)
+    slugs = (
+        Recipe.objects
+        .filter(dietary_goal__user_id=user_id, created_at__gte=since)
+        .exclude(dietary_goal_id=goal_pk)
+        .exclude(curated_recipe_slug='')
+        .values_list('curated_recipe_slug', flat=True)
+    )
+    return set(
+        CuratedRecipe.objects.filter(slug__in=set(slugs)).values_list('id', flat=True)
+    )
+
 # Wanted tokens describe the plan's MAIN components ("maso nebo ryba" is about
 # lunches/dinners, not breakfast or snacks) — the prompt-fit threshold below
 # only applies to these slots.
@@ -352,9 +407,14 @@ def score_recipe(
     target_calories: Optional[float] = None,
     facets: Optional[PromptFacets] = None,
     used_canonicals: Optional[Set[str]] = None,
+    recently_served_ids: Optional[Set[int]] = None,
 ) -> float:
     """Soft-ranking score; higher is better."""
     score = 0.0
+
+    # Novelty across plans: this user already got this dish recently.
+    if recently_served_ids and recipe.id in recently_served_ids:
+        score -= _RECENT_SERVE_PENALTY
 
     # Variety: strongly avoid the exact same dish twice; nudge away from a
     # cuisine already used in the plan so a week isn't monotone.
@@ -366,9 +426,6 @@ def score_recipe(
     # Difficulty: prefer easy (novice-friendly is the whole point).
     if recipe.difficulty == CuratedRecipe.Difficulty.EASY:
         score += 2.0
-
-    # Popularity as a mild tie-breaker.
-    score += min(recipe.usage_count, 10) * 0.1
 
     # Optional macro fit: closeness of base calories to the per-meal target.
     if target_calories:
@@ -405,6 +462,7 @@ def select_recipes_for_plan(
     status: str = CuratedRecipe.Status.PUBLISHED,
     facets: Optional[PromptFacets] = None,
     calorie_targets: Optional[Dict[int, Dict[str, float]]] = None,
+    recently_served_ids: Optional[Set[int]] = None,
 ) -> Dict[str, Any]:
     """Greedy per-slot selection across the whole plan.
 
@@ -431,6 +489,7 @@ def select_recipes_for_plan(
     slot_plan += [('snack', f'snack:{i}') for i in range(snack_n)]
 
     pool = published_pool(status)
+    goal_seed = getattr(goal, 'pk', None) or getattr(goal, 'id', None) or 0
     used_recipe_ids: Set[int] = set()
     used_cuisines: List[str] = []
     used_canonicals: Set[str] = set()  # ingredient reuse across the whole plan
@@ -458,11 +517,17 @@ def select_recipes_for_plan(
                 record_gap(day_number, slot_key, 'no_eligible_recipes')
                 continue
             target = (calorie_targets or {}).get(day_number, {}).get(slot_key)
-            best = max(candidates, key=lambda r: score_recipe(
+            scored = [(score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
                 facets=facets, used_canonicals=used_canonicals,
-                target_calories=target,
-            ))
+                target_calories=target, recently_served_ids=recently_served_ids,
+            ), r) for r in candidates]
+            top = max(s for s, _ in scored)
+            window = [r for s, r in scored if s >= top - _SAMPLING_WINDOW]
+            # Seeded per (goal, day, slot): rotation across plans, stable
+            # within one plan (re-running the same goal reproduces it).
+            rng = random.Random(f'{goal_seed}:{day_number}:{slot_key}')
+            best = rng.choice(window)
             # Prompt-fit threshold (main slots only): if even the best curated
             # candidate matches nothing the user asked for, the generated meal
             # — written with full prompt context — is the better answer.
@@ -599,6 +664,7 @@ def overlay_curated_recipes(
     selection = select_recipes_for_plan(
         goal, status=status, facets=facets,
         calorie_targets=_calorie_targets_from_days(transformed_days),
+        recently_served_ids=recently_served_curated_ids(goal),
     )
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
 

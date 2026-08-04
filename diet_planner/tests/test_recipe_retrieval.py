@@ -36,11 +36,11 @@ def make_recipe(**kw):
 
 def goal(**kw):
     base = dict(
-        num_days=1, breakfast=True, lunch=True, dinner=True,
+        id=1, num_days=1, breakfast=True, lunch=True, dinner=True,
         small_meals_per_day=0, snacks_per_day=0, dietary_restrictions='',
     )
     base.update(kw)
-    return SimpleNamespace(id=1, **base)
+    return SimpleNamespace(**base)
 
 
 class ParseDietaryTagsTest(TestCase):
@@ -152,6 +152,17 @@ class ScoreTest(TestCase):
         far = score_recipe(r, used_recipe_ids=set(), used_cuisines=[], target_calories=1000)
         self.assertGreater(near, far)
 
+    def test_usage_count_does_not_affect_score(self):
+        # No popularity feedback loop: a recipe served 10 times must not
+        # outrank an identical recipe served never (rich-get-richer caused
+        # 85% of the corpus to go unserved in prod).
+        fresh = make_recipe(name_cs='Fresh dish', usage_count=0)
+        popular = make_recipe(name_cs='Popular dish', usage_count=10)
+        self.assertEqual(
+            score_recipe(fresh, used_recipe_ids=set(), used_cuisines=[]),
+            score_recipe(popular, used_recipe_ids=set(), used_cuisines=[]),
+        )
+
     def test_ingredient_reuse_rewarded(self):
         # A recipe sharing canonicals with those already chosen scores higher,
         # so the plan converges on a smaller shopping list.
@@ -169,18 +180,23 @@ class ScoreTest(TestCase):
         # reusing the first recipe's ingredient is chosen (overlap breaks the
         # tie without overriding the cuisine-variety penalty).
         from diet_planner.services.recipe_retrieval import select_recipes_for_plan
-        # usage_count fixes the first pick deterministically (chicken+rice).
-        make_recipe(name_cs='Kuře s rýží', cuisine='czech', usage_count=10,
-                    meal_types=['lunch', 'dinner'], ingredients=[
-            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
-            {'name': 'rýže', 'quantity': 100, 'unit': 'g', 'canonical': 'rice-basmati'},
-        ])
+        # Slot eligibility fixes the first pick deterministically: chicken+rice
+        # is the only lunch candidate, the two salads compete for dinner. The
+        # reused option shares 5 canonicals (+3.0), outside the sampling
+        # window (2.5), so the strong-reuse preference stays deterministic.
+        shared = [
+            {'name': n, 'quantity': 50, 'unit': 'g', 'canonical': c}
+            for n, c in [
+                ('kuřecí prsa', 'chicken-breast'), ('rýže', 'rice-basmati'),
+                ('cibule', 'onion'), ('česnek', 'garlic'), ('máslo', 'butter'),
+            ]
+        ]
+        make_recipe(name_cs='Kuře s rýží', cuisine='czech',
+                    meal_types=['lunch'], ingredients=list(shared))
         make_recipe(name_cs='Kuřecí salát', cuisine='czech',
-                    meal_types=['lunch', 'dinner'], ingredients=[
-            {'name': 'kuřecí prsa', 'quantity': 120, 'unit': 'g', 'canonical': 'chicken-breast'},
-        ])
+                    meal_types=['dinner'], ingredients=list(shared))
         make_recipe(name_cs='Zelný salát', cuisine='czech',
-                    meal_types=['lunch', 'dinner'], ingredients=[
+                    meal_types=['dinner'], ingredients=[
             {'name': 'zelí', 'quantity': 200, 'unit': 'g', 'canonical': 'cabbage'},
         ])
         result = select_recipes_for_plan(goal(num_days=1, breakfast=False))
@@ -191,6 +207,104 @@ class ScoreTest(TestCase):
         # 2nd slot reuses chicken rather than introducing cabbage.
         self.assertIn('chicken-breast', cans)
         self.assertNotIn('cabbage', cans)
+
+
+class RecentServePenaltyTest(TestCase):
+    """Per-user novelty memory: recipes served to this user in recent plans
+    rank lower, so regenerating doesn't produce the same menu forever."""
+
+    def test_recently_served_scores_lower(self):
+        r = make_recipe(name_cs='Polévka')
+        fresh = score_recipe(r, used_recipe_ids=set(), used_cuisines=[])
+        seen = score_recipe(r, used_recipe_ids=set(), used_cuisines=[],
+                            recently_served_ids={r.id})
+        self.assertLess(seen, fresh)
+
+    def test_penalty_does_not_override_wanted_hit(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        facets = PromptFacets(wanted_ingredients={'kuřecí'})
+        wanted_but_seen = make_recipe(name_cs='Kuřecí plátek', ingredients=[
+            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
+        ])
+        fresh_no_hit = make_recipe(name_cs='Zelný salát', ingredients=[
+            {'name': 'zelí', 'quantity': 200, 'unit': 'g', 'canonical': 'cabbage'},
+        ])
+        hit_score = score_recipe(
+            wanted_but_seen, used_recipe_ids=set(), used_cuisines=[],
+            facets=facets, recently_served_ids={wanted_but_seen.id})
+        miss_score = score_recipe(
+            fresh_no_hit, used_recipe_ids=set(), used_cuisines=[], facets=facets)
+        self.assertGreater(hit_score, miss_score)
+
+    def test_select_avoids_recently_served_when_tied(self):
+        seen = make_recipe(name_cs='Včerejší jídlo', meal_types=['dinner'])
+        fresh = make_recipe(name_cs='Nové jídlo', meal_types=['dinner'])
+        sel = select_recipes_for_plan(
+            goal(breakfast=False, lunch=False),
+            recently_served_ids={seen.id})
+        self.assertEqual(sel['days'][0]['slots']['dinner'].id, fresh.id)
+
+    def test_history_helper_reads_users_recent_curated_serves(self):
+        from django.contrib.auth import get_user_model
+        from diet_planner.models import DietaryGoal, Recipe
+        from diet_planner.services.recipe_retrieval import recently_served_curated_ids
+
+        curated = make_recipe(name_cs='Západoafrická polévka', slug='zapadoafricka-polevka')
+        user = get_user_model().objects.create_user('u1', 'u1@example.test', 'x')
+        old_goal = DietaryGoal.objects.create(
+            user=user, prompt='týden jídel', num_days=1,
+            country='CZ', currency='CZK', language_code='cs',
+        )
+        Recipe.objects.create(
+            meal_identifier='g:1:lunch:0', dietary_goal=old_goal,
+            name='Západoafrická polévka', curated_recipe_slug='zapadoafricka-polevka',
+            instructions=[], ingredients=[],
+        )
+        new_goal = DietaryGoal.objects.create(
+            user=user, prompt='další týden', num_days=1,
+            country='CZ', currency='CZK', language_code='cs',
+        )
+        self.assertEqual(recently_served_curated_ids(new_goal), {curated.id})
+        # The goal being generated doesn't count its own (in-flight) recipes.
+        self.assertEqual(recently_served_curated_ids(old_goal), set())
+        # Goals without a persisted user (simulation namespaces) degrade to empty.
+        self.assertEqual(recently_served_curated_ids(goal()), set())
+
+
+class TopWindowSamplingTest(TestCase):
+    """Near-tied candidates rotate across plans instead of a fixed argmax
+    winner; dominant scores (wanted hits) still always win."""
+
+    def _dinner_choice(self, goal_id):
+        sel = select_recipes_for_plan(goal(id=goal_id, breakfast=False, lunch=False))
+        return sel['days'][0]['slots']['dinner'].id
+
+    def test_near_ties_rotate_across_goals(self):
+        for i in range(4):
+            make_recipe(name_cs=f'Stejné jídlo {i}', meal_types=['dinner'],
+                        cuisine=['czech', 'italian', 'asian', 'mexican'][i])
+        chosen = {self._dinner_choice(gid) for gid in range(1, 13)}
+        self.assertGreater(len(chosen), 1)
+
+    def test_same_goal_id_is_deterministic(self):
+        for i in range(4):
+            make_recipe(name_cs=f'Stejné jídlo {i}', meal_types=['dinner'],
+                        cuisine=['czech', 'italian', 'asian', 'mexican'][i])
+        self.assertEqual(self._dinner_choice(7), self._dinner_choice(7))
+
+    def test_dominant_winner_always_chosen(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        wanted = make_recipe(name_cs='Kuřecí nudličky', meal_types=['dinner'], ingredients=[
+            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
+        ])
+        for i in range(4):
+            make_recipe(name_cs=f'Bez kuřete {i}', meal_types=['dinner'],
+                        cuisine=['czech', 'italian', 'asian', 'mexican'][i])
+        for gid in range(1, 13):
+            sel = select_recipes_for_plan(
+                goal(id=gid, breakfast=False, lunch=False),
+                facets=PromptFacets(wanted_ingredients={'kuřecí'}))
+            self.assertEqual(sel['days'][0]['slots']['dinner'].id, wanted.id)
 
 
 class SelectTest(TestCase):
