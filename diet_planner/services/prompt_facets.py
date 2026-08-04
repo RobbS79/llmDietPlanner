@@ -33,6 +33,11 @@ class PromptFacets:
     # Stated total-time budget ("max 30 minut"), enforced as a HARD gate on
     # recipe total_time; recipes with unknown time are let through.
     max_time_minutes: Optional[int] = None
+    # Extraction anomaly: the prompt was substantive but extraction (after a
+    # retry) produced nothing. The overlay must then treat the generated plan
+    # as the only prompt-aware artifact and stop overriding generated meals.
+    # Not part of is_empty(): it describes extraction, not the user.
+    suspect: bool = False
 
     def is_empty(self) -> bool:
         return not (
@@ -94,7 +99,9 @@ _SYSTEM_PROMPT_TEMPLATE = (
     '  "cuisines": ONLY if the user explicitly asks for a cuisine, choose from '
     "this exact list: {vocab}; never infer a cuisine from dish or ingredient names;\n"
     '  "wanted_ingredients": key ingredients or food groups the user explicitly '
-    "wants, as simple singular nouns in the language of the request "
+    "wants OR lists as available to cook from — inventory phrasing counts "
+    '("mám doma vejce", "v lednici mám", "zbylo mi", "koupil jsem") — as '
+    "simple singular nouns in the language of the request "
     '(e.g. "maso", "ryba", "rýže", "zelenina" — not sentences);\n'
     '  "avoided_ingredients": ingredients the user wants to avoid (beyond '
     "allergies), same form as wanted_ingredients;\n"
@@ -126,8 +133,21 @@ def _default_generate(system_prompt: str, user_text: str) -> str:
         model_name=getattr(settings, 'GEMINI_MODEL', 'gemini-2.5-flash'),
         system_instruction=system_prompt,
     )
-    resp = model.generate_content(user_text)
+    # Deterministic + native JSON: facet extraction was a coin flip at default
+    # temperature (goal 133 — same prompt, empty on ~half of samples).
+    resp = model.generate_content(
+        user_text,
+        generation_config=genai.types.GenerationConfig(
+            temperature=0.0,
+            response_mime_type='application/json',
+        ),
+    )
     return getattr(resp, 'text', '') or ''
+
+
+# A prompt at least this long is treated as substantive: the user said
+# something concrete, so an empty extraction is an anomaly, not an answer.
+_NONTRIVIAL_PROMPT_LEN = 15
 
 
 def extract_prompt_facets(
@@ -137,15 +157,32 @@ def extract_prompt_facets(
     cuisine_vocab: List[str],
     generate: Optional[Callable[[str, str], str]] = None,
 ) -> PromptFacets:
-    """Extract PromptFacets from free text. Never raises: any failure -> empty."""
+    """Extract PromptFacets from free text. Never raises.
+
+    A substantive prompt that extracts to nothing is retried once; if it stays
+    empty (or the LLM call fails), the returned facets carry `suspect=True` so
+    the overlay degrades to rescue-only instead of silently discarding the
+    user's words (goal 133)."""
     if not prompt or not prompt.strip():
         return PromptFacets()
     gen = generate or _default_generate
     system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(vocab=', '.join(cuisine_vocab) or '(none)')
-    try:
-        raw = gen(system_prompt, f"Language: {language}\nRequest: {prompt.strip()}")
-        data = json.loads(_strip_code_fence(raw))
-        return _coerce_facets(data, cuisine_vocab=cuisine_vocab)
-    except Exception as exc:  # noqa: BLE001 - defensive by design
-        logger.warning("Prompt facet extraction failed, using empty facets: %s", exc)
-        return PromptFacets()
+    substantive = len(prompt.strip()) >= _NONTRIVIAL_PROMPT_LEN
+    attempts = 2 if substantive else 1
+    for _ in range(attempts):
+        try:
+            raw = gen(system_prompt, f"Language: {language}\nRequest: {prompt.strip()}")
+            data = json.loads(_strip_code_fence(raw))
+            facets = _coerce_facets(data, cuisine_vocab=cuisine_vocab)
+        except Exception as exc:  # noqa: BLE001 - defensive by design
+            logger.warning("Prompt facet extraction failed: %s", exc)
+            continue
+        if not facets.is_empty():
+            return facets
+    facets = PromptFacets()
+    if substantive:
+        facets.suspect = True
+        logger.warning(
+            "Prompt facets empty for substantive prompt (len=%d) after retry — "
+            "overlay will keep generated meals (rescue-only)", len(prompt.strip()))
+    return facets

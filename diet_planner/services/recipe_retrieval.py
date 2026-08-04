@@ -11,6 +11,9 @@ Design (docs/recipe-grounding-plan.md §5/§6), deliberately simple — SQL filt
   * HARD GATE (a recipe is eligible for a slot iff ALL hold):
       - status == published
       - the slot is in meal_types
+      - dish_role can CARRY the slot (oběd needs a 'main'; sides/dips never
+        fill main slots; untagged '' passes until retag_dish_roles has run),
+        with a select-time relaxation when a slot would otherwise starve
       - dietary_tags ⊇ the user's parsed restrictions
       - is_catalog_mapped(): every non-optional ingredient resolves to a
         canonical/catalog id. THIS is the gate that makes worldwide sourcing
@@ -67,6 +70,23 @@ _SLOT_TO_MEAL_TYPE = {
     'small_meal': 'small_meal',
     'snack': 'snack',
 }
+
+# Which dish roles can CARRY each slot (Czech meal culture: oběd is a warm
+# main; večeře may also be light or a soup; sides/dips belong to the small
+# slots). None = no role gate. Untagged ('') always passes — rollout safety
+# until `retag_dish_roles` has tagged the corpus.
+_SLOT_ALLOWED_ROLES = {
+    'breakfast': {'main', 'light', 'dessert'},
+    'lunch': {'main'},
+    'dinner': {'main', 'light', 'soup'},
+    'small_meal': None,
+    'snack': None,
+}
+
+
+def _role_allowed(slot: str, role: str) -> bool:
+    allowed = _SLOT_ALLOWED_ROLES.get(slot)
+    return allowed is None or not role or role in allowed
 
 
 def parse_dietary_tags(text: Optional[str]) -> Set[str]:
@@ -317,12 +337,15 @@ def eligible_recipes_for_slot(
     exclude_ids: Optional[Set[int]] = None,
     facets: Optional[PromptFacets] = None,
     enforce_mapping: bool = True,
+    enforce_roles: bool = True,
 ) -> List[CuratedRecipe]:
     """Recipes that pass the HARD GATE for one slot (incl. prompt facets).
 
     `enforce_mapping=False` relaxes ONLY the catalog-mapping gate — used for a
-    user's own chat_web drafts (spec 2026-07-27, decision 1). All other gates
-    (slot, dietary, facets) always apply."""
+    user's own chat_web drafts (spec 2026-07-27, decision 1).
+    `enforce_roles=False` relaxes ONLY the dish-role slot-fit gate — used as
+    the select-time fallback when a slot has no role-appropriate candidates.
+    All other gates (slot, dietary, facets) always apply."""
     meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)
     candidates = pool if pool is not None else published_pool(status)
     exclude_ids = exclude_ids or set()
@@ -332,6 +355,8 @@ def eligible_recipes_for_slot(
         if r.id in exclude_ids:
             continue
         if meal_type not in (r.meal_types or []):
+            continue
+        if enforce_roles and not _role_allowed(slot, r.dish_role or ''):
             continue
         if not required_tags.issubset(set(r.dietary_tags or [])):
             continue
@@ -356,8 +381,9 @@ _RECENT_SERVE_PENALTY = 8.0
 # fixed winner serving forever. Sized so deliberate orderings stay strict:
 # wanted hits (20), cuisine variety (5), same-dish reuse (100), difficulty
 # (2), strong ingredient reuse (up to 6) — and crucially the calorie
-# size-sanity spread (a 414-kcal side vs a 680-kcal main at a 700 target
-# differs by ~1.15, which must stay a deterministic win for the main).
+# size-sanity spread, now per-portion (a 307-kcal/portion side vs a
+# 680-kcal/portion main at a 700 target differs by ~1.6, which must stay a
+# deterministic win for the main).
 _SAMPLING_WINDOW = 1.0
 
 # How far back a user's plans count as "recent" for the novelty penalty.
@@ -427,11 +453,14 @@ def score_recipe(
     if recipe.difficulty == CuratedRecipe.Difficulty.EASY:
         score += 2.0
 
-    # Optional macro fit: closeness of base calories to the per-meal target.
+    # Optional macro fit: closeness of PER-PORTION calories to the per-meal
+    # target. base_nutrition is whole-recipe (per base_servings) — comparing
+    # totals made 1-2 serving sides look like perfect mains (goal 133).
     if target_calories:
         base_cal = (recipe.base_nutrition or {}).get('calories')
         if base_cal:
-            rel = abs(base_cal - target_calories) / target_calories
+            per_portion = base_cal / max(int(recipe.base_servings or 1), 1)
+            rel = abs(per_portion - target_calories) / target_calories
             score += max(0.0, 3.0 * (1.0 - rel))  # full 3 pts at exact, 0 at >=100% off
 
     # Prompt fit. Wanted-ingredient hits are what the user actually asked for
@@ -514,8 +543,15 @@ def select_recipes_for_plan(
             total += 1
             candidates = eligible_recipes_for_slot(slot_type, required_tags, pool=pool, facets=facets)
             if not candidates:
-                record_gap(day_number, slot_key, 'no_eligible_recipes')
-                continue
+                # Role-relaxed fallback: serving a role-mismatched dish beats
+                # starving the slot, but it is recorded as a corpus gap.
+                candidates = eligible_recipes_for_slot(
+                    slot_type, required_tags, pool=pool, facets=facets, enforce_roles=False)
+                if candidates:
+                    record_gap(day_number, slot_key, 'role_relaxed')
+                else:
+                    record_gap(day_number, slot_key, 'no_eligible_recipes')
+                    continue
             target = (calorie_targets or {}).get(day_number, {}).get(slot_key)
             scored = [(score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
@@ -564,11 +600,16 @@ def scale_recipe_to_meal(
     recipe: CuratedRecipe,
     *,
     factor: float = 1.0,
+    portions: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Render a CuratedRecipe into a meal object, scaling quantities/nutrition by
-    `factor` (default 1.0 = base servings). Ingredients keep their canonical /
-    catalog_id so the shopping list stays coherent by construction. Source
-    attribution is attached for the frontend credit line."""
+    `factor` (default 1.0 = base servings). `portions` overrides factor: serve
+    that many of the recipe's base_servings portions (factor = portions/base),
+    and the meal's `servings` reports the portions actually served. Ingredients
+    keep their canonical / catalog_id so the shopping list stays coherent by
+    construction. Source attribution is attached for the frontend credit line."""
+    if portions is not None:
+        factor = portions / max(int(recipe.base_servings or 1), 1)
     ingredients: List[Dict[str, Any]] = []
     for ing in (recipe.ingredients or []):
         qty = ing.get('quantity')
@@ -597,7 +638,7 @@ def scale_recipe_to_meal(
 
     return {
         'name': recipe.name_cs,
-        'servings': recipe.base_servings,
+        'servings': portions if portions is not None else recipe.base_servings,
         'description': recipe.description or '',
         'food_category': '',  # stock-image slug; left blank -> generic fallback
         'preparation_time': recipe.total_time or recipe.prep_time or None,
@@ -612,6 +653,20 @@ def scale_recipe_to_meal(
         'source_url': recipe.source_url,
         'source_author': recipe.source_author or '',
     }
+
+
+def portions_for_target(recipe: CuratedRecipe, target: Optional[float]) -> int:
+    """How many of the recipe's portions fill the slot's calorie target.
+    Without a target (or usable nutrition) serve ONE portion — never the whole
+    multi-serving pot (goal 133: 1709 kcal / 6 servings rendered as one
+    dinner). Capped at base_servings: we never invent more food than the
+    recipe makes."""
+    base = max(int(recipe.base_servings or 1), 1)
+    calories = (recipe.base_nutrition or {}).get('calories')
+    if not target or not calories or calories <= 0:
+        return 1
+    per_portion = calories / base
+    return max(1, min(base, int(round(target / per_portion))))
 
 
 def _calorie_targets_from_days(
@@ -661,9 +716,10 @@ def overlay_curated_recipes(
             cuisine_vocab=vocab,
         )
 
+    calorie_targets = _calorie_targets_from_days(transformed_days)
     selection = select_recipes_for_plan(
         goal, status=status, facets=facets,
-        calorie_targets=_calorie_targets_from_days(transformed_days),
+        calorie_targets=calorie_targets,
         recently_served_ids=recently_served_curated_ids(goal),
     )
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
@@ -671,6 +727,15 @@ def overlay_curated_recipes(
     promoted_ids: Set[int] = set()
     goal_id = getattr(goal, 'id', None) or getattr(goal, 'pk', 0)
     rescued = 0
+
+    # Suspect facets = the user said something concrete and we failed to parse
+    # it. The generated plan is then the only prompt-aware artifact: keep its
+    # meals, only fill slots that are actually empty (rescue-only).
+    rescue_only = bool(getattr(facets, 'suspect', False))
+    if rescue_only:
+        logger.warning(
+            "Facet extraction suspect for goal %s: overlay running rescue-only "
+            "(generated meals kept)", goal_id)
 
     for idx, day in enumerate(transformed_days):
         day_number = day.get('day_number', idx + 1)
@@ -686,7 +751,10 @@ def overlay_curated_recipes(
             if recipe is None:
                 continue
             existing = day.get(slot)
-            meal = scale_recipe_to_meal(recipe)
+            if existing and rescue_only:
+                continue
+            target = calorie_targets.get(day_number, {}).get(slot)
+            meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
             meal['meal_identifier'] = (
                 (existing or {}).get('meal_identifier')
                 or f"{goal_id}:{day_number}:{slot}:0"
@@ -708,8 +776,11 @@ def overlay_curated_recipes(
                 recipe = chosen.get(i)
                 if recipe is None:
                     continue
+                if i < len(meals) and rescue_only:
+                    continue
                 existing = meals[i] if i < len(meals) else None
-                meal = scale_recipe_to_meal(recipe)
+                target = calorie_targets.get(day_number, {}).get(f'{slot_type}:{i}')
+                meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
                 meal['meal_identifier'] = (
                     (existing.get('meal_identifier') if isinstance(existing, dict) else None)
                     or f"{goal_id}:{day_number}:{slot_type}:{i}"

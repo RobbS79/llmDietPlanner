@@ -139,3 +139,79 @@ class ExtractPromptFacetsTest(SimpleTestCase):
             'whatever', language='en', cuisine_vocab=self.VOCAB, generate=fake_generate,
         )
         self.assertTrue(facets.is_empty())
+
+
+class SuspectEmptyFacetsTest(SimpleTestCase):
+    """Empty facets from a substantive prompt are an anomaly, not a fact about
+    the user (goal 133: 'Mám vejce, těstoviny, tuňáka…' → empty on ~half of
+    LLM samples). The extractor must retry once, and if still empty flag the
+    result `suspect` so the overlay stops overriding generated meals."""
+
+    VOCAB = ['czech']
+    NONTRIVIAL = 'Mám vejce, bezlepkové těstoviny a tuňáka, navař mi z toho.'
+    EMPTY = '{"wanted_ingredients": []}'
+    GOOD = '{"wanted_ingredients": ["tuňák"]}'
+
+    def test_retries_once_when_nontrivial_prompt_yields_empty(self):
+        calls = []
+
+        def gen(system_prompt, user_text):
+            calls.append(1)
+            return self.EMPTY if len(calls) == 1 else self.GOOD
+
+        facets = extract_prompt_facets(
+            self.NONTRIVIAL, language='cs', cuisine_vocab=self.VOCAB, generate=gen)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(facets.wanted_ingredients, {'tuňák'})
+        self.assertFalse(facets.suspect)
+
+    def test_no_retry_when_first_attempt_has_content(self):
+        calls = []
+
+        def gen(system_prompt, user_text):
+            calls.append(1)
+            return self.GOOD
+
+        facets = extract_prompt_facets(
+            self.NONTRIVIAL, language='cs', cuisine_vocab=self.VOCAB, generate=gen)
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(facets.suspect)
+
+    def test_suspect_when_retry_still_empty(self):
+        facets = extract_prompt_facets(
+            self.NONTRIVIAL, language='cs', cuisine_vocab=self.VOCAB,
+            generate=lambda s, u: self.EMPTY)
+        self.assertTrue(facets.is_empty())
+        self.assertTrue(facets.suspect)
+
+    def test_trivial_prompt_empty_is_not_suspect(self):
+        calls = []
+
+        def gen(system_prompt, user_text):
+            calls.append(1)
+            return self.EMPTY
+
+        facets = extract_prompt_facets(
+            'jídlo', language='cs', cuisine_vocab=self.VOCAB, generate=gen)
+        self.assertEqual(len(calls), 1)  # trivial prompt: no retry either
+        self.assertFalse(facets.suspect)
+
+    def test_exception_on_nontrivial_prompt_is_suspect(self):
+        def gen(system_prompt, user_text):
+            raise RuntimeError('LLM down')
+
+        facets = extract_prompt_facets(
+            self.NONTRIVIAL, language='cs', cuisine_vocab=self.VOCAB, generate=gen)
+        self.assertTrue(facets.is_empty())
+        self.assertTrue(facets.suspect)
+
+    def test_system_prompt_counts_inventory_as_wanted(self):
+        seen = {}
+
+        def gen(system_prompt, user_text):
+            seen['system'] = system_prompt
+            return self.GOOD
+
+        extract_prompt_facets(
+            self.NONTRIVIAL, language='cs', cuisine_vocab=self.VOCAB, generate=gen)
+        self.assertIn('mám', seen['system'].lower())  # inventory rule spelled out

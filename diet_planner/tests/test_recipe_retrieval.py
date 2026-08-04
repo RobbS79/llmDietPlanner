@@ -428,3 +428,164 @@ class OverlayTest(TestCase):
         overlay_curated_recipes(self._days(), goal())
         r.refresh_from_db()
         self.assertEqual(r.usage_count, 1)
+
+
+class DishRoleGateTest(TestCase):
+    """Slot-fit role gate: a dish must be able to CARRY its slot, not merely be
+    eatable then. A Czech oběd is a warm main — side salads, dips and breakfast
+    dishes must not win lunch (prod goal 133: bean side salad served as oběd)."""
+
+    def test_side_excluded_from_lunch(self):
+        main = make_recipe(name_cs='Kuřecí s rýží', dish_role=CuratedRecipe.DishRole.MAIN)
+        make_recipe(name_cs='Fazolový salát', dish_role=CuratedRecipe.DishRole.SIDE)
+        elig = eligible_recipes_for_slot('lunch', set())
+        self.assertEqual([r.id for r in elig], [main.id])
+
+    def test_light_dish_allowed_for_dinner_but_not_lunch(self):
+        om = make_recipe(name_cs='Omeleta', dish_role=CuratedRecipe.DishRole.LIGHT)
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('dinner', set())], [om.id])
+
+    def test_soup_allowed_for_dinner_but_not_lunch_or_breakfast(self):
+        soup = make_recipe(
+            name_cs='Hrachová polévka', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.SOUP)
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual(eligible_recipes_for_slot('breakfast', set()), [])
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('dinner', set())], [soup.id])
+
+    def test_untagged_role_passes_everywhere(self):
+        r = make_recipe(name_cs='Legacy dish', meal_types=['breakfast', 'lunch', 'dinner'])
+        for slot in ('breakfast', 'lunch', 'dinner'):
+            self.assertEqual([x.id for x in eligible_recipes_for_slot(slot, set())], [r.id])
+
+    def test_side_ok_for_small_meal_and_snack(self):
+        side = make_recipe(
+            name_cs='Černofazolový dip', meal_types=['small_meal', 'snack'],
+            dish_role=CuratedRecipe.DishRole.SIDE)
+        self.assertIn(side.id, [r.id for r in eligible_recipes_for_slot('small_meal', set())])
+        self.assertIn(side.id, [r.id for r in eligible_recipes_for_slot('snack', set())])
+
+    def test_lunch_relaxes_when_no_mains_exist(self):
+        """'Unless nothing else exists': an all-sides pool still fills the slot
+        rather than starving the plan, and the relaxation is recorded as a
+        corpus gap so acquisition can react."""
+        side = make_recipe(name_cs='Jen salát', dish_role=CuratedRecipe.DishRole.SIDE)
+        sel = select_recipes_for_plan(goal(breakfast=False, dinner=False))
+        self.assertEqual(sel['days'][0]['slots']['lunch'].id, side.id)
+        self.assertEqual(sel['gaps'][0]['reason'], 'role_relaxed')
+        self.assertEqual(sel['coverage']['filled'], 1)
+
+
+class SuspectFacetsOverlayTest(TestCase):
+    """When facet extraction is `suspect` (substantive prompt, empty facets),
+    the generated plan is the ONLY prompt-aware artifact — the overlay must
+    keep generated meals and only rescue genuinely empty slots."""
+
+    def test_suspect_keeps_generated_mains_but_rescues_empty(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        make_recipe(name_cs='Kandidát', meal_types=['lunch', 'dinner'])
+        days = [{
+            'day_number': 1,
+            'lunch': {'name': 'Gen lunch', 'meal_identifier': '1:1:lunch:0'},
+            'small_meals': [], 'snacks': [],
+        }]
+        facets = PromptFacets()
+        facets.suspect = True
+        out = overlay_curated_recipes(days, goal(breakfast=False), facets=facets)
+        day = out['days'][0]
+        self.assertEqual(day['lunch']['name'], 'Gen lunch')      # kept, not overridden
+        self.assertEqual(day['lunch']['source'], 'generated')
+        self.assertEqual(day['dinner']['source'], 'curated')     # empty slot still rescued
+
+    def test_suspect_keeps_generated_list_items_but_appends_missing(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        make_recipe(name_cs='Svačina k záchraně', meal_types=['small_meal'])
+        days = [{
+            'day_number': 1,
+            'small_meals': [{'name': 'Gen svačina', 'meal_identifier': '1:1:small_meal:0'}],
+            'snacks': [],
+        }]
+        facets = PromptFacets()
+        facets.suspect = True
+        out = overlay_curated_recipes(
+            days,
+            goal(breakfast=False, lunch=False, dinner=False, small_meals_per_day=2),
+            facets=facets)
+        meals = out['days'][0]['small_meals']
+        self.assertEqual(meals[0]['name'], 'Gen svačina')        # kept
+        self.assertEqual(meals[0]['source'], 'generated')
+        self.assertEqual(meals[1]['source'], 'curated')          # appended rescue
+
+
+class PerPortionScoringTest(TestCase):
+    """base_nutrition is WHOLE-RECIPE (per base_servings). Scoring must compare
+    per-portion calories to the slot target — comparing totals made a 2-serving
+    side salad look like a perfect 600-kcal lunch while a 4-serving main
+    scored zero (goal 133)."""
+
+    def test_per_portion_fit_beats_whole_recipe_total_fit(self):
+        side = make_recipe(name_cs='Salát malý', base_servings=2,
+                           base_nutrition={'calories': 613})   # 307/portion
+        main = make_recipe(name_cs='Kuře velké', base_servings=4,
+                           base_nutrition={'calories': 2400})  # 600/portion
+        kw = dict(used_recipe_ids=set(), used_cuisines=[], target_calories=600.0)
+        self.assertGreater(score_recipe(main, **kw), score_recipe(side, **kw))
+
+
+class PortionServingTest(TestCase):
+    """The overlay must serve a portion sized to the slot, not the whole
+    recipe (prod goal 133: a 6-serving, 1709-kcal salad rendered as one
+    dinner)."""
+
+    def test_scale_by_portions(self):
+        r = make_recipe(name_cs='Velký hrnec', base_servings=4,
+                        base_nutrition={'calories': 2000, 'protein': 100, 'carbs': 200, 'fat': 40},
+                        ingredients=[{'name': 'rýže', 'quantity': 400, 'unit': 'g',
+                                      'canonical': 'rice-basmati'}])
+        meal = scale_recipe_to_meal(r, portions=1)
+        self.assertEqual(meal['servings'], 1)
+        self.assertEqual(meal['nutritional_info']['calories'], 500)
+        self.assertEqual(meal['ingredients'][0]['quantity'], 100)
+
+    def test_overlay_serves_target_sized_portion(self):
+        make_recipe(name_cs='Cizrnový salát velký', meal_types=['lunch'], base_servings=6,
+                    base_nutrition={'calories': 1709, 'protein': 60, 'carbs': 150, 'fat': 90},
+                    ingredients=[{'name': 'cizrna', 'quantity': 600, 'unit': 'g',
+                                  'canonical': 'chickpeas'}])
+        days = [{
+            'day_number': 1,
+            'lunch': {'name': 'Gen lunch', 'meal_identifier': '1:1:lunch:0',
+                      'nutritional_info': {'calories': 600}},
+            'small_meals': [], 'snacks': [],
+        }]
+        out = overlay_curated_recipes(days, goal(breakfast=False, dinner=False))
+        lunch = out['days'][0]['lunch']
+        # 1709/6 ≈ 285 kcal/portion; two portions ≈ 570 kcal fits the 600 slot.
+        self.assertEqual(lunch['servings'], 2)
+        self.assertEqual(lunch['nutritional_info']['calories'], round(1709 / 6 * 2))
+        self.assertEqual(lunch['ingredients'][0]['quantity'], round(600 * 2 / 6, 2))
+
+    def test_overlay_serves_single_portion_when_no_target(self):
+        make_recipe(name_cs='Rescue kotlík', meal_types=['lunch'], base_servings=4,
+                    base_nutrition={'calories': 2000, 'protein': 100, 'carbs': 200, 'fat': 40})
+        days = [{'day_number': 1, 'small_meals': [], 'snacks': []}]  # hollow: no target
+        out = overlay_curated_recipes(days, goal(breakfast=False, dinner=False))
+        lunch = out['days'][0]['lunch']
+        self.assertEqual(lunch['servings'], 1)
+        self.assertEqual(lunch['nutritional_info']['calories'], 500)
+
+    def test_portions_never_exceed_base_yield(self):
+        make_recipe(name_cs='Mini jídlo', meal_types=['lunch'], base_servings=2,
+                    base_nutrition={'calories': 400, 'protein': 20, 'carbs': 40, 'fat': 10})
+        days = [{
+            'day_number': 1,
+            'lunch': {'name': 'Gen lunch', 'meal_identifier': '1:1:lunch:0',
+                      'nutritional_info': {'calories': 900}},
+            'small_meals': [], 'snacks': [],
+        }]
+        out = overlay_curated_recipes(days, goal(breakfast=False, dinner=False))
+        # target wants 4.5 portions; recipe only yields 2 — serve the whole
+        # recipe, never invent more food than it makes.
+        self.assertEqual(out['days'][0]['lunch']['servings'], 2)
+        self.assertEqual(out['days'][0]['lunch']['nutritional_info']['calories'], 400)
