@@ -205,6 +205,68 @@ class ScoreTest(TestCase):
         self.assertNotIn('cabbage', cans)
 
 
+class RecentServePenaltyTest(TestCase):
+    """Per-user novelty memory: recipes served to this user in recent plans
+    rank lower, so regenerating doesn't produce the same menu forever."""
+
+    def test_recently_served_scores_lower(self):
+        r = make_recipe(name_cs='Polévka')
+        fresh = score_recipe(r, used_recipe_ids=set(), used_cuisines=[])
+        seen = score_recipe(r, used_recipe_ids=set(), used_cuisines=[],
+                            recently_served_ids={r.id})
+        self.assertLess(seen, fresh)
+
+    def test_penalty_does_not_override_wanted_hit(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        facets = PromptFacets(wanted_ingredients={'kuřecí'})
+        wanted_but_seen = make_recipe(name_cs='Kuřecí plátek', ingredients=[
+            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
+        ])
+        fresh_no_hit = make_recipe(name_cs='Zelný salát', ingredients=[
+            {'name': 'zelí', 'quantity': 200, 'unit': 'g', 'canonical': 'cabbage'},
+        ])
+        hit_score = score_recipe(
+            wanted_but_seen, used_recipe_ids=set(), used_cuisines=[],
+            facets=facets, recently_served_ids={wanted_but_seen.id})
+        miss_score = score_recipe(
+            fresh_no_hit, used_recipe_ids=set(), used_cuisines=[], facets=facets)
+        self.assertGreater(hit_score, miss_score)
+
+    def test_select_avoids_recently_served_when_tied(self):
+        seen = make_recipe(name_cs='Včerejší jídlo', meal_types=['dinner'])
+        fresh = make_recipe(name_cs='Nové jídlo', meal_types=['dinner'])
+        sel = select_recipes_for_plan(
+            goal(breakfast=False, lunch=False),
+            recently_served_ids={seen.id})
+        self.assertEqual(sel['days'][0]['slots']['dinner'].id, fresh.id)
+
+    def test_history_helper_reads_users_recent_curated_serves(self):
+        from django.contrib.auth import get_user_model
+        from diet_planner.models import DietaryGoal, Recipe
+        from diet_planner.services.recipe_retrieval import recently_served_curated_ids
+
+        curated = make_recipe(name_cs='Západoafrická polévka', slug='zapadoafricka-polevka')
+        user = get_user_model().objects.create_user('u1', 'u1@example.test', 'x')
+        old_goal = DietaryGoal.objects.create(
+            user=user, prompt='týden jídel', num_days=1,
+            country='CZ', currency='CZK', language_code='cs',
+        )
+        Recipe.objects.create(
+            meal_identifier='g:1:lunch:0', dietary_goal=old_goal,
+            name='Západoafrická polévka', curated_recipe_slug='zapadoafricka-polevka',
+            instructions=[], ingredients=[],
+        )
+        new_goal = DietaryGoal.objects.create(
+            user=user, prompt='další týden', num_days=1,
+            country='CZ', currency='CZK', language_code='cs',
+        )
+        self.assertEqual(recently_served_curated_ids(new_goal), {curated.id})
+        # The goal being generated doesn't count its own (in-flight) recipes.
+        self.assertEqual(recently_served_curated_ids(old_goal), set())
+        # Goals without a persisted user (simulation namespaces) degrade to empty.
+        self.assertEqual(recently_served_curated_ids(goal()), set())
+
+
 class SelectTest(TestCase):
     def test_fills_distinct_recipes_when_pool_allows(self):
         for i in range(3):
