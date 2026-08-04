@@ -38,7 +38,7 @@ from django.conf import settings
 from django.db.models import F
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
-from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
 from diet_planner.services.prompt_facets import PromptFacets, extract_prompt_facets
 
 logger = logging.getLogger(__name__)
@@ -179,6 +179,12 @@ _WANTED_CATEGORY_WORDS: Dict[str, str] = {
     'dairy': 'dairy',
 }
 
+# Accent-free lookup ("lusteniny", "orechy") — folded keys must not shadow
+# exact ones, so this is a separate fallback dict.
+_WANTED_CATEGORY_WORDS_FOLDED = {
+    fold_diacritics(k): v for k, v in _WANTED_CATEGORY_WORDS.items()
+}
+
 
 class WantedIngredientMatcher:
     """Match a user's ingredient tokens against a recipe's ingredients.
@@ -209,7 +215,8 @@ class WantedIngredientMatcher:
         slug_category = dict(CanonicalIngredient.objects.values_list('slug', 'category'))
         concepts: List[tuple] = []
         for tok in sorted(clean):
-            category = _WANTED_CATEGORY_WORDS.get(tok)
+            category = (_WANTED_CATEGORY_WORDS.get(tok)
+                        or _WANTED_CATEGORY_WORDS_FOLDED.get(fold_diacritics(tok)))
             if category:
                 concepts.append(('category', category))
                 continue

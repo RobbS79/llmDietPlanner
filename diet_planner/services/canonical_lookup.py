@@ -20,6 +20,7 @@ catalog-mapped, treat as a normal grocery item".
 from __future__ import annotations
 
 import re
+import unicodedata
 from functools import lru_cache
 from typing import Dict, Optional
 
@@ -144,6 +145,15 @@ def _strip_descriptors(raw: str) -> str:
     return " ".join(sorted(tokens)).strip()
 
 
+def fold_diacritics(text: str) -> str:
+    """ASCII-fold Czech diacritics ("kuřecí" -> "kureci"). Users routinely
+    type without them; both sides of a match must fold identically."""
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(c)
+    )
+
+
 @lru_cache(maxsize=1)
 def _normalized_index() -> Dict[str, int]:
     """Map normalized-key -> CanonicalIngredient id, over all names + aliases.
@@ -151,6 +161,8 @@ def _normalized_index() -> Dict[str, int]:
     Built once per process; call `clear_cache()` after seeding new rows in the
     same process. More-specific names are inserted first so a shorter alias
     cannot clobber a better key (dict keeps the first writer via setdefault).
+    Each key is also registered ASCII-folded so accent-free input resolves;
+    setdefault keeps exact keys authoritative over folded ones.
     """
     index: Dict[str, int] = {}
 
@@ -158,6 +170,9 @@ def _normalized_index() -> Dict[str, int]:
         key = _strip_descriptors(text or "")
         if key:
             index.setdefault(key, ci_id)
+            folded = fold_diacritics(key)
+            if folded != key:
+                index.setdefault(folded, ci_id)
 
     for ci in CanonicalIngredient.objects.all().values("id", "name", "name_cs", "name_sk"):
         for field in ("name_cs", "name", "name_sk"):
@@ -203,6 +218,8 @@ def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
     if not key:
         return None
     ci_id = _normalized_index().get(key)
+    if ci_id is None:
+        ci_id = _normalized_index().get(fold_diacritics(key))
     if ci_id is not None:
         return CanonicalIngredient.objects.filter(pk=ci_id).first()
     return None
