@@ -37,6 +37,13 @@ class CuratedRecipe(models.Model):
         CURATED = 'curated', 'Curated batch'
         CHAT_WEB = 'chat_web', 'Chat web research'
 
+    class DishRole(models.TextChoices):
+        MAIN = 'main', 'Main — can carry an oběd/večeře'
+        LIGHT = 'light', 'Light — breakfast/quick-supper dish'
+        SOUP = 'soup', 'Soup — brothy, accompanies rather than carries'
+        SIDE = 'side', 'Side — salad/dip/accompaniment'
+        DESSERT = 'dessert', 'Dessert / sweet'
+
     # --- Identity / presentation -------------------------------------------
     slug = models.SlugField(max_length=255, unique=True, db_index=True)
     name_cs = models.CharField(max_length=255, help_text="Czech dish name (real, named dish)")
@@ -56,6 +63,18 @@ class CuratedRecipe(models.Model):
         blank=True,
         db_index=True,
         help_text="czech/italian/asian/mediterranean/... — for variety + soft ranking, not a filter",
+    )
+    dish_role = models.CharField(
+        max_length=10,
+        choices=DishRole.choices,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text=(
+            "What the dish can CARRY (meal_types says when it may appear; this "
+            "says whether it can be the meal). '' = untagged legacy — passes "
+            "every slot until retag_dish_roles has run."
+        ),
     )
     difficulty = models.CharField(
         max_length=10,

@@ -279,3 +279,25 @@ class SideEffectsTest(ReplaceRecipeTestBase):
         self.assertEqual(plan.days[0]['lunch']['curated_recipe_id'], other.id)
         other.refresh_from_db()
         self.assertEqual(other.usage_count, 1)
+
+
+class PortionedSwapTest(ReplaceRecipeTestBase):
+    """A swap must serve a portion sized to the outgoing meal's calories, not
+    the incoming recipe's whole multi-serving yield (goal 133)."""
+
+    def test_swap_serves_portion_sized_to_outgoing_meal(self):
+        current = make_recipe(name_cs='Aktuální oběd')          # 500 kcal / 1 serving
+        make_recipe(name_cs='Velký hrnec', base_servings=6,
+                    base_nutrition={'calories': 3000, 'protein': 120, 'carbs': 300, 'fat': 90},
+                    ingredients=[{'name': 'rýže', 'quantity': 600, 'unit': 'g',
+                                  'canonical': 'rice-basmati'}])
+        plan = self._plan_with_lunch(current)
+        resp = self.client.post(self._url(), {'hint': ''}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data['data']['replaced'])
+        plan.refresh_from_db()
+        meal = plan.days[0]['lunch']
+        # 3000/6 = 500 kcal/portion; outgoing meal was 500 kcal -> 1 portion.
+        self.assertEqual(meal['servings'], 1)
+        self.assertEqual(meal['nutritional_info']['calories'], 500)
+        self.assertEqual(meal['ingredients'][0]['quantity'], 100)

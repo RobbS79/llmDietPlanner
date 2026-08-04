@@ -50,6 +50,7 @@ from .services.recipe_retrieval import (
     published_pool,
     published_cuisine_vocab,
     eligible_recipes_for_slot,
+    portions_for_target,
     score_recipe,
     scale_recipe_to_meal,
     wanted_matcher,
@@ -627,7 +628,11 @@ def _commit_slot_swap(*, goal, plan, target_day, meal_type, meal_identifier, cho
     pk — a substantive row is auto-published at /recepty/<pk>/, recreating
     would orphan that live URL), and reset cooked state. Returns the Recipe."""
     with transaction.atomic():
-        new_meal = scale_recipe_to_meal(chosen)
+        # Portion the incoming recipe to the outgoing meal's calories — a swap
+        # must not turn a 500-kcal slot into the new recipe's whole pot.
+        old = target_day.get(meal_type)
+        old_cal = (old.get('nutritional_info') or {}).get('calories') if isinstance(old, dict) else None
+        new_meal = scale_recipe_to_meal(chosen, portions=portions_for_target(chosen, old_cal))
         new_meal['meal_identifier'] = meal_identifier
         target_day[meal_type] = new_meal
         plan.save(update_fields=['days'])
