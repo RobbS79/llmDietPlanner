@@ -30,6 +30,7 @@ corpus and gets stronger as the corpus grows (B2).
 from __future__ import annotations
 
 import logging
+import random
 import re
 from typing import Any, Dict, List, Optional, Sequence, Set
 
@@ -343,6 +344,13 @@ _WANTED_HIT_WEIGHT = 20.0
 # still wins ("kuřecí" beats a fresh cabbage salad even on a repeat).
 _RECENT_SERVE_PENALTY = 8.0
 
+# Near-tied candidates (within this score distance of the top) are sampled,
+# not argmax'd, so equally-good dishes rotate across plans instead of one
+# fixed winner serving forever. Sized so deliberate orderings stay strict:
+# wanted hits (20), cuisine variety (5), same-dish reuse (100), and the
+# capped strong ingredient-reuse signal (6) all exceed it.
+_SAMPLING_WINDOW = 2.5
+
 # How far back a user's plans count as "recent" for the novelty penalty.
 _RECENT_SERVE_WINDOW_DAYS = 14
 
@@ -472,6 +480,7 @@ def select_recipes_for_plan(
     slot_plan += [('snack', f'snack:{i}') for i in range(snack_n)]
 
     pool = published_pool(status)
+    goal_seed = getattr(goal, 'pk', None) or getattr(goal, 'id', None) or 0
     used_recipe_ids: Set[int] = set()
     used_cuisines: List[str] = []
     used_canonicals: Set[str] = set()  # ingredient reuse across the whole plan
@@ -499,11 +508,17 @@ def select_recipes_for_plan(
                 record_gap(day_number, slot_key, 'no_eligible_recipes')
                 continue
             target = (calorie_targets or {}).get(day_number, {}).get(slot_key)
-            best = max(candidates, key=lambda r: score_recipe(
+            scored = [(score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
                 facets=facets, used_canonicals=used_canonicals,
                 target_calories=target, recently_served_ids=recently_served_ids,
-            ))
+            ), r) for r in candidates]
+            top = max(s for s, _ in scored)
+            window = [r for s, r in scored if s >= top - _SAMPLING_WINDOW]
+            # Seeded per (goal, day, slot): rotation across plans, stable
+            # within one plan (re-running the same goal reproduces it).
+            rng = random.Random(f'{goal_seed}:{day_number}:{slot_key}')
+            best = rng.choice(window)
             # Prompt-fit threshold (main slots only): if even the best curated
             # candidate matches nothing the user asked for, the generated meal
             # — written with full prompt context — is the better answer.

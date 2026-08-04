@@ -36,11 +36,11 @@ def make_recipe(**kw):
 
 def goal(**kw):
     base = dict(
-        num_days=1, breakfast=True, lunch=True, dinner=True,
+        id=1, num_days=1, breakfast=True, lunch=True, dinner=True,
         small_meals_per_day=0, snacks_per_day=0, dietary_restrictions='',
     )
     base.update(kw)
-    return SimpleNamespace(id=1, **base)
+    return SimpleNamespace(**base)
 
 
 class ParseDietaryTagsTest(TestCase):
@@ -181,16 +181,20 @@ class ScoreTest(TestCase):
         # tie without overriding the cuisine-variety penalty).
         from diet_planner.services.recipe_retrieval import select_recipes_for_plan
         # Slot eligibility fixes the first pick deterministically: chicken+rice
-        # is the only lunch candidate, the two salads compete for dinner.
+        # is the only lunch candidate, the two salads compete for dinner. The
+        # reused option shares 5 canonicals (+3.0), outside the sampling
+        # window (2.5), so the strong-reuse preference stays deterministic.
+        shared = [
+            {'name': n, 'quantity': 50, 'unit': 'g', 'canonical': c}
+            for n, c in [
+                ('kuřecí prsa', 'chicken-breast'), ('rýže', 'rice-basmati'),
+                ('cibule', 'onion'), ('česnek', 'garlic'), ('máslo', 'butter'),
+            ]
+        ]
         make_recipe(name_cs='Kuře s rýží', cuisine='czech',
-                    meal_types=['lunch'], ingredients=[
-            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
-            {'name': 'rýže', 'quantity': 100, 'unit': 'g', 'canonical': 'rice-basmati'},
-        ])
+                    meal_types=['lunch'], ingredients=list(shared))
         make_recipe(name_cs='Kuřecí salát', cuisine='czech',
-                    meal_types=['dinner'], ingredients=[
-            {'name': 'kuřecí prsa', 'quantity': 120, 'unit': 'g', 'canonical': 'chicken-breast'},
-        ])
+                    meal_types=['dinner'], ingredients=list(shared))
         make_recipe(name_cs='Zelný salát', cuisine='czech',
                     meal_types=['dinner'], ingredients=[
             {'name': 'zelí', 'quantity': 200, 'unit': 'g', 'canonical': 'cabbage'},
@@ -265,6 +269,42 @@ class RecentServePenaltyTest(TestCase):
         self.assertEqual(recently_served_curated_ids(old_goal), set())
         # Goals without a persisted user (simulation namespaces) degrade to empty.
         self.assertEqual(recently_served_curated_ids(goal()), set())
+
+
+class TopWindowSamplingTest(TestCase):
+    """Near-tied candidates rotate across plans instead of a fixed argmax
+    winner; dominant scores (wanted hits) still always win."""
+
+    def _dinner_choice(self, goal_id):
+        sel = select_recipes_for_plan(goal(id=goal_id, breakfast=False, lunch=False))
+        return sel['days'][0]['slots']['dinner'].id
+
+    def test_near_ties_rotate_across_goals(self):
+        for i in range(4):
+            make_recipe(name_cs=f'Stejné jídlo {i}', meal_types=['dinner'],
+                        cuisine=['czech', 'italian', 'asian', 'mexican'][i])
+        chosen = {self._dinner_choice(gid) for gid in range(1, 13)}
+        self.assertGreater(len(chosen), 1)
+
+    def test_same_goal_id_is_deterministic(self):
+        for i in range(4):
+            make_recipe(name_cs=f'Stejné jídlo {i}', meal_types=['dinner'],
+                        cuisine=['czech', 'italian', 'asian', 'mexican'][i])
+        self.assertEqual(self._dinner_choice(7), self._dinner_choice(7))
+
+    def test_dominant_winner_always_chosen(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        wanted = make_recipe(name_cs='Kuřecí nudličky', meal_types=['dinner'], ingredients=[
+            {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
+        ])
+        for i in range(4):
+            make_recipe(name_cs=f'Bez kuřete {i}', meal_types=['dinner'],
+                        cuisine=['czech', 'italian', 'asian', 'mexican'][i])
+        for gid in range(1, 13):
+            sel = select_recipes_for_plan(
+                goal(id=gid, breakfast=False, lunch=False),
+                facets=PromptFacets(wanted_ingredients={'kuřecí'}))
+            self.assertEqual(sel['days'][0]['slots']['dinner'].id, wanted.id)
 
 
 class SelectTest(TestCase):
