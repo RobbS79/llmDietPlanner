@@ -367,9 +367,6 @@ def score_recipe(
     if recipe.difficulty == CuratedRecipe.Difficulty.EASY:
         score += 2.0
 
-    # Popularity as a mild tie-breaker.
-    score += min(recipe.usage_count, 10) * 0.1
-
     # Optional macro fit: closeness of base calories to the per-meal target.
     if target_calories:
         base_cal = (recipe.base_nutrition or {}).get('calories')

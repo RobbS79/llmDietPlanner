@@ -152,6 +152,17 @@ class ScoreTest(TestCase):
         far = score_recipe(r, used_recipe_ids=set(), used_cuisines=[], target_calories=1000)
         self.assertGreater(near, far)
 
+    def test_usage_count_does_not_affect_score(self):
+        # No popularity feedback loop: a recipe served 10 times must not
+        # outrank an identical recipe served never (rich-get-richer caused
+        # 85% of the corpus to go unserved in prod).
+        fresh = make_recipe(name_cs='Fresh dish', usage_count=0)
+        popular = make_recipe(name_cs='Popular dish', usage_count=10)
+        self.assertEqual(
+            score_recipe(fresh, used_recipe_ids=set(), used_cuisines=[]),
+            score_recipe(popular, used_recipe_ids=set(), used_cuisines=[]),
+        )
+
     def test_ingredient_reuse_rewarded(self):
         # A recipe sharing canonicals with those already chosen scores higher,
         # so the plan converges on a smaller shopping list.
@@ -169,18 +180,19 @@ class ScoreTest(TestCase):
         # reusing the first recipe's ingredient is chosen (overlap breaks the
         # tie without overriding the cuisine-variety penalty).
         from diet_planner.services.recipe_retrieval import select_recipes_for_plan
-        # usage_count fixes the first pick deterministically (chicken+rice).
-        make_recipe(name_cs='Kuře s rýží', cuisine='czech', usage_count=10,
-                    meal_types=['lunch', 'dinner'], ingredients=[
+        # Slot eligibility fixes the first pick deterministically: chicken+rice
+        # is the only lunch candidate, the two salads compete for dinner.
+        make_recipe(name_cs='Kuře s rýží', cuisine='czech',
+                    meal_types=['lunch'], ingredients=[
             {'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'},
             {'name': 'rýže', 'quantity': 100, 'unit': 'g', 'canonical': 'rice-basmati'},
         ])
         make_recipe(name_cs='Kuřecí salát', cuisine='czech',
-                    meal_types=['lunch', 'dinner'], ingredients=[
+                    meal_types=['dinner'], ingredients=[
             {'name': 'kuřecí prsa', 'quantity': 120, 'unit': 'g', 'canonical': 'chicken-breast'},
         ])
         make_recipe(name_cs='Zelný salát', cuisine='czech',
-                    meal_types=['lunch', 'dinner'], ingredients=[
+                    meal_types=['dinner'], ingredients=[
             {'name': 'zelí', 'quantity': 200, 'unit': 'g', 'canonical': 'cabbage'},
         ])
         result = select_recipes_for_plan(goal(num_days=1, breakfast=False))
