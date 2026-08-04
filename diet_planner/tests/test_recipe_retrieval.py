@@ -307,6 +307,45 @@ class TopWindowSamplingTest(TestCase):
             self.assertEqual(sel['days'][0]['slots']['dinner'].id, wanted.id)
 
 
+class OverlayRescueTest(TestCase):
+    """A hollow generated day (LLM returned nameless stubs, transform dropped
+    them) must be rescued by the corpus: chosen curated recipes attach to
+    empty slots instead of being discarded with the plan (prod goal 133)."""
+
+    def _hollow_day(self):
+        return [{'day_number': 1, 'small_meals': [], 'snacks': []}]
+
+    def test_overlay_fills_empty_main_slot(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        make_recipe(name_cs='Záchranné jídlo', meal_types=['breakfast', 'lunch', 'dinner'])
+        result = overlay_curated_recipes(self._hollow_day(), goal(), facets=PromptFacets())
+        lunch = result['days'][0].get('lunch')
+        self.assertIsNotNone(lunch)
+        self.assertEqual(lunch['source'], 'curated')
+        self.assertTrue(lunch['ingredients'])
+        self.assertEqual(lunch['meal_identifier'], '1:1:lunch:0')
+
+    def test_overlay_extends_short_meal_lists(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        make_recipe(name_cs='Svačinka', meal_types=['snack', 'small_meal'])
+        result = overlay_curated_recipes(
+            self._hollow_day(),
+            goal(breakfast=False, lunch=False, dinner=False,
+                 small_meals_per_day=1, snacks_per_day=1),
+            facets=PromptFacets())
+        day = result['days'][0]
+        self.assertEqual(len(day['small_meals']), 1)
+        self.assertEqual(day['small_meals'][0]['source'], 'curated')
+        self.assertTrue(day['small_meals'][0]['ingredients'])
+
+    def test_rescued_hollow_day_passes_completeness_guard(self):
+        from diet_planner.services.prompt_facets import PromptFacets
+        from diet_planner.tasks import _assert_plan_has_content
+        make_recipe(name_cs='Záchranné jídlo', meal_types=['breakfast', 'lunch', 'dinner'])
+        result = overlay_curated_recipes(self._hollow_day(), goal(), facets=PromptFacets())
+        _assert_plan_has_content(result['days'], goal())  # must not raise
+
+
 class SelectTest(TestCase):
     def test_fills_distinct_recipes_when_pool_allows(self):
         for i in range(3):

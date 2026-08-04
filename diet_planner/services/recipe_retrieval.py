@@ -669,32 +669,61 @@ def overlay_curated_recipes(
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
 
     promoted_ids: Set[int] = set()
+    goal_id = getattr(goal, 'id', None) or getattr(goal, 'pk', 0)
+    rescued = 0
 
     for idx, day in enumerate(transformed_days):
         day_number = day.get('day_number', idx + 1)
         slots = sel_by_day.get(day_number, {})
 
-        # Main meals: breakfast/lunch/dinner are single objects.
+        # Main meals: breakfast/lunch/dinner are single objects. A chosen
+        # recipe attaches even when the slot is empty — a truncated/stub LLM
+        # response (dropped in transform) must not discard a full curated
+        # selection with it (prod goal 133: 4/4 chosen, 0 applied, plan
+        # failed the completeness guard).
         for slot in ('breakfast', 'lunch', 'dinner'):
             recipe = slots.get(slot)
-            if recipe is not None and day.get(slot):
-                meal = scale_recipe_to_meal(recipe)
-                meal['meal_identifier'] = day[slot].get('meal_identifier')
-                day[slot] = meal
-                promoted_ids.add(recipe.id)
+            if recipe is None:
+                continue
+            existing = day.get(slot)
+            meal = scale_recipe_to_meal(recipe)
+            meal['meal_identifier'] = (
+                (existing or {}).get('meal_identifier')
+                or f"{goal_id}:{day_number}:{slot}:0"
+            )
+            if not existing:
+                rescued += 1
+            day[slot] = meal
+            promoted_ids.add(recipe.id)
 
-        # small_meals / snacks are lists; overlay positionally.
+        # small_meals / snacks are lists; overlay positionally, appending
+        # rescued meals for chosen indices past the (possibly hollowed) list.
         for slot_type, list_key in (('small_meal', 'small_meals'), ('snack', 'snacks')):
             meals = day.get(list_key) or []
-            for i, existing in enumerate(meals):
-                recipe = slots.get(f'{slot_type}:{i}')
-                if recipe is not None:
-                    meal = scale_recipe_to_meal(recipe)
-                    if isinstance(existing, dict):
-                        meal['meal_identifier'] = existing.get('meal_identifier')
+            chosen = {
+                int(k.split(':', 1)[1]): r
+                for k, r in slots.items() if k.startswith(slot_type + ':')
+            }
+            for i in range(max([len(meals)] + [x + 1 for x in chosen])):
+                recipe = chosen.get(i)
+                if recipe is None:
+                    continue
+                existing = meals[i] if i < len(meals) else None
+                meal = scale_recipe_to_meal(recipe)
+                meal['meal_identifier'] = (
+                    (existing.get('meal_identifier') if isinstance(existing, dict) else None)
+                    or f"{goal_id}:{day_number}:{slot_type}:{i}"
+                )
+                if i < len(meals):
                     meals[i] = meal
-                    promoted_ids.add(recipe.id)
+                else:
+                    meals.append(meal)
+                    rescued += 1
+                promoted_ids.add(recipe.id)
             day[list_key] = meals
+
+    if rescued:
+        logger.info("Recipe grounding rescued %d empty slot(s) with curated recipes", rescued)
 
     # Mark every non-curated meal explicitly as generated for the frontend.
     for day in transformed_days:
@@ -715,7 +744,7 @@ def overlay_curated_recipes(
 
     return {
         'days': transformed_days,
-        'coverage': selection['coverage'],
+        'coverage': {**selection['coverage'], 'rescued': rescued},
         'facets': facets.to_debug(),
         'gaps': selection['gaps'],
     }
