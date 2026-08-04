@@ -354,9 +354,11 @@ _RECENT_SERVE_PENALTY = 8.0
 # Near-tied candidates (within this score distance of the top) are sampled,
 # not argmax'd, so equally-good dishes rotate across plans instead of one
 # fixed winner serving forever. Sized so deliberate orderings stay strict:
-# wanted hits (20), cuisine variety (5), same-dish reuse (100), and the
-# capped strong ingredient-reuse signal (6) all exceed it.
-_SAMPLING_WINDOW = 2.5
+# wanted hits (20), cuisine variety (5), same-dish reuse (100), difficulty
+# (2), strong ingredient reuse (up to 6) — and crucially the calorie
+# size-sanity spread (a 414-kcal side vs a 680-kcal main at a 700 target
+# differs by ~1.15, which must stay a deterministic win for the main).
+_SAMPLING_WINDOW = 1.0
 
 # How far back a user's plans count as "recent" for the novelty penalty.
 _RECENT_SERVE_WINDOW_DAYS = 14
