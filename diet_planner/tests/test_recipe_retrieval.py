@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from diet_planner.models import CuratedRecipe
 from diet_planner.services.recipe_retrieval import (
+    _calorie_targets_from_days,
     eligible_recipes_for_slot,
     overlay_curated_recipes,
     parse_dietary_tags,
@@ -12,6 +13,7 @@ from diet_planner.services.recipe_retrieval import (
     scale_recipe_to_meal,
     score_recipe,
     select_recipes_for_plan,
+    slot_target,
 )
 
 
@@ -566,12 +568,13 @@ class PortionServingTest(TestCase):
         self.assertEqual(lunch['nutritional_info']['calories'], round(1709 / 6 * 2))
         self.assertEqual(lunch['ingredients'][0]['quantity'], round(600 * 2 / 6, 2))
 
-    def test_overlay_serves_single_portion_when_no_target(self):
+    def test_overlay_sizes_rescue_by_slot_default_when_no_target(self):
         make_recipe(name_cs='Rescue kotlík', meal_types=['lunch'], base_servings=4,
                     base_nutrition={'calories': 2000, 'protein': 100, 'carbs': 200, 'fat': 40})
         days = [{'day_number': 1, 'small_meals': [], 'snacks': []}]  # hollow: no target
         out = overlay_curated_recipes(days, goal(breakfast=False, dinner=False))
         lunch = out['days'][0]['lunch']
+        # 500 kcal/portion vs the 650-kcal lunch default → one portion.
         self.assertEqual(lunch['servings'], 1)
         self.assertEqual(lunch['nutritional_info']['calories'], 500)
 
@@ -589,3 +592,73 @@ class PortionServingTest(TestCase):
         # recipe, never invent more food than it makes.
         self.assertEqual(out['days'][0]['lunch']['servings'], 2)
         self.assertEqual(out['days'][0]['lunch']['nutritional_info']['calories'], 400)
+
+
+class CalorieTargetRobustnessTest(TestCase):
+    """Gemini's nutritional_info is untrusted input: it arrives as a dict with
+    numeric calories, a dict with string calories, a bare string blob, or not
+    at all (prod goal 134: a string crashed attempt 1 with AttributeError; the
+    unparseable shapes of attempt 2 silently dropped every target, so every
+    slot fell back to one base-portion — a 16-kcal breakfast)."""
+
+    def test_string_nutritional_info_does_not_crash_and_parses_kcal(self):
+        days = [{'day_number': 1,
+                 'lunch': {'name': 'X', 'nutritional_info': 'cca 650 kcal, 30 g bílkovin'},
+                 'small_meals': [], 'snacks': []}]
+        self.assertEqual(_calorie_targets_from_days(days)[1]['lunch'], 650.0)
+
+    def test_string_calories_value_is_parsed(self):
+        days = [{'day_number': 1,
+                 'breakfast': {'name': 'X', 'nutritional_info': {'calories': '450 kcal'}},
+                 'small_meals': [], 'snacks': []}]
+        self.assertEqual(_calorie_targets_from_days(days)[1]['breakfast'], 450.0)
+
+    def test_unparseable_shapes_yield_no_target(self):
+        days = [{'day_number': 1,
+                 'lunch': {'name': 'X', 'nutritional_info': 'vydatné jídlo'},
+                 'dinner': {'name': 'Y', 'nutritional_info': {'calories': None}},
+                 'small_meals': [], 'snacks': []}]
+        self.assertEqual(_calorie_targets_from_days(days)[1], {})
+
+
+class SlotDefaultTargetTest(TestCase):
+    """When the generated plan gives no usable calorie signal for a slot, the
+    overlay must fall back to a slot-sized default target — never to a single
+    base-portion, which for piece-counted recipes is a fraction of a meal
+    (prod goal 134: 1/12 of a muffin batch served as a 16-kcal breakfast)."""
+
+    def test_slot_target_prefers_derived_value(self):
+        self.assertEqual(slot_target({1: {'lunch': 700.0}}, 1, 'lunch'), 700.0)
+
+    def test_slot_target_falls_back_per_slot_type(self):
+        self.assertEqual(slot_target({}, 1, 'lunch'), 650.0)
+        self.assertEqual(slot_target(None, 2, 'breakfast'), 450.0)
+        self.assertEqual(slot_target({}, 1, 'small_meal:1'), 250.0)
+        self.assertEqual(slot_target({}, 1, 'snack:0'), 250.0)
+
+    def test_no_target_serves_slot_sized_portion_not_batch_fraction(self):
+        # 12-piece batch whose base_nutrition is (bad data) 192 kcal total:
+        # per-portion 16 kcal. The old no-target fallback served 1 portion =
+        # 1/12 of the batch; the slot default must size the serving instead
+        # (capped at the full batch).
+        make_recipe(name_cs='Muffiny', meal_types=['breakfast'], base_servings=12,
+                    base_nutrition={'calories': 192, 'protein': 4.5, 'carbs': 11.9, 'fat': 8.5})
+        days = [{'day_number': 1, 'small_meals': [], 'snacks': []}]  # hollow: no target
+        out = overlay_curated_recipes(days, goal(lunch=False, dinner=False))
+        self.assertEqual(out['days'][0]['breakfast']['servings'], 12)
+        self.assertEqual(out['days'][0]['breakfast']['nutritional_info']['calories'], 192)
+
+    def test_overlay_survives_string_nutritional_info_end_to_end(self):
+        make_recipe(name_cs='Oběd hlavní', meal_types=['lunch'], dish_role='main',
+                    base_servings=4,
+                    base_nutrition={'calories': 2000, 'protein': 100, 'carbs': 200, 'fat': 40})
+        days = [{
+            'day_number': 1,
+            'lunch': {'name': 'Gen lunch', 'meal_identifier': '1:1:lunch:0',
+                      'nutritional_info': '600 kcal'},
+            'small_meals': [], 'snacks': [],
+        }]
+        out = overlay_curated_recipes(days, goal(breakfast=False, dinner=False))
+        # 2000/4 = 500 kcal/portion; parsed 600-kcal target → 1 portion.
+        self.assertEqual(out['days'][0]['lunch']['servings'], 1)
+        self.assertEqual(out['days'][0]['lunch']['nutritional_info']['calories'], 500)
