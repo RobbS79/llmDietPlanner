@@ -552,7 +552,7 @@ def select_recipes_for_plan(
                 else:
                     record_gap(day_number, slot_key, 'no_eligible_recipes')
                     continue
-            target = (calorie_targets or {}).get(day_number, {}).get(slot_key)
+            target = slot_target(calorie_targets, day_number, slot_key)
             scored = [(score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
                 facets=facets, used_canonicals=used_canonicals,
@@ -669,6 +669,65 @@ def portions_for_target(recipe: CuratedRecipe, target: Optional[float]) -> int:
     return max(1, min(base, int(round(target / per_portion))))
 
 
+_KCAL_IN_TEXT_RE = re.compile(r'(\d+(?:[.,]\d+)?)\s*kcal', re.IGNORECASE)
+_LEADING_NUMBER_RE = re.compile(r'(\d+(?:[.,]\d+)?)')
+
+
+def _meal_calories(meal: Any) -> Optional[float]:
+    """Calories of a generated meal, tolerating every nutritional_info shape
+    Gemini actually emits: a dict with numeric calories, a dict with string
+    calories ("450" / "450 kcal"), or a bare string blob ("cca 650 kcal, 30 g
+    bílkovin" — prod goal 134 crashed on exactly that). Returns None when no
+    number can be trusted."""
+    if not isinstance(meal, dict):
+        return None
+    info = meal.get('nutritional_info')
+    if isinstance(info, dict):
+        calories = info.get('calories')
+        if isinstance(calories, (int, float)):
+            return float(calories) if calories > 0 else None
+        if isinstance(calories, str):
+            m = _LEADING_NUMBER_RE.search(calories)
+            if m:
+                value = float(m.group(1).replace(',', '.'))
+                return value if value > 0 else None
+        return None
+    if isinstance(info, str):
+        # A free-text blob mixes numbers ("30 g bílkovin"); only a number
+        # explicitly tied to kcal is safe to read.
+        m = _KCAL_IN_TEXT_RE.search(info)
+        if m:
+            value = float(m.group(1).replace(',', '.'))
+            return value if value > 0 else None
+    return None
+
+
+# Fallback per-slot calorie targets (roughly a 2000-kcal adult day) used when
+# the generated plan carries no usable number for a slot. Without one, the
+# overlay served exactly one base-portion — for piece-counted recipes that is
+# a fraction of a meal (prod goal 134: 1/12 muffin batch = 16-kcal breakfast).
+_SLOT_DEFAULT_KCAL: Dict[str, float] = {
+    'breakfast': 450.0,
+    'lunch': 650.0,
+    'dinner': 550.0,
+    'small_meal': 250.0,
+    'snack': 250.0,
+}
+
+
+def slot_target(
+    calorie_targets: Optional[Dict[int, Dict[str, float]]],
+    day_number: int,
+    slot_key: str,
+) -> Optional[float]:
+    """Calorie target for a slot: the generated plan's own number when usable,
+    else the slot-type default. slot_key is 'lunch' or 'small_meal:0'-style."""
+    derived = (calorie_targets or {}).get(day_number, {}).get(slot_key)
+    if derived:
+        return derived
+    return _SLOT_DEFAULT_KCAL.get(slot_key.split(':', 1)[0])
+
+
 def _calorie_targets_from_days(
     transformed_days: List[Dict[str, Any]],
 ) -> Dict[int, Dict[str, float]]:
@@ -681,11 +740,9 @@ def _calorie_targets_from_days(
         per_slot: Dict[str, float] = {}
 
         def add(slot_key: str, meal: Any) -> None:
-            if not isinstance(meal, dict):
-                return
-            calories = (meal.get('nutritional_info') or {}).get('calories')
-            if isinstance(calories, (int, float)) and calories > 0:
-                per_slot[slot_key] = float(calories)
+            calories = _meal_calories(meal)
+            if calories is not None:
+                per_slot[slot_key] = calories
 
         for slot in ('breakfast', 'lunch', 'dinner'):
             add(slot, day.get(slot))
@@ -753,7 +810,7 @@ def overlay_curated_recipes(
             existing = day.get(slot)
             if existing and rescue_only:
                 continue
-            target = calorie_targets.get(day_number, {}).get(slot)
+            target = slot_target(calorie_targets, day_number, slot)
             meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
             meal['meal_identifier'] = (
                 (existing or {}).get('meal_identifier')
@@ -779,7 +836,7 @@ def overlay_curated_recipes(
                 if i < len(meals) and rescue_only:
                     continue
                 existing = meals[i] if i < len(meals) else None
-                target = calorie_targets.get(day_number, {}).get(f'{slot_type}:{i}')
+                target = slot_target(calorie_targets, day_number, f'{slot_type}:{i}')
                 meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
                 meal['meal_identifier'] = (
                     (existing.get('meal_identifier') if isinstance(existing, dict) else None)
