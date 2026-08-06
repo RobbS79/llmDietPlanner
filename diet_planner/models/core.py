@@ -770,6 +770,12 @@ class Recipe(models.Model):
         # command flip is_public off explicitly when they need to.
         if self.has_substantive_instructions():
             self.is_public = True
+        # A partial save (update_or_create passes update_fields=defaults keys
+        # since Django 4.2) must still persist the two fields derived above,
+        # or a reused row keeps the previous dish's slug/visibility.
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'slug', 'is_public'}
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
