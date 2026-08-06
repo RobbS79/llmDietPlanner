@@ -54,3 +54,42 @@ class PublicRecipeListDedupeTest(TestCase):
 
         recipe.refresh_from_db()
         self.assertEqual(recipe.slug, 'zapadoafricka-arasidova-polevka')
+
+    def test_slug_follows_update_or_create_rewrite(self):
+        # update_or_create saves with update_fields limited to the defaults
+        # keys (Django ≥4.2) — the slug save() recomputes must still persist,
+        # or a reused row keeps the previous dish's slug in its public URL.
+        self._recipe('Thajský okurkový salát', 'g:1:lunch:0')
+
+        recipe, created = Recipe.objects.update_or_create(
+            meal_identifier='g:1:lunch:0',
+            defaults=dict(
+                dietary_goal=self.goal, name='Menemen',
+                servings=4, instructions=INSTRUCTIONS,
+                ingredients=[{'name': 'vejce', 'quantity': 4, 'unit': 'ks'}],
+            ),
+        )
+
+        self.assertFalse(created)
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.name, 'Menemen')
+        self.assertEqual(recipe.slug, 'menemen')
+
+    def test_publish_promotion_survives_update_or_create(self):
+        thin = Recipe.objects.create(
+            meal_identifier='g:1:dinner:0', dietary_goal=self.goal,
+            name='Kostka čokolády', instructions=['Snězte kousek čokolády.'],
+        )
+        self.assertFalse(thin.is_public)
+
+        recipe, _ = Recipe.objects.update_or_create(
+            meal_identifier='g:1:dinner:0',
+            defaults=dict(
+                dietary_goal=self.goal, name='Kuřecí parmigiana',
+                servings=4, instructions=INSTRUCTIONS,
+                ingredients=[{'name': 'kuřecí prsa', 'quantity': 400, 'unit': 'g'}],
+            ),
+        )
+
+        recipe.refresh_from_db()
+        self.assertTrue(recipe.is_public)
