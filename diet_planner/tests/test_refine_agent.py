@@ -184,3 +184,38 @@ class RefineAgentTest(TestCase):
         ])
         self.assertEqual(result.reply_text, 'Tohle?')
         self.assertIsNone(result.candidate)
+
+
+class SearchCorpusCandidateCaloriesTest(TestCase):
+    """Candidate calories are what the chat card shows and what the model reasons
+    over when picking a dish. base_nutrition is the WHOLE-recipe total for
+    base_servings portions, so it must be divided down to per-portion first —
+    otherwise a 4-portion dish is offered as a 2150 kcal lunch."""
+
+    def _candidates(self, recipe):
+        return refine_agent._tool_search_corpus(
+            {},
+            meal_type='lunch',
+            required_tags=set(),
+            pool=[recipe],
+            exclude_ids=set(),
+            used_recipe_ids=set(),
+            used_cuisines=[],
+        )['candidates']
+
+    def test_multi_portion_recipe_reports_per_portion_calories(self):
+        recipe = make_recipe(
+            name_cs='Zapečené těstoviny',
+            base_servings=4,
+            base_nutrition={'calories': 2150, 'protein': 100, 'carbs': 200, 'fat': 80},
+        )
+        self.assertEqual(self._candidates(recipe)[0]['calories'], 538)
+
+    def test_single_portion_recipe_is_unchanged(self):
+        recipe = make_recipe(name_cs='Omeleta', base_servings=1,
+                             base_nutrition={'calories': 420})
+        self.assertEqual(self._candidates(recipe)[0]['calories'], 420)
+
+    def test_missing_nutrition_stays_none(self):
+        recipe = make_recipe(name_cs='Bez hodnot', base_servings=2, base_nutrition={})
+        self.assertIsNone(self._candidates(recipe)[0]['calories'])

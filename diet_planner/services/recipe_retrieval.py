@@ -457,9 +457,8 @@ def score_recipe(
     # target. base_nutrition is whole-recipe (per base_servings) — comparing
     # totals made 1-2 serving sides look like perfect mains (goal 133).
     if target_calories:
-        base_cal = (recipe.base_nutrition or {}).get('calories')
-        if base_cal:
-            per_portion = base_cal / max(int(recipe.base_servings or 1), 1)
+        per_portion = per_portion_calories(recipe)
+        if per_portion:
             rel = abs(per_portion - target_calories) / target_calories
             score += max(0.0, 3.0 * (1.0 - rel))  # full 3 pts at exact, 0 at >=100% off
 
@@ -655,6 +654,17 @@ def scale_recipe_to_meal(
     }
 
 
+def per_portion_calories(recipe: CuratedRecipe) -> Optional[float]:
+    """Calories of ONE portion. base_nutrition is the whole-recipe total for
+    base_servings portions, so anything user-facing or slot-fitting has to
+    divide first — serving a 4-portion bake's 2150 kcal as a single lunch is
+    the bug this exists to prevent."""
+    calories = (recipe.base_nutrition or {}).get('calories')
+    if not isinstance(calories, (int, float)) or calories <= 0:
+        return None
+    return calories / max(int(recipe.base_servings or 1), 1)
+
+
 def portions_for_target(recipe: CuratedRecipe, target: Optional[float]) -> int:
     """How many of the recipe's portions fill the slot's calorie target.
     Without a target (or usable nutrition) serve ONE portion — never the whole
@@ -662,10 +672,9 @@ def portions_for_target(recipe: CuratedRecipe, target: Optional[float]) -> int:
     dinner). Capped at base_servings: we never invent more food than the
     recipe makes."""
     base = max(int(recipe.base_servings or 1), 1)
-    calories = (recipe.base_nutrition or {}).get('calories')
-    if not target or not calories or calories <= 0:
+    per_portion = per_portion_calories(recipe)
+    if not target or not per_portion:
         return 1
-    per_portion = calories / base
     return max(1, min(base, int(round(target / per_portion))))
 
 

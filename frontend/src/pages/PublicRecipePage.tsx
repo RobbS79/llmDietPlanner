@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
-import { normalizeNutrition } from '@/lib/nutrition';
+import { normalizeNutrition, nutritionBasisFor } from '@/lib/nutrition';
 import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 
 export const PublicRecipePage = () => {
@@ -44,7 +44,11 @@ export const PublicRecipePage = () => {
     if (recipe.servings) schema.recipeYield = `${recipe.servings}`;
     // Only emit nutrition Google should trust — same normalized per-portion
     // values the visible card shows, nothing when the data is implausible.
-    const nutrition = normalizeNutrition(recipe.nutritional_info, recipe.servings);
+    const nutrition = normalizeNutrition(
+      recipe.nutritional_info,
+      recipe.servings,
+      nutritionBasisFor(recipe),
+    );
     if (nutrition) {
       schema.nutrition = { '@type': 'NutritionInformation' };
       for (const row of nutrition) {
@@ -215,7 +219,11 @@ export const PublicRecipePage = () => {
             )}
 
             {(() => {
-              const nutrition = normalizeNutrition(recipe.nutritional_info, recipe.servings);
+              const nutrition = normalizeNutrition(
+      recipe.nutritional_info,
+      recipe.servings,
+      nutritionBasisFor(recipe),
+    );
               return nutrition && (
                 <Card variant="paper" className="p-8 mt-12">
                   <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-6">
