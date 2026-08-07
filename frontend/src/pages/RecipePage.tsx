@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
-import { normalizeNutrition } from '@/lib/nutrition';
+import { normalizeNutrition, nutritionBasisFor } from '@/lib/nutrition';
 import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 import { useToast } from '@/components/ui/Toast';
 import { RecipeRefineChat } from '@/components/recipe/RecipeRefineChat';
@@ -255,7 +255,11 @@ export const RecipePage = () => {
 
             {/* Nutritional info */}
             {(() => {
-              const nutrition = normalizeNutrition(recipe.nutritional_info, recipe.servings);
+              const nutrition = normalizeNutrition(
+                recipe.nutritional_info,
+                recipe.servings,
+                nutritionBasisFor(recipe),
+              );
               return nutrition && (
                 <Card className="p-8 mt-12">
                   <h3 className="text-sm font-black text-ink uppercase tracking-tighter italic mb-6">

@@ -27,6 +27,7 @@ from diet_planner.models import CuratedRecipe, RecipeResearchJob
 from diet_planner.services import recipe_research
 from diet_planner.services.recipe_retrieval import (
     eligible_recipes_for_slot,
+    per_portion_calories,
     score_recipe,
 )
 
@@ -204,20 +205,22 @@ def _tool_search_corpus(
         ),
         reverse=True,
     )[:TOP_N]
-    return {
-        'candidates': [
-            {
-                'id': r.id,
-                'name': r.name_cs,
-                'description': r.description,
-                'total_time': r.total_time or None,
-                'calories': (r.base_nutrition or {}).get('calories'),
-                'cuisine': r.cuisine,
-                'dietary_tags': r.dietary_tags or [],
-            }
-            for r in ranked
-        ],
-    }
+
+    def _candidate(r: CuratedRecipe) -> Dict:
+        # Calories per portion, not the whole-recipe total: this number is shown
+        # on the chat card AND reasoned over by the model when it picks a dish.
+        per_portion = per_portion_calories(r)
+        return {
+            'id': r.id,
+            'name': r.name_cs,
+            'description': r.description,
+            'total_time': r.total_time or None,
+            'calories': round(per_portion) if per_portion is not None else None,
+            'cuisine': r.cuisine,
+            'dietary_tags': r.dietary_tags or [],
+        }
+
+    return {'candidates': [_candidate(r) for r in ranked]}
 
 
 def _tool_research_web(args: Dict, *, user, meal_identifier: str):
