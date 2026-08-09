@@ -100,6 +100,44 @@ class ExtractPromptFacetsTest(SimpleTestCase):
         self.assertTrue(facets.is_empty())
         self.assertEqual(calls, [])  # short-circuited, no LLM call
 
+    def test_trailing_prose_after_the_json_does_not_kill_the_extraction(self):
+        # Prod 2026-08-09: after the gemini-3.5-flash bump every facet call died
+        # with json.loads "Extra data" — so cuisines, wanted ingredients, time
+        # limits and dietary restrictions were silently empty product-wide, and
+        # a vegetarian plan happily offered meat swaps.
+        def fake_generate(system_prompt, user_text):
+            return (
+                '{"dietary": ["vegetarian"], "max_time_minutes": 30}\n\n'
+                'Vysvětlení: uživatel uvedl vegetariánskou stravu a limit 30 minut.'
+            )
+
+        facets = extract_prompt_facets(
+            'vegetariánská strava, max 30 minut',
+            language='cs', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertEqual(facets.dietary, {'vegetarian'})
+        self.assertEqual(facets.max_time_minutes, 30)
+
+    def test_prose_before_the_json_is_tolerated(self):
+        def fake_generate(system_prompt, user_text):
+            return 'Jistě, tady je výsledek:\n{"cuisines": ["italian"]}'
+
+        facets = extract_prompt_facets(
+            'italská kuchyně', language='cs', cuisine_vocab=self.VOCAB,
+            generate=fake_generate,
+        )
+        self.assertEqual(facets.cuisines, {'italian'})
+
+    def test_contract_object_wins_over_an_unrelated_one(self):
+        def fake_generate(system_prompt, user_text):
+            return '{"note": "example"}\n{"dietary": ["vegan"]}'
+
+        facets = extract_prompt_facets(
+            'veganská strava', language='cs', cuisine_vocab=self.VOCAB,
+            generate=fake_generate,
+        )
+        self.assertEqual(facets.dietary, {'vegan'})
+
     def test_garbage_output_returns_empty(self):
         def fake_generate(system_prompt, user_text):
             return 'not json at all'

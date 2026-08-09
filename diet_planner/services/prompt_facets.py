@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 # Dietary requirements the corpus can actually enforce (dietary_tags vocab).
 ENFORCEABLE_DIETARY_TAGS = {'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'low_carb'}
 
+# Keys of the extraction contract — used to pick the right JSON object out of a
+# response that also contains prose or examples.
+_FACET_KEYS = {
+    'cuisines', 'wanted_ingredients', 'avoided_ingredients', 'styles',
+    'emphases', 'dietary', 'max_time_minutes',
+}
+
 
 @dataclass
 class PromptFacets:
@@ -113,6 +120,35 @@ _SYSTEM_PROMPT_TEMPLATE = (
 )
 
 
+def _extract_json_object(text: str) -> Optional[dict]:
+    """First parseable JSON object anywhere in the response.
+
+    `json.loads` is strict, and Gemini routinely appends prose (or a second
+    object) after the contract — which raises "Extra data" and threw the WHOLE
+    extraction away. Observed on prod 2026-08-09 after the gemini-3.5-flash
+    bump: every facet call failed, so cuisines, wanted ingredients, time limits
+    AND dietary restrictions were silently empty product-wide. Same fix the
+    refine agent already carries (`refine_agent._extract_contract`).
+    """
+    decoder = json.JSONDecoder()
+    fallback = None
+    idx = text.find('{')
+    while idx != -1:
+        try:
+            data, _ = decoder.raw_decode(text, idx)
+        except ValueError:
+            data = None
+        if isinstance(data, dict):
+            # Prefer an object that actually looks like the contract; a stray
+            # `{}` or an example dict in the prose must not win.
+            if data.keys() & _FACET_KEYS:
+                return data
+            if fallback is None:
+                fallback = data
+        idx = text.find('{', idx + 1)
+    return fallback
+
+
 def _strip_code_fence(text: str) -> str:
     t = text.strip()
     if t.startswith('```'):
@@ -172,7 +208,9 @@ def extract_prompt_facets(
     for _ in range(attempts):
         try:
             raw = gen(system_prompt, f"Language: {language}\nRequest: {prompt.strip()}")
-            data = json.loads(_strip_code_fence(raw))
+            data = _extract_json_object(_strip_code_fence(raw))
+            if data is None:
+                raise ValueError('no JSON object in facet response')
             facets = _coerce_facets(data, cuisine_vocab=cuisine_vocab)
         except Exception as exc:  # noqa: BLE001 - defensive by design
             logger.warning("Prompt facet extraction failed: %s", exc)
