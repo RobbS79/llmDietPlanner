@@ -9,7 +9,10 @@ docs/superpowers/specs/2026-06-22-recipe-price-range-design.md.
 from dataclasses import dataclass
 from typing import List, Optional
 
-from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.canonical_lookup import (
+    normalize_ingredient_entries,
+    resolve_canonical,
+)
 from diet_planner.services.estimate_pricer import _FX_FROM_CZK, _load_book
 from diet_planner.services.piece_weights import load_piece_weights
 from diet_planner.services.pricing_core import consumed_line_cost
@@ -72,9 +75,12 @@ def _fx(currency: str, book_currency: str) -> float:
 def price_recipe(ingredients, servings, *, currency='CZK', book=None) -> Optional[RecipeRange]:
     """Return a RecipeRange for `ingredients`, or None if nothing prices.
 
-    `ingredients`: [{name, quantity, unit, canonical?, optional?}].
+    `ingredients`: [{name, quantity, unit, canonical?, optional?}] — plain
+    strings are accepted too (generated meals emit those); see
+    `normalize_ingredient_entries`.
     `book`: optional injected price map (defaults to the loaded book) — for tests.
     """
+    ingredients = normalize_ingredient_entries(ingredients)
     if not ingredients:
         return None
     data = _load_book()
@@ -125,9 +131,11 @@ def price_recipe_lines(ingredients, servings, *, currency='CZK', book=None) -> O
     line `priced=False`) so the UI can render "bez ceny" per row rather than
     dropping the whole list; only an empty `ingredients` input yields None.
 
-    `ingredients`: [{name, quantity, unit, canonical?, optional?}].
+    `ingredients`: [{name, quantity, unit, canonical?, optional?}] — plain
+    strings accepted, as in `price_recipe`.
     `book`: optional injected price map (defaults to the loaded book) — for tests.
     """
+    ingredients = normalize_ingredient_entries(ingredients)
     if not ingredients:
         return None
     data = _load_book()

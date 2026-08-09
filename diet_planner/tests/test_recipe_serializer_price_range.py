@@ -132,3 +132,47 @@ class RecipeShoppingListFieldTest(TestCase):
         sl = RecipeSerializer(r).data['shopping_list']
         self.assertEqual(len(sl['lines']), 1)
         self.assertEqual(sl['total_count'], 1)
+
+
+class RecipeSerializerGeneratedMealShapeTest(TestCase):
+    """The whole serializer must survive a generated meal's ingredient shape.
+
+    Prod 2026-08-09 (plan 140): every meal was `source: "generated"`, whose
+    ingredients are plain strings rather than dicts. `price_range`, `deals` and
+    `shopping_list` all walk that list, and `/api/recipes/140:1:lunch:0/`
+    returned a raw 500 — `AttributeError: 'str' object has no attribute 'get'` —
+    so the user got "RECEPT NENALEZEN" on every meal of the plan.
+    """
+
+    GENERATED = [
+        'pappudia tofu (#2153)',
+        'kitchin rýže jasmínová (#2122)',
+        'cuketa zelená (#2169)',
+        'cibule žlutá (#2400)',
+    ]
+
+    def setUp(self):
+        self.user = User.objects.create_user('u2', password='x')
+        self.goal = DietaryGoal.objects.create(user=self.user, country='CZ')
+
+    def _recipe(self, ingredients):
+        return Recipe.objects.create(
+            meal_identifier=f'g{self.goal.id}:1:lunch:0',
+            dietary_goal=self.goal, name='Tofu s rýží a cuketou',
+            ingredients=ingredients, servings=1,
+        )
+
+    def test_serializes_string_ingredients_without_raising(self):
+        data = RecipeSerializer(self._recipe(self.GENERATED)).data
+        self.assertEqual(data['name'], 'Tofu s rýží a cuketou')
+        self.assertEqual(data['deals']['total'], len(self.GENERATED))
+        self.assertIsNotNone(data['shopping_list'])
+        self.assertEqual(len(data['shopping_list']['lines']), len(self.GENERATED))
+
+    def test_mixed_shapes_in_one_list_are_all_seen(self):
+        data = RecipeSerializer(self._recipe([
+            'cuketa zelená (#2169)',
+            {'name': 'rýže', 'canonical': 'rice-jasmine', 'quantity': 320, 'unit': 'g'},
+        ])).data
+        self.assertEqual(data['deals']['total'], 2)
+        self.assertEqual(len(data['shopping_list']['lines']), 2)

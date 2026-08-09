@@ -223,3 +223,29 @@ def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
     if ci_id is not None:
         return CanonicalIngredient.objects.filter(pk=ci_id).first()
     return None
+
+
+def normalize_ingredient_entries(ingredients) -> list:
+    """One ingredient shape, whatever produced the list.
+
+    Curated recipes carry dicts ({name, quantity, unit, canonical?, optional?}).
+    LLM-generated meals carry plain strings ("pappudia tofu (#2153)"). Consumers
+    written against the corpus shape crashed on the generated one — prod
+    2026-08-09, plan 140: every recipe endpoint returned a raw 500 from
+    `ingredient.get('optional')`.
+
+    Strings become `{'name': ...}`; blank and None entries are dropped, because
+    a nameless ingredient can be neither priced nor bought and must not inflate
+    a coverage denominator.
+    """
+    entries = []
+    for entry in ingredients or []:
+        if isinstance(entry, dict):
+            entries.append(entry)
+            continue
+        if entry is None:
+            continue
+        text = str(entry).strip()
+        if text:
+            entries.append({'name': text})
+    return entries
