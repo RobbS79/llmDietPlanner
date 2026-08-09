@@ -112,11 +112,18 @@ _SYSTEM_PROMPT_TEMPLATE = (
     '(e.g. "maso", "ryba", "rýže", "zelenina" — not sentences);\n'
     '  "avoided_ingredients": ingredients the user wants to avoid (beyond '
     "allergies), same form as wanted_ingredients;\n"
+    '  "dietary": dietary rules the user states they EAT BY, choose from this '
+    "exact list: {dietary_tags}; translate the user's own words "
+    '("vegetariánská strava" -> vegetarian, "nejím lepek" / "bezlepkově" -> '
+    'gluten_free, "bez mléka" -> dairy_free); a passing wish is NOT a rule — '
+    '"chci méně sacharidů" belongs in emphases, only "jím nízkosacharidově" '
+    "is low_carb here; [] when the user states no rule;\n"
     '  "styles": e.g. quick, comfort, light;\n'
     '  "emphases": choose from high_protein, low_carb, low_calorie, budget;\n'
     '  "max_time_minutes": integer — ONLY if the user states an explicit cooking '
     'time limit (e.g. "max 30 minut" -> 30), else null.\n'
-    "Do not invent cuisines outside the provided list. No prose, JSON only."
+    "Do not invent cuisines or dietary values outside the provided lists. "
+    "No prose, JSON only."
 )
 
 
@@ -202,7 +209,12 @@ def extract_prompt_facets(
     if not prompt or not prompt.strip():
         return PromptFacets()
     gen = generate or _default_generate
-    system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(vocab=', '.join(cuisine_vocab) or '(none)')
+    system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(
+        vocab=', '.join(cuisine_vocab) or '(none)',
+        # Generated from the enforceable set so the contract cannot drift from
+        # what `_coerce_facets` will actually keep.
+        dietary_tags=', '.join(sorted(ENFORCEABLE_DIETARY_TAGS)),
+    )
     substantive = len(prompt.strip()) >= _NONTRIVIAL_PROMPT_LEN
     attempts = 2 if substantive else 1
     for _ in range(attempts):

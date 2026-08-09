@@ -1,6 +1,10 @@
 from django.test import SimpleTestCase
 
-from diet_planner.services.prompt_facets import PromptFacets, _coerce_facets
+from diet_planner.services.prompt_facets import (
+    ENFORCEABLE_DIETARY_TAGS,
+    PromptFacets,
+    _coerce_facets,
+)
 
 
 class CoerceFacetsTest(SimpleTestCase):
@@ -168,6 +172,52 @@ class ExtractPromptFacetsTest(SimpleTestCase):
             'cokoliv', language='cs', cuisine_vocab=self.VOCAB, generate=fake_generate,
         )
         self.assertIn('max_time_minutes', seen['system'])
+
+    def test_system_prompt_asks_for_the_dietary_key(self):
+        # Prod 2026-08-09: the contract listed six keys and `dietary` was not
+        # one of them, so the model never emitted it, `_coerce_facets` always
+        # read an absent key, and DietaryGoal.derived_dietary_tags (the whole
+        # point of 1c022fc) was never written. A vegetarian plan then served
+        # meat swap candidates because every gate had nothing to enforce.
+        seen = {}
+
+        def fake_generate(system_prompt, user_text):
+            seen['system'] = system_prompt
+            return '{}'
+
+        extract_prompt_facets(
+            'vegetariánská strava', language='cs', cuisine_vocab=self.VOCAB,
+            generate=fake_generate,
+        )
+        self.assertIn('"dietary"', seen['system'])
+
+    def test_system_prompt_offers_exactly_the_enforceable_tags(self):
+        # The prompt's vocabulary must be generated FROM the enforceable set,
+        # not typed out beside it — a tag the corpus cannot gate on is a
+        # restriction we would silently drop.
+        seen = {}
+
+        def fake_generate(system_prompt, user_text):
+            seen['system'] = system_prompt
+            return '{}'
+
+        extract_prompt_facets(
+            'bez lepku', language='cs', cuisine_vocab=self.VOCAB,
+            generate=fake_generate,
+        )
+        for tag in ENFORCEABLE_DIETARY_TAGS:
+            self.assertIn(tag, seen['system'], msg=f'{tag} missing from contract')
+
+    def test_stated_restriction_becomes_a_dietary_facet(self):
+        def fake_generate(system_prompt, user_text):
+            return '{"dietary": ["vegetarian"], "cuisines": []}'
+
+        facets = extract_prompt_facets(
+            'Chci jíst zdravěji. Vegetariánská strava. Pro 2 osoby.',
+            language='cs', cuisine_vocab=self.VOCAB, generate=fake_generate,
+        )
+        self.assertEqual(facets.dietary, {'vegetarian'})
+        self.assertFalse(facets.is_empty())
 
     def test_generate_exception_returns_empty(self):
         def fake_generate(system_prompt, user_text):
