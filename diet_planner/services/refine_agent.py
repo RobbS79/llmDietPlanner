@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Set
 
 from django.conf import settings
@@ -35,14 +35,19 @@ logger = logging.getLogger(__name__)
 
 MAX_TOOL_ROUNDS = 3
 TOP_N = 5
+# How many runners-up ride along with the model's pick. Three cards is the most
+# a 390px carousel can offer without turning a swap into a browsing session.
+MAX_ALTERNATIVES = 2
 
 _FALLBACK_REPLY = 'Omlouvám se, teď mi to nemyslí. Zkuste to prosím ještě jednou.'
 
 _SYSTEM_PROMPT = (
-    "Jsi přátelský kuchařský asistent služby Vařto. Pomáháš uživateli vybrat "
-    "náhradu za JEDNO jídlo v jeho jídelníčku. Odpovídáš VŽDY česky, stručně "
-    "(1–3 věty), přirozeně a konkrétně.\n"
+    "Jsi kuchařka služby Vařto — přátelská, zkušená, mluvíš o sobě v ženském "
+    "rodě. Pomáháš uživateli vybrat náhradu za JEDNO jídlo v jeho jídelníčku. "
+    "Odpovídáš VŽDY česky, stručně (1–3 věty), přirozeně a konkrétně.\n"
     "Pravidla:\n"
+    "0. O sobě mluv v ženském rodě („našla jsem\", „podívala bych se\") — "
+    "uživatel tě v aplikaci vidí jako kuchařku.\n"
     "1. Jídla smíš nabízet POUZE z výsledků nástroje search_corpus. Nikdy si "
     "recept nevymýšlej.\n"
     "2. Když v databázi nic vhodného není, nebo chce uživatel něco speciálního, "
@@ -106,6 +111,10 @@ class AgentTurn:
     reply_text: str
     candidate: Optional[CuratedRecipe] = None
     research_job_id: Optional[int] = None
+    # Runners-up from the last search_corpus call, in rank order. The model
+    # picks ONE dish to talk about; these are offered alongside it so the user
+    # chooses instead of accepting whatever came back first.
+    alternatives: List[CuratedRecipe] = field(default_factory=list)
 
 
 class GeminiAgentSession:
@@ -304,7 +313,10 @@ def run_refine_turn(
     factory = session_factory or GeminiAgentSession
     session = factory(_SYSTEM_PROMPT)
 
-    offered_ids: Set[int] = set()
+    # Rank order matters: the runners-up offered alongside the model's pick are
+    # taken from the top of this list, so they are the next-best dishes rather
+    # than an arbitrary slice of the tool result.
+    offered_order: List[int] = []
     research_job_id: Optional[int] = None
 
     out = session.send_text(_context_message(
@@ -322,7 +334,7 @@ def run_refine_turn(
                 exclude_ids=exclude_ids, used_recipe_ids=used_recipe_ids,
                 used_cuisines=used_cuisines,
             )
-            offered_ids = {c['id'] for c in payload['candidates']}
+            offered_order = [c['id'] for c in payload['candidates']]
             out = session.send_tool_result(name, payload)
         elif name == 'research_web':
             payload, job_id = _tool_research_web(
@@ -337,10 +349,22 @@ def run_refine_turn(
     final = _parse_final(out.get('text') or '')
     reply = final['reply'] or _FALLBACK_REPLY
 
+    by_id = {r.id: r for r in pool}
     candidate = None
     cid = final['candidate_id']
-    if cid is not None and cid in offered_ids:
-        candidate = next((r for r in pool if r.id == cid), None)
+    if cid is not None and cid in offered_order:
+        candidate = by_id.get(cid)
+
+    # Only offer alternatives next to a real pick — a bare "what are you in the
+    # mood for?" turn with three cards under it answers a question nobody asked.
+    alternatives: List[CuratedRecipe] = []
+    if candidate is not None:
+        for other_id in offered_order:
+            if other_id == candidate.id or other_id not in by_id:
+                continue
+            alternatives.append(by_id[other_id])
+            if len(alternatives) == MAX_ALTERNATIVES:
+                break
 
     return AgentTurn(reply_text=reply, candidate=candidate,
-                     research_job_id=research_job_id)
+                     research_job_id=research_job_id, alternatives=alternatives)

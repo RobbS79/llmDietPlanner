@@ -70,6 +70,110 @@ describe('RecipeRefineChat', () => {
     expect(second[1].map((m: any) => m.role)).toEqual(['user', 'assistant', 'user']);
   });
 
+  describe('choosing between alternatives', () => {
+    const ALTS = [
+      { ...CANDIDATE, curated_recipe_id: 8, name: 'Těstoviny s pestem', why: null },
+      { ...CANDIDATE, curated_recipe_id: 9, name: 'Zeleninové rizoto', why: null },
+    ];
+
+    it('renders the runners-up next to the pick as a real choice', async () => {
+      vi.mocked(refinePreview).mockResolvedValue({
+        candidate: CANDIDATE, question: null, hint_matched: null,
+        reply_text: 'Co třeba Kuřecí salát?', alternatives: ALTS,
+      });
+      setup();
+      await send('něco lehčího');
+
+      expect(await screen.findByText('Vyberte, co vám sedí nejvíc')).toBeInTheDocument();
+      expect(screen.getByText('Těstoviny s pestem')).toBeInTheDocument();
+      expect(screen.getByText('Zeleninové rizoto')).toBeInTheDocument();
+      // Each card's accept button is distinguishable by dish once there's a choice.
+      expect(screen.getByRole('button', { name: 'Použít recept Zeleninové rizoto' }))
+        .toBeInTheDocument();
+    });
+
+    it('accepting an alternative commits that id, not the first card', async () => {
+      vi.mocked(refinePreview).mockResolvedValue({
+        candidate: CANDIDATE, question: null, hint_matched: null,
+        reply_text: 'Co třeba Kuřecí salát?', alternatives: ALTS,
+      });
+      vi.mocked(refineAccept).mockResolvedValue({ replaced: true, recipe: { name: 'Zeleninové rizoto' } });
+      const { onAccepted } = setup();
+      await send('něco lehčího');
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Použít recept Zeleninové rizoto' }),
+      );
+
+      expect(refineAccept).toHaveBeenCalledWith(MEAL_ID, 9);
+      expect(onAccepted).toHaveBeenCalled();
+    });
+
+    it('a new message rejects every card that was on offer', async () => {
+      vi.mocked(refinePreview)
+        .mockResolvedValueOnce({
+          candidate: CANDIDATE, question: null, hint_matched: null,
+          reply_text: 'Co třeba Kuřecí salát?', alternatives: ALTS,
+        })
+        .mockResolvedValueOnce({ candidate: null, question: null, hint_matched: null,
+                                 reply_text: 'Zkusím něco jiného.' });
+      setup();
+      await send('něco lehčího');
+      await screen.findByText('Těstoviny s pestem');
+      await send('nic z toho');
+
+      // Without this the runners-up the user just skipped come straight back.
+      expect(vi.mocked(refinePreview).mock.calls[1][2]).toEqual([7, 8, 9]);
+    });
+
+    it('a single candidate keeps the unambiguous singular heading and label', async () => {
+      vi.mocked(refinePreview).mockResolvedValue({
+        candidate: CANDIDATE, question: null, hint_matched: null,
+        reply_text: 'Co třeba Kuřecí salát?', alternatives: [],
+      });
+      setup();
+      await send('něco lehčího');
+
+      expect(await screen.findByText('Návrh pro vás')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Použít tento recept' })).toBeInTheDocument();
+    });
+  });
+
+  it('seedMessage sends itself on mount without the user typing', async () => {
+    vi.mocked(refinePreview).mockResolvedValue({
+      candidate: CANDIDATE, question: null, hint_matched: true,
+    });
+    render(
+      <ToastProvider>
+        <RecipeRefineChat
+          mealId={MEAL_ID} seedMessage="Chci něco rychlejšího"
+          onAccepted={vi.fn()} onClose={vi.fn()}
+        />
+      </ToastProvider>,
+    );
+    expect(await screen.findByText(/Co třeba: Kuřecí salát\?/)).toBeInTheDocument();
+    expect(refinePreview).toHaveBeenCalledTimes(1);
+    expect(refinePreview).toHaveBeenCalledWith(
+      MEAL_ID, [{ role: 'user', text: 'Chci něco rychlejšího' }], [],
+    );
+  });
+
+  it('only offers the web search when the backend agent can actually run it', async () => {
+    const { unmount } = render(
+      <ToastProvider>
+        <RecipeRefineChat mealId={MEAL_ID} onAccepted={vi.fn()} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    expect(screen.queryByText(/najít nový recept na webu/)).toBeNull();
+    unmount();
+
+    render(
+      <ToastProvider>
+        <RecipeRefineChat mealId={MEAL_ID} webResearch onAccepted={vi.fn()} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    expect(screen.getByText(/najít nový recept na webu/)).toBeInTheDocument();
+  });
+
   it('unmatched turn uses the honest fallback phrasing', async () => {
     vi.mocked(refinePreview).mockResolvedValue({
       candidate: CANDIDATE, question: null, hint_matched: false,

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, MapPin, Timer, Globe, Download, UtensilsCrossed, ArrowRight, ChefHat, Flame } from 'lucide-react';
+import { AlertCircle, MapPin, Timer, Globe, Download, UtensilsCrossed, ArrowRight, ChefHat, Flame, MessageCircle } from 'lucide-react';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -261,6 +261,16 @@ export const PlanView = () => {
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${isCooked ? 'bg-green-soft border-green/40 text-green hover:bg-paprika-soft hover:border-paprika/30 hover:text-paprika-strong' : 'bg-paper border-line text-muted hover:border-green/40 hover:text-green-mid'}`}
                             >
                               <ChefHat size={14} /> {isCooked ? 'Zrušit' : 'Označit jako uvařené'}
+                            </button>
+                            {/* Dislike happens while scanning the plan, not while
+                                reading the recipe — so the way out lives here too.
+                                ?chat=1 opens the chat on arrival. */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/plan/${id}/recipe/${mealId}?chat=1`); }}
+                              aria-label="Nesedí vám tohle jídlo? Otevřít chat s kuchařkou"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-paper border-line text-muted hover:border-green/40 hover:text-green-mid transition-all"
+                            >
+                              <MessageCircle size={14} /> Nesedí?
                             </button>
                             <div className="flex items-center gap-2 bg-paper px-3 py-1.5 rounded-lg text-[9px] font-black text-muted border border-line uppercase tracking-widest italic">
                               <Timer size={14} className="text-green" /> {day[m].preparation_time || 20} min

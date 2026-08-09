@@ -23,13 +23,13 @@ const CANDIDATE = {
   food_category: '', preparation_time: 15, calories: 420, why: null,
 };
 
-function renderPage() {
+function renderPage(entry = `/plan/12/recept/${MEAL_ID}`) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
   render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <MemoryRouter initialEntries={[`/plan/12/recept/${MEAL_ID}`]}>
+        <MemoryRouter initialEntries={[entry]}>
           <Routes>
             <Route path="/plan/:id/recept/:mealId" element={<RecipePage />} />
           </Routes>
@@ -46,10 +46,31 @@ describe('RecipePage refine chat integration', () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: RECIPE } });
   });
 
-  it('opens the chat from the Vyměnit recept button', async () => {
+  it('opens the chat from the invite card CTA', async () => {
     renderPage();
-    await userEvent.click(await screen.findByRole('button', { name: 'Vyměnit recept' }));
+    await userEvent.click(await screen.findByRole('button', { name: /Poradit se s kuchařkou/ }));
     expect(screen.getByPlaceholderText('Napište, na co máte chuť…')).toBeInTheDocument();
+  });
+
+  it('an intent chip opens the chat AND sends itself as the first message', async () => {
+    vi.mocked(refinePreview).mockResolvedValue({
+      candidate: CANDIDATE, question: null, hint_matched: true,
+    });
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Chci něco rychlejšího' }));
+
+    expect(await screen.findByPlaceholderText('Napište, na co máte chuť…')).toBeInTheDocument();
+    expect(refinePreview).toHaveBeenCalledWith(
+      MEAL_ID, [{ role: 'user', text: 'Chci něco rychlejšího' }], [],
+    );
+  });
+
+  it('?chat=1 opens the chat on arrival (plan deep link)', async () => {
+    renderPage(`/plan/12/recept/${MEAL_ID}?chat=1`);
+    expect(await screen.findByPlaceholderText('Napište, na co máte chuť…')).toBeInTheDocument();
+    // No message sent — the deep link opens the conversation, it doesn't guess
+    // what the user dislikes.
+    expect(refinePreview).not.toHaveBeenCalled();
   });
 
   it('an accepted swap updates caches and closes the chat', async () => {
@@ -60,7 +81,7 @@ describe('RecipePage refine chat integration', () => {
       replaced: true, recipe: { ...RECIPE, name: 'Kuřecí salát' },
     });
     const { qc, invalidateSpy } = renderPage();
-    await userEvent.click(await screen.findByRole('button', { name: 'Vyměnit recept' }));
+    await userEvent.click(await screen.findByRole('button', { name: /Poradit se s kuchařkou/ }));
     await userEvent.type(
       screen.getByPlaceholderText('Napište, na co máte chuť…'), 'něco s kuřecím',
     );

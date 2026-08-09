@@ -456,6 +456,10 @@ def serialize_recipe_detail(recipe: Recipe) -> Dict[str, Any]:
     data['price_range'] = build_price_range(data['ingredients'], recipe.servings, currency)
     data['shopping_list'] = build_shopping_list(data['ingredients'], recipe.servings, currency)
     data['deals'] = build_deals(data['ingredients'])
+    # The chat only reaches the open web through the v2 agent; with the flag off
+    # the v1 facet path can only offer what is already in the corpus, so the UI
+    # must not promise a web search it cannot run.
+    data['refine_web_research'] = bool(getattr(settings, 'REFINE_CHAT_AGENT_ENABLED', False))
     return data
 
 
@@ -865,6 +869,9 @@ class RecipeRefineView(APIView):
                             _candidate_payload(turn.candidate, None)
                             if turn.candidate else None
                         ),
+                        "alternatives": [
+                            _candidate_payload(r, None) for r in turn.alternatives
+                        ],
                         "research_job_id": turn.research_job_id,
                         "question": None,
                         "hint_matched": None,

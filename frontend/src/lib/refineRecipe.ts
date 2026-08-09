@@ -26,6 +26,8 @@ export interface RefinePreviewResult {
   /** v2 agent fields — present iff REFINE_CHAT_AGENT_ENABLED on the backend. */
   reply_text?: string | null;
   research_job_id?: number | null;
+  /** Runners-up offered next to `candidate` so the user picks (v2 only). */
+  alternatives?: RefineCandidate[];
 }
 
 export type ResearchJobStatus = 'queued' | 'searching' | 'curating' | 'ready' | 'failed';

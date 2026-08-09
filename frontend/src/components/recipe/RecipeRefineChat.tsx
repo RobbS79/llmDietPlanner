@@ -28,6 +28,13 @@ interface RecipeRefineChatProps {
   /** Called with the swapped-in recipe (RecipeDetail shape) after a committed accept. */
   onAccepted: (recipe: Record<string, unknown>) => void;
   onClose: () => void;
+  /** Sent as the first message on mount — the invite card's intent chips open
+   * the panel straight into a conversation instead of an empty prompt. */
+  seedMessage?: string;
+  /** Whether the backend agent can actually search the web (v2 flag). The intro
+   * only offers it when true — a promise the v1 path cannot keep is worse than
+   * saying nothing. */
+  webResearch?: boolean;
 }
 
 /** Assistant transcript line: also what the backend LLM sees on later turns. */
@@ -38,10 +45,13 @@ const assistantText = (c: RefineCandidate, question: string | null, matched: boo
   return question ? `${intro} ${question}` : intro;
 };
 
-export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineChatProps) => {
+export const RecipeRefineChat = ({
+  mealId, onAccepted, onClose, seedMessage, webResearch = false,
+}: RecipeRefineChatProps) => {
   const toast = useToast();
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [candidate, setCandidate] = useState<RefineCandidate | null>(null);
+  const [alternatives, setAlternatives] = useState<RefineCandidate[]>([]);
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
   const [noAlternatives, setNoAlternatives] = useState(false);
   const [input, setInput] = useState('');
@@ -49,13 +59,17 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
   const [researchJobId, setResearchJobId] = useState<number | null>(null);
   const [researching, setResearching] = useState(false);
   const researchStartedAt = useRef<number>(0);
+  const headingRef = useRef<HTMLParagraphElement>(null);
 
   const userCount = messages.filter((m) => m.role === 'user').length;
   const capReached = userCount >= MAX_USER_MESSAGES;
+  /** Every card currently on offer — the model's pick first, runners-up after. */
+  const offered = candidate ? [candidate, ...alternatives] : [];
 
   const reset = () => {
     setMessages([]);
     setCandidate(null);
+    setAlternatives([]);
     setRejectedIds([]);
     setNoAlternatives(false);
     setInput('');
@@ -66,15 +80,19 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
   const send = async (rawText?: string) => {
     const text = (rawText ?? input).trim();
     if (!text || pending || capReached) return;
-    // Typing a new message implicitly rejects the currently active candidate.
-    // A re-expanded candidate may already be in the list — don't duplicate it.
-    const nextRejected = candidate && !rejectedIds.includes(candidate.curated_recipe_id)
-      ? [...rejectedIds, candidate.curated_recipe_id]
-      : rejectedIds;
+    // Typing a new message implicitly rejects everything currently on offer —
+    // not just the first card, or the runners-up the user just scrolled past
+    // would come straight back. A re-expanded candidate may already be in the
+    // list, so dedupe.
+    const nextRejected = [...rejectedIds];
+    for (const c of offered) {
+      if (!nextRejected.includes(c.curated_recipe_id)) nextRejected.push(c.curated_recipe_id);
+    }
     const nextMessages: LocalMessage[] = [...messages, { role: 'user', text }];
     setMessages(nextMessages);
     setRejectedIds(nextRejected);
     setCandidate(null);
+    setAlternatives([]);
     setInput('');
     setNoAlternatives(false);
     setPending(true);
@@ -85,6 +103,7 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
       if (r.reply_text != null) {
         // v2 agent turn: LLM-authored reply; candidate/research are optional.
         setCandidate(r.candidate ?? null);
+        setAlternatives(r.candidate ? (r.alternatives ?? []) : []);
         setMessages((prev) => [
           ...prev,
           { role: 'assistant', text: r.reply_text!, candidate: r.candidate ?? undefined },
@@ -114,11 +133,24 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
       setMessages(messages);
       setRejectedIds(rejectedIds);
       setCandidate(candidate);
+      setAlternatives(alternatives);
       setInput(text);
     } finally {
       setPending(false);
     }
   };
+
+  // Opening the panel moves focus to its heading — not the input, which would
+  // silently skip the intro line and the starter chips for a screen reader.
+  useEffect(() => { headingRef.current?.focus(); }, []);
+
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!seedMessage || seeded.current) return;
+    seeded.current = true;
+    void send(seedMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedMessage]);
 
   useEffect(() => {
     if (researchJobId == null) return;
@@ -143,6 +175,7 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
         setResearchJobId(null);
         if (s.status === 'ready' && s.candidate) {
           setCandidate(s.candidate);
+          setAlternatives([]);
           setMessages((prev) => [...prev, {
             role: 'assistant',
             text: s.reply_text ?? `Co třeba: ${s.candidate!.name}?`,
@@ -161,11 +194,11 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
     return () => { cancelled = true; clearInterval(timer); };
   }, [researchJobId]);
 
-  const accept = async () => {
-    if (!candidate || pending) return;
+  const accept = async (chosen: RefineCandidate) => {
+    if (pending) return;
     setPending(true);
     try {
-      const r = await refineAccept(mealId, candidate.curated_recipe_id);
+      const r = await refineAccept(mealId, chosen.curated_recipe_id);
       if (r.replaced && r.recipe) {
         onAccepted(r.recipe);
       } else {
@@ -178,19 +211,22 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
     }
   };
 
-  const imgUrl = candidate ? getFoodImageUrl(candidate.food_category, candidate.name) : '';
-
   return (
-    <div className="rounded-2xl border border-line bg-card p-5 max-w-xl">
-      <p className="flex items-center gap-2 text-sm font-bold text-ink mb-3">
-        <MessageCircle size={16} className="text-green" /> Chat s asistentem
+    <div className="rounded-2xl border border-line bg-card p-5 sm:p-6 max-w-2xl">
+      <p
+        ref={headingRef}
+        tabIndex={-1}
+        className="flex items-center gap-2 text-sm font-bold text-ink mb-3 focus:outline-none"
+      >
+        <MessageCircle size={16} className="text-green" /> Chat s naší kuchařkou
       </p>
 
       {messages.length === 0 && (
         <>
           <div className="mr-8 rounded-xl bg-paper border border-line px-4 py-3 text-sm text-muted mb-3">
-            Napište mi, na co máte chuť, co vám na tomhle jídle nevyhovuje nebo co
-            máte doma v lednici — a navrhnu vám jinou variantu.
+            Řekněte mi, co vám na tomhle jídle nevyhovuje, na co máte chuť, nebo
+            co máte doma v lednici.
+            {webResearch && ' Když nic z naší sbírky receptů nesedne, zkusím najít nový recept na webu.'}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
             {QUICK_PROMPTS.map((prompt) => (
@@ -209,7 +245,10 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
       )}
 
       {messages.length > 0 && (
-        <ul className="space-y-2 mb-4">
+        // Single live region for conversational text. The candidate cards sit
+        // OUTSIDE it — announcing a whole card on every turn is noise, and the
+        // assistant bubble already names the dish.
+        <ul role="log" aria-live="polite" aria-relevant="additions" className="space-y-2 mb-4">
           {messages.map((m, idx) => {
             const pastSuggestion = m.candidate != null
               && m.candidate.curated_recipe_id !== candidate?.curated_recipe_id;
@@ -249,29 +288,62 @@ export const RecipeRefineChat = ({ mealId, onAccepted, onClose }: RecipeRefineCh
         </div>
       )}
 
-      {candidate && (
-        <div className="rounded-xl border border-green/40 bg-paper p-4 mb-4">
-          {imgUrl && (
-            <img src={imgUrl} alt={candidate.name} className="w-full h-32 object-cover rounded-lg mb-3" />
-          )}
-          <p className="font-black text-ink">{candidate.name}</p>
-          {candidate.why && <p className="text-xs text-green mt-1">{candidate.why}</p>}
-          <div className="flex gap-4 mt-2 text-[10px] font-black uppercase tracking-widest text-muted">
-            {candidate.preparation_time != null && (
-              <span className="flex items-center gap-1"><Clock size={12} className="text-green" /> {candidate.preparation_time} min</span>
-            )}
-            {candidate.calories != null && (
-              <span className="flex items-center gap-1"><Flame size={12} className="text-green" /> {candidate.calories} kcal</span>
-            )}
+      {offered.length > 0 && (
+        <section
+          aria-label={offered.length > 1 ? 'Vyberte, co vám sedí nejvíc' : 'Návrh pro vás'}
+          className="mb-4"
+        >
+          <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted">
+            {offered.length > 1 ? 'Vyberte, co vám sedí nejvíc' : 'Návrh pro vás'}
+          </p>
+          <div className={offered.length > 1 ? 'grid gap-3 sm:grid-cols-2' : ''}>
+            {offered.map((c) => {
+              const imgUrl = getFoodImageUrl(c.food_category, c.name);
+              return (
+                <article
+                  key={c.curated_recipe_id}
+                  className="flex flex-col rounded-xl border border-green/40 bg-paper p-4"
+                >
+                  {imgUrl && (
+                    <img src={imgUrl} alt={c.name} className="w-full h-32 object-cover rounded-lg mb-3" />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-black text-ink">{c.name}</p>
+                    {c.why && <p className="text-xs text-green mt-1">{c.why}</p>}
+                    <div className="flex gap-4 mt-2 text-[10px] font-black uppercase tracking-widest text-muted">
+                      {c.preparation_time != null && (
+                        <span className="flex items-center gap-1"><Clock size={12} className="text-green" /> {c.preparation_time} min</span>
+                      )}
+                      {c.calories != null && (
+                        <span className="flex items-center gap-1"><Flame size={12} className="text-green" /> {c.calories} kcal</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => accept(c)}
+                    disabled={pending}
+                    // Only disambiguate by dish when there IS a choice — with a
+                    // single card the visible label is already unambiguous.
+                    aria-label={offered.length > 1 ? `Použít recept ${c.name}` : undefined}
+                    className="mt-4 flex items-center justify-center gap-2 px-6 h-11 bg-green text-white font-black uppercase text-[10px] tracking-widest rounded-xl disabled:opacity-60"
+                  >
+                    {pending && <Loader2 size={14} className="animate-spin" />} Použít tento recept
+                  </button>
+                </article>
+              );
+            })}
           </div>
-          <button
-            onClick={accept}
-            disabled={pending}
-            className="mt-4 flex items-center gap-2 px-6 h-11 bg-green text-white font-black uppercase text-[10px] tracking-widest rounded-xl disabled:opacity-60"
-          >
-            {pending && <Loader2 size={14} className="animate-spin" />} Použít tento recept
-          </button>
-        </div>
+          {!capReached && (
+            <button
+              type="button"
+              onClick={() => void send('Ukažte mi něco jiného')}
+              disabled={pending}
+              className="mt-3 text-xs font-semibold text-muted hover:text-green underline underline-offset-2 disabled:opacity-60"
+            >
+              Ukázat jiné návrhy
+            </button>
+          )}
+        </section>
       )}
 
       {noAlternatives && (
