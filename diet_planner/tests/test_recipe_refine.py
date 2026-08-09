@@ -397,3 +397,46 @@ class AcceptTurnTest(RefineTestBase):
         self._plan_with_lunch(current)
         resp = self.client.post(self._url(), {'accept': 'DROP TABLE'}, format='json')
         self.assertEqual(resp.status_code, 400)
+
+
+class CandidateCardPortionTest(RefineTestBase):
+    """The kcal on a candidate card must be the portion the user would actually
+    be served — the same number the accept turn commits. Showing the whole pot
+    (base_nutrition) misinforms the very choice the card exists to support."""
+
+    def test_candidate_card_shows_per_portion_calories_not_the_whole_pot(self):
+        current = make_recipe(name_cs='Aktuální oběd', base_servings=1,
+                              base_nutrition={'calories': 500, 'protein': 30,
+                                              'carbs': 60, 'fat': 12})
+        make_recipe(name_cs='Velký hrnec', base_servings=6,
+                    base_nutrition={'calories': 3000, 'protein': 180,
+                                    'carbs': 360, 'fat': 72})
+        self._plan_with_lunch(current)
+
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(PromptFacets(), None)):
+            resp = self._preview([{'role': 'user', 'text': 'něco jiného'}])
+
+        card = resp.json()['data']['candidate']
+        self.assertEqual(card['name'], 'Velký hrnec')
+        self.assertEqual(card['calories'], 500)
+
+    def test_candidate_card_matches_what_accepting_it_commits(self):
+        current = make_recipe(name_cs='Aktuální oběd', base_servings=1,
+                              base_nutrition={'calories': 500, 'protein': 30,
+                                              'carbs': 60, 'fat': 12})
+        big = make_recipe(name_cs='Velký hrnec', base_servings=6,
+                          base_nutrition={'calories': 3000, 'protein': 180,
+                                          'carbs': 360, 'fat': 72})
+        plan = self._plan_with_lunch(current)
+
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(PromptFacets(), None)):
+            previewed = self._preview([{'role': 'user', 'text': 'něco jiného'}])
+        card = previewed.json()['data']['candidate']
+
+        self.client.post(self._url(), {'accept': big.id}, format='json')
+        plan.refresh_from_db()
+        committed = plan.days[0]['lunch']['nutritional_info']['calories']
+
+        self.assertEqual(card['calories'], committed)

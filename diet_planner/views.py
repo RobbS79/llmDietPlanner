@@ -801,10 +801,23 @@ def _candidate_why(recipe, facets) -> str | None:
     return f"Odpovídá: {', '.join(parts)}" if parts else None
 
 
-def _candidate_payload(recipe, facets) -> dict:
+def _slot_calories(meal) -> float | None:
+    """Calories the slot currently carries — the target a candidate is portioned
+    to. Same read `_commit_slot_swap` makes before writing."""
+    if not isinstance(meal, dict):
+        return None
+    return (meal.get('nutritional_info') or {}).get('calories')
+
+
+def _candidate_payload(recipe, facets, target_calories=None) -> dict:
     """Card-sized preview of a candidate. Rendered from scale_recipe_to_meal so
-    the fields match exactly what an accepted swap would write."""
-    meal = scale_recipe_to_meal(recipe)
+    the fields match exactly what an accepted swap would write — which means
+    portioning to the slot the same way `_commit_slot_swap` does. Without that,
+    the card advertises the whole pot (base_nutrition covers base_servings) and
+    then accepting it commits a different, correctly portioned number."""
+    meal = scale_recipe_to_meal(
+        recipe, portions=portions_for_target(recipe, target_calories),
+    )
     return {
         'curated_recipe_id': recipe.id,
         'name': meal['name'],
@@ -846,6 +859,7 @@ class RecipeRefineView(APIView):
             if isinstance(i, int) or (isinstance(i, str) and i.isdigit() and len(i) <= 18)
         }
         exclude_ids = ({current_id} if current_id else set()) | rejected
+        slot_calories = _slot_calories(ctx.current_meal)
 
         if getattr(settings, 'REFINE_CHAT_AGENT_ENABLED', False):
             try:
@@ -866,11 +880,12 @@ class RecipeRefineView(APIView):
                     "data": {
                         "reply_text": turn.reply_text,
                         "candidate": (
-                            _candidate_payload(turn.candidate, None)
+                            _candidate_payload(turn.candidate, None, slot_calories)
                             if turn.candidate else None
                         ),
                         "alternatives": [
-                            _candidate_payload(r, None) for r in turn.alternatives
+                            _candidate_payload(r, None, slot_calories)
+                            for r in turn.alternatives
                         ],
                         "research_job_id": turn.research_job_id,
                         "question": None,
@@ -928,7 +943,7 @@ class RecipeRefineView(APIView):
         return Response({
             "status": "success",
             "data": {
-                "candidate": _candidate_payload(chosen, facets),
+                "candidate": _candidate_payload(chosen, facets, slot_calories),
                 "question": question,
                 "hint_matched": hint_matched,
             },
@@ -991,7 +1006,13 @@ class RecipeResearchJobView(APIView):
             return Response({"status": "error", "error": "Not found"}, status=404)
         candidate = None
         if job.status == RecipeResearchJob.Status.READY and job.result_recipe:
-            candidate = _candidate_payload(job.result_recipe, None)
+            # Portion to the slot this job was started from, so the research
+            # card reads the same as every other candidate card.
+            ctx, err = _locate_plan_slot(request.user, job.meal_identifier)
+            candidate = _candidate_payload(
+                job.result_recipe, None,
+                _slot_calories(ctx.current_meal) if not err else None,
+            )
         return Response({
             "status": "success",
             "data": {
