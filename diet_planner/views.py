@@ -961,13 +961,22 @@ class RecipeRefineView(APIView):
         chosen = next((r for r in candidates if r.id == accept_id), None)
         if chosen is None:
             return Response({"status": "error", "error": "Recipe not eligible for this slot"}, status=400)
+        # Captured BEFORE the swap rewrites the slot. Undo works because
+        # _accept only ever excludes the *current* recipe, so the one we are
+        # replacing becomes eligible again the moment this commit lands. A meal
+        # that didn't come from the corpus has no id to go back to.
+        previous = {
+            "curated_recipe_id": current_id,
+            "name": ctx.current_meal.get('name') or '',
+        } if current_id else None
         recipe = _commit_slot_swap(
             goal=ctx.goal, plan=ctx.plan, target_day=ctx.target_day, meal_type=ctx.meal_type,
             meal_identifier=meal_identifier, chosen=chosen, user=request.user,
         )
         return Response({
             "status": "success",
-            "data": {"replaced": True, "recipe": serialize_recipe_detail(recipe)},
+            "data": {"replaced": True, "recipe": serialize_recipe_detail(recipe),
+                     "previous": previous},
         }, status=200)
 
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Users, ChefHat, Loader2 } from 'lucide-react';
+import { ArrowLeft, Clock, Users, ChefHat, Loader2, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -14,6 +14,7 @@ import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 import { useToast } from '@/components/ui/Toast';
 import { RecipeRefineChat } from '@/components/recipe/RecipeRefineChat';
 import { RefineInviteCard } from '@/components/recipe/RefineInviteCard';
+import { refineAccept } from '@/lib/refineRecipe';
 
 export const RecipePage = () => {
   const { id, mealId } = useParams();
@@ -54,14 +55,50 @@ export const RecipePage = () => {
     }
   };
 
-  const handleAccepted = (recipe: Record<string, unknown>) => {
+  // A swap is destructive and a 4s toast is not long enough to read a new
+  // recipe and decide it was a mistake — so the confirmation persists and
+  // carries the way back.
+  const [swap, setSwap] = useState<{
+    from: string; to: string; previousId: number | null;
+  } | null>(null);
+
+  const applySwappedRecipe = (recipe: Record<string, unknown>) => {
     queryClient.setQueryData(['recipe', mealId], recipe);
     queryClient.invalidateQueries({ queryKey: ['plan', id] });
     // The swap resets MealInstance.is_cooked server-side; PlanView derives
     // its cooked badges from this separate query, so it must refresh too.
     queryClient.invalidateQueries({ queryKey: ['mealInstances', id] });
+  };
+
+  const handleAccepted = (
+    next: Record<string, unknown>,
+    previous?: { curated_recipe_id: number; name: string } | null,
+  ) => {
+    const from = previous?.name || (recipe?.name as string) || '';
+    applySwappedRecipe(next);
+    setSwap({ from, to: String(next.name ?? ''), previousId: previous?.curated_recipe_id ?? null });
     closeChat();
-    toast.success('Recept byl vyměněn.');
+  };
+
+  const [undoing, setUndoing] = useState(false);
+
+  const undoSwap = async () => {
+    if (!swap?.previousId || undoing) return;
+    setUndoing(true);
+    try {
+      const r = await refineAccept(mealId!, swap.previousId);
+      if (r.replaced && r.recipe) {
+        applySwappedRecipe(r.recipe);
+        setSwap(null);
+        toast.success('Vrátili jsme původní recept.');
+      } else {
+        toast.error('Recept se nepodařilo vrátit, zkuste to prosím znovu.');
+      }
+    } catch {
+      toast.error('Recept se nepodařilo vrátit, zkuste to prosím znovu.');
+    } finally {
+      setUndoing(false);
+    }
   };
 
   useEffect(() => {
@@ -147,6 +184,35 @@ export const RecipePage = () => {
         >
           <ArrowLeft size={16} /> Zpět na plán
         </button>
+
+        {swap && (
+          <div
+            role="status"
+            className="mb-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green/40 bg-green-soft px-5 py-4"
+          >
+            <p className="text-sm font-medium text-green">
+              Hotovo — místo „{swap.from}“ máte teď „{swap.to}“.
+            </p>
+            <div className="flex items-center gap-3">
+              {swap.previousId != null && (
+                <button
+                  onClick={undoSwap}
+                  disabled={undoing}
+                  className="flex items-center gap-2 px-4 h-10 rounded-xl border border-green/40 bg-card text-[10px] font-black uppercase tracking-widest text-green disabled:opacity-60"
+                >
+                  {undoing && <Loader2 size={14} className="animate-spin" />} Vrátit původní recept
+                </button>
+              )}
+              <button
+                onClick={() => setSwap(null)}
+                aria-label="Zavřít oznámení"
+                className="text-green/70 hover:text-green"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {(() => {
           const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);

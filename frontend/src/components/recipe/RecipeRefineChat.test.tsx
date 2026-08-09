@@ -189,13 +189,19 @@ describe('RecipeRefineChat', () => {
     vi.mocked(refinePreview).mockResolvedValue({
       candidate: CANDIDATE, question: null, hint_matched: true,
     });
-    vi.mocked(refineAccept).mockResolvedValue({ replaced: true, recipe: { name: 'Kuřecí salát' } });
+    vi.mocked(refineAccept).mockResolvedValue({
+      replaced: true, recipe: { name: 'Kuřecí salát' },
+      previous: { curated_recipe_id: 3, name: 'Kuře s rýží' },
+    });
     const { onAccepted } = setup();
     await send('něco s kuřecím');
     await userEvent.click(await screen.findByRole('button', { name: 'Použít tento recept' }));
 
     expect(refineAccept).toHaveBeenCalledWith(MEAL_ID, 7);
-    expect(onAccepted).toHaveBeenCalledWith({ name: 'Kuřecí salát' });
+    // The replaced recipe rides along so the page can offer an undo.
+    expect(onAccepted).toHaveBeenCalledWith(
+      { name: 'Kuřecí salát' }, { curated_recipe_id: 3, name: 'Kuře s rýží' },
+    );
   });
 
   it('shows no-alternatives message with a restart action', async () => {
@@ -296,7 +302,7 @@ describe('RecipeRefineChat', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Zobrazit tento návrh' }));
       await userEvent.click(screen.getByRole('button', { name: 'Použít tento recept' }));
       expect(refineAccept).toHaveBeenCalledWith(MEAL_ID, 7);
-      expect(onAccepted).toHaveBeenCalledWith({ name: 'Kuřecí salát' });
+      expect(onAccepted).toHaveBeenCalledWith({ name: 'Kuřecí salát' }, undefined);
     });
 
     it('typing after re-expanding rejects the re-expanded candidate only', async () => {
@@ -426,6 +432,89 @@ describe('RecipeRefineChat', () => {
       } finally {
         vi.useRealTimers();
         vi.unstubAllGlobals();
+      }
+    });
+
+    it('shows the stage the backend actually reports, not one static line', async () => {
+      useFakeTimersRtlSafe();
+      try {
+        vi.mocked(refinePreview).mockResolvedValueOnce({
+          candidate: null, question: null, hint_matched: null,
+          reply_text: 'Podívám se na web.', research_job_id: 44,
+        });
+        vi.mocked(researchStatus)
+          .mockResolvedValueOnce({ status: 'searching', reply_text: null, candidate: null })
+          .mockResolvedValue({ status: 'curating', reply_text: null, candidate: null });
+        setup();
+        await sendFake('pravý ramen');
+        await act(async () => {});
+
+        // Before the first poll lands we can only honestly claim it's queued.
+        expect(screen.getByText('Chystám hledání…')).toBeInTheDocument();
+        await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+        expect(screen.getByText('Hledám recepty na webu…')).toBeInTheDocument();
+        await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+        expect(screen.getByText(/Čtu nalezený recept/)).toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('resumes a job left behind by a previous visit', async () => {
+      // The Celery job outlives the component; before parking the id, leaving
+      // the page orphaned the search and the "come back later" copy was false.
+      localStorage.setItem(
+        `varto.research.${MEAL_ID}`,
+        JSON.stringify({ jobId: 77, startedAt: Date.now() }),
+      );
+      try {
+        vi.mocked(researchStatus).mockResolvedValue({
+          status: 'ready', reply_text: 'Našla jsem: Pravý ramen.',
+          candidate: { curated_recipe_id: 7, name: 'Pravý ramen', description: '',
+                       food_category: '', preparation_time: 40, calories: 600, why: null },
+        });
+        setup();
+        expect(await screen.findByText(/Pokračuju v hledání receptu na webu/)).toBeInTheDocument();
+        // Real timers here: the first poll is 3s out by design.
+        expect(await screen.findByText(/Našla jsem: Pravý ramen/, {}, { timeout: 6_000 }))
+          .toBeInTheDocument();
+        expect(researchStatus).toHaveBeenCalledWith(77);
+        // Terminal status clears the parking slot so it can't resume forever.
+        expect(localStorage.getItem(`varto.research.${MEAL_ID}`)).toBeNull();
+      } finally {
+        localStorage.clear();
+      }
+    });
+
+    it('cancelling stops the polling without claiming the job was killed', async () => {
+      useFakeTimersRtlSafe();
+      try {
+        vi.mocked(refinePreview).mockResolvedValueOnce({
+          candidate: null, question: null, hint_matched: null,
+          reply_text: 'Podívám se na web.', research_job_id: 45,
+        });
+        vi.mocked(researchStatus).mockResolvedValue({
+          status: 'searching', reply_text: null, candidate: null,
+        });
+        setup();
+        await sendFake('pravý ramen');
+        await act(async () => {});
+        await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+        const before = vi.mocked(researchStatus).mock.calls.length;
+
+        await userEvent.setup({ delay: null }).click(
+          screen.getByRole('button', { name: 'Zrušit hledání' }),
+        );
+        await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+
+        expect(vi.mocked(researchStatus).mock.calls.length).toBe(before);
+        expect(screen.getByText(/Hledání jsem přestala sledovat/)).toBeInTheDocument();
+        expect(localStorage.getItem(`varto.research.${MEAL_ID}`)).toBeNull();
+      } finally {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+        localStorage.clear();
       }
     });
   });

@@ -8,9 +8,36 @@ import {
   researchStatus,
   type ChatMessage,
   type RefineCandidate,
+  type ResearchJobStatus,
 } from '@/lib/refineRecipe';
+import { ResearchProgress } from './ResearchProgress';
 
 const MAX_USER_MESSAGES = 8;
+
+/** Web research runs in Celery and outlives this component. Parking the job id
+ * makes the "recept se objeví tady, i když se sem vrátíte později" promise
+ * true — before this, navigating away silently orphaned the job. */
+const researchKey = (mealId: string) => `varto.research.${mealId}`;
+
+const parkResearch = (mealId: string, jobId: number, startedAt: number) => {
+  try {
+    localStorage.setItem(researchKey(mealId), JSON.stringify({ jobId, startedAt }));
+  } catch { /* private mode / quota — polling just won't survive a reload */ }
+};
+
+const unparkResearch = (mealId: string) => {
+  try { localStorage.removeItem(researchKey(mealId)); } catch { /* ignore */ }
+};
+
+const readParkedResearch = (mealId: string): { jobId: number; startedAt: number } | null => {
+  try {
+    const raw = localStorage.getItem(researchKey(mealId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.jobId === 'number' && typeof parsed?.startedAt === 'number'
+      ? parsed : null;
+  } catch { return null; }
+};
 
 // One-tap starters for the empty chat — the fastest way to teach that this is
 // a conversation about the current meal, not a form field.
@@ -25,8 +52,12 @@ interface LocalMessage extends ChatMessage {
 
 interface RecipeRefineChatProps {
   mealId: string;
-  /** Called with the swapped-in recipe (RecipeDetail shape) after a committed accept. */
-  onAccepted: (recipe: Record<string, unknown>) => void;
+  /** Called with the swapped-in recipe (RecipeDetail shape) after a committed
+   * accept, plus the replaced recipe so the page can offer an undo. */
+  onAccepted: (
+    recipe: Record<string, unknown>,
+    previous?: { curated_recipe_id: number; name: string } | null,
+  ) => void;
   onClose: () => void;
   /** Sent as the first message on mount — the invite card's intent chips open
    * the panel straight into a conversation instead of an empty prompt. */
@@ -58,7 +89,8 @@ export const RecipeRefineChat = ({
   const [pending, setPending] = useState(false);
   const [researchJobId, setResearchJobId] = useState<number | null>(null);
   const [researching, setResearching] = useState(false);
-  const researchStartedAt = useRef<number>(0);
+  const [researchStage, setResearchStage] = useState<ResearchJobStatus>('queued');
+  const [researchStartedAt, setResearchStartedAt] = useState(0);
   const headingRef = useRef<HTMLParagraphElement>(null);
 
   const userCount = messages.filter((m) => m.role === 'user').length;
@@ -109,7 +141,10 @@ export const RecipeRefineChat = ({
           { role: 'assistant', text: r.reply_text!, candidate: r.candidate ?? undefined },
         ]);
         if (r.research_job_id != null) {
-          researchStartedAt.current = Date.now();
+          const startedAt = Date.now();
+          parkResearch(mealId, r.research_job_id, startedAt);
+          setResearchStartedAt(startedAt);
+          setResearchStage('queued');
           setResearchJobId(r.research_job_id);
           setResearching(true);
         }
@@ -154,45 +189,87 @@ export const RecipeRefineChat = ({
 
   useEffect(() => {
     if (researchJobId == null) return;
-    const POLL_MS = 5_000;
-    const TIMEOUT_MS = 5 * 60_000;
+    // Tight early, relaxed later: the first stage transitions happen fast, the
+    // tail is mostly waiting on one page fetch + one curation call.
+    const pollDelay = (elapsed: number) => (elapsed < 30_000 ? 3_000 : 8_000);
+    const TIMEOUT_MS = 10 * 60_000;
     let cancelled = false;
-    const timer = setInterval(async () => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const tick = async () => {
       if (cancelled) return;
-      if (Date.now() - researchStartedAt.current > TIMEOUT_MS) {
+      const elapsed = Date.now() - researchStartedAt;
+      if (elapsed > TIMEOUT_MS) {
+        // The Celery job keeps running and the parked id survives, so coming
+        // back later really does surface the result — say only that.
         setResearching(false);
         setResearchJobId(null);
         setMessages((prev) => [...prev, {
           role: 'assistant',
-          text: 'Hledání trvá déle, než jsem čekal — recept se objeví ve vašich návrzích, jakmile bude hotový.',
+          text: 'Hledání se protáhlo. Nechávám ho běžet na pozadí — až se sem vrátíte, ukážu vám výsledek.',
         }]);
         return;
       }
       try {
         const s = await researchStatus(researchJobId);
-        if (cancelled || (s.status !== 'ready' && s.status !== 'failed')) return;
-        setResearching(false);
-        setResearchJobId(null);
-        if (s.status === 'ready' && s.candidate) {
-          setCandidate(s.candidate);
-          setAlternatives([]);
-          setMessages((prev) => [...prev, {
-            role: 'assistant',
-            text: s.reply_text ?? `Co třeba: ${s.candidate!.name}?`,
-            candidate: s.candidate!,
-          }]);
+        if (cancelled) return;
+        if (s.status !== 'ready' && s.status !== 'failed') {
+          setResearchStage(s.status);
         } else {
-          setMessages((prev) => [...prev, {
-            role: 'assistant',
-            text: s.reply_text ?? 'Recept se nepodařilo najít, zkuste to prosím jinak.',
-          }]);
+          setResearching(false);
+          setResearchJobId(null);
+          unparkResearch(mealId);
+          if (s.status === 'ready' && s.candidate) {
+            setCandidate(s.candidate);
+            setAlternatives([]);
+            setMessages((prev) => [...prev, {
+              role: 'assistant',
+              text: s.reply_text ?? `Co třeba: ${s.candidate!.name}?`,
+              candidate: s.candidate!,
+            }]);
+          } else {
+            setMessages((prev) => [...prev, {
+              role: 'assistant',
+              text: s.reply_text ?? 'Recept se nepodařilo najít, zkuste to prosím jinak.',
+            }]);
+          }
+          return;
         }
       } catch {
         /* transient poll error — keep polling until timeout */
       }
-    }, POLL_MS);
-    return () => { cancelled = true; clearInterval(timer); };
-  }, [researchJobId]);
+      if (!cancelled) timer = setTimeout(tick, pollDelay(Date.now() - researchStartedAt));
+    };
+
+    timer = setTimeout(tick, pollDelay(Date.now() - researchStartedAt));
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [researchJobId, researchStartedAt, mealId]);
+
+  // Resume a job this page started earlier: the search outlives the component,
+  // so a reload or a trip back to the plan must not orphan it.
+  useEffect(() => {
+    const parked = readParkedResearch(mealId);
+    if (!parked) return;
+    setResearchStartedAt(parked.startedAt);
+    setResearchStage('queued');
+    setResearchJobId(parked.jobId);
+    setResearching(true);
+    setMessages((prev) => prev.length ? prev : [{
+      role: 'assistant',
+      text: 'Pokračuju v hledání receptu na webu — počkejte chviličku.',
+    }]);
+  }, [mealId]);
+
+  const cancelResearch = () => {
+    setResearching(false);
+    setResearchJobId(null);
+    unparkResearch(mealId);
+    setMessages((prev) => [...prev, {
+      role: 'assistant',
+      // The Celery job isn't killed — don't claim it was.
+      text: 'Hledání jsem přestala sledovat. Můžeme zkusit něco jiného.',
+    }]);
+  };
 
   const accept = async (chosen: RefineCandidate) => {
     if (pending) return;
@@ -200,7 +277,7 @@ export const RecipeRefineChat = ({
     try {
       const r = await refineAccept(mealId, chosen.curated_recipe_id);
       if (r.replaced && r.recipe) {
-        onAccepted(r.recipe);
+        onAccepted(r.recipe, r.previous);
       } else {
         toast.error('Něco se nepovedlo, zkuste to prosím znovu.');
       }
@@ -283,9 +360,11 @@ export const RecipeRefineChat = ({
       )}
 
       {researching && (
-        <div className="mr-8 flex items-center gap-2 rounded-xl bg-paper border border-line px-4 py-2 text-sm text-muted mb-4">
-          <Loader2 size={14} className="animate-spin text-green" /> Hledám recept na webu…
-        </div>
+        <ResearchProgress
+          status={researchStage}
+          startedAt={researchStartedAt}
+          onCancel={cancelResearch}
+        />
       )}
 
       {offered.length > 0 && (
