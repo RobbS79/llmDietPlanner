@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, MapPin, Timer, Globe, Download, UtensilsCrossed, ArrowRight, ChefHat, Flame } from 'lucide-react';
+import { AlertCircle, MapPin, Timer, Globe, Download, UtensilsCrossed, ArrowRight, ChefHat, Flame, MessageCircle } from 'lucide-react';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -228,28 +228,33 @@ export const PlanView = () => {
                   {['breakfast', 'lunch', 'dinner'].map(m => day[m] && (() => {
                     const mealId = day[m].meal_identifier || `${id}:${day.day_number}:${m}:0`;
                     const isCooked = cookedSet.has(mealId);
+                    const imgUrl = getFoodImageUrl(day[m].food_category, day[m].name);
                     return (
                       <Card
                         key={m}
                         className={`p-0 hover:bg-kraft hover:border-green/40 group/meal relative overflow-hidden text-left ${isCooked ? 'border-green/40 bg-green-soft' : ''}`}
                       >
-                        {(() => {
-                          const imgUrl = getFoodImageUrl(day[m].food_category, day[m].name);
-                          return imgUrl ? (
-                            <div className="relative h-48 sm:h-56 overflow-hidden">
-                              <img src={imgUrl} alt={day[m].name} className="w-full h-full object-cover" loading="lazy"
-                                onError={(e) => { ((e.target as HTMLImageElement).closest('.relative') as HTMLElement).style.display = 'none'; }}
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-paper via-paper/60 to-transparent" />
-                            </div>
-                          ) : (
-                            <div className="absolute top-0 right-0 p-8 text-ink opacity-20 pointer-events-none group-hover/meal:text-green transition-colors">
-                              <UtensilsCrossed size={120} />
-                            </div>
-                          );
-                        })()}
+                        {imgUrl ? (
+                          <div className="relative h-48 sm:h-56 overflow-hidden">
+                            {/* Hide the broken image, NOT its container: the
+                                container is the spacer the -mt-16 below pulls
+                                against. Dropping it yanked the whole action row
+                                up behind the day heading, where the day heading
+                                swallowed every click on it. */}
+                            <img src={imgUrl} alt={day[m].name} className="w-full h-full object-cover" loading="lazy"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-paper via-paper/60 to-transparent" />
+                          </div>
+                        ) : (
+                          <div className="absolute top-0 right-0 p-8 text-ink opacity-20 pointer-events-none group-hover/meal:text-green transition-colors">
+                            <UtensilsCrossed size={120} />
+                          </div>
+                        )}
 
-                        <div className="px-10 pb-10 -mt-16 relative z-10">
+                        {/* No image means no spacer to pull against — only overlap
+                            the image when there actually is one. */}
+                        <div className={`px-10 pb-10 relative z-10 ${imgUrl ? '-mt-16' : 'pt-10'}`}>
                         <div className="flex justify-between items-center mb-10 relative z-10">
                           <div className="flex items-center gap-3">
                             <span className="px-5 py-1.5 bg-green text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{MEAL_LABELS[m] || m}</span>
@@ -261,6 +266,16 @@ export const PlanView = () => {
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${isCooked ? 'bg-green-soft border-green/40 text-green hover:bg-paprika-soft hover:border-paprika/30 hover:text-paprika-strong' : 'bg-paper border-line text-muted hover:border-green/40 hover:text-green-mid'}`}
                             >
                               <ChefHat size={14} /> {isCooked ? 'Zrušit' : 'Označit jako uvařené'}
+                            </button>
+                            {/* Dislike happens while scanning the plan, not while
+                                reading the recipe — so the way out lives here too.
+                                ?chat=1 opens the chat on arrival. */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/plan/${id}/recipe/${mealId}?chat=1`); }}
+                              aria-label="Nesedí vám tohle jídlo? Otevřít chat s kuchařkou"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-paper border-line text-muted hover:border-green/40 hover:text-green-mid transition-all"
+                            >
+                              <MessageCircle size={14} /> Nesedí?
                             </button>
                             <div className="flex items-center gap-2 bg-paper px-3 py-1.5 rounded-lg text-[9px] font-black text-muted border border-line uppercase tracking-widest italic">
                               <Timer size={14} className="text-green" /> {day[m].preparation_time || 20} min

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Users, ChefHat, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Clock, Users, ChefHat, Loader2, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFoodImageUrl } from '@/lib/food-image';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -13,6 +13,9 @@ import { normalizeNutrition, nutritionBasisFor } from '@/lib/nutrition';
 import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 import { useToast } from '@/components/ui/Toast';
 import { RecipeRefineChat } from '@/components/recipe/RecipeRefineChat';
+import { RefineInviteCard } from '@/components/recipe/RefineInviteCard';
+import { refineAccept } from '@/lib/refineRecipe';
+import { readParkedResearch } from '@/lib/researchParking';
 
 export const RecipePage = () => {
   const { id, mealId } = useParams();
@@ -31,16 +34,78 @@ export const RecipePage = () => {
 
   // Conversational replace-recipe swap. See
   // docs/superpowers/specs/2026-07-18-recipe-refine-chat-design.md.
-  const [panelOpen, setPanelOpen] = useState(false);
+  // `?chat=1` opens it straight away — that's the deep link the plan's
+  // "Nesedí?" action uses, so a user acts where the dislike happens.
+  const [searchParams, setSearchParams] = useSearchParams();
+  // A web search left running by an earlier visit reopens the panel by itself.
+  // The restore logic can't live inside the panel: with the panel closed it
+  // never mounts, so a reload would orphan the job and the chat's "even if you
+  // come back later" promise would be a lie.
+  const [panelOpen, setPanelOpen] = useState(
+    () => searchParams.get('chat') === '1' || readParkedResearch(mealId ?? '') !== null,
+  );
+  const [chatSeed, setChatSeed] = useState<string | undefined>();
 
-  const handleAccepted = (recipe: Record<string, unknown>) => {
+  const openChat = (seed?: string) => {
+    setChatSeed(seed);
+    setPanelOpen(true);
+  };
+
+  const closeChat = () => {
+    setPanelOpen(false);
+    setChatSeed(undefined);
+    // Drop ?chat=1 so a back/refresh doesn't reopen a panel the user closed.
+    if (searchParams.has('chat')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('chat');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  // A swap is destructive and a 4s toast is not long enough to read a new
+  // recipe and decide it was a mistake — so the confirmation persists and
+  // carries the way back.
+  const [swap, setSwap] = useState<{
+    from: string; to: string; previousId: number | null;
+  } | null>(null);
+
+  const applySwappedRecipe = (recipe: Record<string, unknown>) => {
     queryClient.setQueryData(['recipe', mealId], recipe);
     queryClient.invalidateQueries({ queryKey: ['plan', id] });
     // The swap resets MealInstance.is_cooked server-side; PlanView derives
     // its cooked badges from this separate query, so it must refresh too.
     queryClient.invalidateQueries({ queryKey: ['mealInstances', id] });
-    setPanelOpen(false);
-    toast.success('Recept byl vyměněn.');
+  };
+
+  const handleAccepted = (
+    next: Record<string, unknown>,
+    previous?: { curated_recipe_id: number; name: string } | null,
+  ) => {
+    const from = previous?.name || (recipe?.name as string) || '';
+    applySwappedRecipe(next);
+    setSwap({ from, to: String(next.name ?? ''), previousId: previous?.curated_recipe_id ?? null });
+    closeChat();
+  };
+
+  const [undoing, setUndoing] = useState(false);
+
+  const undoSwap = async () => {
+    if (!swap?.previousId || undoing) return;
+    setUndoing(true);
+    try {
+      const r = await refineAccept(mealId!, swap.previousId);
+      if (r.replaced && r.recipe) {
+        applySwappedRecipe(r.recipe);
+        setSwap(null);
+        toast.success('Vrátili jsme původní recept.');
+      } else {
+        toast.error('Recept se nepodařilo vrátit, zkuste to prosím znovu.');
+      }
+    } catch {
+      toast.error('Recept se nepodařilo vrátit, zkuste to prosím znovu.');
+    } finally {
+      setUndoing(false);
+    }
   };
 
   useEffect(() => {
@@ -97,7 +162,7 @@ export const RecipePage = () => {
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black font-display text-ink uppercase tracking-tighter italic">Generujeme recept</h2>
-            <p className="text-muted text-sm italic">Náš kuchař píše postup krok za krokem...</p>
+            <p className="text-muted text-sm italic">Naše kuchařka píše postup krok za krokem...</p>
           </div>
         </div>
       </MainLayout>
@@ -126,6 +191,35 @@ export const RecipePage = () => {
         >
           <ArrowLeft size={16} /> Zpět na plán
         </button>
+
+        {swap && (
+          <div
+            role="status"
+            className="mb-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green/40 bg-green-soft px-5 py-4"
+          >
+            <p className="text-sm font-medium text-green">
+              Hotovo — místo „{swap.from}“ máte teď „{swap.to}“.
+            </p>
+            <div className="flex items-center gap-3">
+              {swap.previousId != null && (
+                <button
+                  onClick={undoSwap}
+                  disabled={undoing}
+                  className="flex items-center gap-2 px-4 h-10 rounded-xl border border-green/40 bg-card text-[10px] font-black uppercase tracking-widest text-green disabled:opacity-60"
+                >
+                  {undoing && <Loader2 size={14} className="animate-spin" />} Vrátit původní recept
+                </button>
+              )}
+              <button
+                onClick={() => setSwap(null)}
+                aria-label="Zavřít oznámení"
+                className="text-green/70 hover:text-green"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {(() => {
           const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);
@@ -186,17 +280,14 @@ export const RecipePage = () => {
         {/* Conversational replace-recipe swap */}
         <div className="mb-12">
           {!panelOpen ? (
-            <button
-              onClick={() => setPanelOpen(true)}
-              className="flex items-center gap-2 px-5 h-11 bg-card border border-line rounded-xl text-[10px] font-black uppercase tracking-widest text-ink hover:border-green/50 transition-colors"
-            >
-              <RefreshCw size={14} className="text-green" /> Vyměnit recept
-            </button>
+            <RefineInviteCard onOpen={openChat} />
           ) : (
             <RecipeRefineChat
               mealId={mealId!}
+              seedMessage={chatSeed}
+              webResearch={Boolean(recipe.refine_web_research)}
               onAccepted={handleAccepted}
-              onClose={() => setPanelOpen(false)}
+              onClose={closeChat}
             />
           )}
         </div>

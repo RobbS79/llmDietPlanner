@@ -322,6 +322,45 @@ class AcceptTurnTest(RefineTestBase):
         self.assertFalse(mi.is_cooked)
         self.assertIsNone(mi.cooked_at)
 
+    def test_accept_returns_the_replaced_recipe_so_the_swap_can_be_undone(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        other = make_recipe(name_cs='Hovězí guláš')
+        self._plan_with_lunch(current)
+
+        resp = self.client.post(self._url(), {'accept': other.id}, format='json')
+
+        self.assertEqual(resp.data['data']['previous'],
+                         {'curated_recipe_id': current.id, 'name': 'Kuře s rýží'})
+
+    def test_undo_swaps_straight_back_to_the_previous_recipe(self):
+        # The whole point of returning `previous`: accepting it must be valid,
+        # which holds because _accept only ever excludes the CURRENT recipe.
+        current = make_recipe(name_cs='Kuře s rýží')
+        other = make_recipe(name_cs='Hovězí guláš')
+        plan = self._plan_with_lunch(current)
+
+        self.client.post(self._url(), {'accept': other.id}, format='json')
+        undo = self.client.post(self._url(), {'accept': current.id}, format='json')
+
+        self.assertEqual(undo.status_code, 200)
+        self.assertEqual(undo.data['data']['recipe']['name'], 'Kuře s rýží')
+        plan.refresh_from_db()
+        self.assertEqual(plan.days[0]['lunch']['curated_recipe_id'], current.id)
+
+    def test_previous_is_null_when_the_meal_had_no_corpus_recipe(self):
+        other = make_recipe(name_cs='Hovězí guláš')
+        plan = self._plan_with_lunch(other)
+        # An LLM-generated meal carries no curated_recipe_id — nothing to
+        # return to, so the UI must not offer an undo.
+        del plan.days[0]['lunch']['curated_recipe_id']
+        plan.save(update_fields=['days'])
+        replacement = make_recipe(name_cs='Svíčková')
+
+        resp = self.client.post(self._url(), {'accept': replacement.id}, format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.data['data']['previous'])
+
     def test_accept_makes_no_llm_call(self):
         current = make_recipe(name_cs='Kuře s rýží')
         other = make_recipe(name_cs='Hovězí guláš')

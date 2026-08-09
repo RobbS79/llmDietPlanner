@@ -78,6 +78,42 @@ class RefineAgentTest(TestCase):
         self.assertEqual(name, 'search_corpus')
         self.assertEqual(payload['candidates'][0]['id'], self.recipe.id)
 
+    def test_runners_up_ride_along_as_alternatives(self):
+        # The model talks about one dish; the next-best two are offered next to
+        # it so the user picks rather than takes what came back first.
+        others = [make_recipe(name_cs=f'Jídlo {i}') for i in range(3)]
+        result, session = self._turn(
+            [_call('search_corpus'), _final('Co třeba Kuřecí rizoto?',
+                                            candidate_id=self.recipe.id)],
+            pool=[self.recipe, *others],
+        )
+        _, payload = session.tool_results[0]
+        offered = [c['id'] for c in payload['candidates']]
+        self.assertEqual(result.candidate.id, self.recipe.id)
+        # Rank order preserved, the pick itself never repeated, capped at 2.
+        self.assertEqual(
+            [r.id for r in result.alternatives],
+            [i for i in offered if i != self.recipe.id][:2],
+        )
+
+    def test_no_alternatives_without_a_pick(self):
+        # A pure conversational turn must not dump cards under a question.
+        others = [make_recipe(name_cs=f'Jídlo {i}') for i in range(3)]
+        result, _ = self._turn(
+            [_call('search_corpus'), _final('Na co máte chuť?')],
+            pool=[self.recipe, *others],
+        )
+        self.assertIsNone(result.candidate)
+        self.assertEqual(result.alternatives, [])
+
+    def test_alternatives_empty_when_pick_was_the_only_result(self):
+        result, _ = self._turn([
+            _call('search_corpus'),
+            _final('Co třeba Kuřecí rizoto?', candidate_id=self.recipe.id),
+        ])
+        self.assertEqual(result.candidate.id, self.recipe.id)
+        self.assertEqual(result.alternatives, [])
+
     def test_fabricated_candidate_id_is_dropped(self):
         result, _ = self._turn([
             _call('search_corpus'),
