@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 import { RecipeRefineChat } from '@/components/recipe/RecipeRefineChat';
 import { RefineInviteCard } from '@/components/recipe/RefineInviteCard';
 import { refineAccept } from '@/lib/refineRecipe';
+import { readParkedResearch } from '@/lib/researchParking';
 
 export const RecipePage = () => {
   const { id, mealId } = useParams();
@@ -36,7 +37,13 @@ export const RecipePage = () => {
   // `?chat=1` opens it straight away — that's the deep link the plan's
   // "Nesedí?" action uses, so a user acts where the dislike happens.
   const [searchParams, setSearchParams] = useSearchParams();
-  const [panelOpen, setPanelOpen] = useState(() => searchParams.get('chat') === '1');
+  // A web search left running by an earlier visit reopens the panel by itself.
+  // The restore logic can't live inside the panel: with the panel closed it
+  // never mounts, so a reload would orphan the job and the chat's "even if you
+  // come back later" promise would be a lie.
+  const [panelOpen, setPanelOpen] = useState(
+    () => searchParams.get('chat') === '1' || readParkedResearch(mealId ?? '') !== null,
+  );
   const [chatSeed, setChatSeed] = useState<string | undefined>();
 
   const openChat = (seed?: string) => {

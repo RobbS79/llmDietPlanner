@@ -11,33 +11,9 @@ import {
   type ResearchJobStatus,
 } from '@/lib/refineRecipe';
 import { ResearchProgress } from './ResearchProgress';
+import { parkResearch, readParkedResearch, unparkResearch } from '@/lib/researchParking';
 
 const MAX_USER_MESSAGES = 8;
-
-/** Web research runs in Celery and outlives this component. Parking the job id
- * makes the "recept se objeví tady, i když se sem vrátíte později" promise
- * true — before this, navigating away silently orphaned the job. */
-const researchKey = (mealId: string) => `varto.research.${mealId}`;
-
-const parkResearch = (mealId: string, jobId: number, startedAt: number) => {
-  try {
-    localStorage.setItem(researchKey(mealId), JSON.stringify({ jobId, startedAt }));
-  } catch { /* private mode / quota — polling just won't survive a reload */ }
-};
-
-const unparkResearch = (mealId: string) => {
-  try { localStorage.removeItem(researchKey(mealId)); } catch { /* ignore */ }
-};
-
-const readParkedResearch = (mealId: string): { jobId: number; startedAt: number } | null => {
-  try {
-    const raw = localStorage.getItem(researchKey(mealId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return typeof parsed?.jobId === 'number' && typeof parsed?.startedAt === 'number'
-      ? parsed : null;
-  } catch { return null; }
-};
 
 // One-tap starters for the empty chat — the fastest way to teach that this is
 // a conversation about the current meal, not a form field.
@@ -384,7 +360,13 @@ export const RecipeRefineChat = ({
                   className="flex flex-col rounded-xl border border-green/40 bg-paper p-4"
                 >
                   {imgUrl && (
-                    <img src={imgUrl} alt={c.name} className="w-full h-32 object-cover rounded-lg mb-3" />
+                    <img
+                      src={imgUrl} alt={c.name} loading="lazy"
+                      // A broken-image glyph next to a dish name reads as "this
+                      // recipe is broken"; drop the image and keep the card.
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      className="w-full h-32 object-cover rounded-lg mb-3"
+                    />
                   )}
                   <div className="flex-1">
                     <p className="font-black text-ink">{c.name}</p>
