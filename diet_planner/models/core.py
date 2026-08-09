@@ -222,6 +222,18 @@ class DietaryGoal(models.Model):
         null=True,
         help_text="Dietary restrictions or allergies (encrypted)"
     )
+    # Restrictions the user stated only inside `prompt` ("vegetariánská strava")
+    # rather than in the field above or their profile. The generator honours
+    # those because the LLM reads the prompt; every machine gate afterwards
+    # (refine / replace / swap) could not see them, so a vegetarian plan happily
+    # offered meat swaps. Extracted once at generation time — the facet call
+    # already runs there — and stored as comma-separated corpus dietary_tags.
+    # Encrypted: same diet PII as the fields above.
+    derived_dietary_tags = EncryptedTextField(
+        blank=True,
+        null=True,
+        help_text="Dietary tags extracted from the prompt, comma-separated (encrypted)"
+    )
 
     # NEW: Reference to a specific historic plan from the user's library
     historic_plan_reference = models.ForeignKey(

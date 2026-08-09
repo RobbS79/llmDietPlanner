@@ -42,7 +42,11 @@ from django.db.models import F
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
-from diet_planner.services.prompt_facets import PromptFacets, extract_prompt_facets
+from diet_planner.services.prompt_facets import (
+    ENFORCEABLE_DIETARY_TAGS,
+    PromptFacets,
+    extract_prompt_facets,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -113,13 +117,48 @@ _PROFILE_ALLERGY_TAGS = {
 }
 
 
+def parse_derived_dietary_tags(text: Optional[str]) -> Set[str]:
+    """Read back the tags persisted by `store_derived_dietary_tags`.
+
+    Exact comma-separated slugs, NOT the fuzzy matching `parse_dietary_tags`
+    does: that one maps the substring 'sacharid' onto low_carb, which any
+    sentence mentioning sacharidy would trip. Fine as a hint over a short
+    restrictions field, catastrophic over a whole prompt.
+    """
+    if not text:
+        return set()
+    return {t.strip() for t in text.split(',') if t.strip()} & ENFORCEABLE_DIETARY_TAGS
+
+
+def store_derived_dietary_tags(goal, tags: Set[str]) -> None:
+    """Persist prompt-stated restrictions on the goal so later machine gates can
+    enforce what the generator honoured. Never raises and never widens: tags are
+    only ever added, so a flaky extraction can't silently drop a restriction the
+    user already has."""
+    clean = {str(t).strip() for t in (tags or set())} & ENFORCEABLE_DIETARY_TAGS
+    if not clean or not getattr(goal, 'pk', None):
+        return
+    merged = clean | parse_derived_dietary_tags(getattr(goal, 'derived_dietary_tags', None))
+    value = ','.join(sorted(merged))
+    if value == (goal.derived_dietary_tags or ''):
+        return
+    try:
+        goal.derived_dietary_tags = value
+        goal.save(update_fields=['derived_dietary_tags'])
+        logger.info("derived_dietary_tags goal=%s tags=%s", goal.pk, value)
+    except Exception:  # never break generation over a bookkeeping write
+        logger.warning("derived_dietary_tags_save_failed goal=%s", goal.pk, exc_info=True)
+
+
 def required_tags_for_goal(goal) -> Set[str]:
     """The effective hard dietary gate for a goal: free-text restrictions on the
-    goal UNIONed with the user's live profile styles/allergies. Preferences the
-    user stored once apply everywhere (generation, replace, refine) without
+    goal UNIONed with the user's live profile styles/allergies AND anything the
+    user stated in the prompt itself (see `derived_dietary_tags`). Preferences
+    the user stored once apply everywhere (generation, replace, refine) without
     re-stating them per plan; profile edits take effect immediately. Never
     raises — any missing/malformed piece just contributes nothing."""
     tags = parse_dietary_tags(getattr(goal, 'dietary_restrictions', None))
+    tags |= parse_derived_dietary_tags(getattr(goal, 'derived_dietary_tags', None))
     try:
         prefs = goal.user.profile.dietary_preferences or {}
     except AttributeError:
@@ -781,6 +820,11 @@ def overlay_curated_recipes(
             language=getattr(goal, 'language_code', 'cs') or 'cs',
             cuisine_vocab=vocab,
         )
+
+    # Restrictions stated in the prompt are enforced here at generation, but the
+    # extraction result used to die with this call — leaving refine/replace/swap
+    # blind to them. Persist so the rest of the product honours the same rules.
+    store_derived_dietary_tags(goal, getattr(facets, 'dietary', set()))
 
     calorie_targets = _calorie_targets_from_days(transformed_days)
     selection = select_recipes_for_plan(
