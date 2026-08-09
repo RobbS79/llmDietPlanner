@@ -102,3 +102,29 @@ class RecipeDealsTest(TestCase):
 
     def test_empty_ingredients(self):
         self.assertEqual(recipe_deals([]), {'matched': 0, 'total': 0, 'deals': []})
+
+
+class RecipeDealsStringIngredientsTest(TestCase):
+    """Same shape tolerance as recipe_pricing: generated meals hand us plain
+    strings, and `recipe_deals` did `ingredient.get('optional')` on them."""
+
+    def setUp(self):
+        make_store('LIDL_CZ', name='Lidl')
+        self.onion = make_canonical('onion', default_unit='ks', name_cs='cibule')
+        clear_cache()
+
+    def test_string_ingredient_matches_a_deal_by_name(self):
+        make_price(
+            store_code='LIDL_CZ', normalized_name='cibule', price='9.90',
+            source_type=PriceSourceType.LEAFLET_DISCOUNT, canonical=self.onion,
+            valid_from_offset_days=0, valid_for_days=7,
+        )
+        out = recipe_deals(['cibule'])
+        self.assertEqual(out['total'], 1)
+        self.assertEqual(out['matched'], 1)
+        self.assertEqual(out['deals'][0]['ingredient'], 'cibule')
+
+    def test_unmatched_string_is_counted_but_not_a_deal(self):
+        out = recipe_deals(['pappudia tofu (#2153)'])
+        self.assertEqual(out['total'], 1)
+        self.assertEqual(out['matched'], 0)

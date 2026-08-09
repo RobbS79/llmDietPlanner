@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.test import SimpleTestCase
 
 from diet_planner.services.recipe_pricing import price_recipe, price_recipe_lines, PACK_OVERHEAD
@@ -164,3 +166,44 @@ class PriceRecipeLinesTest(SimpleTestCase):
         r = price_recipe_lines([ing('chicken', 400, 'g')], 2, currency='EUR', book=BOOK)
         self.assertAlmostEqual(r.lines[0].consumed_cost, 120.0 / 25.0, places=4)
         self.assertAlmostEqual(r.low, 120.0 / 25.0, places=4)
+
+
+class StringIngredientEntriesTest(SimpleTestCase):
+    """Curated recipes store ingredients as dicts; LLM-generated meals store
+    them as plain strings ("pappudia tofu (#2153)"). Prod 2026-08-09: every
+    recipe endpoint of plan 140 returned a raw 500 —
+    `AttributeError: 'str' object has no attribute 'get'` from
+    `price_recipe`, surfaced through RecipeSerializer.get_price_range. Pricing
+    must tolerate both shapes; an unresolvable string is simply unpriced."""
+
+    def test_string_ingredients_do_not_crash_price_recipe(self):
+        with mock.patch('diet_planner.services.recipe_pricing.resolve_canonical',
+                        return_value=None):
+            r = price_recipe(['pappudia tofu (#2153)', 'cuketa zelená (#2169)'],
+                             1, book=BOOK)
+        self.assertIsNone(r)   # nothing resolved, so nothing prices
+
+    def test_string_ingredient_prices_when_its_name_resolves(self):
+        canonical = mock.Mock(slug='chicken')
+        with mock.patch('diet_planner.services.recipe_pricing.resolve_canonical',
+                        return_value=canonical):
+            # No quantity in a bare string -> no consumable cost, but the entry
+            # still counts toward coverage rather than exploding.
+            r = price_recipe(['kuřecí prsa', ing('rice', 200, 'g')], 2, book=BOOK)
+        self.assertIsNotNone(r)
+        self.assertEqual(r.total_count, 2)
+
+    def test_mixed_string_and_dict_entries_are_both_counted(self):
+        with mock.patch('diet_planner.services.recipe_pricing.resolve_canonical',
+                        return_value=None):
+            r = price_recipe_lines(['tofu', ing('chicken', 400, 'g')], 2, book=BOOK)
+        self.assertEqual(len(r.lines), 2)
+        self.assertEqual(r.lines[0].name, 'tofu')
+        self.assertEqual(r.low, 120.0)          # only the dict entry priced
+
+    def test_blank_and_none_entries_are_skipped_not_counted(self):
+        with mock.patch('diet_planner.services.recipe_pricing.resolve_canonical',
+                        return_value=None):
+            r = price_recipe_lines([None, '   ', ing('chicken', 400, 'g')], 2, book=BOOK)
+        self.assertEqual(len(r.lines), 1)
+        self.assertEqual(r.total_count, 1)

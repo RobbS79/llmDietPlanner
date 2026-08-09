@@ -7,7 +7,10 @@ expired, open-ended, fabricated, or mocked is ever ACTIVE. See
 docs/superpowers/specs/2026-06-23-recipe-deals-headline-design.md.
 """
 from diet_planner.models import PriceRecord, PriceSourceType
-from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.canonical_lookup import (
+    normalize_ingredient_entries,
+    resolve_canonical,
+)
 
 
 def _ingredient_slug(ingredient):
@@ -64,12 +67,15 @@ def recipe_deals(ingredients):
     Returns {matched, total, deals}: `total` counts non-optional ingredients,
     `deals` has one entry per matched canonical (deduped), each carrying the
     recipe `ingredient` label.
+
+    Accepts both the curated dict shape and the plain strings generated meals
+    emit — see `normalize_ingredient_entries`.
     """
     index = _active_deal_index()
     deals = []
     seen = set()
     total = 0
-    for ingredient in ingredients or []:
+    for ingredient in normalize_ingredient_entries(ingredients):
         if ingredient.get('optional'):
             continue
         total += 1
