@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 # Dietary requirements the corpus can actually enforce (dietary_tags vocab).
 ENFORCEABLE_DIETARY_TAGS = {'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'low_carb'}
 
+# Keys of the extraction contract — used to pick the right JSON object out of a
+# response that also contains prose or examples.
+_FACET_KEYS = {
+    'cuisines', 'wanted_ingredients', 'avoided_ingredients', 'styles',
+    'emphases', 'dietary', 'max_time_minutes',
+}
+
 
 @dataclass
 class PromptFacets:
@@ -105,12 +112,48 @@ _SYSTEM_PROMPT_TEMPLATE = (
     '(e.g. "maso", "ryba", "rýže", "zelenina" — not sentences);\n'
     '  "avoided_ingredients": ingredients the user wants to avoid (beyond '
     "allergies), same form as wanted_ingredients;\n"
+    '  "dietary": dietary rules the user states they EAT BY, choose from this '
+    "exact list: {dietary_tags}; translate the user's own words "
+    '("vegetariánská strava" -> vegetarian, "nejím lepek" / "bezlepkově" -> '
+    'gluten_free, "bez mléka" -> dairy_free); a passing wish is NOT a rule — '
+    '"chci méně sacharidů" belongs in emphases, only "jím nízkosacharidově" '
+    "is low_carb here; [] when the user states no rule;\n"
     '  "styles": e.g. quick, comfort, light;\n'
     '  "emphases": choose from high_protein, low_carb, low_calorie, budget;\n'
     '  "max_time_minutes": integer — ONLY if the user states an explicit cooking '
     'time limit (e.g. "max 30 minut" -> 30), else null.\n'
-    "Do not invent cuisines outside the provided list. No prose, JSON only."
+    "Do not invent cuisines or dietary values outside the provided lists. "
+    "No prose, JSON only."
 )
+
+
+def _extract_json_object(text: str) -> Optional[dict]:
+    """First parseable JSON object anywhere in the response.
+
+    `json.loads` is strict, and Gemini routinely appends prose (or a second
+    object) after the contract — which raises "Extra data" and threw the WHOLE
+    extraction away. Observed on prod 2026-08-09 after the gemini-3.5-flash
+    bump: every facet call failed, so cuisines, wanted ingredients, time limits
+    AND dietary restrictions were silently empty product-wide. Same fix the
+    refine agent already carries (`refine_agent._extract_contract`).
+    """
+    decoder = json.JSONDecoder()
+    fallback = None
+    idx = text.find('{')
+    while idx != -1:
+        try:
+            data, _ = decoder.raw_decode(text, idx)
+        except ValueError:
+            data = None
+        if isinstance(data, dict):
+            # Prefer an object that actually looks like the contract; a stray
+            # `{}` or an example dict in the prose must not win.
+            if data.keys() & _FACET_KEYS:
+                return data
+            if fallback is None:
+                fallback = data
+        idx = text.find('{', idx + 1)
+    return fallback
 
 
 def _strip_code_fence(text: str) -> str:
@@ -166,13 +209,20 @@ def extract_prompt_facets(
     if not prompt or not prompt.strip():
         return PromptFacets()
     gen = generate or _default_generate
-    system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(vocab=', '.join(cuisine_vocab) or '(none)')
+    system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(
+        vocab=', '.join(cuisine_vocab) or '(none)',
+        # Generated from the enforceable set so the contract cannot drift from
+        # what `_coerce_facets` will actually keep.
+        dietary_tags=', '.join(sorted(ENFORCEABLE_DIETARY_TAGS)),
+    )
     substantive = len(prompt.strip()) >= _NONTRIVIAL_PROMPT_LEN
     attempts = 2 if substantive else 1
     for _ in range(attempts):
         try:
             raw = gen(system_prompt, f"Language: {language}\nRequest: {prompt.strip()}")
-            data = json.loads(_strip_code_fence(raw))
+            data = _extract_json_object(_strip_code_fence(raw))
+            if data is None:
+                raise ValueError('no JSON object in facet response')
             facets = _coerce_facets(data, cuisine_vocab=cuisine_vocab)
         except Exception as exc:  # noqa: BLE001 - defensive by design
             logger.warning("Prompt facet extraction failed: %s", exc)
