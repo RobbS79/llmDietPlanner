@@ -38,10 +38,10 @@ DAILY_CAP = 5
 MAX_SOURCES = 5
 
 _FAIL_REPLIES = {
-    'no_sources': 'Bohužel jsem na webu nenašel žádný vhodný recept. Zkuste to prosím popsat jinak.',
-    'all_sources_failed': 'Našel jsem pár receptů, ale žádný se nepodařilo spolehlivě zpracovat. Zkuste to prosím jinak nebo později.',
-    'gates_failed': 'Recept jsem našel, ale neodpovídá vašim stravovacím omezením, takže ho nenabídnu.',
-    'not_relevant': 'Našel jsem několik receptů, ale žádný doopravdy neodpovídal tomu, co hledáte. Zkuste to prosím popsat jinak.',
+    'no_sources': 'Bohužel jsem na webu nenašla žádný vhodný recept. Zkuste to prosím popsat jinak.',
+    'all_sources_failed': 'Našla jsem pár receptů, ale žádný se nepodařilo spolehlivě zpracovat. Zkuste to prosím jinak nebo později.',
+    'gates_failed': 'Recept jsem našla, ale neodpovídá vašim stravovacím omezením, takže ho nenabídnu.',
+    'not_relevant': 'Našla jsem několik receptů, ale žádný doopravdy neodpovídal tomu, co hledáte. Zkuste to prosím popsat jinak.',
     'error': 'Při hledání receptu se něco pokazilo. Zkuste to prosím znovu.',
 }
 
@@ -326,4 +326,4 @@ def _run(job: RecipeResearchJob) -> Dict[str, str]:
 
 def _ready_reply(recipe: CuratedRecipe) -> str:
     src = f" (podle {recipe.source_name})" if recipe.source_name else ""
-    return f"Našel jsem na webu recept: {recipe.name_cs}{src}. Mrkněte na návrh níže."
+    return f"Našla jsem na webu recept: {recipe.name_cs}{src}. Mrkněte na návrh níže."
