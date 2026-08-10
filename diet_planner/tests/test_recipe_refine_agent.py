@@ -56,6 +56,29 @@ class AgentPreviewTest(RefineAgentEndpointBase):
         self.assertIsNone(data['research_job_id'])
 
     @patch('diet_planner.views.run_refine_turn')
+    def test_plan_time_budget_is_handed_to_the_agent(self, turn):
+        # The chat never re-derived the plan prompt's "max 30 minut", so the
+        # chef happily offered 90-minute dishes (prod goal 141).
+        turn.return_value = AgentTurn(reply_text='Na co máte chuť?')
+        self.plan.grounding_debug = {'facets': {'max_time_minutes': 30},
+                                     'coverage': {'filled': 1, 'total': 1}}
+        self.plan.save(update_fields=['grounding_debug'])
+
+        self.client.post(self._url(), {
+            'messages': [{'role': 'user', 'text': 'něco jiného'}], 'rejected_ids': [],
+        }, format='json')
+
+        self.assertEqual(turn.call_args.kwargs['time_budget'], 30)
+
+    @patch('diet_planner.views.run_refine_turn')
+    def test_no_stated_limit_hands_over_none(self, turn):
+        turn.return_value = AgentTurn(reply_text='Na co máte chuť?')
+        self.client.post(self._url(), {
+            'messages': [{'role': 'user', 'text': 'něco jiného'}], 'rejected_ids': [],
+        }, format='json')
+        self.assertIsNone(turn.call_args.kwargs['time_budget'])
+
+    @patch('diet_planner.views.run_refine_turn')
     def test_agent_crash_falls_back_to_v1(self, turn):
         turn.side_effect = RuntimeError('LLM down')
         with patch('diet_planner.views.refine_conversation') as v1:

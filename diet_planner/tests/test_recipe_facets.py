@@ -197,3 +197,52 @@ class GroundingDebugFieldTest(TestCase):
         )
         plan = DietaryPlan.objects.create(dietary_goal=goal)
         self.assertIsNone(plan.grounding_debug)
+
+
+from types import SimpleNamespace
+
+from django.test import SimpleTestCase
+
+from diet_planner.services.recipe_retrieval import plan_time_budget
+
+
+class PlanTimeBudgetTest(SimpleTestCase):
+    """Read-back of the time limit the user stated in the plan prompt.
+
+    Prod 2026-08-09 (goal 141): the prompt said "max 30 minut", the plan was
+    generated under that cap — and then the chef chat offered 35, 45 and 90
+    minute swaps, because `grounding_debug` was only ever WRITTEN. Every
+    constraint the refine/replace path honoured had to be re-derived from the
+    chat transcript, so a rule stated in the prompt silently stopped applying
+    the moment the user opened the chat.
+    """
+
+    @staticmethod
+    def _plan(debug):
+        return SimpleNamespace(grounding_debug=debug)
+
+    def test_reads_the_stated_limit_back(self):
+        self.assertEqual(
+            plan_time_budget(self._plan({'facets': {'max_time_minutes': 30}})), 30)
+
+    def test_no_limit_stated_is_none(self):
+        self.assertIsNone(
+            plan_time_budget(self._plan({'facets': {'max_time_minutes': None}})))
+        self.assertIsNone(plan_time_budget(self._plan({'facets': {}})))
+
+    def test_missing_or_malformed_debug_never_raises(self):
+        # Plans generated before grounding, or with a half-written blob, are
+        # ordinary — they must read as "no limit", not blow up a swap.
+        for debug in (None, {}, {'facets': None}, {'facets': 'nope'}, 'garbage'):
+            self.assertIsNone(plan_time_budget(self._plan(debug)), msg=repr(debug))
+        self.assertIsNone(plan_time_budget(None))
+
+    def test_nonpositive_and_nonnumeric_limits_are_ignored(self):
+        for bad in (0, -5, 'brzo', True, [30]):
+            self.assertIsNone(
+                plan_time_budget(self._plan({'facets': {'max_time_minutes': bad}})),
+                msg=repr(bad))
+
+    def test_numeric_string_limit_is_honoured(self):
+        self.assertEqual(
+            plan_time_budget(self._plan({'facets': {'max_time_minutes': '45'}})), 45)

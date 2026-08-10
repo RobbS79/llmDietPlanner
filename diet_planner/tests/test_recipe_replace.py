@@ -176,6 +176,76 @@ class HintSteeringTest(ReplaceRecipeTestBase):
         m.assert_not_called()
 
 
+class PlanTimeBudgetTest(ReplaceRecipeTestBase):
+    """The plan prompt's cooking-time limit binds the one-click swap too.
+
+    Same read-back defect as the chef chat (goal 141): the button silently
+    handed back a 90-minute roast to someone who had asked for 30-minute meals.
+    """
+
+    def _plan_with_budget(self, recipe, minutes):
+        plan = self._plan_with_lunch(recipe)
+        plan.grounding_debug = {'facets': {'max_time_minutes': minutes},
+                                'coverage': {'filled': 1, 'total': 1}}
+        plan.save(update_fields=['grounding_debug'])
+        return plan
+
+    def test_blank_hint_swap_stays_within_the_limit(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60,
+                    difficulty=CuratedRecipe.Difficulty.EASY)
+        quick = make_recipe(name_cs='Rychlá omeleta', prep_time=5, cook_time=10,
+                            difficulty=CuratedRecipe.Difficulty.MEDIUM)
+        plan = self._plan_with_budget(current, 30)
+
+        resp = self.client.post(self._url(), {'hint': ''}, format='json')
+
+        plan.refresh_from_db()
+        self.assertEqual(plan.days[0]['lunch']['curated_recipe_id'], quick.id)
+
+    def test_hint_fallback_does_not_relax_the_limit(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60,
+                    difficulty=CuratedRecipe.Difficulty.EASY)
+        quick = make_recipe(name_cs='Rychlá omeleta', prep_time=5, cook_time=10,
+                            difficulty=CuratedRecipe.Difficulty.MEDIUM)
+        plan = self._plan_with_budget(current, 30)
+
+        facets = PromptFacets(cuisines={'klingon'})
+        with patch('diet_planner.views.extract_prompt_facets', return_value=facets):
+            resp = self.client.post(self._url(), {'hint': 'něco klingonského'},
+                                    format='json')
+
+        self.assertFalse(resp.data['data']['hint_matched'])
+        plan.refresh_from_db()
+        self.assertEqual(plan.days[0]['lunch']['curated_recipe_id'], quick.id)
+
+    def test_nothing_within_the_limit_leaves_the_plan_alone(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60)
+        plan = self._plan_with_budget(current, 30)
+
+        resp = self.client.post(self._url(), {'hint': ''}, format='json')
+
+        self.assertFalse(resp.data['data']['replaced'])
+        self.assertEqual(resp.data['data']['reason'], 'no_alternatives')
+        plan.refresh_from_db()
+        self.assertEqual(plan.days[0]['lunch']['curated_recipe_id'], current.id)
+
+    def test_a_limit_in_the_hint_wins_over_the_plans(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        slow = make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60)
+        plan = self._plan_with_budget(current, 30)
+
+        facets = PromptFacets(max_time_minutes=120)
+        with patch('diet_planner.views.extract_prompt_facets', return_value=facets):
+            self.client.post(self._url(), {'hint': 'dnes mám dvě hodiny'},
+                             format='json')
+
+        plan.refresh_from_db()
+        self.assertEqual(plan.days[0]['lunch']['curated_recipe_id'], slow.id)
+
+
 class NoAlternativesNoWriteTest(ReplaceRecipeTestBase):
     def test_no_alternatives_writes_nothing(self):
         current = make_recipe(name_cs='Jediné jídlo')

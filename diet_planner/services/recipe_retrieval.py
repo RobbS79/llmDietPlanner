@@ -45,6 +45,7 @@ from diet_planner.services.canonical_lookup import fold_diacritics, resolve_cano
 from diet_planner.services.prompt_facets import (
     ENFORCEABLE_DIETARY_TAGS,
     PromptFacets,
+    _coerce_time_minutes,
     extract_prompt_facets,
 )
 
@@ -148,6 +149,28 @@ def store_derived_dietary_tags(goal, tags: Set[str]) -> None:
         logger.info("derived_dietary_tags goal=%s tags=%s", goal.pk, value)
     except Exception:  # never break generation over a bookkeeping write
         logger.warning("derived_dietary_tags_save_failed goal=%s", goal.pk, exc_info=True)
+
+
+def plan_time_budget(plan) -> Optional[int]:
+    """The cooking-time cap the user stated in the plan prompt, read back off
+    the plan's stored facets. None when no cap was stated.
+
+    `grounding_debug` was written at generation and never read again, so a limit
+    typed into the prompt applied to the generated plan and then evaporated:
+    prod goal 141 asked for "max 30 minut" and the chef chat offered 35, 45 and
+    90 minute swaps. Restrictions must outlive the turn that stated them — the
+    same reason `required_tags_for_goal` reads `derived_dietary_tags` back.
+
+    Never raises: a plan from before grounding, or with a half-written blob,
+    reads as "no limit" rather than breaking the swap.
+    """
+    debug = getattr(plan, 'grounding_debug', None)
+    if not isinstance(debug, dict):
+        return None
+    facets = debug.get('facets')
+    if not isinstance(facets, dict):
+        return None
+    return _coerce_time_minutes(facets.get('max_time_minutes'))
 
 
 def required_tags_for_goal(goal) -> Set[str]:
