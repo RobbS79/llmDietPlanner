@@ -58,6 +58,9 @@ _SYSTEM_PROMPT = (
     "v TOMTO tahu skutečně nezavolal nástroj research_web. Slíbené hledání, "
     "které neproběhne, je pro uživatele slepá ulička.\n"
     "5. Respektuj uvedená stravovací omezení uživatele i v konverzaci.\n"
+    "6. Respektuj uvedený časový limit — nenabízej ani neslibuj jídlo, které "
+    "se do něj nevejde. Když uživatel řekne, že má dnes víc nebo míň času, "
+    "předej nový limit v parametru max_time_minutes nástroje search_corpus.\n"
     "Poslední zpráva každého tahu MUSÍ být POUZE tento JSON objekt a nic víc — "
     "žádný text před ním ani za ním: "
     '{"reply": "<tvá česká odpověď>", "candidate_id": <číselné id z posledního '
@@ -83,6 +86,15 @@ _SEARCH_CORPUS_DECL = {
                        'description': 'e.g. quick, comfort, light'},
             'emphases': {'type': 'array', 'items': {'type': 'string'},
                          'description': 'high_protein, low_carb, low_calorie, budget'},
+            'max_time_minutes': {
+                'type': 'integer',
+                'description': (
+                    'total cooking time limit in minutes, ONLY when the user '
+                    'states one in this conversation ("do 20 minut" -> 20); '
+                    'omit otherwise — the limit from the plan request already '
+                    'applies by itself'
+                ),
+            },
         },
     },
 }
@@ -165,14 +177,19 @@ class GeminiAgentSession:
 def _context_message(
     *, meal_type: str, current_meal: Dict, required_tags: Set[str],
     used_cuisines: Sequence[str], messages: List[Dict],
+    time_budget: Optional[int] = None,
 ) -> str:
     transcript = '\n'.join(f"{m['role']}: {m['text']}" for m in messages)
+    # The time limit is stated as well as gated: the gate keeps a slow dish out
+    # of the cards, but only the model can stop PROMISING one in its reply.
+    limit = f"{time_budget} minut (z původního zadání)" if time_budget else 'žádný'
     return (
         f"Slot: {meal_type}\n"
         f"Aktuální jídlo: {current_meal.get('name') or '(neznámé)'} — "
         f"{current_meal.get('description') or ''}\n"
         f"Stravovací omezení (vynucená systémem): "
         f"{', '.join(sorted(required_tags)) or 'žádná'}\n"
+        f"Časový limit: {limit}\n"
         f"Kuchyně už použité v plánu: {', '.join(used_cuisines) or 'žádné'}\n"
         f"Konverzace:\n{transcript}"
     )
@@ -182,20 +199,29 @@ def _tool_search_corpus(
     args: Dict, *, meal_type: str, required_tags: Set[str],
     pool: List[CuratedRecipe], exclude_ids: Set[int],
     used_recipe_ids: Set[int], used_cuisines: Sequence[str],
+    time_budget: Optional[int] = None,
 ) -> Dict:
-    """Execute search_corpus: hard gate in code, model-supplied soft criteria."""
-    from diet_planner.services.prompt_facets import PromptFacets
+    """Execute search_corpus: hard gate in code, model-supplied soft criteria.
+
+    `time_budget` is the limit the user stated in the PLAN prompt (read back off
+    the plan by the caller). It applies to every search of this chat unless the
+    user restates a limit here, in which case the newer, explicit one wins —
+    "dnes mám čas" must be able to lift the cap as well as tighten it.
+    """
+    from diet_planner.services.prompt_facets import PromptFacets, _coerce_time_minutes
 
     def _set(key):
         v = args.get(key)
         return {str(x).strip().lower() for x in v if str(x).strip()} if isinstance(v, (list, tuple)) else set()
 
+    max_time = _coerce_time_minutes(args.get('max_time_minutes')) or time_budget
     facets = PromptFacets(
         cuisines=_set('cuisines'),
         wanted_ingredients=_set('wanted_ingredients'),
         avoided_ingredients=_set('avoided_ingredients'),
         styles=_set('styles'),
         emphases=_set('emphases'),
+        max_time_minutes=max_time,
     )
     active = None if facets.is_empty() else facets
     candidates = eligible_recipes_for_slot(
@@ -203,9 +229,12 @@ def _tool_search_corpus(
     )
     if not candidates and active is not None:
         # Soft criteria too narrow — retry unsteered so the model can say so
-        # honestly and still offer the best available dish.
+        # honestly and still offer the best available dish. The time cap is a
+        # restriction, not a preference: it stays on, so the retry can never
+        # answer "nothing under 30 minutes" with a 90-minute roast.
+        floor = PromptFacets(max_time_minutes=max_time) if max_time else None
         candidates = eligible_recipes_for_slot(
-            meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=None,
+            meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=floor,
         )
     ranked = sorted(
         candidates,
@@ -306,6 +335,7 @@ def run_refine_turn(
     used_recipe_ids: Set[int],
     used_cuisines: Sequence[str],
     messages: List[Dict],
+    time_budget: Optional[int] = None,
     session_factory: Optional[Callable[[str], object]] = None,
 ) -> AgentTurn:
     """One preview turn of the v2 agent. May raise — the caller falls back to
@@ -321,7 +351,7 @@ def run_refine_turn(
 
     out = session.send_text(_context_message(
         meal_type=meal_type, current_meal=current_meal, required_tags=required_tags,
-        used_cuisines=used_cuisines, messages=messages,
+        used_cuisines=used_cuisines, messages=messages, time_budget=time_budget,
     ))
     for _ in range(MAX_TOOL_ROUNDS):
         call = out.get('tool_call')
@@ -332,7 +362,7 @@ def run_refine_turn(
             payload = _tool_search_corpus(
                 args, meal_type=meal_type, required_tags=required_tags, pool=pool,
                 exclude_ids=exclude_ids, used_recipe_ids=used_recipe_ids,
-                used_cuisines=used_cuisines,
+                used_cuisines=used_cuisines, time_budget=time_budget,
             )
             offered_order = [c['id'] for c in payload['candidates']]
             out = session.send_tool_result(name, payload)

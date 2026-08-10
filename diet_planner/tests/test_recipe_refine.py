@@ -274,6 +274,96 @@ class ChatStatedRestrictionsTest(RefineTestBase):
         self.assertTrue(body['hint_matched'])
 
 
+class PlanTimeBudgetTest(RefineTestBase):
+    """A cooking-time limit stated in the PLAN prompt keeps applying inside the
+    chat (prod goal 141: prompt said max 30 min, chat offered 35/45/90).
+
+    These cover the v1 facet path — the fallback the endpoint serves whenever
+    the agent is off or crashes, so the promise must hold on both paths.
+    """
+
+    def _plan_with_budget(self, recipe, minutes):
+        plan = self._plan_with_lunch(recipe)
+        plan.grounding_debug = {'facets': {'max_time_minutes': minutes},
+                                'coverage': {'filled': 1, 'total': 1}}
+        plan.save(update_fields=['grounding_debug'])
+        return plan
+
+    def test_slow_dish_is_not_offered_even_when_it_fits_the_wish(self):
+        # The slow dish is exactly what the user asked for and outranks the
+        # quick one by 20 points — the time cap must still keep it out.
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60, ingredients=[
+            {'name': 'vepřové koleno', 'quantity': 1000, 'unit': 'g',
+             'canonical': 'pork-knuckle'},
+        ])
+        quick = make_recipe(name_cs='Rychlá omeleta', prep_time=5, cook_time=10)
+        self._plan_with_budget(current, 30)
+
+        facets = PromptFacets(wanted_ingredients={'vepřové'})
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview([{'role': 'user', 'text': 'něco vepřového'}])
+
+        body = resp.data['data']
+        self.assertEqual(body['candidate']['curated_recipe_id'], quick.id)
+        self.assertFalse(body['hint_matched'])  # honest: the wish didn't fit
+
+    def test_limit_survives_the_unmatched_facets_fallback(self):
+        # Facets nobody can satisfy fall back to "next best" — which must still
+        # be next-best WITHIN the time the user has. The slow dish is the
+        # better-ranked one (easy vs medium), so only the cap can exclude it.
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60,
+                    difficulty=CuratedRecipe.Difficulty.EASY)
+        quick = make_recipe(name_cs='Rychlá omeleta', prep_time=5, cook_time=10,
+                            difficulty=CuratedRecipe.Difficulty.MEDIUM)
+        self._plan_with_budget(current, 30)
+
+        facets = PromptFacets(cuisines={'klingon'})
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview([{'role': 'user', 'text': 'něco klingonského'}])
+
+        body = resp.data['data']
+        self.assertEqual(body['candidate']['curated_recipe_id'], quick.id)
+        self.assertFalse(body['hint_matched'])
+
+    def test_nothing_fits_the_limit_is_reported_honestly(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60)
+        self._plan_with_budget(current, 30)
+
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(PromptFacets(), None)):
+            resp = self._preview([{'role': 'user', 'text': 'něco jiného'}])
+
+        body = resp.data['data']
+        self.assertIsNone(body['candidate'])
+        self.assertEqual(body['reason'], 'no_alternatives')
+
+    def test_a_limit_restated_in_the_chat_wins(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        slow = make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60)
+        self._plan_with_budget(current, 30)
+
+        # "Dneska mám čas" — the newer explicit limit replaces the old one.
+        facets = PromptFacets(max_time_minutes=120)
+        with patch('diet_planner.views.refine_conversation', return_value=(facets, None)):
+            resp = self._preview([{'role': 'user', 'text': 'dnes mám klidně dvě hodiny'}])
+
+        self.assertEqual(resp.data['data']['candidate']['curated_recipe_id'], slow.id)
+
+    def test_no_stated_limit_leaves_everything_on_the_table(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        slow = make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60)
+        self._plan_with_lunch(current)  # no grounding_debug at all
+
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(PromptFacets(), None)):
+            resp = self._preview([{'role': 'user', 'text': 'něco jiného'}])
+
+        self.assertEqual(resp.data['data']['candidate']['curated_recipe_id'], slow.id)
+
+
 class WhyLineIngredientTest(RefineTestBase):
     def test_why_line_shows_recipe_ingredient_not_facet_token(self):
         # The LLM normalizes "testoviny" -> token "pasta"; the user must see

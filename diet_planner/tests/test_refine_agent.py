@@ -255,3 +255,130 @@ class SearchCorpusCandidateCaloriesTest(TestCase):
     def test_missing_nutrition_stays_none(self):
         recipe = make_recipe(name_cs='Bez hodnot', base_servings=2, base_nutrition={})
         self.assertIsNone(self._candidates(recipe)[0]['calories'])
+
+
+class SearchCorpusTimeBudgetTest(TestCase):
+    """A stated cooking-time limit is a HARD cap on what the chat may offer.
+
+    Prod 2026-08-09, goal 141: the plan prompt said "max 30 minut" and the chef
+    chat came back with 35, 45 and 90 minute dishes. The gate existed
+    (`recipe_matches_facets`) but nothing fed it a time: the tool schema had no
+    time parameter, so a limit could only ever arrive if the user re-typed it,
+    and even then the model had nowhere to put it.
+    """
+
+    def setUp(self):
+        self.quick = make_recipe(name_cs='Rychlá omeleta', prep_time=5, cook_time=10)
+        self.slow = make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60)
+
+    def _search(self, args=None, **kw):
+        return refine_agent._tool_search_corpus(
+            args or {},
+            meal_type='lunch',
+            required_tags=set(),
+            pool=kw.pop('pool', [self.quick, self.slow]),
+            exclude_ids=set(),
+            used_recipe_ids=set(),
+            used_cuisines=[],
+            **kw,
+        )['candidates']
+
+    def test_the_chef_is_told_to_respect_the_time_limit(self):
+        # The gate stops a slow dish becoming a card; only the instruction stops
+        # her offering one in words the cards can then never deliver.
+        self.assertIn('časový limit', refine_agent._SYSTEM_PROMPT.lower())
+
+    def test_tool_schema_offers_a_time_limit_parameter(self):
+        # Without it the model cannot express "do 20 minut" said in the chat.
+        props = refine_agent._SEARCH_CORPUS_DECL['parameters']['properties']
+        self.assertIn('max_time_minutes', props)
+        self.assertEqual(props['max_time_minutes']['type'], 'integer')
+
+    def test_plan_time_budget_gates_slow_dishes(self):
+        names = [c['name'] for c in self._search(time_budget=30)]
+        self.assertEqual(names, ['Rychlá omeleta'])
+
+    def test_no_budget_offers_everything(self):
+        names = sorted(c['name'] for c in self._search())
+        self.assertEqual(names, ['Pečené koleno', 'Rychlá omeleta'])
+
+    def test_chat_stated_limit_overrides_the_plan_budget(self):
+        # "Dnes mám čas, klidně hodinu a půl" — the newer explicit intent wins,
+        # in both directions.
+        names = [c['name'] for c in
+                 self._search({'max_time_minutes': 90}, time_budget=30)]
+        self.assertEqual(sorted(names), ['Pečené koleno', 'Rychlá omeleta'])
+        names = [c['name'] for c in
+                 self._search({'max_time_minutes': 20}, time_budget=None)]
+        self.assertEqual(names, ['Rychlá omeleta'])
+
+    def test_unsteered_retry_keeps_the_time_cap(self):
+        # Soft criteria that match nothing trigger a retry so the model can
+        # still offer the best available dish — that retry drops PREFERENCES,
+        # never the cap. Offering a 90-minute roast to someone who has 30
+        # minutes is exactly the bug we are fixing.
+        names = [c['name'] for c in
+                 self._search({'cuisines': ['klingon']}, time_budget=30)]
+        self.assertEqual(names, ['Rychlá omeleta'])
+
+    def test_nothing_fits_the_cap_returns_nothing(self):
+        # Honest emptiness: the model can then say so or search the web,
+        # instead of the tool quietly handing back a dish that breaks the rule.
+        self.assertEqual(self._search(time_budget=30, pool=[self.slow]), [])
+
+    def test_recipe_with_unknown_time_still_passes(self):
+        untimed = make_recipe(name_cs='Bez času', prep_time=0, cook_time=0)
+        names = [c['name'] for c in self._search(time_budget=30, pool=[untimed])]
+        self.assertEqual(names, ['Bez času'])
+
+
+class RunRefineTurnTimeBudgetTest(TestCase):
+    """The budget has to survive the trip from the view into the tool."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create(username='hodinar')
+        self.quick = make_recipe(name_cs='Rychlá omeleta', prep_time=5, cook_time=10)
+        self.slow = make_recipe(name_cs='Pečené koleno', prep_time=30, cook_time=60)
+
+    def test_budget_reaches_the_search_tool(self):
+        session = FakeSession([_call('search_corpus'), _final('Co třeba tohle?')])
+        refine_agent.run_refine_turn(
+            user=self.user, meal_identifier='1:1:lunch:0', meal_type='lunch',
+            current_meal={'name': 'Menemen', 'description': ''},
+            required_tags=set(), pool=[self.quick, self.slow], exclude_ids=set(),
+            used_recipe_ids=set(), used_cuisines=[],
+            messages=[{'role': 'user', 'text': 'něco jiného'}],
+            time_budget=30,
+            session_factory=lambda system_prompt: session,
+        )
+        _, payload = session.tool_results[0]
+        self.assertEqual([c['name'] for c in payload['candidates']],
+                         ['Rychlá omeleta'])
+
+    def test_the_model_is_told_about_the_standing_limit(self):
+        # The gate alone would leave the chef puzzled about why her search came
+        # back thin — and free to promise a slow-cooked dish in prose she can
+        # then never offer.
+        session = FakeSession([_final('Na co máte chuť?')])
+        refine_agent.run_refine_turn(
+            user=self.user, meal_identifier='1:1:lunch:0', meal_type='lunch',
+            current_meal={'name': 'Menemen', 'description': ''},
+            required_tags=set(), pool=[self.quick], exclude_ids=set(),
+            used_recipe_ids=set(), used_cuisines=[],
+            messages=[{'role': 'user', 'text': 'něco jiného'}],
+            time_budget=30,
+            session_factory=lambda system_prompt: session,
+        )
+        self.assertIn('30', session.first_message)
+
+    def test_no_limit_says_so_rather_than_inventing_one(self):
+        session = FakeSession([_final('Na co máte chuť?')])
+        refine_agent.run_refine_turn(
+            user=self.user, meal_identifier='1:1:lunch:0', meal_type='lunch',
+            current_meal={'name': 'Menemen', 'description': ''},
+            required_tags=set(), pool=[self.quick], exclude_ids=set(),
+            used_recipe_ids=set(), used_cuisines=[],
+            messages=[{'role': 'user', 'text': 'něco jiného'}],
+            session_factory=lambda system_prompt: session,
+        )
+        self.assertIn('Časový limit: žádný', session.first_message)

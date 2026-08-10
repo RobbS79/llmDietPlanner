@@ -47,6 +47,7 @@ from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
 from .services.recipe_retrieval import (
     required_tags_for_goal,
+    plan_time_budget,
     published_pool,
     published_cuisine_vocab,
     eligible_recipes_for_slot,
@@ -55,7 +56,7 @@ from .services.recipe_retrieval import (
     scale_recipe_to_meal,
     wanted_matcher,
 )
-from .services.prompt_facets import extract_prompt_facets
+from .services.prompt_facets import PromptFacets, extract_prompt_facets
 from .services.refine_agent import run_refine_turn
 from .services.refine_chat import clamp_messages, refine_conversation
 from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, process_protocol_pdf_task
@@ -693,6 +694,15 @@ class RecipeReplaceView(APIView):
                 facets = None
                 hint_matched = False
 
+        # The cooking-time limit stated in the plan prompt binds every swap out
+        # of that plan, not just the generated meals (see `plan_time_budget`); a
+        # limit restated in the hint is newer intent and replaces it.
+        time_limit = (facets.max_time_minutes if facets else None) or plan_time_budget(plan)
+        if facets is not None and time_limit:
+            facets.max_time_minutes = time_limit
+        # Carries the cap — and nothing else — into the unsteered fallback.
+        floor = PromptFacets(max_time_minutes=time_limit) if time_limit else None
+
         def pick(active_facets):
             candidates = eligible_recipes_for_slot(
                 ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
@@ -703,12 +713,12 @@ class RecipeReplaceView(APIView):
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines, facets=active_facets,
             ))
 
-        chosen = pick(facets)
+        chosen = pick(facets if facets is not None else floor)
         if hint and hint_matched is None:
             # A non-empty hint was applied — did it actually steer the pick?
             if chosen is None:
                 # Hint too specific for the corpus — fall back to plain next-best.
-                chosen = pick(None)
+                chosen = pick(floor)
                 hint_matched = False
             elif facets.wanted_ingredients:
                 # Wanted ingredients rank rather than gate (issue #47), so an
@@ -860,6 +870,10 @@ class RecipeRefineView(APIView):
         }
         exclude_ids = ({current_id} if current_id else set()) | rejected
         slot_calories = _slot_calories(ctx.current_meal)
+        # A cooking-time limit stated in the PLAN prompt still binds inside the
+        # chat: goal 141 asked for "max 30 minut" and was offered 35/45/90 min
+        # dishes, because nothing ever read the plan's facets back.
+        time_budget = plan_time_budget(ctx.plan)
 
         if getattr(settings, 'REFINE_CHAT_AGENT_ENABLED', False):
             try:
@@ -874,6 +888,7 @@ class RecipeRefineView(APIView):
                     used_recipe_ids=used_recipe_ids,
                     used_cuisines=used_cuisines,
                     messages=messages,
+                    time_budget=time_budget,
                 )
                 return Response({
                     "status": "success",
@@ -904,12 +919,20 @@ class RecipeRefineView(APIView):
         # gate as HARD requirements — used by both picks below, so the
         # unmatched-facets fallback can never relax them.
         required_tags = required_tags | facets.dietary
+        # A limit restated in the chat ("dnes mám čas") replaces the plan's —
+        # it is the newer explicit intent, in both directions.
+        time_limit = facets.max_time_minutes or time_budget
         hint_matched = None
         if facets.is_empty():
             # Mirrors the replace endpoint: empty facets (LLM failure or nothing
             # extractable) match everything — report the pick as unsteered.
             facets = None
             hint_matched = False
+        elif time_limit:
+            facets.max_time_minutes = time_limit
+        # The time cap is a restriction, not a preference: `floor` carries it
+        # into the unsteered fallback below, which drops everything else.
+        floor = PromptFacets(max_time_minutes=time_limit) if time_limit else None
 
         def pick(active_facets):
             candidates = eligible_recipes_for_slot(
@@ -921,10 +944,10 @@ class RecipeRefineView(APIView):
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines, facets=active_facets,
             ))
 
-        chosen = pick(facets)
+        chosen = pick(facets if facets is not None else floor)
         if facets is not None:
             if chosen is None:
-                chosen = pick(None)
+                chosen = pick(floor)
                 hint_matched = False
             elif facets.wanted_ingredients:
                 # Wanted ingredients rank rather than gate (issue #47), so an
