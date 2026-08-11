@@ -663,12 +663,16 @@
     - { alias: "červené zelí", language_code: cs }
 
 - name: kale
-  name_cs: kapusta
+  # name_cs is deliberately "kadeřávek", NOT "kapusta": bare "kapusta" is savoy
+  # cabbage, a different and entirely ordinary vegetable, and it used to resolve
+  # here. Do not put it back.
+  name_cs: kadeřávek
   category: vegetables
   default_unit: g
   aliases:
     - { alias: "kadeřávek", language_code: cs }
     - { alias: "kapusta kadeřavá", language_code: cs }
+    - { alias: "kadeřavá kapusta", language_code: cs }
     - { alias: "kadeřávkové listy", language_code: cs }
     - { alias: "listy kadeřávku", language_code: cs }
     - { alias: "listy kadeřávek", language_code: cs }
@@ -995,11 +999,19 @@
     - { alias: "sezamová pasta", language_code: cs }
 
 - name: green curry paste
-  name_cs: kari pasta
+  # Green and red paste are not interchangeable; name_cs was the generic
+  # "kari pasta" and this entry owned the červená aliases too.
+  name_cs: zelená kari pasta
   category: condiments
   default_unit: g
   aliases:
     - { alias: "thajská zelená kari pasta", language_code: cs }
+
+- name: red curry paste
+  name_cs: červená kari pasta
+  category: condiments
+  default_unit: g
+  aliases:
     - { alias: "červená kari pasta", language_code: cs }
     - { alias: "thajská červená kari pasta", language_code: cs }
 
@@ -2024,10 +2036,29 @@
   estimated_price_czk: 40.0
   estimated_price_eur: 1.60
   aliases:
-    - { alias: "vanilkový extrakt", language_code: cs }
     - { alias: "vanilkové aroma", language_code: cs }
     - { alias: "vanilkový lusk", language_code: cs }
     - { alias: "vanilková esence", language_code: cs }
+
+# Three DISTINCT products, previously conflated. `vanilkový cukr` is an ordinary
+# 8 g sáček in every Czech supermarket; `vanilkový extrakt` is not sold here at
+# all (aroma/esence are the local equivalents, aliased to `vanilla` above).
+# Keep them separate — the availability rating differs.
+- name: vanilla extract
+  name_cs: vanilkový extrakt
+  category: baking
+  default_unit: g
+  aliases:
+    - { alias: "vanilla", language_code: en }
+    - { alias: "vanilkový extrakt", language_code: cs }
+
+- name: vanilla sugar
+  name_cs: vanilkový cukr
+  category: baking
+  default_unit: g
+  aliases:
+    - { alias: "vanilkový cukr", language_code: cs }
+    - { alias: "cukr vanilkový", language_code: cs }
 
 - name: juniper berries
   name_cs: jalovec
