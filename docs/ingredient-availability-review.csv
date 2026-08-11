@@ -1,5 +1,4 @@
 ﻿REVIEW,recipes,slug,name_cs,category,claude_tier,confidence,claude_note,YOUR_TIER,YOUR_NOTE
-***,37,vanilla-extract,Vanilkový extrakt,baking,specialty,low,"BIGGEST REMAINING BLOCKER (37 recipes, down from 47 after the vanilkovy-cukr split). CZ shelves carry vanilkove aroma/esence, NOT ""extrakt"". Is aroma/esence an acceptable swap, or do we treat extrakt as common?",,
 ***,27,garlic-powder,Česnekový prášek,spices,common,low,sold as suseny/granulovany cesnek,,
 ***,26,maple-syrup,Javorový sirup,other,findable,low,real maple syrup only in bigger stores; med is the swap,,
 ***,25,coriander,koriandr,vegetables,findable,low,FRESH coriander unreliable in Lidl/small Billa,,
@@ -92,6 +91,7 @@
 ,39,cinnamon,skořice,spices,common,high,,,
 ,39,parsley,petrželka,vegetables,common,high,,,
 ,38,sweet-paprika,Sladká paprika,spices,common,high,,,
+SETTLED,37,vanilla-extract,Vanilkový extrakt,baking,specialty,owner,"SETTLED by owner 2026-08-11: not sold in CZ. Swap = vanilkove aroma. 37 recipes, the corpus largest single blocker.",,
 ,36,baking-powder,kypřicí prášek,baking,common,high,,,
 ,36,vegetable-stock,zeleninový vývar,condiments,common,high,,,
 ,35,bay-leaves,bobkový list,spices,common,high,,,

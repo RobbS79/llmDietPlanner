@@ -380,12 +380,19 @@ The split that matters — **costume change vs. the dish itself**:
 
 | Saveable (faithful swap) | Not saveable (ingredient *is* the dish) |
 |---|---|
-| vanilkový extrakt → vanilkový cukr | nori in a sushi miska |
+| vanilkový extrakt → vanilkové aroma | nori in a sushi miska |
 | javorový sirup → med | tahini in a tahini dressing |
 | tamari → sójová omáčka | zelená kari pasta in thajské kari |
 | avokádový olej → řepkový olej | bok choy in restované bok choy |
 | mandlové máslo → arašídové máslo | dýňové pyré in dýňové muffiny |
 | ovesná mouka → umleté ovesné vločky | |
+
+**Owner-arbitrated, 2026-08-11:** *vanilkový extrakt is not sold in Czech
+shops; vanilkové aroma is an acceptable swap.* This is the corpus's single
+largest blocker (37 recipes) and it is now settled as `specialty` → substitute.
+Note the swap target currently resolves to the `vanilla` canonical (name_cs
+"vanilka"), so it needs its own `vanilla-aroma` canonical before the rewrite
+runs, or the ingredient line will read "vanilka" instead of "vanilkové aroma".
 
 `apply_availability_substitutions`, per recipe whose blockers are **fully**
 covered by the table:
