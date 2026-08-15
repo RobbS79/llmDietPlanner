@@ -20,6 +20,8 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 
+from diet_planner.models.catalog import Availability
+
 
 class CuratedRecipe(models.Model):
     """A vetted, attributed real dish in the curated corpus."""
@@ -145,6 +147,33 @@ class CuratedRecipe(models.Model):
         null=True,
         blank=True,
         help_text="clarity / cultural-fit / coherence judge output",
+    )
+    shopping_difficulty = models.CharField(
+        max_length=10,
+        choices=Availability.choices,
+        default=Availability.UNRATED,
+        db_index=True,
+        help_text=(
+            "Worst non-optional ingredient's availability. Denormalised — "
+            "recompute_shopping_difficulty is the writer. INVARIANT: the "
+            "rollup never writes 'unrated' (it maps an unrated ingredient to "
+            "'findable'), so 'unrated' here means ONLY 'not yet computed'."
+        ),
+    )
+    shopping_blockers = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Canonical slugs rated worse than common that set shopping_difficulty",
+    )
+    adaptation_note = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text='Disclosed change vs the credited source, e.g. "Upraveno pro dostupnost v českých obchodech"',
+    )
+    original_ingredients = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Pre-rewrite snapshot of `ingredients`; makes a substitution revertible",
     )
     usage_count = models.IntegerField(default=0, help_text="For variety/popularity ranking")
     created_at = models.DateTimeField(auto_now_add=True)
