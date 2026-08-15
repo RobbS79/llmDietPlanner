@@ -52,6 +52,23 @@ class GroceryStore(models.Model):
         return f"{self.name} ({self.code})"
 
 
+class Availability(models.TextChoices):
+    """How obtainable an ingredient is in an ordinary Czech supermarket.
+
+    The bar for COMMON is "any Albert / Billa / Kaufland / Tesco / Lidl —
+    one stop, no planning".
+
+    UNRATED is deliberately asymmetric: it RANKS as FINDABLE (a mild penalty,
+    so a migration cannot collapse the corpus) but BLOCKS at intake (so a
+    newly-encountered unknown ingredient forces a human decision instead of
+    leaking forever). See the spec's asymmetry table.
+    """
+    COMMON = 'common', 'Common — any supermarket'
+    FINDABLE = 'findable', 'Findable — large store or Rohlík only'
+    SPECIALTY = 'specialty', 'Specialty — asian/bio shop or online only'
+    UNRATED = 'unrated', 'Unrated'
+
+
 class CanonicalIngredient(models.Model):
     """Store-agnostic ingredient. What a recipe references."""
 
@@ -98,6 +115,18 @@ class CanonicalIngredient(models.Model):
         default=False,
         db_index=True,
         help_text="Always available; does not require a store match"
+    )
+    availability = models.CharField(
+        max_length=10,
+        choices=Availability.choices,
+        default=Availability.UNRATED,
+        db_index=True,
+        help_text="Obtainability in an ordinary Czech supermarket",
+    )
+    availability_note = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='Why this rating, e.g. "Albert ano, Lidl ne"',
     )
     estimated_price_czk = models.DecimalField(
         max_digits=8, decimal_places=2, null=True, blank=True,

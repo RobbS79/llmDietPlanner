@@ -25,6 +25,7 @@ from .core import (  # noqa: F401
 )
 
 from .catalog import (  # noqa: F401
+    Availability,
     GroceryStore,
     CanonicalIngredient,
     IngredientAlias,
