@@ -193,3 +193,52 @@ class RecomputeShoppingDifficultyTest(TestCase):
         self.assertIn('changed=0', out.getvalue())
         r.refresh_from_db()
         self.assertEqual(r.shopping_difficulty, Availability.COMMON)
+
+
+class ReportShoppingDifficultyTest(TestCase):
+    def setUp(self):
+        make_canonical('sůl', availability=Availability.COMMON)
+        make_canonical('tahini', availability=Availability.SPECIALTY)
+        make_canonical('kadeřávek', availability=Availability.FINDABLE)
+
+    def _recipe(self, slug, ings, meal_types, tags):
+        r = CuratedRecipe.objects.create(
+            slug=slug, name_cs=slug, status=CuratedRecipe.Status.PUBLISHED,
+            ingredients=ings, meal_types=meal_types, dietary_tags=tags,
+            source_url=f'https://example.test/{slug}', source_name='Example',
+        )
+        return r
+
+    def _report(self):
+        out = StringIO()
+        self._recipe('clean', [{'name': 'sůl', 'canonical': 'sul'}],
+                     ['lunch'], ['gluten_free'])
+        self._recipe('blocked', [{'name': 'tahini', 'canonical': 'tahini'}],
+                     ['lunch'], ['gluten_free'])
+        self._recipe('mid', [{'name': 'kadeřávek', 'canonical': 'kaderavek'}],
+                     ['dinner'], [])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        call_command('report_shopping_difficulty', stdout=out)
+        return out.getvalue()
+
+    def test_reports_tier_distribution(self):
+        text = self._report()
+        self.assertIn('common', text)
+        self.assertIn('specialty', text)
+        self.assertIn('published recipes: 3', text)
+
+    def test_reports_meal_type_by_dietary_tag_slice(self):
+        text = self._report()
+        self.assertIn('lunch', text)
+        self.assertIn('gluten_free', text)
+
+    def test_reports_blocker_frequency(self):
+        text = self._report()
+        self.assertIn('tahini', text)
+
+    def test_writes_nothing(self):
+        self._report()
+        before = list(CuratedRecipe.objects.values_list('shopping_difficulty', flat=True))
+        call_command('report_shopping_difficulty', stdout=StringIO())
+        after = list(CuratedRecipe.objects.values_list('shopping_difficulty', flat=True))
+        self.assertEqual(before, after)
