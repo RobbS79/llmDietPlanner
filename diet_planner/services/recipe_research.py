@@ -252,6 +252,11 @@ def _run(job: RecipeResearchJob) -> Dict[str, str]:
         result = curate_from_source(
             {'dish_name': job.query, 'source_url': src['url'], 'source_name': src['name']},
             persist=False,
+            # Deliberately opted out until the CZ substitution table exists.
+            # Gating here first would make "najdi mi něco s tofu" fail outright
+            # instead of substituting. Flip to the default when the
+            # substitution phase lands.
+            enforce_availability=False,
         )
         if result.skipped:
             # Source already in corpus: reuse it if the requester may see it.
