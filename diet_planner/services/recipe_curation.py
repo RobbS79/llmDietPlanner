@@ -28,6 +28,7 @@ from bs4 import BeautifulSoup
 from diet_planner.llm_service import GeminiService
 from diet_planner.models import CuratedRecipe
 from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.ingredient_availability import compute_shopping_difficulty
 from diet_planner.services.recipe_plausibility import check_portion_plausibility
 from diet_planner.services import recipe_human_judge
 
@@ -358,6 +359,9 @@ def curate_from_source(
             return result
 
     recipe = CuratedRecipe(**fields)
+
+    # A freshly curated recipe must never be left "not yet computed".
+    recipe.shopping_difficulty, recipe.shopping_blockers = compute_shopping_difficulty(recipe)
 
     if run_judge:
         # Judge needs the ingredient/instruction JSON; the in-memory instance

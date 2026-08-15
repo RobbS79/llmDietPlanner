@@ -1,4 +1,7 @@
 """Availability rating: model defaults and the pure rollup."""
+from io import StringIO
+
+from django.core.management import call_command
 from django.test import TestCase
 
 from diet_planner.models import Availability, CanonicalIngredient, CuratedRecipe
@@ -149,3 +152,44 @@ class UnshoppableIngredientsTest(TestCase):
     def test_optional_specialty_does_not_block(self):
         ings = [{'name': 'tahini', 'canonical': 'tahini', 'optional': True}]
         self.assertEqual(unshoppable_ingredients(ings), [])
+
+
+class RecomputeShoppingDifficultyTest(TestCase):
+    def setUp(self):
+        make_canonical('sůl', availability=Availability.COMMON)
+        make_canonical('tahini', availability=Availability.SPECIALTY)
+
+    def _recipe(self, slug, ings, status=CuratedRecipe.Status.PUBLISHED):
+        return CuratedRecipe.objects.create(
+            slug=slug, name_cs=slug, status=status, ingredients=ings,
+            source_url=f'https://example.test/{slug}', source_name='Example',
+        )
+
+    def test_sets_difficulty_and_blockers(self):
+        r = self._recipe('a', [{'name': 'tahini', 'canonical': 'tahini'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.shopping_difficulty, Availability.SPECIALTY)
+        self.assertEqual(r.shopping_blockers, ['tahini'])
+
+    def test_covers_drafts_not_just_published(self):
+        r = self._recipe('b', [{'name': 'tahini', 'canonical': 'tahini'}],
+                         status=CuratedRecipe.Status.DRAFT)
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.shopping_difficulty, Availability.SPECIALTY)
+
+    def test_dry_run_writes_nothing(self):
+        r = self._recipe('c', [{'name': 'tahini', 'canonical': 'tahini'}])
+        call_command('recompute_shopping_difficulty', dry_run=True, stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.shopping_difficulty, Availability.UNRATED)
+
+    def test_is_idempotent(self):
+        r = self._recipe('d', [{'name': 'sůl', 'canonical': 'sul'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        out = StringIO()
+        call_command('recompute_shopping_difficulty', stdout=out)
+        self.assertIn('changed=0', out.getvalue())
+        r.refresh_from_db()
+        self.assertEqual(r.shopping_difficulty, Availability.COMMON)
