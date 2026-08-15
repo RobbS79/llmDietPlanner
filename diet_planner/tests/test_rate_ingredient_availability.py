@@ -70,3 +70,72 @@ class ImportAvailabilityReviewTest(TestCase):
         with self.assertRaises(CommandError) as ctx:
             self._run()
         self.assertIn('maybe', str(ctx.exception))
+
+
+class RateIngredientAvailabilityTest(TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.yaml_path = self.tmp / 'availability.yaml'
+        # Migration 0022 seeds ~62 staples into every DB, this one included.
+        # The command demands a rating for *every* canonical, so clear the
+        # table to assert on exactly the two rows under test.
+        CanonicalIngredient.objects.all().delete()
+        make_canonical('tahini')
+        make_canonical('sůl')
+
+    def _write(self, rows):
+        self.yaml_path.write_text(
+            yaml.safe_dump(rows, allow_unicode=True), encoding='utf-8')
+
+    def _run(self, **kw):
+        call_command('rate_ingredient_availability', file=str(self.yaml_path), **kw)
+
+    def _full(self):
+        return [
+            {'slug': 'tahini', 'availability': 'specialty',
+             'confidence': 'high', 'note': 'asian shops'},
+            {'slug': 'sul', 'availability': 'common',
+             'confidence': 'high', 'note': ''},
+        ]
+
+    def test_applies_ratings_and_notes(self):
+        self._write(self._full())
+        self._run()
+        self.assertEqual(
+            CanonicalIngredient.objects.get(slug='tahini').availability, 'specialty')
+        self.assertEqual(
+            CanonicalIngredient.objects.get(slug='tahini').availability_note,
+            'asian shops')
+        self.assertEqual(
+            CanonicalIngredient.objects.get(slug='sul').availability, 'common')
+
+    def test_is_idempotent(self):
+        self._write(self._full())
+        self._run()
+        self._run()
+        self.assertEqual(
+            CanonicalIngredient.objects.get(slug='tahini').availability, 'specialty')
+
+    def test_dry_run_writes_nothing(self):
+        self._write(self._full())
+        self._run(dry_run=True)
+        self.assertEqual(
+            CanonicalIngredient.objects.get(slug='tahini').availability,
+            Availability.UNRATED)
+
+    def test_missing_canonical_is_a_hard_error(self):
+        # 'sul' deliberately absent from the YAML: growing the dictionary must
+        # not silently leave rows unrated.
+        self._write([{'slug': 'tahini', 'availability': 'specialty',
+                      'confidence': 'high', 'note': ''}])
+        with self.assertRaises(CommandError) as ctx:
+            self._run()
+        self.assertIn('sul', str(ctx.exception))
+
+    def test_yaml_row_for_unknown_slug_is_a_hard_error(self):
+        rows = self._full() + [{'slug': 'ghost', 'availability': 'common',
+                                'confidence': 'high', 'note': ''}]
+        self._write(rows)
+        with self.assertRaises(CommandError) as ctx:
+            self._run()
+        self.assertIn('ghost', str(ctx.exception))
