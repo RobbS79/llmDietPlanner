@@ -45,7 +45,7 @@
 - Create: `diet_planner/migrations/0035_ingredient_availability.py`
 - Test: `diet_planner/tests/test_ingredient_availability.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_ingredient_availability.py`:
 
@@ -75,12 +75,12 @@ class AvailabilityFieldTest(TestCase):
         self.assertEqual(ci.availability_note, 'velké Albert/Kaufland sezónně')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability -v 2`
 Expected: FAIL with `ImportError: cannot import name 'Availability' from 'diet_planner.models'`
 
-- [ ] **Step 3: Add the choices class and fields**
+- [x] **Step 3: Add the choices class and fields**
 
 In `diet_planner/models/catalog.py`, add at **module level** (above `class CanonicalIngredient`, not nested inside it — `curated.py` imports it and nesting would force a circular-ish import through the model class):
 
@@ -121,17 +121,17 @@ Then inside `class CanonicalIngredient`, directly after the `is_pantry_staple` f
 
 In `diet_planner/models/__init__.py`, add `Availability` to the import from `.catalog` (alongside `CanonicalIngredient`) and to `__all__` if the file defines one.
 
-- [ ] **Step 4: Generate the migration**
+- [x] **Step 4: Generate the migration**
 
 Run: `python manage.py makemigrations diet_planner --name ingredient_availability`
 Expected: `Migrations for 'diet_planner': 0035_ingredient_availability.py - Add field availability to canonicalingredient - Add field availability_note to canonicalingredient`
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability -v 2`
 Expected: PASS (2 tests)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/models/catalog.py diet_planner/models/__init__.py \
@@ -149,7 +149,7 @@ git commit -m "feat(catalog): add three-tier availability rating to CanonicalIng
 - Create: `diet_planner/migrations/0036_curatedrecipe_shopping_difficulty.py`
 - Test: `diet_planner/tests/test_ingredient_availability.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_availability.py`:
 
@@ -187,12 +187,12 @@ class ShoppingDifficultyFieldTest(TestCase):
         self.assertEqual(r.original_ingredients[0]['name'], 'tahini')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability.ShoppingDifficultyFieldTest -v 2`
 Expected: FAIL with `TypeError: CuratedRecipe() got unexpected keyword arguments: 'shopping_difficulty'`
 
-- [ ] **Step 3: Add the fields**
+- [x] **Step 3: Add the fields**
 
 In `diet_planner/models/curated.py`, add the import at the top:
 
@@ -232,17 +232,17 @@ Inside `class CuratedRecipe`, in the `--- Lifecycle / quality ---` block directl
     )
 ```
 
-- [ ] **Step 4: Generate the migration**
+- [x] **Step 4: Generate the migration**
 
 Run: `python manage.py makemigrations diet_planner --name curatedrecipe_shopping_difficulty`
 Expected: four `Add field ... to curatedrecipe` lines
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability -v 2`
 Expected: PASS (4 tests)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/models/curated.py \
@@ -261,7 +261,7 @@ This is the single source of truth. The rollup command, the report and the intak
 - Create: `diet_planner/services/ingredient_availability.py`
 - Test: `diet_planner/tests/test_ingredient_availability.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_availability.py`:
 
@@ -365,12 +365,12 @@ class UnshoppableIngredientsTest(TestCase):
         self.assertEqual(unshoppable_ingredients(ings), [])
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability -v 2`
 Expected: FAIL with `ModuleNotFoundError: No module named 'diet_planner.services.ingredient_availability'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `diet_planner/services/ingredient_availability.py`:
 
@@ -497,12 +497,12 @@ def unshoppable_ingredients(
     return sorted(blocked)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability -v 2`
 Expected: PASS (16 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/services/ingredient_availability.py \
@@ -521,7 +521,7 @@ The owner's review lives in `docs/ingredient-availability-review.csv`. This conv
 - Create: `diet_planner/data/ingredient_availability.yaml` (generated output — commit it)
 - Test: `diet_planner/tests/test_rate_ingredient_availability.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_rate_ingredient_availability.py`:
 
@@ -600,12 +600,12 @@ class ImportAvailabilityReviewTest(TestCase):
         self.assertIn('maybe', str(ctx.exception))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_rate_ingredient_availability.ImportAvailabilityReviewTest -v 2`
 Expected: FAIL with `CommandError: Unknown command: 'import_availability_review'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command**
 
 Create `diet_planner/management/commands/import_availability_review.py`:
 
@@ -689,17 +689,17 @@ class Command(BaseCommand):
         ))
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python manage.py test diet_planner.tests.test_rate_ingredient_availability.ImportAvailabilityReviewTest -v 2`
 Expected: PASS (4 tests)
 
-- [ ] **Step 5: Generate the real seed file**
+- [x] **Step 5: Generate the real seed file**
 
 Run: `python manage.py import_availability_review`
 Expected: `wrote 297 ratings to .../ingredient_availability.yaml (owner-settled=13, still-guessing=57)`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/management/commands/import_availability_review.py \
@@ -716,7 +716,7 @@ git commit -m "feat(availability): generate rating seed YAML from the owner revi
 - Create: `diet_planner/management/commands/rate_ingredient_availability.py`
 - Test: `diet_planner/tests/test_rate_ingredient_availability.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_rate_ingredient_availability.py`:
 
@@ -786,12 +786,12 @@ class RateIngredientAvailabilityTest(TestCase):
         self.assertIn('ghost', str(ctx.exception))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_rate_ingredient_availability.RateIngredientAvailabilityTest -v 2`
 Expected: FAIL with `CommandError: Unknown command: 'rate_ingredient_availability'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command**
 
 Create `diet_planner/management/commands/rate_ingredient_availability.py`:
 
@@ -885,12 +885,12 @@ class Command(BaseCommand):
             f'{prefix}rated={len(by_slug)} changed={changed}'))
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python manage.py test diet_planner.tests.test_rate_ingredient_availability -v 2`
 Expected: PASS (9 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/management/commands/rate_ingredient_availability.py \
@@ -907,7 +907,7 @@ git commit -m "feat(availability): idempotent command applying rating YAML to ca
 - Modify: `diet_planner/services/recipe_curation.py`
 - Test: `diet_planner/tests/test_ingredient_availability.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_availability.py`:
 
@@ -957,12 +957,12 @@ class RecomputeShoppingDifficultyTest(TestCase):
         self.assertEqual(r.shopping_difficulty, Availability.COMMON)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability.RecomputeShoppingDifficultyTest -v 2`
 Expected: FAIL with `CommandError: Unknown command: 'recompute_shopping_difficulty'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command**
 
 Create `diet_planner/management/commands/recompute_shopping_difficulty.py`:
 
@@ -1011,7 +1011,7 @@ class Command(BaseCommand):
             f'{prefix}recipes={total} changed={changed}'))
 ```
 
-- [ ] **Step 4: Wire the rollup into curation**
+- [x] **Step 4: Wire the rollup into curation**
 
 In `diet_planner/services/recipe_curation.py`, add the import near the other service imports:
 
@@ -1026,12 +1026,12 @@ In `curate_from_source`, immediately after `recipe = CuratedRecipe(**fields)` an
     recipe.shopping_difficulty, recipe.shopping_blockers = compute_shopping_difficulty(recipe)
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability diet_planner.tests.test_curation_plausibility_gate -v 2`
 Expected: PASS (20 tests; the plausibility gate tests must still pass)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/management/commands/recompute_shopping_difficulty.py \
@@ -1050,7 +1050,7 @@ This is the output the whole phase exists to produce. It decides whether Substit
 - Create: `diet_planner/management/commands/report_shopping_difficulty.py`
 - Test: `diet_planner/tests/test_ingredient_availability.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_availability.py`:
 
@@ -1104,12 +1104,12 @@ class ReportShoppingDifficultyTest(TestCase):
         self.assertEqual(before, after)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability.ReportShoppingDifficultyTest -v 2`
 Expected: FAIL with `CommandError: Unknown command: 'report_shopping_difficulty'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command**
 
 Create `diet_planner/management/commands/report_shopping_difficulty.py`:
 
@@ -1191,12 +1191,12 @@ class Command(BaseCommand):
             f'({100.0 * non_common / total:.1f}%) fail the one-stop bar.'))
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python manage.py test diet_planner.tests.test_ingredient_availability -v 2`
 Expected: PASS (24 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/management/commands/report_shopping_difficulty.py \
@@ -1216,7 +1216,7 @@ git commit -m "feat(availability): read-only corpus obtainability report"
 
 **Sequencing note — read before implementing.** The spec gives chat web research an extra move: substitute first, reject only if unsaveable. The substitution table does not exist until the *next* plan. So in this phase `recipe_research` explicitly opts **out** of the gate. Turning it on before substitutions exist would make "najdi mi něco s tofu" start failing for a live, shipped feature. This is a deliberate, documented deferral, not an omission.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_curation_availability_gate.py`:
 
@@ -1324,12 +1324,12 @@ class CurationAvailabilityGateTest(TestCase):
         self.assertEqual(result.recipe.shopping_difficulty, Availability.COMMON)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python manage.py test diet_planner.tests.test_curation_availability_gate -v 2`
 Expected: FAIL — `curate_from_source() got an unexpected keyword argument 'enforce_availability'`
 
-- [ ] **Step 3: Add the settings flag**
+- [x] **Step 3: Add the settings flag**
 
 In `llm_diet_planner_project/settings.py`, next to the other feature flags (near `RECIPE_GROUNDING_ENABLED`, line ~385):
 
@@ -1339,7 +1339,7 @@ In `llm_diet_planner_project/settings.py`, next to the other feature flags (near
 AVAILABILITY_GATE_ENABLED = config('AVAILABILITY_GATE_ENABLED', default=False, cast=bool)
 ```
 
-- [ ] **Step 4: Add the gate to curate_from_source**
+- [x] **Step 4: Add the gate to curate_from_source**
 
 In `diet_planner/services/recipe_curation.py`, add to the imports:
 
@@ -1378,7 +1378,7 @@ Then, directly after the `if enforce_plausibility:` block and before `recipe = C
             return result
 ```
 
-- [ ] **Step 5: Opt chat research out, explicitly**
+- [x] **Step 5: Opt chat research out, explicitly**
 
 In `diet_planner/services/recipe_research.py`, at the `curate_from_source(` call around line 252:
 
@@ -1394,17 +1394,17 @@ In `diet_planner/services/recipe_research.py`, at the `curate_from_source(` call
         )
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `python manage.py test diet_planner.tests.test_curation_availability_gate diet_planner.tests.test_curation_plausibility_gate -v 2`
 Expected: PASS (7 tests)
 
-- [ ] **Step 7: Run the whole backend suite for regressions**
+- [x] **Step 7: Run the whole backend suite for regressions**
 
 Run: `python manage.py test diet_planner -v 1`
 Expected: PASS, no new failures vs the pre-change baseline
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add llm_diet_planner_project/settings.py \
@@ -1422,7 +1422,7 @@ No new code — this is the operational run that produces the number the next ph
 
 **Files:** none modified.
 
-- [ ] **Step 1: Apply the migrations locally and rate**
+- [x] **Step 1: Apply the migrations locally and rate**
 
 ```bash
 python manage.py migrate diet_planner
@@ -1431,7 +1431,7 @@ python manage.py rate_ingredient_availability --dry-run
 
 Expected: a list of `slug  unrated -> <tier>` lines ending in `[dry-run] rated=297 changed=297`
 
-- [ ] **Step 2: Apply for real, then roll up**
+- [x] **Step 2: Apply for real, then roll up**
 
 ```bash
 python manage.py rate_ingredient_availability
@@ -1440,7 +1440,7 @@ python manage.py recompute_shopping_difficulty
 
 Expected: `rated=297 changed=297`, then `recipes=<N> changed=<N>`
 
-- [ ] **Step 3: Produce the report**
+- [x] **Step 3: Produce the report**
 
 ```bash
 python manage.py report_shopping_difficulty > docs/shopping-difficulty-report-2026-08-11.txt
@@ -1449,14 +1449,14 @@ cat docs/shopping-difficulty-report-2026-08-11.txt
 
 Expected: distribution, the meal_type × dietary_tag pool table with `<-- THIN` markers, blocker frequency, and a closing "N of 458 published recipes (X%) fail the one-stop bar."
 
-- [ ] **Step 4: Commit the report**
+- [x] **Step 4: Commit the report**
 
 ```bash
 git add docs/shopping-difficulty-report-2026-08-11.txt
 git commit -m "docs: corpus obtainability measurement report"
 ```
 
-- [ ] **Step 5: STOP — decision gate**
+- [ ] **Step 5: STOP — decision gate** ← AWAITING OWNER (all code steps done 2026-08-15)
 
 Do not proceed to substitution or unpublishing. Present the report to the owner. His three options:
 
