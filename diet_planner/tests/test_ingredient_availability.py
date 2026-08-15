@@ -9,6 +9,7 @@ class AvailabilityFieldTest(TestCase):
         ci = CanonicalIngredient.objects.create(
             name='tahini', name_cs='tahini', slug='tahini',
         )
+        ci.refresh_from_db()
         self.assertEqual(ci.availability, Availability.UNRATED)
         self.assertEqual(ci.availability_note, '')
 

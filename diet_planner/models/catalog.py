@@ -61,7 +61,8 @@ class Availability(models.TextChoices):
     UNRATED is deliberately asymmetric: it RANKS as FINDABLE (a mild penalty,
     so a migration cannot collapse the corpus) but BLOCKS at intake (so a
     newly-encountered unknown ingredient forces a human decision instead of
-    leaking forever). See the spec's asymmetry table.
+    leaking forever). See the asymmetry table in
+    docs/superpowers/specs/2026-08-11-ingredient-obtainability-design.md.
     """
     COMMON = 'common', 'Common — any supermarket'
     FINDABLE = 'findable', 'Findable — large store or Rohlík only'
