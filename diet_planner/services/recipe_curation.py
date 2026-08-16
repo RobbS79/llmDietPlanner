@@ -24,10 +24,15 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
+from django.conf import settings as django_settings
 
 from diet_planner.llm_service import GeminiService
 from diet_planner.models import CuratedRecipe
 from diet_planner.services.canonical_lookup import resolve_canonical
+from diet_planner.services.ingredient_availability import (
+    compute_shopping_difficulty,
+    unshoppable_ingredients,
+)
 from diet_planner.services.recipe_plausibility import check_portion_plausibility
 from diet_planner.services import recipe_human_judge
 
@@ -289,6 +294,7 @@ def curate_from_source(
     run_judge: bool = True,
     persist: bool = True,
     enforce_plausibility: bool = True,
+    enforce_availability: bool = True,
 ) -> CurationResult:
     """Run the full pipeline for one `{dish_name, source_url, source_name}` entry.
 
@@ -357,7 +363,21 @@ def curate_from_source(
             result.error = "implausible portion: " + "; ".join(plausibility.reasons)
             return result
 
+    if enforce_availability and getattr(
+        django_settings, 'AVAILABILITY_GATE_ENABLED', False,
+    ):
+        # Reads ingredient tiers directly, NOT the recipe rollup: the rollup
+        # softens 'unrated' to 'findable', which is right for ranking and
+        # wrong for intake.
+        blocked = unshoppable_ingredients(fields["ingredients"])
+        if blocked:
+            result.error = "unshoppable ingredients: " + ", ".join(blocked)
+            return result
+
     recipe = CuratedRecipe(**fields)
+
+    # A freshly curated recipe must never be left "not yet computed".
+    recipe.shopping_difficulty, recipe.shopping_blockers = compute_shopping_difficulty(recipe)
 
     if run_judge:
         # Judge needs the ingredient/instruction JSON; the in-memory instance
