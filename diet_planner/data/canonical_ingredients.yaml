@@ -1627,7 +1627,10 @@
   aliases:
     - { alias: "hermelíny", language_code: cs }
     - { alias: "zrající sýr", language_code: cs }
-    - { alias: "plísňový sýr", language_code: cs }
+    # "plísňový sýr" belongs to `blue-cheese` (niva), not here: unqualified, it
+    # conventionally means the blue-veined kind, while this cheese is normally
+    # named directly ("hermelín") or as "sýr s bílou plísní". It was claimed by
+    # BOTH entries, which made every re-seed flip its owner.
 
 # --- Nuts ---
 - name: walnuts
@@ -2036,9 +2039,22 @@
   estimated_price_czk: 40.0
   estimated_price_eur: 1.60
   aliases:
-    - { alias: "vanilkové aroma", language_code: cs }
     - { alias: "vanilkový lusk", language_code: cs }
+
+# Split out of `vanilla` 2026-08-16: this is the swap target for vanilkový
+# extrakt (37 recipes), so it must carry its own name_cs — rewriting through
+# `vanilla` would print "vanilka" on the ingredient line. 20-40 ml lahvička,
+# every Czech supermarket's baking aisle.
+- name: vanilla aroma
+  name_cs: vanilkové aroma
+  category: baking
+  default_unit: ml
+  estimated_price_czk: 15.0
+  estimated_price_eur: 0.60
+  aliases:
+    - { alias: "vanilkové aroma", language_code: cs }
     - { alias: "vanilková esence", language_code: cs }
+    - { alias: "vanilkova esence", language_code: cs }
 
 # Three DISTINCT products, previously conflated. `vanilkový cukr` is an ordinary
 # 8 g sáček in every Czech supermarket; `vanilkový extrakt` is not sold here at

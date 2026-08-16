@@ -32,7 +32,29 @@ class Command(BaseCommand):
         with path.open('r', encoding='utf-8') as fh:
             data = yaml.safe_load(fh) or []
 
-        created = updated = aliases_created = 0
+        # Two canonicals claiming the same alias is unresolvable: seeding would
+        # hand it to whichever row is processed last, so consecutive runs flip
+        # the owner and ingredient resolution silently changes underneath the
+        # corpus. Refuse to run rather than pick arbitrarily.
+        claims = {}
+        conflicts = []
+        for row in data:
+            row_slug = row.get('slug') or slugify(row.get('name') or '')[:255]
+            for alias in row.get('aliases') or []:
+                alias_text = (alias.get('alias') or '').strip()
+                if not alias_text:
+                    continue
+                key = (alias_text, alias.get('language_code') or '')
+                if key in claims and claims[key] != row_slug:
+                    conflicts.append(f'{alias_text!r} claimed by '
+                                     f'{claims[key]} and {row_slug}')
+                else:
+                    claims[key] = row_slug
+        if conflicts:
+            raise CommandError(
+                'duplicate alias claims in %s:\n  %s' % (path, '\n  '.join(conflicts)))
+
+        created = updated = aliases_created = aliases_repointed = 0
         for row in data:
             name = row.get('name')
             if not name:
@@ -68,17 +90,33 @@ class Command(BaseCommand):
                 lang = alias.get('language_code') or ''
                 if not alias_text:
                     continue
-                _, alias_was_created = IngredientAlias.objects.get_or_create(
-                    alias=alias_text,
-                    language_code=lang,
-                    defaults={'canonical_ingredient': obj},
-                )
-                if alias_was_created:
+                # update_or_create, NOT get_or_create: when the YAML moves an
+                # alias to a different canonical (splitting `vanilkové aroma`
+                # out of `vanilla` into its own product), get_or_create matched
+                # the existing row and dropped the new owner on the floor —
+                # `defaults` only apply on creation. The YAML edit then looked
+                # applied while silently no-opping on every already-seeded
+                # database, dev and prod included.
+                existing = IngredientAlias.objects.filter(
+                    alias=alias_text, language_code=lang,
+                ).first()
+                if existing is None:
+                    IngredientAlias.objects.create(
+                        alias=alias_text, language_code=lang,
+                        canonical_ingredient=obj,
+                    )
                     aliases_created += 1
+                elif existing.canonical_ingredient_id != obj.id:
+                    existing.canonical_ingredient = obj
+                    existing.save(update_fields=['canonical_ingredient'])
+                    aliases_repointed += 1
+                    self.stdout.write(
+                        f'  realias {alias_text!r} -> {obj.slug}')
 
         self.stdout.write(
             self.style.SUCCESS(
                 f'Canonical ingredients: created={created} updated={updated} '
-                f'new_aliases={aliases_created} (dry_run={options["dry_run"]})'
+                f'new_aliases={aliases_created} repointed={aliases_repointed} '
+                f'(dry_run={options["dry_run"]})'
             )
         )
