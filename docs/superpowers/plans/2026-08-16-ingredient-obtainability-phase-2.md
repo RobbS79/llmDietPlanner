@@ -569,7 +569,13 @@ git commit -m "feat(availability): Czech substitution table and its loader"
 
 This is the decision layer: no LLM, no writes. It answers *"can this recipe be fully saved, and what exactly changes?"*
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-16 (commit pending below). Notes:**
+
+- Four tests added beyond the plan: the vegan/honey refusal (the `_TAG_INCOMPATIBLE` guard's second axis), `apply_changes_to_ingredients` not mutating its input (the caller snapshots that same list into `original_ingredients`), bare-string ingredients not crashing, and `summary()` reading as the adaptation note.
+- `_TAG_INCOMPATIBLE['gluten_free']` also carries `oat-flour`/`oats`, since the `oat-flour -> oats` row would otherwise fire inside a gluten-free recipe.
+- **No local corpus measurement is possible.** The dev DB holds 21 draft recipes and zero published; the 458-recipe corpus is prod-only. How many of the 164 blocked recipes this table can actually save is therefore unknown until Task 9 runs against prod — do not assume it is most of them.
+
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_substitution.py`:
 
@@ -682,13 +688,13 @@ class PlanSubstitutionsTests(TestCase):
         self.assertEqual(plan.uncovered, [])
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::PlanSubstitutionsTests -q"`
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'diet_planner.services.ingredient_substitution'`
 
-- [ ] **Step 3: Write the planner**
+- [x] **Step 3: Write the planner**
 
 Create `diet_planner/services/ingredient_substitution.py`:
 
@@ -852,13 +858,13 @@ def apply_changes_to_ingredients(ingredients, plan: SubstitutionPlan) -> List[di
     return out
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
 Expected: `17 passed`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/services/ingredient_substitution.py diet_planner/tests/test_ingredient_substitution.py
