@@ -187,6 +187,11 @@ class IngredientAlias(models.Model):
 class IngredientSubstitute(models.Model):
     """Substitutability between canonical ingredients."""
 
+    class Purpose(models.TextChoices):
+        PREFERENCE = 'preference', 'General preference'
+        DIETARY = 'dietary', 'Dietary restriction'
+        AVAILABILITY = 'availability', 'Czech shop availability'
+
     ingredient = models.ForeignKey(
         CanonicalIngredient,
         on_delete=models.CASCADE,
@@ -207,6 +212,19 @@ class IngredientSubstitute(models.Model):
         max_digits=5, decimal_places=3,
         default=Decimal('1.000'),
         help_text="Multiply quantity by this when substituting"
+    )
+    purpose = models.CharField(
+        max_length=12,
+        choices=Purpose.choices,
+        default=Purpose.PREFERENCE,
+        db_index=True,
+        help_text="Why this swap exists; 'availability' rows drive the CZ rewrite",
+    )
+    # conversion_factor is a scalar, but "1 lžička vanilkového extraktu ->
+    # 1 sáček vanilkového cukru" changes the unit, not just the number.
+    substitute_unit = models.CharField(
+        max_length=20, blank=True,
+        help_text="Unit after substitution; blank keeps the original",
     )
 
     class Meta:
