@@ -62,7 +62,13 @@ jobs:
         # (login_app was previously quarantined for 10 pre-existing failures —
         #  the dropped verify-email endpoint and broker-blocking registration;
         #  both fixed, so it is gated again.)
-        run: python manage.py test diet_planner billing analytics login_app
+        #
+        # pytest, NOT `manage.py test`: four modules are written pytest-native
+        # (bare `def test_*`, `pytest.raises`, the monkeypatch fixture), and
+        # Django's runner collects only unittest.TestCase subclasses — so it
+        # silently ran 46 fewer tests while still reporting success. pytest
+        # collects a verified strict superset (see pytest.ini's python_files).
+        run: python -m pytest diet_planner billing analytics login_app -q
 
   frontend:
     name: frontend (Vite/React)
