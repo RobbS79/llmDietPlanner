@@ -294,7 +294,14 @@ git commit -m "feat(catalog): vanilkové aroma becomes its own canonical"
 
 The spec's saveable/not-saveable split (§6) is the authority. **Only saveable swaps go in this file.** An ingredient that *is* the dish (tahini in a tahini dressing, nori in a sushi miska) gets no row, which routes its recipes to Task 7's unpublish instead.
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-16 (commit `0e0c54b`). Two changes from the plan as written:**
+
+1. **`almond-flour -> ground-almonds` dropped.** `ground-almonds` does not exist as a canonical, because *mleté mandle* is already an **alias of `almond-flour`** — the swap would map the ingredient to itself. `almond-flour` is `findable` (6 recipes); if mandlová mouka really is ordinary Kaufland stock the fix is re-rating it, not substituting. Deferred to the Task 9 Step 4 rating re-check. The table ships **9 rows, not 10**.
+2. **The loader also validates swap TARGETS.** Trading one unbuyable ingredient for another achieves nothing, so a target rated `findable`/`specialty` aborts the load. `unrated` is allowed — not yet judged is not the same as known-bad. All nine shipped targets are rated `common`, pinned by `test_shipped_table_targets_are_all_common`.
+
+Verified on the dev DB: `loaded=9 created=9`, then `loaded=9 created=0` on rerun.
+
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_substitution.py`:
 
@@ -346,13 +353,13 @@ class LoadSubstitutionsTests(TestCase):
             os.unlink(path)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::LoadSubstitutionsTests -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'load_availability_substitutions'`
 
-- [ ] **Step 3: Write the seed table**
+- [x] **Step 3: Write the seed table**
 
 Create `diet_planner/data/ingredient_substitutions_cz.yaml`:
 
@@ -454,7 +461,7 @@ print('MISSING:', missing or 'none')
 
 Expected: `MISSING: none`. If a slug is missing, add that canonical to `canonical_ingredients.yaml` **and** rate it in `ingredient_availability.yaml` (the rating command fails loudly otherwise) before continuing.
 
-- [ ] **Step 4: Write the loader command**
+- [x] **Step 4: Write the loader command**
 
 Create `diet_planner/management/commands/load_availability_substitutions.py`:
 
@@ -539,13 +546,13 @@ class Command(BaseCommand):
             f'{prefix}loaded={len(rows)} created={created} updated={updated}'))
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
 Expected: `10 passed`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/data/ingredient_substitutions_cz.yaml diet_planner/management/commands/load_availability_substitutions.py diet_planner/tests/test_ingredient_substitution.py
