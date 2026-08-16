@@ -6,7 +6,7 @@
 
 **Architecture:** A git-tracked YAML substitution table (`ingredient_substitutions_cz.yaml`) loads into the existing `IngredientSubstitute` model with a new `purpose='availability'`. A pure planner decides, per recipe, whether *every* blocker is covered by the table — partial coverage is never applied, because a recipe with one remaining unbuyable item is still an unbuyable recipe. Covered recipes get their ingredient rows rewritten mechanically, their affected instruction steps rewritten by a bounded LLM pass, and the whole rewrite is discarded if the existing coherence judge rejects it. What survives as `specialty` afterwards is demoted to `draft`, never deleted. Finally the ranker excludes `specialty` and applies a small per-blocker penalty behind its own flag.
 
-**Tech Stack:** Django 5.1 management commands, PostgreSQL (Supabase), Gemini via `google.generativeai`, `manage.py test` (Django TestCase — this repo has no pytest).
+**Tech Stack:** Django 5.1 management commands, PostgreSQL (Supabase), Gemini via `google.generativeai`, pytest + pytest-django (the runner since `d5c8e01`).
 
 **Predecessor:** `docs/superpowers/plans/2026-08-11-ingredient-obtainability-phase-1.md` (complete, merged as `ed7ead6`). Spec: `docs/superpowers/specs/2026-08-11-ingredient-obtainability-design.md` §6, §7, §8.
 
@@ -37,7 +37,13 @@
 
 **Two services, not one.** `ingredient_substitution.py` is pure and fully testable without mocking an LLM; `substitution_rewrite.py` is the only file that talks to Gemini. Keeping them apart is what lets Task 4's tests run offline and fast.
 
-**Test command for this repo:** `docker-compose run --rm web python manage.py test <dotted.path> -v 1`. There is no pytest in the container — `python -m pytest` fails with "No module named pytest".
+**Test command for this repo** (changed by `d5c8e01`, after this plan was written): pytest is now the runner, both locally and in CI.
+
+```bash
+docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_x.py -q"
+```
+
+The `pip install` is needed because the web image builds from `requirements.txt` only; CI installs `requirements-dev.txt` itself. Bare `python -m pytest -q` runs the whole gated suite (`testpaths` in `pytest.ini`). Do **not** use `manage.py test` — it collects only `unittest.TestCase` subclasses and silently skips this repo's pytest-native modules.
 
 ---
 
@@ -48,9 +54,11 @@
 - Create: `diet_planner/migrations/0037_substitute_purpose.py` (generated)
 - Test: `diet_planner/tests/test_ingredient_substitution.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_ingredient_substitution.py`:
+
+**Use `get_or_create`, not `create`.** Migration `0022_seed_canonical_staples` seeds the canonical table, so `soy-sauce` (and many other slugs) already exist in a fresh test DB. Plain `create()` raises `IntegrityError: duplicate key value violates unique constraint` — which fails the test for the wrong reason and hides whether the field exists.
 
 ```python
 """Availability substitution: model fields and the pure planner."""
@@ -62,9 +70,14 @@ from diet_planner.models.catalog import IngredientSubstitute
 
 class SubstitutePurposeFieldTests(TestCase):
     def setUp(self):
-        self.a = CanonicalIngredient.objects.create(name='tamari', slug='tamari')
-        self.b = CanonicalIngredient.objects.create(
-            name='soy sauce', slug='soy-sauce', name_cs='sójová omáčka')
+        # get_or_create, not create: migration 0022_seed_canonical_staples
+        # seeds the canonical table, so several of these slugs already exist in
+        # a fresh test DB.
+        self.a, _ = CanonicalIngredient.objects.get_or_create(
+            slug='tamari', defaults={'name': 'tamari'})
+        self.b, _ = CanonicalIngredient.objects.get_or_create(
+            slug='soy-sauce',
+            defaults={'name': 'soy sauce', 'name_cs': 'sójová omáčka'})
 
     def test_purpose_defaults_to_preference(self):
         """Existing rows must keep behaving exactly as before the migration."""
@@ -86,13 +99,15 @@ class SubstitutePurposeFieldTests(TestCase):
         self.assertEqual(sub.substitute_unit, 'ml')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web python -m pytest diet_planner/tests/test_ingredient_substitution.py -q`
 
-Expected: FAIL — `AttributeError: type object 'IngredientSubstitute' has no attribute 'Purpose'`
+Expected: FAIL — `AttributeError: 'IngredientSubstitute' object has no attribute 'substitute_unit'`
 
-- [ ] **Step 3: Add the choices class and fields**
+(The runner is pytest as of `d5c8e01`; `manage.py test` cannot collect this repo's pytest-native modules.)
+
+- [x] **Step 3: Add the choices class and fields**
 
 In `diet_planner/models/catalog.py`, inside `class IngredientSubstitute`, directly after the docstring on line 188:
 
@@ -126,7 +141,7 @@ Then after the `conversion_factor` field (line 210), before `class Meta`:
     )
 ```
 
-- [ ] **Step 4: Generate the migration**
+- [x] **Step 4: Generate the migration**
 
 ```bash
 docker-compose run --rm web python manage.py makemigrations diet_planner --name substitute_purpose
@@ -134,13 +149,13 @@ docker-compose run --rm web python manage.py makemigrations diet_planner --name 
 
 Expected: `Migrations for 'diet_planner': 0037_substitute_purpose.py — Add field purpose to ingredientsubstitute, Add field substitute_unit to ingredientsubstitute`
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web python -m pytest diet_planner/tests/test_ingredient_substitution.py -q`
 
-Expected: `Ran 3 tests ... OK`
+Expected: `3 passed`. Then the full suite for regressions: `python -m pytest -q` → `741 passed`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit** — done as `203e704` on `feat/obtainability-substitute-fields`.
 
 ```bash
 git add diet_planner/models/catalog.py diet_planner/migrations/0037_substitute_purpose.py diet_planner/tests/test_ingredient_substitution.py
@@ -194,7 +209,7 @@ class VanillaAromaCanonicalTests(TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution.VanillaAromaCanonicalTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::VanillaAromaCanonicalTests -q"`
 
 Expected: FAIL — `vanilla-aroma canonical missing`
 
@@ -244,15 +259,15 @@ In `diet_planner/data/canonical_ingredients.yaml`, replace lines 2031-2041 (the 
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
-Expected: `Ran 6 tests ... OK`
+Expected: `6 passed`
 
 - [ ] **Step 6: Verify no existing canonical regressed**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_availability diet_planner.tests.test_rate_ingredient_availability -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_availability.py diet_planner/tests/test_rate_ingredient_availability.py -q"`
 
-Expected: `Ran 37 tests ... OK` (the Phase 1 suite; `rate_ingredient_availability` must not report an unrated canonical)
+Expected: `32 passed` (the Phase 1 suite for these two modules; `rate_ingredient_availability` must not report an unrated canonical)
 
 - [ ] **Step 7: Commit**
 
@@ -326,7 +341,7 @@ class LoadSubstitutionsTests(TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution.LoadSubstitutionsTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::LoadSubstitutionsTests -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'load_availability_substitutions'`
 
@@ -519,9 +534,9 @@ class Command(BaseCommand):
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
-Expected: `Ran 10 tests ... OK`
+Expected: `10 passed`
 
 - [ ] **Step 6: Commit**
 
@@ -655,7 +670,7 @@ class PlanSubstitutionsTests(TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution.PlanSubstitutionsTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::PlanSubstitutionsTests -q"`
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'diet_planner.services.ingredient_substitution'`
 
@@ -825,9 +840,9 @@ def apply_changes_to_ingredients(ingredients, plan: SubstitutionPlan) -> List[di
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
-Expected: `Ran 17 tests ... OK`
+Expected: `17 passed`
 
 - [ ] **Step 5: Commit**
 
@@ -961,7 +976,7 @@ class StringStepTests(TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_substitution_rewrite -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_substitution_rewrite.py -q"`
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'diet_planner.services.substitution_rewrite'`
 
@@ -1094,9 +1109,9 @@ def rewrite_instructions(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_substitution_rewrite -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_substitution_rewrite.py -q"`
 
-Expected: `Ran 7 tests ... OK`
+Expected: `7 passed`
 
 - [ ] **Step 5: Commit**
 
@@ -1250,7 +1265,7 @@ class ApplySubstitutionsTests(TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'apply_availability_substitutions'`
 
@@ -1394,9 +1409,9 @@ If the returned dict uses a different key for the pass/fail signal, use that key
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
-Expected: `Ran 9 tests ... OK`
+Expected: `9 passed`
 
 - [ ] **Step 6: Commit**
 
@@ -1466,7 +1481,7 @@ class UnpublishUnshoppableTests(TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions.UnpublishUnshoppableTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py::UnpublishUnshoppableTests -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'unpublish_unshoppable'`
 
@@ -1512,9 +1527,9 @@ class Command(BaseCommand):
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
-Expected: `Ran 13 tests ... OK`
+Expected: `13 passed`
 
 - [ ] **Step 5: Commit**
 
@@ -1601,7 +1616,7 @@ class PenaltyTests(TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_availability_ranking -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_availability_ranking.py -q"`
 
 Expected: FAIL — `test_specialty_is_excluded` returns both recipes.
 
@@ -1661,13 +1676,13 @@ Confirm `settings` is imported in this module (`from django.conf import settings
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_availability_ranking -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_availability_ranking.py -q"`
 
-Expected: `Ran 5 tests ... OK`
+Expected: `5 passed`
 
 - [ ] **Step 7: Run the whole backend suite for regressions**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner billing analytics -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest -q"`
 
 Expected: `OK`. The retrieval gate is the riskiest change in this plan — any grounding test that builds a fixture recipe without setting `shopping_difficulty` will now get the model default. If failures appear there, fix the fixtures, not the gate.
 
