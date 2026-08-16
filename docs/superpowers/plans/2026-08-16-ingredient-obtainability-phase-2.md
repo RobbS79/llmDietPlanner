@@ -1731,14 +1731,40 @@ Confirm the ingredient names, the instruction text and the note all agree. Then 
 docker-compose run --rm web python manage.py apply_availability_substitutions
 ```
 
-- [ ] **Step 4: Demote the residue**
+- [ ] **Step 4: Re-check the long-tail ratings BEFORE demoting anything**
+
+Unpublish acts on `specialty` ratings, and the Phase 1 review knowingly left ~57 low-impact rows as Claude's guess rather than the owner's judgement. Known-suspect calls flagged at the time: `hřebíček`/cloves (ordinary in any CZ supermarket), `nálev z oliv` (a mapping artifact, not a purchasable item at all), and asparagus / fennel / parsnip / cherries / dates (rated harshly). Demoting a recipe on a wrong rating is a silent, invisible loss.
+
+```bash
+docker-compose run --rm web python manage.py shell -c "
+from diet_planner.models import CuratedRecipe
+from collections import Counter
+c = Counter()
+for r in CuratedRecipe.objects.filter(status='published', shopping_difficulty='specialty'):
+    for b in (r.shopping_blockers or []):
+        c[b] += 1
+for slug, n in c.most_common():
+    print(f'{n:4d}  {slug}')
+"
+```
+
+Read every slug in that list — it is the complete set of reasons recipes are about to be demoted. For each one that is actually an ordinary supermarket item, correct it in `diet_planner/data/ingredient_availability.yaml` (set `confidence: owner` with a note), then re-run:
+
+```bash
+docker-compose run --rm web python manage.py rate_ingredient_availability
+docker-compose run --rm web python manage.py recompute_shopping_difficulty
+```
+
+Repeat Step 2-3 if the corrections newly make some recipes saveable.
+
+- [ ] **Step 5: Demote the residue**
 
 ```bash
 docker-compose run --rm web python manage.py unpublish_unshoppable --dry-run
 docker-compose run --rm web python manage.py unpublish_unshoppable
 ```
 
-- [ ] **Step 5: Re-measure**
+- [ ] **Step 6: Re-measure**
 
 ```bash
 docker-compose run --rm web python manage.py report_shopping_difficulty > docs/shopping-difficulty-report-phase2.txt
@@ -1747,7 +1773,7 @@ cat docs/shopping-difficulty-report-phase2.txt
 
 Expected: `common` well above the 294 baseline, `specialty` at 0 among published rows, and — the number that decides whether this shipped or backfired — **no `<-- THIN` marker that was not already thin in the 2026-08-11 baseline**.
 
-- [ ] **Step 6: STOP — pool check before prod**
+- [ ] **Step 7: STOP — pool check before prod**
 
 Compare the two reports side by side:
 
@@ -1758,14 +1784,14 @@ diff <(sed -n '/pool by meal_type/,/blocking ingredients/p' docs/shopping-diffic
 
 If any facet pool **shrank** (unpublish outran substitution for that diet), do not roll to prod. Report to the owner instead: the fix is more substitution pairs or new curation, not a smaller corpus. Phase 1's report showed breakfast/vegan and snack/vegan as the fragile ones — those are where this will show up first.
 
-- [ ] **Step 7: Commit the report**
+- [ ] **Step 8: Commit the report**
 
 ```bash
 git add docs/shopping-difficulty-report-phase2.txt
 git commit -m "docs: corpus obtainability after the substitution repair"
 ```
 
-- [ ] **Step 8: PR, CI, merge**
+- [ ] **Step 9: PR, CI, merge**
 
 ```bash
 git push -u origin feat/ingredient-obtainability-phase-2
@@ -1776,7 +1802,7 @@ gh pr merge <pr> --squash
 
 CI runs the backend suite and the frontend typecheck on every PR into `develop` (`.github/workflows/tests.yml`). Wait for green before merging.
 
-- [ ] **Step 9: Prod rollout**
+- [ ] **Step 10: Prod rollout**
 
 Prod deploys from the `prod` branch, not `develop` (`[[recipe-coherence-judge]]`). Commands run through the DO console harness at `/tmp/do_exec.py` (`[[prod-console-exec-harness]]`).
 
@@ -1791,7 +1817,7 @@ cd /tmp && python3 do_exec.py "python manage.py apply_availability_substitutions
 
 Read the prod dry-run before applying — prod's corpus is not identical to local. Then apply, demote, and re-report on prod. Flip `AVAILABILITY_RANKING_ENABLED=true` in the DO app spec **last**, once the corpus repair is verified.
 
-- [ ] **Step 10: QA**
+- [ ] **Step 11: QA**
 
 Run `/qa-prod`. Recipe pages must show the adaptation note where one exists, and no plan may contain a demoted recipe.
 
