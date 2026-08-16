@@ -142,3 +142,85 @@ class DuplicateAliasClaimTests(TestCase):
     def test_the_real_yaml_has_no_duplicate_claims(self):
         """Guards the shipped data file itself."""
         call_command('seed_canonical_ingredients', stdout=StringIO())
+
+
+class LoadSubstitutionsTests(TestCase):
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+
+    def test_load_creates_availability_rows(self):
+        out = StringIO()
+        call_command('load_availability_substitutions', stdout=out)
+        row = IngredientSubstitute.objects.filter(
+            ingredient__slug='vanilla-extract', substitute__slug='vanilla-aroma',
+        ).first()
+        self.assertIsNotNone(row, "vanilla-extract -> vanilla-aroma row missing")
+        self.assertEqual(row.purpose, IngredientSubstitute.Purpose.AVAILABILITY)
+        self.assertIn('loaded=', out.getvalue())
+
+    def test_load_is_idempotent(self):
+        call_command('load_availability_substitutions', stdout=StringIO())
+        first = IngredientSubstitute.objects.count()
+        out = StringIO()
+        call_command('load_availability_substitutions', stdout=out)
+        self.assertEqual(IngredientSubstitute.objects.count(), first)
+        self.assertIn('created=0', out.getvalue())
+
+    def test_load_does_not_touch_preference_rows(self):
+        """A hand-made preference row for the same pair must survive untouched."""
+        a = CanonicalIngredient.objects.get(slug='vanilla-extract')
+        b = CanonicalIngredient.objects.get(slug='vanilla-sugar')
+        IngredientSubstitute.objects.create(ingredient=a, substitute=b)
+        call_command('load_availability_substitutions', stdout=StringIO())
+        row = IngredientSubstitute.objects.get(ingredient=a, substitute=b)
+        self.assertEqual(row.purpose, IngredientSubstitute.Purpose.PREFERENCE)
+
+    def test_unknown_slug_fails_loudly(self):
+        """A typo in the table must not silently skip a swap."""
+        import os
+        import tempfile
+        from django.core.management.base import CommandError
+        with tempfile.NamedTemporaryFile('w', suffix='.yaml', delete=False,
+                                         encoding='utf-8') as fh:
+            fh.write("- ingredient: no-such-slug\n  substitute: vanilla-aroma\n")
+            path = fh.name
+        try:
+            with self.assertRaises(CommandError) as ctx:
+                call_command('load_availability_substitutions', f'--path={path}',
+                             stdout=StringIO())
+            self.assertIn('no-such-slug', str(ctx.exception))
+        finally:
+            os.unlink(path)
+
+    def test_swap_target_must_be_obtainable(self):
+        """Swapping one unbuyable ingredient for another is pointless.
+
+        Only enforced once the target carries a rating — an unrated target is
+        something we cannot judge, not something known to be bad.
+        """
+        import os
+        import tempfile
+        from django.core.management.base import CommandError
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        with tempfile.NamedTemporaryFile('w', suffix='.yaml', delete=False,
+                                         encoding='utf-8') as fh:
+            fh.write("- ingredient: maple-syrup\n  substitute: tahini\n")
+            path = fh.name
+        try:
+            with self.assertRaises(CommandError) as ctx:
+                call_command('load_availability_substitutions', f'--path={path}',
+                             stdout=StringIO())
+            self.assertIn('tahini', str(ctx.exception))
+        finally:
+            os.unlink(path)
+
+    def test_shipped_table_targets_are_all_common(self):
+        """Guards the real data file: every swap must land on a one-stop item."""
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        call_command('load_availability_substitutions', stdout=StringIO())
+        for row in IngredientSubstitute.objects.filter(
+                purpose=IngredientSubstitute.Purpose.AVAILABILITY):
+            self.assertEqual(
+                row.substitute.availability, 'common',
+                f'{row.ingredient.slug} -> {row.substitute.slug} lands on a '
+                f'{row.substitute.availability} ingredient')
