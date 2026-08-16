@@ -173,7 +173,14 @@ git commit -m "feat(catalog): purpose + substitute_unit on IngredientSubstitute"
 - Modify: `diet_planner/data/ingredient_availability.yaml`
 - Test: `diet_planner/tests/test_ingredient_substitution.py`
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-16 (commit `6789838`) — two defects found that this plan did not anticipate:**
+
+1. **The YAML edit alone does nothing to an existing database.** `seed_canonical_ingredients` created aliases with `get_or_create`, whose `defaults` apply only on creation, so moving `vanilkové aroma` from `vanilla` to `vanilla-aroma` silently no-opped anywhere already seeded — dev and prod. Fixed by repointing explicitly; the command now reports `repointed=N`. On the dev DB that first run repointed **8** aliases, not 1: others were stale too (e.g. `vanilkový cukr` was still on `vanilla` rather than `vanilla-sugar`, from migration 0022).
+2. **That fix exposed an unresolvable claim.** `plísňový sýr` was listed under BOTH `czech-soft-cheese` (hermelín) and `blue-cheese` (niva), so consecutive seeds flipped its owner back and forth. Assigned to `blue-cheese`, and the command now raises `CommandError` on any duplicate alias claim instead of picking whichever row it processed last.
+
+**Expect prod to repoint aliases when this deploys** — check the `repointed=` count and the `realias` lines before assuming it was a no-op.
+
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_substitution.py`:
 
@@ -207,13 +214,13 @@ class VanillaAromaCanonicalTests(TestCase):
         self.assertEqual(aroma.availability, 'common')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::VanillaAromaCanonicalTests -q"`
 
 Expected: FAIL — `vanilla-aroma canonical missing`
 
-- [ ] **Step 3: Edit the canonical YAML**
+- [x] **Step 3: Edit the canonical YAML**
 
 In `diet_planner/data/canonical_ingredients.yaml`, replace lines 2031-2041 (the `vanilla` entry) with:
 
@@ -244,7 +251,7 @@ In `diet_planner/data/canonical_ingredients.yaml`, replace lines 2031-2041 (the 
     - { alias: "vanilkova esence", language_code: cs }
 ```
 
-- [ ] **Step 4: Rate the new canonical**
+- [x] **Step 4: Rate the new canonical**
 
 `rate_ingredient_availability` fails loudly on a canonical missing from the YAML (Phase 1, Task 5), so this edit is mandatory, not optional. Add to `diet_planner/data/ingredient_availability.yaml`, keeping the file's existing alphabetical-by-slug ordering (insert next to the other `vanilla-*` slugs near line 1107):
 
@@ -257,19 +264,19 @@ In `diet_planner/data/canonical_ingredients.yaml`, replace lines 2031-2041 (the 
     vanilla-extract (37 recipes).'
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
 Expected: `6 passed`
 
-- [ ] **Step 6: Verify no existing canonical regressed**
+- [x] **Step 6: Verify no existing canonical regressed**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_availability.py diet_planner/tests/test_rate_ingredient_availability.py -q"`
 
 Expected: `32 passed` (the Phase 1 suite for these two modules; `rate_ingredient_availability` must not report an unrated canonical)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add diet_planner/data/canonical_ingredients.yaml diet_planner/data/ingredient_availability.yaml diet_planner/tests/test_ingredient_substitution.py
