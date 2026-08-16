@@ -1456,15 +1456,22 @@ git add docs/shopping-difficulty-report-2026-08-11.txt
 git commit -m "docs: corpus obtainability measurement report"
 ```
 
-- [ ] **Step 5: STOP — decision gate** ← AWAITING OWNER (all code steps done 2026-08-15)
+- [x] **Step 5: STOP — decision gate** ← RESOLVED BY OWNER 2026-08-16
 
-Do not proceed to substitution or unpublishing. Present the report to the owner. His three options:
+The three options were:
 
 1. **Go** — corpus survives the cut; proceed to the substitution plan.
 2. **Stop** — ship Phase 1 only (ratings, report, intake gate); no corpus mutation.
 3. **Re-scope** — pools are too thin; curate Czech-shoppable recipes *before* dropping anything.
 
-Prod rollout of Phase 1 (running `rate_ingredient_availability` + `recompute_shopping_difficulty` against the prod DB via the console harness, then flipping `AVAILABILITY_GATE_ENABLED`) also waits for this conversation — see `[[prod-console-exec-harness]]` for the chunked-upload requirement.
+**Owner chose 1 — Go.** Two findings carried the call:
+
+- The 35.8% headline folds two tiers together. Only **79 recipes are genuinely `specialty`**; the other 85 are merely `findable` (bigger store / Rohlík). The unshoppable core is smaller than the headline suggests.
+- Blockers concentrate, and the owner's own review notes already carry the swaps: `vanilla-extract` costs 37 recipes (*"not sold in CZ. Swap = vanilkove aroma"*), `maple-syrup` 26 (*"med is the swap"*), then `coriander` 25, `kale` 14, `tahini` 13. Substitution should recover most of the 164 rather than dropping them — which matters because the thinnest pools (breakfast/vegan 7 of 26, snack/vegan 17 of 50, breakfast/dairy_free 13 of 44) are exactly the ones a drop-first approach would gut.
+
+Substitution work lives in its own plan; this one is closed.
+
+Prod rollout of Phase 1 was also approved in the same conversation: merge PR #63, run `rate_ingredient_availability` + `recompute_shopping_difficulty` against the prod DB via the console harness, then flip `AVAILABILITY_GATE_ENABLED=true` — see `[[prod-console-exec-harness]]` for the chunked-upload requirement.
 
 ---
 
