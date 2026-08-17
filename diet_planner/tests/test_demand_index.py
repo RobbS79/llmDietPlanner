@@ -4,7 +4,9 @@ from pathlib import Path
 from django.conf import settings
 from django.test import TestCase
 
-from diet_planner.services.demand_index import DemandTerm, parse_ranking
+from diet_planner.services.demand_index import (
+    CATEGORY_SLOTS, DemandTerm, enrich_term, parse_ranking,
+)
 
 FIXTURES = Path(settings.BASE_DIR) / 'diet_planner' / 'tests' / 'fixtures' / 'demand'
 
@@ -166,3 +168,58 @@ class ParseRankingTests(TestCase):
         html = '<a href="/recept/4-only-truncated/">Zkrácený název…</a>'
         terms = parse_ranking(html, source='x', category='global')
         self.assertEqual(terms[0].term, 'Zkrácený název')
+
+
+class EnrichTermTests(TestCase):
+    def setUp(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+
+    def test_meat_category_maps_to_a_main_slot_and_is_in_scope(self):
+        term = DemandTerm(term='Kuřecí řízek', rank=1,
+                          source='toprecepty.cz', category='maso')
+        row = enrich_term(term)
+        self.assertEqual(row['slot_hint'], 'dinner')
+        self.assertTrue(row['in_scope'])
+
+    def test_dessert_category_is_out_of_scope(self):
+        """No dessert slot exists, so this demand is reported, not scored."""
+        term = DemandTerm(term='Bublanina', rank=1,
+                          source='toprecepty.cz', category='moucniky')
+        self.assertFalse(enrich_term(term)['in_scope'])
+
+    def test_canonicals_are_resolved_from_the_dish_name(self):
+        term = DemandTerm(term='Kuřecí řízek s bramborem', rank=1,
+                          source='x', category='maso')
+        self.assertIn('potato', enrich_term(term)['canonicals'])
+
+    def test_unknown_words_do_not_break_resolution(self):
+        term = DemandTerm(term='Dobětický guláš', rank=1, source='x', category='maso')
+        row = enrich_term(term)
+        self.assertIsInstance(row['canonicals'], list)
+
+    def test_every_known_category_declares_a_slot(self):
+        for category, slot in CATEGORY_SLOTS.items():
+            self.assertTrue(slot is None or slot in
+                            ('breakfast', 'lunch', 'dinner', 'snack'),
+                            f'{category} declares slot {slot!r}')
+
+    def test_an_unknown_category_defaults_to_in_scope(self):
+        """A category we have not classified yet must not silently vanish from
+        the denominator — under-counting demand flatters the corpus."""
+        term = DemandTerm(term='Něco nového', rank=1, source='x',
+                          category='zcela-neznama-kategorie')
+        self.assertTrue(enrich_term(term)['in_scope'])
+
+    def test_the_folded_form_is_recorded_for_matching(self):
+        term = DemandTerm(term='Hovězí guláš', rank=1, source='x', category='maso')
+        self.assertEqual(enrich_term(term)['folded'], 'hovezi gulas')
+
+    def test_rank_source_and_category_survive_enrichment(self):
+        term = DemandTerm(term='Hovězí guláš', rank=7, source='recepty.cz',
+                          category='maso')
+        row = enrich_term(term)
+        self.assertEqual((row['rank'], row['source'], row['category']),
+                         (7, 'recepty.cz', 'maso'))

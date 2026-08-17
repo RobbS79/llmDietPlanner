@@ -16,6 +16,8 @@ from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
 
+from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
+
 logger = logging.getLogger(__name__)
 
 #: Recipe detail links, single path segment after /recept/ containing a
@@ -169,3 +171,48 @@ def parse_ranking(html: str, *, source: str, category: str) -> List[DemandTerm]:
         )
 
     return terms
+
+
+#: Source category -> the meal slot that demand belongs to. `None` means the
+#: category has no slot in a meal plan (desserts, drinks, preserves): real
+#: demand, deliberately out of scope, reported but never scored.
+CATEGORY_SLOTS = {
+    'global': 'dinner',
+    'maso': 'dinner',
+    'testoviny': 'dinner',
+    'polevky': 'lunch',
+    'salaty': 'lunch',
+    'snidane': 'breakfast',
+    'omacky': 'dinner',
+    'moucniky': None,
+    'dezerty': None,
+    'napoje': None,
+    'zavarovani': None,
+}
+
+_WORD = re.compile(r'[^\wáčďéěíňóřšťúůýž]+', re.IGNORECASE)
+
+
+def _words(text: str) -> List[str]:
+    return [w for w in _WORD.split(text.lower()) if len(w) > 2]
+
+
+def enrich_term(term: DemandTerm) -> dict:
+    """Add slot scope and resolved canonicals to a parsed demand term."""
+    slot = CATEGORY_SLOTS.get(term.category, 'dinner')
+    canonicals = []
+    for word in _words(term.term):
+        canonical = resolve_canonical(word)
+        if canonical is not None and canonical.slug not in canonicals:
+            canonicals.append(canonical.slug)
+
+    return {
+        'term': term.term,
+        'rank': term.rank,
+        'source': term.source,
+        'category': term.category,
+        'slot_hint': slot,
+        'in_scope': slot is not None,
+        'canonicals': canonicals,
+        'folded': fold_diacritics(term.term).lower(),
+    }
