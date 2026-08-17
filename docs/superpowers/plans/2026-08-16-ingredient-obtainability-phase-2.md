@@ -881,7 +881,11 @@ git commit -m "feat(availability): pure substitution planner, all-or-nothing cov
 
 Only steps whose text names a swapped ingredient are sent to the LLM. Everything else is passed through verbatim — an unbounded "regenerate the recipe" call is exactly how a sourced recipe silently becomes a different dish.
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-17. One defect in the plan's own implementation, caught by the plan's own test:**
+
+The single `_mentions()` helper below matches on **any** word stem, which is right for *finding* affected steps and wrong for the *fail-closed guard*. `vanilkové aroma` and `vanilkový extrakt` share the `vanilko` stem, so when the model lazily echoed the step back unchanged, `_mentions(new_text, new_name)` returned True and the guard never fired — `test_old_ingredient_left_in_output_fails_closed` failed while the other six passed. Split into two matchers: `_mentions()` (any stem, loose, picks the steps to send) and `_names()` (every stem, strict, used by the guard). Strict matching is also the only thing that separates swaps keeping the head noun — `avokádový olej -> řepkový olej`, a live row in the shipped table — so two regression tests were added for it. Ships **9 tests, not 7**. The Step 3 listing below carries the fixed matchers.
+
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_substitution_rewrite.py`:
 
@@ -994,13 +998,13 @@ class StringStepTests(TestCase):
         self.assertEqual(out[0]['text'], 'Přidejte vanilkové aroma.')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_substitution_rewrite.py -q"`
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'diet_planner.services.substitution_rewrite'`
 
-- [ ] **Step 3: Write the rewriter**
+- [x] **Step 3: Write the rewriter**
 
 Create `diet_planner/services/substitution_rewrite.py`:
 
@@ -1057,15 +1061,29 @@ def _step_text(step) -> str:
     return str(step or '')
 
 
-def _mentions(text: str, name: str) -> bool:
-    """Czech is inflected, so match on the stem rather than the exact form
+def _stems(name: str) -> List[str]:
+    """Czech is inflected, so compare stems rather than exact forms
     ('vanilkový extrakt' appears as 'vanilkového extraktu')."""
+    return [w[:-2] if len(w) > 5 else w for w in name.lower().split() if w]
+
+
+def _mentions(text: str, name: str) -> bool:
+    """Loose: ANY stem hits. Decides which steps go to the LLM, where
+    over-including a step costs tokens and nothing else."""
     haystack = text.lower()
-    for word in name.lower().split():
-        stem = word[:-2] if len(word) > 5 else word
-        if stem and stem in haystack:
-            return True
-    return False
+    return any(stem in haystack for stem in _stems(name))
+
+
+def _names(text: str, name: str) -> bool:
+    """Strict: EVERY stem hits. The fail-closed guard needs this, because the
+    loose form is actively wrong there: 'vanilkové aroma' and 'vanilkový
+    extrakt' share the 'vanilko' stem, so ANY-matching reported the new name as
+    present in a step that still said 'vanilkový extrakt' and the guard never
+    fired. Requiring every stem also separates swaps that keep the head noun
+    ('avokádový olej' -> 'řepkový olej')."""
+    haystack = text.lower()
+    stems = _stems(name)
+    return bool(stems) and all(stem in haystack for stem in stems)
 
 
 def rewrite_instructions(
@@ -1117,7 +1135,7 @@ def rewrite_instructions(
         if not new_text:
             raise RewriteError(f'empty step text at position {position}')
         for change in plan.changes:
-            if _mentions(new_text, change.old_name) and not _mentions(
+            if _names(new_text, change.old_name) and not _names(
                     new_text, change.new_name):
                 raise RewriteError(
                     f'step {position} still names {change.old_name!r}')
@@ -1127,13 +1145,13 @@ def rewrite_instructions(
     return out
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_substitution_rewrite.py -q"`
 
-Expected: `7 passed`
+Expected: `9 passed` (7 planned + 2 head-noun regressions). Full suite: `776 passed`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/services/substitution_rewrite.py diet_planner/tests/test_substitution_rewrite.py
