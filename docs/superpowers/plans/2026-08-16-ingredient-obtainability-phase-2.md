@@ -1642,7 +1642,10 @@ git commit -m "feat(availability): demote still-unshoppable recipes to draft"
 - Modify: `diet_planner/services/recipe_retrieval.py:425` and `~516`
 - Test: `diet_planner/tests/test_availability_ranking.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — written with `Availability` from
+  `models.catalog` in place of the nonexistent `CuratedRecipe.ShoppingDifficulty`,
+  and two tests beyond the five below, both pinning the `unrated` default:
+  `test_unrated_stays_eligible` and `test_unrated_without_blockers_is_not_penalised`.
 
 Create `diet_planner/tests/test_availability_ranking.py`:
 
@@ -1709,13 +1712,16 @@ class PenaltyTests(TestCase):
         self.assertAlmostEqual(self._score(common), self._score(findable))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_availability_ranking.py -q"`
 
 Expected: FAIL — `test_specialty_is_excluded` returns both recipes.
 
-- [ ] **Step 3: Add the settings flag**
+Actual: `3 failed, 4 passed` — the three behaviour tests (specialty excluded,
+per-blocker cost, cap) fail; the four negative-space ones pass, as they should.
+
+- [x] **Step 3: Add the settings flag**
 
 In `llm_diet_planner_project/settings.py`, directly after the `AVAILABILITY_GATE_ENABLED` line (389):
 
@@ -1725,7 +1731,8 @@ In `llm_diet_planner_project/settings.py`, directly after the `AVAILABILITY_GATE
 AVAILABILITY_RANKING_ENABLED = config('AVAILABILITY_RANKING_ENABLED', default=False, cast=bool)
 ```
 
-- [ ] **Step 4: Add the hard gate**
+- [x] **Step 4: Add the hard gate** — reads `Availability.SPECIALTY`; the
+  module needed `from diet_planner.models.catalog import Availability` added.
 
 In `diet_planner/services/recipe_retrieval.py`, in `eligible_recipes_for_slot`, after the `enforce_mapping` check (line 425-426):
 
@@ -1739,7 +1746,8 @@ In `diet_planner/services/recipe_retrieval.py`, in `eligible_recipes_for_slot`, 
             continue
 ```
 
-- [ ] **Step 5: Add the penalty**
+- [x] **Step 5: Add the penalty** — constants live next to
+  `_RECENT_SERVE_PENALTY`; `settings` was already imported.
 
 In `diet_planner/services/recipe_retrieval.py`, add next to the other weight constants (after line 439):
 
@@ -1769,7 +1777,8 @@ Then in `score_recipe`, after the difficulty bonus (line 515-516):
 
 Confirm `settings` is imported in this module (`from django.conf import settings`); add the import if it is not.
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes** — `7 passed` (the 5 below plus
+  the 2 added in step 1).
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_availability_ranking.py -q"`
 
