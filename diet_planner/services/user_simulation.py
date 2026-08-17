@@ -15,7 +15,22 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from diet_planner.services.canonical_lookup import fold_diacritics
 from diet_planner.services.prompt_facets import PromptFacets
+
+# Diacritics-folded Czech words that mark a dish as animal-based. Hand-authored
+# and reviewable, in the spirit of the repo's other hand-authored data (see
+# selection_distribution_report.PERSONAS).
+#
+# This is deliberately a COARSE screen used only to LABEL demand/persona
+# pairings for gate-attribution reporting (see pairing_kind below) — it is
+# NOT a dietary safety mechanism. The real dietary gate lives in recipe
+# retrieval and must never depend on this list.
+_ANIMAL_TERMS = frozenset({
+    'hovezi', 'veprove', 'kureci', 'kure', 'maso', 'ryba', 'losos', 'tresk',
+    'sunka', 'slanina', 'klobasa', 'gulas', 'rizek', 'svickova', 'vejce',
+    'syr', 'smetana', 'jogurt', 'tvaroh', 'maslo', 'mleko',
+})
 
 #: (name, dietary_restrictions free text, extra PromptFacets kwargs). Mirrors
 #: the personas in selection_distribution_report so the two harnesses describe
@@ -44,6 +59,7 @@ class SimulatedQuery:
     facets: PromptFacets
     num_days: int = 5
     canonicals: List[str] = field(default_factory=list)
+    pairing: str = 'normal'
 
 
 def _render(template: str, term: str, num_days: int) -> str:
@@ -53,6 +69,29 @@ def _render(template: str, term: str, num_days: int) -> str:
             .replace('{quality}', 'rychlého')
             .replace('{objective}', 'jíst zdravěji')
             .replace('{free_short}', term.lower()))
+
+
+def _is_plant_based_restriction(restrictions: str) -> bool:
+    folded = fold_diacritics((restrictions or '').lower())
+    return 'vegan' in folded or 'vegansk' in folded or 'vegetari' in folded
+
+
+def _is_animal_based_demand(demand_row) -> bool:
+    words = set(fold_diacritics(str(demand_row.get('term', '')).lower()).split())
+    for canonical in demand_row.get('canonicals') or []:
+        words.add(fold_diacritics(str(canonical).lower()))
+    return bool(words & _ANIMAL_TERMS)
+
+
+def pairing_kind(demand_row, persona_restrictions: str) -> str:
+    """'cross-diet' when the dish is animal-based and the persona is not, else 'normal'.
+
+    A coarse LABEL for reporting only (see _ANIMAL_TERMS) — does not affect
+    which queries get generated or gated.
+    """
+    if _is_plant_based_restriction(persona_restrictions) and _is_animal_based_demand(demand_row):
+        return 'cross-diet'
+    return 'normal'
 
 
 def generate_queries(demand, templates, personas, *, seed: int, n: int
@@ -90,5 +129,6 @@ def generate_queries(demand, templates, personas, *, seed: int, n: int
             facets=facets,
             num_days=num_days,
             canonicals=list(row.get('canonicals') or []),
+            pairing=pairing_kind(row, restrictions),
         ))
     return queries

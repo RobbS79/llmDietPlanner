@@ -1,7 +1,9 @@
 """Crossing demand x phrasing x persona into reproducible simulated queries."""
 from django.test import TestCase
 
-from diet_planner.services.user_simulation import PERSONAS, SimulatedQuery, generate_queries
+from diet_planner.services.user_simulation import (
+    PERSONAS, SimulatedQuery, generate_queries, pairing_kind,
+)
 
 DEMAND = [
     {'term': 'Hovězí guláš', 'rank': 1, 'source': 'toprecepty.cz', 'category': 'maso',
@@ -57,3 +59,29 @@ class GenerateQueriesTests(TestCase):
 
     def test_empty_demand_yields_no_queries(self):
         self.assertEqual(generate_queries([], TEMPLATES, PERSONAS, seed=1, n=5), [])
+
+
+class PairingKindTests(TestCase):
+    def test_beef_dish_with_vegan_persona_is_cross_diet(self):
+        self.assertEqual(pairing_kind(DEMAND[0], 'veganská strava'), 'cross-diet')
+
+    def test_beef_dish_with_no_restrictions_is_normal(self):
+        self.assertEqual(pairing_kind(DEMAND[0], ''), 'normal')
+
+    def test_plant_dish_with_vegan_persona_is_normal(self):
+        plant_dish = {'term': 'Čočková polévka', 'canonicals': [], 'folded': 'coctocva polevka'}
+        self.assertEqual(pairing_kind(plant_dish, 'veganská strava'), 'normal')
+
+    def test_diacritics_do_not_defeat_the_check(self):
+        unaccented_dish = {'term': 'hovezi gulas', 'canonicals': [], 'folded': 'hovezi gulas'}
+        self.assertEqual(pairing_kind(unaccented_dish, 'veganska strava'), 'cross-diet')
+
+    def test_vegetarian_persona_with_meat_dish_is_cross_diet(self):
+        self.assertEqual(pairing_kind(DEMAND[0], 'vegetariánská strava'), 'cross-diet')
+
+
+class GenerateQueriesPairingTests(TestCase):
+    def test_generate_queries_populates_pairing(self):
+        queries = generate_queries(DEMAND, TEMPLATES, PERSONAS, seed=9, n=200)
+        self.assertTrue(all(q.pairing in ('normal', 'cross-diet') for q in queries))
+        self.assertTrue(any(q.pairing == 'cross-diet' for q in queries))
