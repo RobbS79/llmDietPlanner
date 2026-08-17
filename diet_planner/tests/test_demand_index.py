@@ -269,3 +269,39 @@ class EnrichTermTests(TestCase):
             row = enrich_term(term)
         self.assertEqual(row['canonicals'], ['potatoes'])
         mock_fuzzy.assert_not_called()
+
+    def test_generic_adjective_resolves_to_the_generic_ingredient_not_a_specific_product(self):
+        """'cibulová' ('onion-ish') must resolve to 'onion' via the short,
+        single-word canonical name 'cibule' — not to the far more specific
+        'onion-powder' ('Cibulový prášek'), whose Czech name only happens to
+        start with the same letters. A false canonical on the demand side
+        would manufacture a false loose-coverage hit, which is the dangerous
+        direction to get wrong."""
+        term = DemandTerm(term='Pečené maso a speciální cibulová omáčka',
+                          rank=1, source='x', category='maso')
+        row = enrich_term(term)
+        self.assertIn('onion', row['canonicals'])
+        self.assertNotIn('onion-powder', row['canonicals'])
+
+    def test_generic_word_does_not_resolve_to_a_specific_multiword_product(self):
+        """A bare, generic word like 'omáčka' ('sauce') must not claim a
+        specific multiword product just because that product's name happens
+        to contain the word — 'BBQ omáčka' and similar multiword names are
+        not fuzzy-matchable keys at all."""
+        term = DemandTerm(term='Omáčka', rank=1, source='x', category='maso')
+        row = enrich_term(term)
+        self.assertNotIn('bbq-sauce', row['canonicals'])
+        self.assertNotIn('chopped-tomatoes-canned', row['canonicals'])
+
+    def test_short_query_word_cannot_claim_a_much_longer_key(self):
+        """Direct pin on _MIN_COVERAGE_RATIO, independent of real seeded
+        data: a fabricated 20-char single-word key shares only its first 5
+        characters (25% coverage) with the query, which clears the absolute
+        _MIN_STEM_LEN floor but must still be rejected by the ratio."""
+        from unittest.mock import patch
+
+        fake_index = {'cibulxxxxxxxxxxxxxx': ['fake-slug']}
+        with patch('diet_planner.services.demand_index._farm_fuzzy_index',
+                   return_value=fake_index):
+            from diet_planner.services.demand_index import _fuzzy_canonical_slug
+            self.assertIsNone(_fuzzy_canonical_slug('cibulova'))

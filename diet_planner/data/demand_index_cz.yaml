@@ -94,8 +94,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - pasta
+  canonicals: []
   folded: frankfurtska jemna polevka
 - term: Domácí kmínový chleba
   rank: 11
@@ -122,8 +121,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - olive-oil
+  canonicals: []
   folded: extra rychle livance
 - term: Kynuté buchty, plněné marmeládou
   rank: 14
@@ -143,9 +141,7 @@ terms:
   canonicals:
   - chicken-breast
   - spinach
-  - shredded-cheese-mix
-  - cream-cheese
-  - bbq-sauce
+  - cream
   folded: gnocchi s kurecim masem, spenatem a syrovo-smetanovou omackou
 - term: Ovocné tvarohové knedlíky
   rank: 16
@@ -154,7 +150,6 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - jam
   - cottage-cheese
   folded: ovocne tvarohove knedliky
 - term: Francouzské palačinky
@@ -181,8 +176,6 @@ terms:
   in_scope: false
   canonicals:
   - tomatoes
-  - bell-pepper
-  - shredded-cheese-mix
   folded: rajcata smazena nebo pecena v syrovem testicku
 - term: Nízkosacharidová palačinka s tvarohem
   rank: 20
@@ -191,7 +184,6 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - buttermilk
   - cottage-cheese
   folded: nizkosacharidova palacinka s tvarohem
 - term: Závitky ze pstruha
@@ -210,28 +202,25 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - guacamole
-  - beans
   - mustard
-  - dijon-mustard
   folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
-- term: Kulajda
+- term: Kefírový koláč
   rank: 23
   source: toprecepty.cz
   category: global
   slot_hint: null
   in_scope: false
   canonicals: []
-  folded: kulajda
-- term: Ovocný táč s drobenkou
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
   rank: 24
   source: toprecepty.cz
   category: global
   slot_hint: null
   in_scope: false
   canonicals:
-  - jam
-  folded: ovocny tac s drobenkou
+  - garlic
+  folded: platky z krkovicky na cesneku
 - term: Dobětický guláš
   rank: 1
   source: toprecepty.cz
@@ -247,7 +236,6 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - spice-blend
   - pork
   folded: grilovany veprovy bok s domacimi karbanatky
 - term: Střapaté řízečky
@@ -265,7 +253,6 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - mushrooms
   - beef
   folded: dusene hovezi na mrkvi a hrasku
 - term: Jehněčí hřbet na rozmarýnu
@@ -283,8 +270,7 @@ terms:
   category: maso
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - bell-pepper
+  canonicals: []
   folded: rychlovka ze zbytku peceneho kurete
 - term: Domácí klobásy (5 kg)
   rank: 7
@@ -293,7 +279,7 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - chorizo
+  - sausage
   folded: domaci klobasy (5 kg)
 - term: Kuřecí stehna plněná nádivkou s medvědím česnekem
   rank: 8
@@ -328,9 +314,7 @@ terms:
   category: maso
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - beans
-  - chopped-tomatoes-canned
+  canonicals: []
   folded: raznici tri barev na plechu
 - term: Pečené maso a speciální cibulová omáčka
   rank: 12
@@ -339,9 +323,7 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - bell-pepper
-  - onion-powder
-  - bbq-sauce
+  - onion
   folded: pecene maso a specialni cibulova omacka
 - term: Mleté maso po čínsku
   rank: 13
@@ -349,8 +331,7 @@ terms:
   category: maso
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - almond-flour
+  canonicals: []
   folded: mlete maso po cinsku
 - term: Kančí nudličky
   rank: 14
@@ -366,8 +347,7 @@ terms:
   category: maso
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - chicken-breast
+  canonicals: []
   folded: smazeny rizek podle babicky jednoho sefkuchare
 - term: Pivní sekaná
   rank: 16
@@ -392,8 +372,7 @@ terms:
   category: maso
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - spring-onion
+  canonicals: []
   folded: jarni kuratka s hraskem
 - term: Velikonoční sekaná
   rank: 19
@@ -418,8 +397,7 @@ terms:
   category: maso
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - bacon
+  canonicals: []
   folded: kroupy s houbami a uzenym masem
 - term: Pečená krkovička s jarním bramborovým salátem
   rank: 22
@@ -428,10 +406,7 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - bell-pepper
-  - pork
-  - spring-onion
-  - potato-starch
+  - potatoes
   - lettuce
   folded: pecena krkovicka s jarnim bramborovym salatem
 - term: Vepřová kotleta v pikantní šťávě
@@ -451,8 +426,6 @@ terms:
   in_scope: true
   canonicals:
   - pork
-  - chicken-breast
-  - bbq-sauce
   - garlic
   folded: veprove kousky a omacka s medvedim cesnekem
 - term: Rajčata smažená nebo pečená v sýrovém těstíčku
@@ -463,8 +436,6 @@ terms:
   in_scope: true
   canonicals:
   - tomatoes
-  - bell-pepper
-  - shredded-cheese-mix
   folded: rajcata smazena nebo pecena v syrovem testicku
 - term: Nízkosacharidová palačinka s tvarohem
   rank: 26
@@ -473,7 +444,6 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - buttermilk
   - cottage-cheese
   folded: nizkosacharidova palacinka s tvarohem
 - term: Závitky ze pstruha
@@ -492,28 +462,25 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - guacamole
-  - beans
   - mustard
-  - dijon-mustard
   folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
-- term: Kulajda
+- term: Kefírový koláč
   rank: 29
   source: toprecepty.cz
   category: maso
   slot_hint: dinner
   in_scope: true
   canonicals: []
-  folded: kulajda
-- term: Ovocný táč s drobenkou
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
   rank: 30
   source: toprecepty.cz
   category: maso
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - jam
-  folded: ovocny tac s drobenkou
+  - garlic
+  folded: platky z krkovicky na cesneku
 - term: Kuřecí polévka s kari kořením
   rank: 1
   source: toprecepty.cz
@@ -522,9 +489,8 @@ terms:
   in_scope: true
   canonicals:
   - chicken-breast
-  - pasta
   - curry-powder
-  - allspice
+  - black-pepper
   folded: kureci polevka s kari korenim
 - term: Krémová brokolicová polévka se smetanou
   rank: 2
@@ -533,9 +499,8 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cream-cheese
   - broccoli
-  - pasta
+  - cream
   folded: kremova brokolicova polevka se smetanou
 - term: Hrachovka se zeleným hráškem a slaninou
   rank: 3
@@ -544,7 +509,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - asparagus
   - bacon
   folded: hrachovka se zelenym hraskem a slaninou
 - term: Bramborovo-pórková krémová polévka
@@ -554,9 +518,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - potato-starch
-  - cream-cheese
-  - pasta
+  - potatoes
   folded: bramborovo-porkova kremova polevka
 - term: Polévka z pečeného květáku a pečeného česneku
   rank: 5
@@ -565,8 +527,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - pasta
-  - bell-pepper
   - cauliflower
   - garlic
   folded: polevka z peceneho kvetaku a peceneho cesneku
@@ -576,9 +536,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
-  - garlic-powder
+  canonicals: []
   folded: babiccina polevka ze susenych hub
 - term: Polévka z pečené papriky, rajčat a mrkve
   rank: 7
@@ -587,9 +545,8 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - pasta
   - bell-pepper
-  - chopped-tomatoes-canned
+  - tomatoes
   folded: polevka z pecene papriky, rajcat a mrkve
 - term: Hrášková polévka s brambory
   rank: 8
@@ -598,7 +555,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - pasta
   - potatoes
   folded: hraskova polevka s brambory
 - term: Krémová žampionová polévka s kurkumou
@@ -608,9 +564,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cream-cheese
   - mushrooms
-  - pasta
   - turmeric
   folded: kremova zampionova polevka s kurkumou
 - term: Vločková polévka s droždím
@@ -619,10 +573,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - sea-salt
-  - pasta
-  - dry-yeast
+  canonicals: []
   folded: vlockova polevka s drozdim
 - term: Hovězí polévka z oháňky se sýrovými noky
   rank: 11
@@ -632,8 +583,6 @@ terms:
   in_scope: true
   canonicals:
   - beef
-  - pasta
-  - shredded-cheese-mix
   folded: hovezi polevka z ohanky se syrovymi noky
 - term: Kedlubnová polévka s vejci
   rank: 12
@@ -641,8 +590,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
+  canonicals: []
   folded: kedlubnova polevka s vejci
 - term: Cibulačka krémová
   rank: 13
@@ -651,8 +599,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - fennel
-  - cream-cheese
+  - onion
   folded: cibulacka kremova
 - term: Cuketová gulášovka s bramborem a tempehem
   rank: 14
@@ -672,9 +619,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cream-cheese
   - cheese
-  - pasta
   - corn
   folded: kremova cedarova polevka s kukurici
 - term: Mléčná polévka s drobením a šafránem
@@ -684,7 +629,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - pasta
   - saffron
   folded: mlecna polevka s drobenim a safranem
 - term: Rybářská polévka
@@ -693,8 +637,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
+  canonicals: []
   folded: rybarska polevka
 - term: Fazolová polévka se sušenými švestkami
   rank: 18
@@ -703,10 +646,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - green-beans
-  - pasta
-  - garlic-powder
-  - jam
+  - beans
   folded: fazolova polevka se susenymi svestkami
 - term: Polévka z choroše oříše
   rank: 19
@@ -714,9 +654,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
-  - nutmeg
+  canonicals: []
   folded: polevka z chorose orise
 - term: Moje zeleninová polévka s celestýnskými nudlemi
   rank: 20
@@ -724,9 +662,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - mixed-vegetables
-  - pasta
+  canonicals: []
   folded: moje zeleninova polevka s celestynskymi nudlemi
 - term: Krémová květáková polévka z uzeného vývaru
   rank: 21
@@ -735,11 +671,8 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cream-cheese
-  - cauliflower-rice
-  - pasta
-  - tofu
-  - beef-stock
+  - cauliflower
+  - stock
   folded: kremova kvetakova polevka z uzeneho vyvaru
 - term: Rajčatová polévka s fazolemi
   rank: 22
@@ -748,8 +681,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - tomato-sauce
-  - pasta
+  - tomatoes
   - beans
   folded: rajcatova polevka s fazolemi
 - term: Květákový krém s Lučinou
@@ -769,8 +701,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - tomato-paste
-  - pasta
+  - tomatoes
   folded: jednoducha rajcatovo-cockova polevka
 - term: Rajčata smažená nebo pečená v sýrovém těstíčku
   rank: 25
@@ -780,8 +711,6 @@ terms:
   in_scope: true
   canonicals:
   - tomatoes
-  - bell-pepper
-  - shredded-cheese-mix
   folded: rajcata smazena nebo pecena v syrovem testicku
 - term: Nízkosacharidová palačinka s tvarohem
   rank: 26
@@ -790,7 +719,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - buttermilk
   - cottage-cheese
   folded: nizkosacharidova palacinka s tvarohem
 - term: Závitky ze pstruha
@@ -809,28 +737,25 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - guacamole
-  - beans
   - mustard
-  - dijon-mustard
   folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
-- term: Kulajda
+- term: Kefírový koláč
   rank: 29
   source: toprecepty.cz
   category: polevky
   slot_hint: lunch
   in_scope: true
   canonicals: []
-  folded: kulajda
-- term: Ovocný táč s drobenkou
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
   rank: 30
   source: toprecepty.cz
   category: polevky
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - jam
-  folded: ovocny tac s drobenkou
+  - garlic
+  folded: platky z krkovicky na cesneku
 - term: Těstoviny s rajčaty, česnekem a zakysanou smetanou
   rank: 1
   source: toprecepty.cz
@@ -839,10 +764,9 @@ terms:
   in_scope: true
   canonicals:
   - pasta
-  - chopped-tomatoes-canned
+  - tomatoes
   - garlic
-  - sour-cream
-  - cream-cheese
+  - cream
   folded: testoviny s rajcaty, cesnekem a zakysanou smetanou
 - term: Masové kuličky s těstovinami v rajčatové omáčce
   rank: 2
@@ -851,9 +775,8 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - juniper-berries
   - pasta
-  - tomato-paste
+  - tomatoes
   folded: masove kulicky s testovinami v rajcatove omacce
 - term: Krémové těstoviny s chorizem
   rank: 3
@@ -862,7 +785,6 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - cream-cheese
   - pasta
   - chorizo
   folded: kremove testoviny s chorizem
@@ -882,7 +804,6 @@ terms:
   in_scope: true
   canonicals:
   - pasta
-  - bbq-sauce
   folded: lahodne testoviny s omackou z nivy
 - term: Pikantní špagety se slaninou, švestkami, paprikami a žampiony
   rank: 6
@@ -893,7 +814,6 @@ terms:
   canonicals:
   - pasta-spaghetti
   - bacon
-  - jam
   - bell-pepper
   - mushrooms
   folded: pikantni spagety se slaninou, svestkami, paprikami a zampiony
@@ -905,7 +825,6 @@ terms:
   in_scope: true
   canonicals:
   - pasta-spaghetti
-  - mixed-vegetables
   folded: zapecene spagety s masem, zeleninou a syrem
 - term: Krémové těstoviny s pečenou cibulí
   rank: 8
@@ -914,10 +833,8 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - cream-cheese
   - pasta
-  - bell-pepper
-  - fennel
+  - onion
   folded: kremove testoviny s pecenou cibuli
 - term: Krémové orzo s kuřecím masem a zeleninou
   rank: 9
@@ -926,9 +843,7 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - cream-cheese
   - chicken-breast
-  - mixed-vegetables
   folded: kremove orzo s kurecim masem a zeleninou
 - term: Krémové těstoviny s cuketou a sýrem
   rank: 10
@@ -937,7 +852,6 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - cream-cheese
   - pasta
   - zucchini
   folded: kremove testoviny s cuketou a syrem
@@ -949,9 +863,7 @@ terms:
   in_scope: true
   canonicals:
   - pasta
-  - black-pepper
   - beef
-  - bbq-sauce
   folded: testoviny s mletym hovezim a omackou
 - term: Těstoviny s kuřecím, zeleninou a smetanovou omáčkou
   rank: 12
@@ -962,9 +874,7 @@ terms:
   canonicals:
   - pasta
   - chicken-breast
-  - mixed-vegetables
-  - cream-cheese
-  - bbq-sauce
+  - cream
   folded: testoviny s kurecim, zeleninou a smetanovou omackou
 - term: Šunkofleky z pánve
   rank: 13
@@ -972,8 +882,7 @@ terms:
   category: testoviny
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - salami
+  canonicals: []
   folded: sunkofleky z panve
 - term: Špagety s červenou čočkou
   rank: 14
@@ -983,7 +892,6 @@ terms:
   in_scope: true
   canonicals:
   - pasta-spaghetti
-  - beans
   folded: spagety s cervenou cockou
 - term: Špagetový koláč
   rank: 15
@@ -1037,7 +945,6 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - pasta
   - cinnamon
   folded: hanacke nudle se skorici
 - term: Conchiglioni plněné boloňskou omáčkou
@@ -1046,8 +953,7 @@ terms:
   category: testoviny
   slot_hint: dinner
   in_scope: true
-  canonicals:
-  - bbq-sauce
+  canonicals: []
   folded: conchiglioni plnene bolonskou omackou
 - term: Rajčatové orzo
   rank: 22
@@ -1056,7 +962,7 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - tomato-paste
+  - tomatoes
   folded: rajcatove orzo
 - term: Cuketové šunkofleky
   rank: 23
@@ -1066,7 +972,6 @@ terms:
   in_scope: true
   canonicals:
   - zucchini
-  - salami
   folded: cuketove sunkofleky
 - term: Rychlé těstoviny s chřestem
   rank: 24
@@ -1086,8 +991,6 @@ terms:
   in_scope: true
   canonicals:
   - tomatoes
-  - bell-pepper
-  - shredded-cheese-mix
   folded: rajcata smazena nebo pecena v syrovem testicku
 - term: Nízkosacharidová palačinka s tvarohem
   rank: 26
@@ -1096,7 +999,6 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - buttermilk
   - cottage-cheese
   folded: nizkosacharidova palacinka s tvarohem
 - term: Závitky ze pstruha
@@ -1115,28 +1017,25 @@ terms:
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - guacamole
-  - beans
   - mustard
-  - dijon-mustard
   folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
-- term: Kulajda
+- term: Kefírový koláč
   rank: 29
   source: toprecepty.cz
   category: testoviny
   slot_hint: dinner
   in_scope: true
   canonicals: []
-  folded: kulajda
-- term: Ovocný táč s drobenkou
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
   rank: 30
   source: toprecepty.cz
   category: testoviny
   slot_hint: dinner
   in_scope: true
   canonicals:
-  - jam
-  folded: ovocny tac s drobenkou
+  - garlic
+  folded: platky z krkovicky na cesneku
 - term: Nepečené jahodové dortíčky z jemné krupičky
   rank: 1
   source: toprecepty.cz
@@ -1145,8 +1044,7 @@ terms:
   in_scope: false
   canonicals:
   - strawberries
-  - oats
-  - cornmeal
+  - semolina
   folded: nepecene jahodove dorticky z jemne krupicky
 - term: Košíčky plněné tvarohem ochuceným rybízovou marmeládou
   rank: 2
@@ -1166,7 +1064,7 @@ terms:
   in_scope: false
   canonicals:
   - cashews
-  - cornmeal
+  - semolina
   folded: kesu pralinky s krupinkami
 - term: Borůvkové mřížkové tartaletky
   rank: 4
@@ -1176,7 +1074,6 @@ terms:
   in_scope: false
   canonicals:
   - blueberries
-  - tartar-sauce
   folded: boruvkove mrizkove tartaletky
 - term: Sněhová roláda bez mouky s kakaovým krémem
   rank: 5
@@ -1194,7 +1091,6 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - beans
   - zucchini
   folded: barevna cuketova buchta
 - term: Taštičky z tvarohového těsta s ostružinami nebo jiným ovocem
@@ -1213,8 +1109,7 @@ terms:
   category: moucniky
   slot_hint: null
   in_scope: false
-  canonicals:
-  - jam
+  canonicals: []
   folded: svestkova pochoutka petry cernocke
 - term: Piškotový koláč s černým rybízem
   rank: 9
@@ -1222,8 +1117,7 @@ terms:
   category: moucniky
   slot_hint: null
   in_scope: false
-  canonicals:
-  - black-pepper
+  canonicals: []
   folded: piskotovy kolac s cernym rybizem
 - term: Fazolovo-banánový perník
   rank: 10
@@ -1232,7 +1126,7 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - green-beans
+  - beans
   - bananas
   folded: fazolovo-bananovy pernik
 - term: Kynutá kakaová bábovka s kokosovou náplní
@@ -1243,7 +1137,6 @@ terms:
   in_scope: false
   canonicals:
   - cocoa-powder
-  - coconut-flakes
   folded: kynuta kakaova babovka s kokosovou naplni
 - term: Vláčná kokosová bábovka
   rank: 12
@@ -1251,8 +1144,7 @@ terms:
   category: moucniky
   slot_hint: null
   in_scope: false
-  canonicals:
-  - coconut-flakes
+  canonicals: []
   folded: vlacna kokosova babovka
 - term: Honzovy buchty
   rank: 13
@@ -1269,7 +1161,7 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - chocolate-chips
+  - dark-chocolate
   folded: domaci cookies s cokoladou
 - term: Nadýchaná roláda podle Josefa Maršálka
   rank: 15
@@ -1295,7 +1187,6 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - cream-cheese
   - fruit
   folded: kremove kolacky s ovocem a drobenkou
 - term: Rychlý mrkvový řez
@@ -1314,7 +1205,7 @@ terms:
   in_scope: false
   canonicals:
   - bananas
-  - chocolate-chips
+  - dark-chocolate
   folded: bananove rolky s cokoladou
 - term: Likérové špičky do skleničky
   rank: 20
@@ -1338,8 +1229,7 @@ terms:
   category: moucniky
   slot_hint: null
   in_scope: false
-  canonicals:
-  - almonds
+  canonicals: []
   folded: musli loupaky
 - term: Modravské koláče
   rank: 23
@@ -1356,7 +1246,7 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - protein-powder
+  - dark-chocolate
   folded: cokoladovy dezert s ostruzinami v rumu
 - term: Rajčata smažená nebo pečená v sýrovém těstíčku
   rank: 25
@@ -1366,8 +1256,6 @@ terms:
   in_scope: false
   canonicals:
   - tomatoes
-  - bell-pepper
-  - shredded-cheese-mix
   folded: rajcata smazena nebo pecena v syrovem testicku
 - term: Nízkosacharidová palačinka s tvarohem
   rank: 26
@@ -1376,7 +1264,6 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - buttermilk
   - cottage-cheese
   folded: nizkosacharidova palacinka s tvarohem
 - term: Závitky ze pstruha
@@ -1395,36 +1282,32 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - guacamole
-  - beans
   - mustard
-  - dijon-mustard
   folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
-- term: Kulajda
+- term: Kefírový koláč
   rank: 29
   source: toprecepty.cz
   category: moucniky
   slot_hint: null
   in_scope: false
   canonicals: []
-  folded: kulajda
-- term: Ovocný táč s drobenkou
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
   rank: 30
   source: toprecepty.cz
   category: moucniky
   slot_hint: null
   in_scope: false
   canonicals:
-  - jam
-  folded: ovocny tac s drobenkou
+  - garlic
+  folded: platky z krkovicky na cesneku
 - term: Špízy tandoori s kuřetem a zelenou rýží
   rank: 1
   source: recepty.cz
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - asparagus
+  canonicals: []
   folded: spizy tandoori s kuretem a zelenou ryzi
 - term: Zapečený květák se sýrovým bešamelem
   rank: 2
@@ -1434,7 +1317,6 @@ terms:
   in_scope: false
   canonicals:
   - cauliflower
-  - shredded-cheese-mix
   folded: zapeceny kvetak se syrovym besamelem
 - term: Knedlíčky se švestkovým přelivem
   rank: 3
@@ -1442,8 +1324,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - jam
+  canonicals: []
   folded: knedlicky se svestkovym prelivem
 - term: Pečená vepřová panenka na zelenině s tymiánem
   rank: 4
@@ -1452,10 +1333,8 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - bell-pepper
   - pork
   - pork-tenderloin
-  - celery-root
   - thyme
   folded: pecena veprova panenka na zelenine s tymianem
 - term: Zapečené těstoviny s cuketou a bazalkovou strouhankou
@@ -1508,7 +1387,7 @@ terms:
   in_scope: false
   canonicals:
   - chicken-breast
-  - hazelnuts
+  - walnuts
   folded: kureci spizy a orechovy dip
 - term: Nepečený koláč se švestkami
   rank: 10
@@ -1516,8 +1395,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - jam
+  canonicals: []
   folded: nepeceny kolac se svestkami
 - term: Candát ve slanině se špičatým zelím a bramborami
   rank: 11
@@ -1537,7 +1415,6 @@ terms:
   in_scope: false
   canonicals:
   - guacamole
-  - tuna-canned
   folded: topinky s guacamole a tunakem
 - term: Vafle se špenátem a vejci
   rank: 13
@@ -1575,9 +1452,7 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - spice-blend
   - chicken-breast
-  - artichokes
   - coriander
   folded: grilovana kureci srdicka s koriandrem
 - term: Matcha zmrzlina
@@ -1606,7 +1481,6 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - vanilla-pudding-powder
   - fruit
   folded: letni kolac s pudinkem a ovocem
 - term: Vegetariánské karbanátky
@@ -1626,8 +1500,7 @@ terms:
   in_scope: false
   canonicals:
   - beef
-  - tomato-paste
-  - bbq-sauce
+  - tomatoes
   folded: hovezi koule s rajcatovou omackou
 - term: Perníkové sušenky
   rank: 22
@@ -1635,8 +1508,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - cherries
+  canonicals: []
   folded: pernikove susenky
 - term: Ředkvičkový salát s kuřecími stripsy
   rank: 23
@@ -1657,7 +1529,7 @@ terms:
   in_scope: false
   canonicals:
   - bread-loaf
-  - cream-cheese
+  - cream
   folded: brioskovy kolac se smetanovym syrem
 - term: Cuketové chipsy
   rank: 25
@@ -1667,7 +1539,6 @@ terms:
   in_scope: false
   canonicals:
   - zucchini
-  - tortilla-chips
   folded: cuketove chipsy
 - term: Cuketa z plechu se sušenými rajčaty a olivami
   rank: 26
@@ -1677,8 +1548,7 @@ terms:
   in_scope: false
   canonicals:
   - zucchini
-  - chopped-tomatoes-canned
-  - garlic-powder
+  - tomatoes
   folded: cuketa z plechu se susenymi rajcaty a olivami
 - term: Prázdninový dort s ovocem
   rank: 27
@@ -1706,7 +1576,7 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - tomato-sauce
+  - tomatoes
   - mozzarella
   folded: rajcatova bruschetta s mozzarellou
 - term: Domácí chléb s cuketou
@@ -1733,8 +1603,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - jam
+  canonicals: []
   folded: merunkove knedliky z odpalovaneho testa
 - term: Letní tiramisu s jahodami a malinami
   rank: 33
@@ -1754,8 +1623,6 @@ terms:
   in_scope: false
   canonicals:
   - bell-pepper
-  - tomato-paste
-  - bbq-sauce
   folded: plnene papriky s rajskou omackou
 - term: Bramborové placky s posypem
   rank: 35
@@ -1764,8 +1631,7 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - potato-starch
-  - pita-bread
+  - potatoes
   folded: bramborove placky s posypem
 - term: Pečené brambory s dipem
   rank: 36
@@ -1774,7 +1640,6 @@ terms:
   slot_hint: null
   in_scope: false
   canonicals:
-  - bell-pepper
   - potatoes
   folded: pecene brambory s dipem
 - term: Zeleninové špízy se sýrem
@@ -1783,8 +1648,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - mixed-vegetables
+  canonicals: []
   folded: zeleninove spizy se syrem
 - term: Hrnkový meruňkový koláč s drobenkou
   rank: 38
@@ -1792,8 +1656,7 @@ terms:
   category: global
   slot_hint: null
   in_scope: false
-  canonicals:
-  - jam
+  canonicals: []
   folded: hrnkovy merunkovy kolac s drobenkou
 - term: Domácí lečo s volským okem
   rank: 39
@@ -1811,7 +1674,7 @@ terms:
   in_scope: false
   canonicals:
   - rabbit
-  - fennel
+  - onion
   - thyme
   folded: kralik cibular na tymianu
 - term: Broskvovo-rajské gazpacho s krevetami
@@ -1822,7 +1685,6 @@ terms:
   in_scope: true
   canonicals:
   - peaches
-  - tomato-paste
   - shrimp
   folded: broskvovo-rajske gazpacho s krevetami
 - term: Mrkvový krém se smetanou
@@ -1832,7 +1694,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cream-cheese
+  - cream
   folded: mrkvovy krem se smetanou
 - term: Italská dršťková polévka
   rank: 3
@@ -1840,9 +1702,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - breadcrumbs
-  - pasta
+  canonicals: []
   folded: italska drstkova polevka
 - term: Rajčatová polévka s pistáciemi
   rank: 4
@@ -1851,8 +1711,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - tomato-sauce
-  - pasta
+  - tomatoes
   folded: rajcatova polevka s pistaciemi
 - term: Rajčatová polévka se zeleninou
   rank: 5
@@ -1861,9 +1720,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - tomato-sauce
-  - pasta
-  - mixed-vegetables
+  - tomatoes
   folded: rajcatova polevka se zeleninou
 - term: Toskánská jarní polévka s chřestem
   rank: 6
@@ -1872,8 +1729,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - spring-onion
-  - pasta
   - asparagus
   folded: toskanska jarni polevka s chrestem
 - term: Asijská polévka s hovězím masem a nudlemi
@@ -1883,7 +1738,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - pasta
   - beef
   folded: asijska polevka s hovezim masem a nudlemi
 - term: Rychlá asijská polévka
@@ -1892,8 +1746,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
+  canonicals: []
   folded: rychla asijska polevka
 - term: Žilinská polévka chábovica
   rank: 9
@@ -1901,8 +1754,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
+  canonicals: []
   folded: zilinska polevka chabovica
 - term: Špenátový krém
   rank: 10
@@ -1920,9 +1772,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - spring-onion
   - spinach
-  - pasta
   folded: jarni spenatova polevka
 - term: Krémová polévka z medvědího česneku
   rank: 12
@@ -1931,8 +1781,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cream-cheese
-  - pasta
   - garlic
   folded: kremova polevka z medvediho cesneku
 - term: Jarní zeleninová polévka
@@ -1941,10 +1789,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - spring-onion
-  - mixed-vegetables
-  - pasta
+  canonicals: []
   folded: jarni zeleninova polevka
 - term: Květáková polévka s parmazánem
   rank: 14
@@ -1953,8 +1798,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cauliflower-rice
-  - pasta
+  - cauliflower
   - parmesan
   folded: kvetakova polevka s parmazanem
 - term: Zeleninová polévka s fazolkami
@@ -1964,8 +1808,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - mixed-vegetables
-  - pasta
   - green-beans
   folded: zeleninova polevka s fazolkami
 - term: Celerová polévka s modrým sýrem
@@ -1976,7 +1818,6 @@ terms:
   in_scope: true
   canonicals:
   - celery-root
-  - pasta
   folded: celerova polevka s modrym syrem
 - term: Mrkvová polévka se semínky
   rank: 17
@@ -1984,9 +1825,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
-  - chia-seeds
+  canonicals: []
   folded: mrkvova polevka se seminky
 - term: Květákový krém s parmazánem
   rank: 18
@@ -2006,7 +1845,6 @@ terms:
   in_scope: true
   canonicals:
   - garlic
-  - smoked-paprika
   - bell-pepper
   folded: baskicka cesnecka s vejci a uzenou paprikou
 - term: Ostrá česnečka s tvarůžky
@@ -2016,7 +1854,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - hot-sauce
   - garlic
   folded: ostra cesnecka s tvaruzky
 - term: Hrášková polévka se slaninou
@@ -2026,7 +1863,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - pasta
   - bacon
   folded: hraskova polevka se slaninou
 - term: Bramborová krémová polévka s houbami
@@ -2036,9 +1872,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - potato-starch
-  - cream-cheese
-  - pasta
+  - potatoes
   folded: bramborova kremova polevka s houbami
 - term: Rybí vývar s knedlíčky
   rank: 23
@@ -2055,8 +1889,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
+  canonicals: []
   folded: stedrovecerni hrachova polevka
 - term: Pórkový krém s gorgonzolou
   rank: 25
@@ -2072,8 +1905,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pumpkin-puree
+  canonicals: []
   folded: dynovy krem s pistaciemi
 - term: Klasická gulášová polévka
   rank: 27
@@ -2081,8 +1913,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
+  canonicals: []
   folded: klasicka gulasova polevka
 - term: Husí polévka s játrovými knedlíčky
   rank: 28
@@ -2090,8 +1921,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
+  canonicals: []
   folded: husi polevka s jatrovymi knedlicky
 - term: Klasická zelňačka
   rank: 29
@@ -2108,8 +1938,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - potato-starch
-  - pasta
+  - potatoes
   folded: spanelska bramborova polevka
 - term: Polévka z pečené mrkve a červené čočky
   rank: 31
@@ -2117,10 +1946,7 @@ terms:
   category: polevky
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - pasta
-  - bell-pepper
-  - beans
+  canonicals: []
   folded: polevka z pecene mrkve a cervene cocky
 - term: Květáková polévka v chlebu
   rank: 32
@@ -2129,8 +1955,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - cauliflower-rice
-  - pasta
+  - cauliflower
   - bread-loaf
   folded: kvetakova polevka v chlebu
 - term: Gulášová polévka v chlebu
@@ -2140,7 +1965,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - pasta
   - bread-loaf
   folded: gulasova polevka v chlebu
 - term: Bramboračka s bylinkovými noky
@@ -2151,7 +1975,7 @@ terms:
   in_scope: true
   canonicals:
   - potatoes
-  - herbs-de-provence
+  - parsley
   folded: bramboracka s bylinkovymi noky
 - term: Cuketovo-brokolicový krém
   rank: 35
@@ -2170,7 +1994,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - potato-starch
+  - potatoes
   folded: zelnacka s bramborovou kasi
 - term: Mulligan stew, základní recept
   rank: 37
@@ -2196,9 +2020,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - shredded-cheese-mix
   - chicken-breast
-  - pasta
   folded: mexicka kureci polevka
 - term: Mrkvovo-batátový krém
   rank: 40
@@ -2227,7 +2049,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - greek-yogurt
   - lettuce
   folded: recky salat s kuskusem
 - term: Turecký pastýřský salát
@@ -2246,7 +2067,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - tomato-paste
+  - tomatoes
   - lettuce
   folded: rajcatovy salat s matou
 - term: Kadeřávkový salát s lososem
@@ -2286,7 +2107,7 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - potato-starch
+  - potatoes
   - lettuce
   folded: bramborovy salat s pistaciemi
 - term: Salát z jahod a gorgonzoly
@@ -2306,7 +2127,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - spring-onion
   - chicken-breast
   - lettuce
   - asparagus
@@ -2319,7 +2139,6 @@ terms:
   in_scope: true
   canonicals:
   - lettuce
-  - spice-blend
   folded: salat s grilovanym syrem
 - term: Ředkvičkový salát s krevetami a zázvorovým dresinkem
   rank: 12
@@ -2362,7 +2181,6 @@ terms:
   in_scope: true
   canonicals:
   - lettuce
-  - bell-pepper
   folded: teply salat ze zelene cocky
 - term: Salát s červenou čočkou
   rank: 16
@@ -2372,7 +2190,6 @@ terms:
   in_scope: true
   canonicals:
   - lettuce
-  - beans
   folded: salat s cervenou cockou
 - term: Salát s fíky a pekanovými ořechy
   rank: 17
@@ -2435,8 +2252,6 @@ terms:
   canonicals:
   - pasta
   - lettuce
-  - bell-pepper
-  - mixed-vegetables
   - basil
   folded: testovinovy salat s pecenou zeleninou a bazalkovym pestem
 - term: Bramborový salát se zelenými fazolkami
@@ -2446,9 +2261,8 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - potato-starch
+  - potatoes
   - lettuce
-  - asparagus
   - green-beans
   folded: bramborovy salat se zelenymi fazolkami
 - term: Svěží okurkový salát s acidofilním mlékem
@@ -2533,8 +2347,7 @@ terms:
   category: salaty
   slot_hint: lunch
   in_scope: true
-  canonicals:
-  - eggs
+  canonicals: []
   folded: vajecna tlacenka
 - term: Salát a la Tabouleh s pečeným kuřecím prsem a tzatziki
   rank: 33
@@ -2544,7 +2357,6 @@ terms:
   in_scope: true
   canonicals:
   - lettuce
-  - bell-pepper
   - chicken-breast
   folded: salat a la tabouleh s pecenym kurecim prsem a tzatziki
 - term: Cizrnový salát s tuňákem
@@ -2554,9 +2366,8 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - chickpea-flour
+  - chickpeas
   - lettuce
-  - tuna-canned
   folded: cizrnovy salat s tunakem
 - term: Tuňákové těstoviny
   rank: 35
@@ -2565,7 +2376,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - tuna-canned
   - pasta
   folded: tunakove testoviny
 - term: Salát s ořechy a bobulemi
@@ -2586,7 +2396,6 @@ terms:
   slot_hint: lunch
   in_scope: true
   canonicals:
-  - beef
   - lettuce
   - balsamic-vinegar
   folded: steakovy salat s balzamikem
@@ -2598,7 +2407,6 @@ terms:
   in_scope: true
   canonicals:
   - lettuce
-  - spice-blend
   folded: salat s grilovanym melounem
 - term: Salát s jahodami a rozpečeným sýrem
   rank: 39

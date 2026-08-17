@@ -220,33 +220,55 @@ def _words(text: str) -> List[str]:
 #: prefix ("mas" in "maso" vs "máslo") don't collapse into a false match.
 _MIN_STEM_LEN = 5
 
+#: Minimum fraction of the CANDIDATE KEY's length that the shared prefix must
+#: cover, fuzzy path only. The length floor above is not enough on its own:
+#: "cibulová" shares 5 characters with "cibule" (5 of 6 = 0.83, a real match)
+#: but also shares 5 with a much longer, more specific key like "cibulový
+#: prášek" (5 of 15 ≈ 0.33 before the single-word restriction below even
+#: applies) — a short query word claiming most of a long, specific product
+#: name is exactly the over-matching direction that corrupts loose coverage
+#: (a false demand-side canonical manufactures a false loose hit). 0.7 keeps
+#: "cibulová" ~ "cibule" while rejecting claims on far longer keys.
+_MIN_COVERAGE_RATIO = 0.7
+
 
 @lru_cache(maxsize=1)
 def _farm_fuzzy_index() -> Dict[str, List[str]]:
-    """Diacritics-folded word -> canonical slugs, built ONLY to power the
-    farm-local fuzzy fallback below.
+    """Diacritics-folded SINGLE-WORD canonical names/aliases -> slugs, built
+    ONLY to power the farm-local fuzzy fallback below.
 
     FARM-ONLY BOUNDARY: this is a measurement-only convenience with a
-    conservative shared-prefix heuristic (see `_MIN_STEM_LEN`). It must
-    NEVER be promoted into `canonical_lookup.resolve_canonical` — that
-    function backs curation intake and pricing, where a fuzzy match could
-    silently corrupt real ingredient data. Keep this local to demand_index.py.
+    conservative shared-prefix heuristic (see `_MIN_STEM_LEN` and
+    `_MIN_COVERAGE_RATIO`). It must NEVER be promoted into
+    `canonical_lookup.resolve_canonical` — that function backs curation
+    intake and pricing, where a fuzzy match could silently corrupt real
+    ingredient data. Keep this local to demand_index.py.
+
+    Multiword names/aliases ("BBQ omáčka", "Cibulový prášek") are skipped
+    entirely rather than split into constituent words. Splitting used to
+    index each word of a multiword product separately, which is exactly how
+    a bare "omáčka" query reached "bbq-sauce" and "cibulová" reached the far
+    more specific "onion-powder" ("Cibulový prášek") instead of "onion"
+    ("cibule") — a one-word dish-name query has no way to disambiguate which
+    word of a multiword product it was supposed to mean. Multiword names
+    still resolve correctly through the exact/alias/normalized
+    `resolve_canonical` path, which is authoritative and where they belong.
 
     Follows the shape of `_normalized_index()` in canonical_lookup.py (build
-    once, cache, iterate name/name_cs/name_sk + aliases) but indexes
-    individual words rather than whole-name multisets, since the fuzzy
-    lookup below matches a single dish-name word at a time.
+    once, cache, iterate name/name_cs/name_sk + aliases).
     """
     index: Dict[str, List[str]] = {}
 
     def add(text: Optional[str], slug: str) -> None:
-        for word in _words(text or ''):
-            key = fold_diacritics(word).lower()
-            if not key:
-                continue
-            slugs = index.setdefault(key, [])
-            if slug not in slugs:
-                slugs.append(slug)
+        words = _words(text or '')
+        if len(words) != 1:
+            return  # multiword source text — not a fuzzy-matchable key
+        key = fold_diacritics(words[0]).lower()
+        if not key:
+            return
+        slugs = index.setdefault(key, [])
+        if slug not in slugs:
+            slugs.append(slug)
 
     for ci in CanonicalIngredient.objects.all().values('slug', 'name', 'name_cs', 'name_sk'):
         for field in ('name_cs', 'name', 'name_sk'):
@@ -271,17 +293,19 @@ def _fuzzy_canonical_slug(word: str) -> Optional[str]:
     dish-name words (e.g. 'bramborem' -> 'brambory' -> slug 'potatoes').
 
     Only ever called after `resolve_canonical` has already returned None for
-    this word — see `enrich_term`. Longest shared prefix wins first. A raw
-    longest-prefix-then-lexicographic-slug tie-break is NOT enough on its
-    own: 'bramborem' shares exactly 7 characters with both 'brambory'
-    (potatoes, key length 8) and 'bramborovy' (potato-starch's 'bramborový',
-    key length 10) — a real tie at shared=7 observed against the seeded
-    data. Lexicographic slug alone would then pick 'potato-starch' ahead of
-    'potatoes', which is wrong. So among same-shared-length ties we prefer
-    the key the match consumes most fully (the smaller key — closer to
-    being exactly the query's stem, not a truncated prefix of a longer,
-    unrelated word); only a remaining tie after that falls back to
-    lexicographic slug, for reproducibility.
+    this word — see `enrich_term`. A candidate key must clear BOTH
+    `_MIN_STEM_LEN` (absolute shared-prefix length) and
+    `_MIN_COVERAGE_RATIO` (shared prefix as a fraction of the key's own
+    length) before it is even considered — see those constants for why each
+    exists; both guard against over-matching, which is the dangerous
+    direction here (a false demand-side canonical manufactures a false loose
+    coverage hit, inflating the headline number).
+
+    Among the survivors, longest shared prefix wins first. A remaining tie
+    at the same shared length prefers the key the match consumes most fully
+    (the smaller key — closer to being exactly the query's stem rather than
+    a truncated prefix of a longer word); any tie still remaining after that
+    falls back to lexicographic slug, for reproducibility.
     """
     query = fold_diacritics(word).lower()
     if not query:
@@ -295,6 +319,8 @@ def _fuzzy_canonical_slug(word: str) -> Optional[str]:
         if shared < _MIN_STEM_LEN:
             continue
         key_len = len(key)
+        if shared / key_len < _MIN_COVERAGE_RATIO:
+            continue
         if shared > best_shared or (shared == best_shared and key_len < best_key_len):
             best_shared = shared
             best_key_len = key_len
