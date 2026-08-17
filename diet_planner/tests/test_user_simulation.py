@@ -1,8 +1,10 @@
 """Crossing demand x phrasing x persona into reproducible simulated queries."""
 from django.test import TestCase
 
+from diet_planner.models import CuratedRecipe
+from diet_planner.models.catalog import Availability
 from diet_planner.services.user_simulation import (
-    PERSONAS, SimulatedQuery, generate_queries, pairing_kind,
+    PERSONAS, SimulatedQuery, gate_funnel, generate_queries, pairing_kind,
 )
 
 DEMAND = [
@@ -85,3 +87,80 @@ class GenerateQueriesPairingTests(TestCase):
         queries = generate_queries(DEMAND, TEMPLATES, PERSONAS, seed=9, n=200)
         self.assertTrue(all(q.pairing in ('normal', 'cross-diet') for q in queries))
         self.assertTrue(any(q.pairing == 'cross-diet' for q in queries))
+
+
+def _recipe(slug, **kw):
+    defaults = dict(
+        slug=slug, name_cs=slug, meal_types=['dinner'], base_servings=2,
+        source_url=f'https://example.com/{slug}', source_name='Example',
+        status=CuratedRecipe.Status.PUBLISHED,
+        shopping_difficulty=Availability.COMMON, shopping_blockers=[],
+        ingredients=[{'name': 'sůl', 'canonical': 'salt', 'quantity': 5,
+                      'unit': 'g', 'catalog_id': 1}],
+        instructions=[{'text': 'Uvařte.'}],
+    )
+    defaults.update(kw)
+    return CuratedRecipe.objects.create(**defaults)
+
+
+class GateFunnelTests(TestCase):
+    def test_counts_shrink_monotonically_through_the_gates(self):
+        _recipe('a')
+        _recipe('b', dietary_tags=['vegan'])
+        funnel = gate_funnel(slot='dinner', required_tags=set(), facets=None)
+        counts = [funnel[k] for k in ('pool', 'slot', 'dietary', 'mapped', 'facets')]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+
+    def test_a_survivable_dietary_squeeze_has_no_killer(self):
+        """One recipe still serves the query, so nothing killed it — the gate
+        merely squeezed. `killer` means fatal; pressure is `biggest_drop`."""
+        _recipe('omnivore')
+        _recipe('vegan-dish', dietary_tags=['vegan'])
+        funnel = gate_funnel(slot='dinner', required_tags={'vegan'}, facets=None)
+        self.assertEqual(funnel['slot'], 2)
+        self.assertEqual(funnel['dietary'], 1)
+        self.assertIsNone(funnel['killer'])
+        self.assertEqual(funnel['biggest_drop'], 'dietary')
+
+    def test_a_fatal_dietary_gate_is_the_killer(self):
+        _recipe('omnivore')
+        _recipe('another-omnivore')
+        funnel = gate_funnel(slot='dinner', required_tags={'vegan'}, facets=None)
+        self.assertEqual(funnel['dietary'], 0)
+        self.assertEqual(funnel['killer'], 'dietary')
+
+    def test_biggest_drop_ties_break_toward_the_earlier_stage(self):
+        """Two stages remove the same number of recipes: 'slot' drops 2 (two
+        breakfast-only recipes never reach the dinner pool) and 'mapped'
+        drops 2 (two dinner recipes with no catalog_id/canonical). Tie
+        breaks toward the earlier gate in retrieval order."""
+        _recipe('breakfast-1', meal_types=['breakfast'])
+        _recipe('breakfast-2', meal_types=['breakfast'])
+        _recipe('unmapped-1', ingredients=[
+            {'name': 'tajemná surovina', 'quantity': 1, 'unit': 'ks'}])
+        _recipe('unmapped-2', ingredients=[
+            {'name': 'tajemná surovina', 'quantity': 1, 'unit': 'ks'}])
+        _recipe('mapped-1')
+        _recipe('mapped-2')
+        funnel = gate_funnel(slot='dinner', required_tags=set(), facets=None)
+        self.assertEqual(funnel['biggest_drop'], 'slot')
+
+    def test_specialty_cost_is_reported_separately(self):
+        """The specialty gate is unconditional inside eligible_recipes_for_slot,
+        so its cost is measured directly rather than by toggling it."""
+        _recipe('easy')
+        _recipe('hard', shopping_difficulty=Availability.SPECIALTY,
+                shopping_blockers=['tahini'])
+        funnel = gate_funnel(slot='dinner', required_tags=set(), facets=None)
+        self.assertEqual(funnel['specialty_cost'], 1)
+
+    def test_wide_open_query_has_no_killer(self):
+        _recipe('a')
+        self.assertIsNone(gate_funnel(slot='dinner', required_tags=set(),
+                                      facets=None)['killer'])
+
+    def test_empty_slot_names_the_slot_as_killer(self):
+        _recipe('a', meal_types=['breakfast'])
+        funnel = gate_funnel(slot='dinner', required_tags=set(), facets=None)
+        self.assertEqual(funnel['slot'], 0)
+        self.assertEqual(funnel['killer'], 'slot')

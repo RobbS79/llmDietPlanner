@@ -13,8 +13,11 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional, Set
 
+from diet_planner.models import CuratedRecipe
+from diet_planner.models.catalog import Availability
+from diet_planner.services import recipe_retrieval as rr
 from diet_planner.services.canonical_lookup import fold_diacritics
 from diet_planner.services.prompt_facets import PromptFacets
 
@@ -132,3 +135,73 @@ def generate_queries(demand, templates, personas, *, seed: int, n: int
             pairing=pairing_kind(row, restrictions),
         ))
     return queries
+
+
+#: Funnel stages in the order retrieval applies them.
+_STAGES = ('slot', 'dietary', 'mapped', 'facets')
+
+
+def gate_funnel(*, slot: str, required_tags: Set[str],
+                facets: Optional[PromptFacets]) -> Dict[str, object]:
+    """Pool size after each successive gate, plus two distinct readings of the
+    damage.
+
+    Calls the real `eligible_recipes_for_slot` with progressively more
+    constraints instead of reimplementing its order — the gate list has already
+    changed once (the specialty gate) and will change again.
+
+    `killer` is the first gate that emptied the pool entirely — `None` when
+    the query is still servable by at least one recipe. `biggest_drop` is the
+    gate that removed the most recipes relative to the stage before it,
+    fatal or not; ties break toward the earlier gate (retrieval order). The
+    two are computed separately and never folded together: a gate can do the
+    most damage of the funnel without being fatal (one recipe still gets
+    through), and reporting that as a "kill" would be a false claim that the
+    query went unserved.
+    """
+    pool = rr.published_pool(CuratedRecipe.Status.PUBLISHED)
+
+    counts = {'pool': len(pool)}
+    counts['slot'] = len(rr.eligible_recipes_for_slot(
+        slot, set(), pool=pool, enforce_mapping=False))
+    counts['dietary'] = len(rr.eligible_recipes_for_slot(
+        slot, required_tags, pool=pool, enforce_mapping=False))
+    counts['mapped'] = len(rr.eligible_recipes_for_slot(
+        slot, required_tags, pool=pool, enforce_mapping=True))
+    counts['facets'] = len(rr.eligible_recipes_for_slot(
+        slot, required_tags, pool=pool, enforce_mapping=True, facets=facets))
+
+    # The specialty gate is unconditional inside eligible_recipes_for_slot, so
+    # it cannot be toggled off to price it. Count it directly on the slot-and-
+    # diet-eligible subset instead.
+    specialty_cost = sum(
+        1 for r in pool
+        if r.shopping_difficulty == Availability.SPECIALTY
+        and slot in (r.meal_types or [])
+        and required_tags.issubset(set(r.dietary_tags or []))
+    )
+
+    killer = None
+    previous = counts['pool']
+    for stage in _STAGES:
+        if counts[stage] == 0 and previous > 0:
+            killer = stage
+            break
+        previous = counts[stage]
+
+    biggest_drop = None
+    biggest_drop_amount = 0
+    previous = counts['pool']
+    for stage in _STAGES:
+        drop = previous - counts[stage]
+        if drop > biggest_drop_amount:
+            biggest_drop_amount = drop
+            biggest_drop = stage
+        previous = counts[stage]
+
+    return {
+        **counts,
+        'specialty_cost': specialty_cost,
+        'killer': killer,
+        'biggest_drop': biggest_drop,
+    }
