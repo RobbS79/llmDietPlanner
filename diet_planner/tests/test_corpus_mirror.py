@@ -5,6 +5,8 @@ import tempfile
 from io import StringIO
 
 from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.db import connection
 from django.test import TestCase
 
 from diet_planner.models import CuratedRecipe
@@ -72,3 +74,51 @@ class CorpusMirrorTests(TestCase):
         self.assertEqual(
             sorted(CuratedRecipe.objects.values_list('slug', flat=True)),
             ['published-one'])
+
+    def test_dump_raises_on_zero_rows(self):
+        """A bad --status or the wrong DATABASE_URL must fail loudly, not
+        print SUCCESS and hand load_curated_corpus --flush an empty file
+        that silently wipes the local mirror."""
+        with self.assertRaises(CommandError):
+            call_command('dump_curated_corpus', '--output', self.path, stdout=StringIO())
+        self.assertFalse(os.path.exists(self.path))
+
+    def test_load_twice_without_flush_upserts_matching_pks(self):
+        """Loading the same file twice without --flush must update the
+        existing rows in place, not duplicate or error."""
+        _recipe('published-one')
+        call_command('dump_curated_corpus', '--output', self.path, stdout=StringIO())
+        CuratedRecipe.objects.all().delete()
+
+        call_command('load_curated_corpus', '--input', self.path, stdout=StringIO())
+        call_command('load_curated_corpus', '--input', self.path, stdout=StringIO())
+
+        self.assertEqual(
+            CuratedRecipe.objects.filter(slug='published-one').count(), 1)
+
+    def test_load_resets_the_postgres_sequence(self):
+        """Loading inserts rows with EXPLICIT prod pks. On Postgres, an
+        explicit-id insert never advances the id sequence, so a plain
+        .create() right after a load can collide with a pk the load just
+        occupied. Reproduce it directly: craft a dump whose row's pk is
+        exactly the id the local sequence is about to hand out next, load
+        it, then prove a fresh .create() still succeeds (and lands past
+        that pk) instead of raising IntegrityError."""
+        if connection.vendor != 'postgresql':
+            self.skipTest('explicit-id sequence lag is a Postgres-only failure mode')
+
+        probe = _recipe('sequence-probe')
+        call_command('dump_curated_corpus', '--output', self.path, stdout=StringIO())
+        next_id = probe.pk + 1
+        probe.delete()
+
+        payload = json.loads(open(self.path, encoding='utf-8').read())
+        payload[0]['pk'] = next_id
+        payload[0]['fields']['slug'] = 'sequence-collider'
+        with open(self.path, 'w', encoding='utf-8') as fh:
+            json.dump(payload, fh)
+
+        call_command('load_curated_corpus', '--input', self.path, stdout=StringIO())
+
+        fresh = _recipe('sequence-fresh')
+        self.assertGreater(fresh.pk, next_id)
