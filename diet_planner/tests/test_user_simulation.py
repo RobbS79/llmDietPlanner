@@ -166,6 +166,22 @@ class GateFunnelTests(TestCase):
         self.assertEqual(funnel['slot'], 0)
         self.assertEqual(funnel['killer'], 'slot')
 
+    def test_empty_published_pool_names_pool_as_killer(self):
+        """No recipes at all is a distinct, more fundamental failure than any
+        gate emptying a non-empty pool — `killer` must never read as None
+        (servable) when there was nothing to serve from in the first place."""
+        funnel = gate_funnel(slot='dinner', required_tags=set(), facets=None)
+        self.assertEqual(funnel['pool'], 0)
+        self.assertEqual(funnel['killer'], 'pool')
+
+    def test_wide_open_query_still_has_no_killer_when_recipes_exist(self):
+        """Regression guard for the pool-killer fix: a non-empty, fully
+        eligible pool must still report killer=None."""
+        _recipe('a')
+        funnel = gate_funnel(slot='dinner', required_tags=set(), facets=None)
+        self.assertGreater(funnel['pool'], 0)
+        self.assertIsNone(funnel['killer'])
+
 
 class DemandCoverageTests(TestCase):
     def test_strict_match_needs_the_dish_itself(self):

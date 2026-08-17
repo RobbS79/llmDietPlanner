@@ -108,3 +108,32 @@ class SimulateCoverageTests(TestCase):
     def test_biggest_drop_is_reported(self):
         _recipe('gulas', name_cs='Hovězí guláš')
         self.assertIn('biggest drop', self._run())
+
+    def test_empty_corpus_warns_loudly(self):
+        """0 published recipes must not be read as a clean coverage number —
+        it means nothing was measured at all."""
+        report = self._run()
+        self.assertIn('EMPTY', report)
+        self.assertIn('load_curated_corpus', report)
+
+    def test_empty_corpus_does_not_claim_every_query_was_servable(self):
+        report = self._run()
+        self.assertNotIn(
+            'every simulated query found at least one servable recipe', report)
+
+    def test_recipes_present_and_all_queries_servable_claims_success(self):
+        """A recipe that fully covers every slot/dietary/facet combination in
+        the fixture personas must produce the success claim — proving the
+        claim is reachable, not just suppressed."""
+        _recipe('gulas', name_cs='Hovězí guláš',
+                meal_types=['breakfast', 'lunch', 'dinner'],
+                dietary_tags=['vegan', 'vegetarian', 'gluten_free'],
+                ingredients=[{'name': 'guláš', 'canonical': 'gulas',
+                              'quantity': 300, 'unit': 'g', 'catalog_id': 2}])
+        report = self._run()
+        self.assertIn(
+            'every simulated query found at least one servable recipe', report)
+
+    def test_header_states_corpus_size(self):
+        _recipe('gulas', name_cs='Hovězí guláš')
+        self.assertIn('corpus=1 published recipes', self._run())

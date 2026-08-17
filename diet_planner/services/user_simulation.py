@@ -182,13 +182,21 @@ def gate_funnel(*, slot: str, required_tags: Set[str],
         and required_tags.issubset(set(r.dietary_tags or []))
     )
 
-    killer = None
-    previous = counts['pool']
-    for stage in _STAGES:
-        if counts[stage] == 0 and previous > 0:
-            killer = stage
-            break
-        previous = counts[stage]
+    # An empty published pool is a distinct, more fundamental failure than any
+    # gate emptying a non-empty pool: 'killer' must never read as None
+    # (servable) when there was nothing to serve from in the first place. The
+    # loop below only fires on a *drop to* zero (previous > 0), so a pool that
+    # starts at zero would otherwise pass through it silently.
+    if counts['pool'] == 0:
+        killer = 'pool'
+    else:
+        killer = None
+        previous = counts['pool']
+        for stage in _STAGES:
+            if counts[stage] == 0 and previous > 0:
+                killer = stage
+                break
+            previous = counts[stage]
 
     biggest_drop = None
     biggest_drop_amount = 0

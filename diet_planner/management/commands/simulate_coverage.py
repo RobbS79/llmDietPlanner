@@ -19,6 +19,7 @@ import yaml
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from diet_planner.models import CuratedRecipe
 from diet_planner.services import recipe_retrieval as rr
 from diet_planner.services.prompt_facets import extract_prompt_facets
 from diet_planner.services.user_simulation import (
@@ -79,7 +80,14 @@ class Command(BaseCommand):
         extract_mode = options['extract_facets']
         mode = 'extract' if extract_mode else 'direct'
 
-        w(f'user-query farm: seed={seed}  queries={n}  mode={mode}')
+        corpus_size = len(rr.published_pool(CuratedRecipe.Status.PUBLISHED))
+        w(f'user-query farm: seed={seed}  queries={n}  mode={mode}  '
+          f'corpus={corpus_size} published recipes')
+        if corpus_size == 0:
+            w(self.style.ERROR(
+                '  WARNING: the published corpus is EMPTY. Every number below is '
+                'MEANINGLESS — there is nothing to measure. Populate the corpus '
+                '(see load_curated_corpus) before trusting this report.'))
 
         queries = generate_queries(demand, templates, PERSONAS, seed=seed, n=n)
         if not queries:
@@ -148,8 +156,15 @@ class Command(BaseCommand):
             for gate, count in killer_counts.most_common():
                 cross = killer_cross_diet.get(gate, 0)
                 w(f'  {gate:<10} {count:>4}   (of which {cross} cross-diet)')
-        else:
+        elif filled > 0:
+            # Derived from real fill counts, not merely the absence of a
+            # named killer — an empty corpus has no killer either (nothing to
+            # measure), and that must never read as this success claim.
             w('  none — every simulated query found at least one servable recipe.')
+        else:
+            w(self.style.WARNING(
+                '  no gate recorded a kill, but nothing was filled either — this '
+                'reading is not trustworthy (see the corpus-size warning above).'))
 
         w('\n-- biggest drop, by gate --')
         if drop_counts:
