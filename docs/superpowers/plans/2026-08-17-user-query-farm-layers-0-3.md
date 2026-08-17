@@ -107,19 +107,19 @@ class CorpusMirrorTests(TestCase):
         self.assertEqual(restored.name_cs, 'Svíčková')
         self.assertEqual(restored.status, CuratedRecipe.Status.PUBLISHED)
 
-    def test_load_drops_the_chat_user_link(self):
-        """chat_user points at a prod User row that does not exist locally;
+    def test_load_drops_the_created_for_user_link(self):
+        """created_for_user points at a prod User row that does not exist locally;
         keeping the id would break the FK on load."""
         from django.contrib.auth import get_user_model
         user = get_user_model().objects.create_user(
             username='someone', email='someone@example.com', password='x')
-        _recipe('published-one', chat_user=user)
+        _recipe('published-one', created_for_user=user)
         call_command('dump_curated_corpus', '--output', self.path, stdout=StringIO())
         CuratedRecipe.objects.all().delete()
         user.delete()
 
         call_command('load_curated_corpus', '--input', self.path, stdout=StringIO())
-        self.assertIsNone(CuratedRecipe.objects.get(slug='published-one').chat_user_id)
+        self.assertIsNone(CuratedRecipe.objects.get(slug='published-one').created_for_user_id)
 
     def test_load_flush_replaces_existing_rows(self):
         _recipe('published-one')
@@ -180,7 +180,7 @@ Create `diet_planner/management/commands/load_curated_corpus.py`:
 ```python
 """Load a `dump_curated_corpus` export into the local database.
 
-Drops `chat_user` on the way in: it points at a prod User row that does not
+Drops `created_for_user` on the way in: it points at a prod User row that does not
 exist here, and the farm never needs it.
 """
 from django.core import serializers
@@ -208,7 +208,7 @@ class Command(BaseCommand):
             if options['flush']:
                 CuratedRecipe.objects.all().delete()
             for wrapper in serializers.deserialize('json', payload):
-                wrapper.object.chat_user = None
+                wrapper.object.created_for_user = None
                 wrapper.save()
                 loaded += 1
 
@@ -1193,6 +1193,15 @@ gate by calling the REAL `eligible_recipes_for_slot` with progressively more
 constraints — never by reimplementing the gate order, which would drift from
 retrieval the first time someone edits it.
 
+**Correction made during implementation.** An earlier draft of this task asserted
+`killer == 'dietary'` for a gate that cut the pool from 2 to 1. That is wrong:
+one recipe still serves the query, so nothing killed it. Conflating "fatal" with
+"costly" would have reported every squeeze as a fatality and overstated corpus
+failure. The funnel therefore returns TWO values: `killer` is the first gate that
+emptied the pool (`None` when the query is servable), and `biggest_drop` is the
+gate that removed the most recipes whether or not it was fatal. They are computed
+in separate loops on purpose.
+
 **Files:**
 - Modify: `diet_planner/services/user_simulation.py`
 - Test: `diet_planner/tests/test_user_simulation.py`
@@ -1229,12 +1238,22 @@ class GateFunnelTests(TestCase):
         counts = [funnel[k] for k in ('pool', 'slot', 'dietary', 'mapped', 'facets')]
         self.assertEqual(counts, sorted(counts, reverse=True))
 
-    def test_dietary_gate_is_attributed(self):
+    def test_a_survivable_dietary_squeeze_has_no_killer(self):
+        """One recipe still serves the query, so nothing killed it — the gate
+        merely squeezed. `killer` means fatal; pressure is `biggest_drop`."""
         _recipe('omnivore')
         _recipe('vegan-dish', dietary_tags=['vegan'])
         funnel = gate_funnel(slot='dinner', required_tags={'vegan'}, facets=None)
         self.assertEqual(funnel['slot'], 2)
         self.assertEqual(funnel['dietary'], 1)
+        self.assertIsNone(funnel['killer'])
+        self.assertEqual(funnel['biggest_drop'], 'dietary')
+
+    def test_a_fatal_dietary_gate_is_the_killer(self):
+        _recipe('omnivore')
+        _recipe('another-omnivore')
+        funnel = gate_funnel(slot='dinner', required_tags={'vegan'}, facets=None)
+        self.assertEqual(funnel['dietary'], 0)
         self.assertEqual(funnel['killer'], 'dietary')
 
     def test_specialty_cost_is_reported_separately(self):
