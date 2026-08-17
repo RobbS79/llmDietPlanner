@@ -168,3 +168,65 @@ class ApplySubstitutionsTests(TestCase):
         other.refresh_from_db()
         self.assertEqual(target.ingredients[0]['canonical'], 'vanilla-aroma')
         self.assertEqual(other.ingredients[0]['canonical'], 'vanilla-extract')
+
+
+class UnpublishUnshoppableTests(TestCase):
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        call_command('rate_ingredient_availability', stdout=StringIO())
+
+    def test_specialty_published_becomes_draft(self):
+        r = _recipe(slug='sushi-miska', ingredients=[
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2, 'unit': 'ks'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.shopping_difficulty, 'specialty')
+
+        out = StringIO()
+        call_command('unpublish_unshoppable', stdout=out)
+        r.refresh_from_db()
+        self.assertEqual(r.status, CuratedRecipe.Status.DRAFT)
+        self.assertIn('sushi-miska', out.getvalue())
+
+    def test_findable_recipe_stays_published(self):
+        """Only specialty is demoted; findable is a bigger-shop trip, not a wall."""
+        r = _recipe(slug='findable-dish', ingredients=[
+            {'name': 'javorový sirup', 'canonical': 'maple-syrup',
+             'quantity': 30, 'unit': 'ml'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        call_command('unpublish_unshoppable', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.status, CuratedRecipe.Status.PUBLISHED)
+
+    def test_nothing_is_deleted(self):
+        _recipe(slug='sushi-miska', ingredients=[
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2, 'unit': 'ks'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        call_command('unpublish_unshoppable', stdout=StringIO())
+        self.assertTrue(CuratedRecipe.objects.filter(slug='sushi-miska').exists())
+
+    def test_dry_run_writes_nothing(self):
+        r = _recipe(slug='sushi-miska', ingredients=[
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2, 'unit': 'ks'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        call_command('unpublish_unshoppable', '--dry-run', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.status, CuratedRecipe.Status.PUBLISHED)
+
+    def test_blockers_are_reported_so_the_demotion_is_reviewable(self):
+        """Draft, never delete — the printed reason is how a later table finds
+        these again."""
+        _recipe(slug='sushi-miska', ingredients=[
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2, 'unit': 'ks'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        out = StringIO()
+        call_command('unpublish_unshoppable', stdout=out)
+        self.assertIn('nori', out.getvalue())
+
+    def test_already_draft_specialty_is_not_recounted(self):
+        _recipe(slug='sushi-draft', status=CuratedRecipe.Status.DRAFT, ingredients=[
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2, 'unit': 'ks'}])
+        call_command('recompute_shopping_difficulty', stdout=StringIO())
+        out = StringIO()
+        call_command('unpublish_unshoppable', stdout=out)
+        self.assertIn('demoted=0', out.getvalue())
