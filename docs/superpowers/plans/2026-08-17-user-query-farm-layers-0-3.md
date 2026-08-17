@@ -421,6 +421,25 @@ git commit -m "feat(farm): parse ranked dish demand from CZ recipe sites"
 
 ### Task 3: Enrich terms with slot scope and canonicals
 
+**Two corrections made during implementation**, both found by running the code
+against the real fixture rather than by review:
+
+1. `CATEGORY_SLOTS['global']` was written as `'dinner'`, which marked all 24
+   terms of the dessert-heavy all-time page as in-scope and defeated the very
+   mechanism this task exists to build. `'global'` is now `None`: a mixed,
+   unlabelled page cannot be slot-scoped, so it feeds the reported picture and
+   the miss list but never the scored denominator. Scored demand comes from the
+   per-category pages. Consequence to keep visible: `in_scope=False` now means
+   either "genuinely has no meal slot" or "came from a page we cannot classify".
+2. `resolve_canonical` cannot resolve inflected Czech nouns — `bramborem`
+   (instrumental) returns `None` — so only 1 of 24 real terms resolved any
+   canonical, which would have made the "loose" coverage number meaningless.
+   `demand_index` now has a farm-local fuzzy fallback (folded canonical index,
+   longest-common-prefix ≥ 5, the same rule `user_simulation` uses). It is
+   deliberately NOT applied to `resolve_canonical` itself, which curation intake
+   and pricing depend on — a fuzzy match there could corrupt real data, whereas
+   here it only affects a measurement.
+
 Global rankings on both sites are dominated by sweet baking — the observed
 toprecepty all-time top 15 is mostly perník, buchty, bublanina, langoše. A meal
 planner has no dessert slot, so counting "we cannot serve perník" as a coverage
@@ -462,7 +481,7 @@ class EnrichTermTests(TestCase):
     def test_canonicals_are_resolved_from_the_dish_name(self):
         term = DemandTerm(term='Kuřecí řízek s bramborem', rank=1,
                           source='x', category='maso')
-        self.assertIn('potato', enrich_term(term)['canonicals'])
+        self.assertIn('potatoes', enrich_term(term)['canonicals'])
 
     def test_unknown_words_do_not_break_resolution(self):
         term = DemandTerm(term='Dobětický guláš', rank=1, source='x', category='maso')
@@ -1842,6 +1861,24 @@ git commit -m "docs: baseline demand coverage of the corpus"
 ```
 
 ---
+
+## Czech morphology is a property of this domain, not an edge case
+
+Three separate layers of this plan were bitten by the same thing, and a fourth
+(the ingredient-mapping dictionary) was bitten by it before this plan existed:
+
+- strict demand coverage scored `Hovězí guláš` against `Guláš z hovězího masa`
+  as a MISS, because `hovězí` and `hovězího` are different tokens
+- `resolve_canonical('bramborem')` returns `None`, so dish names yielded almost
+  no canonicals
+- `parse_ranking` had to fold diacritics on both sides of every comparison
+
+Treat any new string comparison over Czech text here as guilty until proven
+otherwise. The rule adopted across this feature is: fold diacritics, lowercase,
+then match on equality OR longest-common-prefix ≥ 5 characters. The 5-character
+floor is what stops short prefixes collapsing unrelated words (`maso`/`maslo`
+share only 3), and it is what keeps `Kuřecí řízek` distinct from `Vepřový
+řízek` — the discrimination the metric cannot afford to lose.
 
 ## Notes for the implementer
 
