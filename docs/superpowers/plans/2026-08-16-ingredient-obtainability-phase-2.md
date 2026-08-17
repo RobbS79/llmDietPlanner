@@ -6,7 +6,7 @@
 
 **Architecture:** A git-tracked YAML substitution table (`ingredient_substitutions_cz.yaml`) loads into the existing `IngredientSubstitute` model with a new `purpose='availability'`. A pure planner decides, per recipe, whether *every* blocker is covered by the table — partial coverage is never applied, because a recipe with one remaining unbuyable item is still an unbuyable recipe. Covered recipes get their ingredient rows rewritten mechanically, their affected instruction steps rewritten by a bounded LLM pass, and the whole rewrite is discarded if the existing coherence judge rejects it. What survives as `specialty` afterwards is demoted to `draft`, never deleted. Finally the ranker excludes `specialty` and applies a small per-blocker penalty behind its own flag.
 
-**Tech Stack:** Django 5.1 management commands, PostgreSQL (Supabase), Gemini via `google.generativeai`, `manage.py test` (Django TestCase — this repo has no pytest).
+**Tech Stack:** Django 5.1 management commands, PostgreSQL (Supabase), Gemini via `google.generativeai`, pytest + pytest-django (the runner since `d5c8e01`).
 
 **Predecessor:** `docs/superpowers/plans/2026-08-11-ingredient-obtainability-phase-1.md` (complete, merged as `ed7ead6`). Spec: `docs/superpowers/specs/2026-08-11-ingredient-obtainability-design.md` §6, §7, §8.
 
@@ -37,7 +37,13 @@
 
 **Two services, not one.** `ingredient_substitution.py` is pure and fully testable without mocking an LLM; `substitution_rewrite.py` is the only file that talks to Gemini. Keeping them apart is what lets Task 4's tests run offline and fast.
 
-**Test command for this repo:** `docker-compose run --rm web python manage.py test <dotted.path> -v 1`. There is no pytest in the container — `python -m pytest` fails with "No module named pytest".
+**Test command for this repo** (changed by `d5c8e01`, after this plan was written): pytest is now the runner, both locally and in CI.
+
+```bash
+docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_x.py -q"
+```
+
+The `pip install` is needed because the web image builds from `requirements.txt` only; CI installs `requirements-dev.txt` itself. Bare `python -m pytest -q` runs the whole gated suite (`testpaths` in `pytest.ini`). Do **not** use `manage.py test` — it collects only `unittest.TestCase` subclasses and silently skips this repo's pytest-native modules.
 
 ---
 
@@ -48,9 +54,11 @@
 - Create: `diet_planner/migrations/0037_substitute_purpose.py` (generated)
 - Test: `diet_planner/tests/test_ingredient_substitution.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_ingredient_substitution.py`:
+
+**Use `get_or_create`, not `create`.** Migration `0022_seed_canonical_staples` seeds the canonical table, so `soy-sauce` (and many other slugs) already exist in a fresh test DB. Plain `create()` raises `IntegrityError: duplicate key value violates unique constraint` — which fails the test for the wrong reason and hides whether the field exists.
 
 ```python
 """Availability substitution: model fields and the pure planner."""
@@ -62,9 +70,14 @@ from diet_planner.models.catalog import IngredientSubstitute
 
 class SubstitutePurposeFieldTests(TestCase):
     def setUp(self):
-        self.a = CanonicalIngredient.objects.create(name='tamari', slug='tamari')
-        self.b = CanonicalIngredient.objects.create(
-            name='soy sauce', slug='soy-sauce', name_cs='sójová omáčka')
+        # get_or_create, not create: migration 0022_seed_canonical_staples
+        # seeds the canonical table, so several of these slugs already exist in
+        # a fresh test DB.
+        self.a, _ = CanonicalIngredient.objects.get_or_create(
+            slug='tamari', defaults={'name': 'tamari'})
+        self.b, _ = CanonicalIngredient.objects.get_or_create(
+            slug='soy-sauce',
+            defaults={'name': 'soy sauce', 'name_cs': 'sójová omáčka'})
 
     def test_purpose_defaults_to_preference(self):
         """Existing rows must keep behaving exactly as before the migration."""
@@ -86,13 +99,15 @@ class SubstitutePurposeFieldTests(TestCase):
         self.assertEqual(sub.substitute_unit, 'ml')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web python -m pytest diet_planner/tests/test_ingredient_substitution.py -q`
 
-Expected: FAIL — `AttributeError: type object 'IngredientSubstitute' has no attribute 'Purpose'`
+Expected: FAIL — `AttributeError: 'IngredientSubstitute' object has no attribute 'substitute_unit'`
 
-- [ ] **Step 3: Add the choices class and fields**
+(The runner is pytest as of `d5c8e01`; `manage.py test` cannot collect this repo's pytest-native modules.)
+
+- [x] **Step 3: Add the choices class and fields**
 
 In `diet_planner/models/catalog.py`, inside `class IngredientSubstitute`, directly after the docstring on line 188:
 
@@ -126,7 +141,7 @@ Then after the `conversion_factor` field (line 210), before `class Meta`:
     )
 ```
 
-- [ ] **Step 4: Generate the migration**
+- [x] **Step 4: Generate the migration**
 
 ```bash
 docker-compose run --rm web python manage.py makemigrations diet_planner --name substitute_purpose
@@ -134,13 +149,13 @@ docker-compose run --rm web python manage.py makemigrations diet_planner --name 
 
 Expected: `Migrations for 'diet_planner': 0037_substitute_purpose.py — Add field purpose to ingredientsubstitute, Add field substitute_unit to ingredientsubstitute`
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web python -m pytest diet_planner/tests/test_ingredient_substitution.py -q`
 
-Expected: `Ran 3 tests ... OK`
+Expected: `3 passed`. Then the full suite for regressions: `python -m pytest -q` → `741 passed`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit** — done as `203e704` on `feat/obtainability-substitute-fields`.
 
 ```bash
 git add diet_planner/models/catalog.py diet_planner/migrations/0037_substitute_purpose.py diet_planner/tests/test_ingredient_substitution.py
@@ -158,7 +173,14 @@ git commit -m "feat(catalog): purpose + substitute_unit on IngredientSubstitute"
 - Modify: `diet_planner/data/ingredient_availability.yaml`
 - Test: `diet_planner/tests/test_ingredient_substitution.py`
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-16 (commit `6789838`) — two defects found that this plan did not anticipate:**
+
+1. **The YAML edit alone does nothing to an existing database.** `seed_canonical_ingredients` created aliases with `get_or_create`, whose `defaults` apply only on creation, so moving `vanilkové aroma` from `vanilla` to `vanilla-aroma` silently no-opped anywhere already seeded — dev and prod. Fixed by repointing explicitly; the command now reports `repointed=N`. On the dev DB that first run repointed **8** aliases, not 1: others were stale too (e.g. `vanilkový cukr` was still on `vanilla` rather than `vanilla-sugar`, from migration 0022).
+2. **That fix exposed an unresolvable claim.** `plísňový sýr` was listed under BOTH `czech-soft-cheese` (hermelín) and `blue-cheese` (niva), so consecutive seeds flipped its owner back and forth. Assigned to `blue-cheese`, and the command now raises `CommandError` on any duplicate alias claim instead of picking whichever row it processed last.
+
+**Expect prod to repoint aliases when this deploys** — check the `repointed=` count and the `realias` lines before assuming it was a no-op.
+
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_substitution.py`:
 
@@ -192,13 +214,13 @@ class VanillaAromaCanonicalTests(TestCase):
         self.assertEqual(aroma.availability, 'common')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution.VanillaAromaCanonicalTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::VanillaAromaCanonicalTests -q"`
 
 Expected: FAIL — `vanilla-aroma canonical missing`
 
-- [ ] **Step 3: Edit the canonical YAML**
+- [x] **Step 3: Edit the canonical YAML**
 
 In `diet_planner/data/canonical_ingredients.yaml`, replace lines 2031-2041 (the `vanilla` entry) with:
 
@@ -229,7 +251,7 @@ In `diet_planner/data/canonical_ingredients.yaml`, replace lines 2031-2041 (the 
     - { alias: "vanilkova esence", language_code: cs }
 ```
 
-- [ ] **Step 4: Rate the new canonical**
+- [x] **Step 4: Rate the new canonical**
 
 `rate_ingredient_availability` fails loudly on a canonical missing from the YAML (Phase 1, Task 5), so this edit is mandatory, not optional. Add to `diet_planner/data/ingredient_availability.yaml`, keeping the file's existing alphabetical-by-slug ordering (insert next to the other `vanilla-*` slugs near line 1107):
 
@@ -242,19 +264,19 @@ In `diet_planner/data/canonical_ingredients.yaml`, replace lines 2031-2041 (the 
     vanilla-extract (37 recipes).'
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
-Expected: `Ran 6 tests ... OK`
+Expected: `6 passed`
 
-- [ ] **Step 6: Verify no existing canonical regressed**
+- [x] **Step 6: Verify no existing canonical regressed**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_availability diet_planner.tests.test_rate_ingredient_availability -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_availability.py diet_planner/tests/test_rate_ingredient_availability.py -q"`
 
-Expected: `Ran 37 tests ... OK` (the Phase 1 suite; `rate_ingredient_availability` must not report an unrated canonical)
+Expected: `32 passed` (the Phase 1 suite for these two modules; `rate_ingredient_availability` must not report an unrated canonical)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add diet_planner/data/canonical_ingredients.yaml diet_planner/data/ingredient_availability.yaml diet_planner/tests/test_ingredient_substitution.py
@@ -272,7 +294,14 @@ git commit -m "feat(catalog): vanilkové aroma becomes its own canonical"
 
 The spec's saveable/not-saveable split (§6) is the authority. **Only saveable swaps go in this file.** An ingredient that *is* the dish (tahini in a tahini dressing, nori in a sushi miska) gets no row, which routes its recipes to Task 7's unpublish instead.
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-16 (commit `0e0c54b`). Two changes from the plan as written:**
+
+1. **`almond-flour -> ground-almonds` dropped.** `ground-almonds` does not exist as a canonical, because *mleté mandle* is already an **alias of `almond-flour`** — the swap would map the ingredient to itself. `almond-flour` is `findable` (6 recipes); if mandlová mouka really is ordinary Kaufland stock the fix is re-rating it, not substituting. Deferred to the Task 9 Step 4 rating re-check. The table ships **9 rows, not 10**.
+2. **The loader also validates swap TARGETS.** Trading one unbuyable ingredient for another achieves nothing, so a target rated `findable`/`specialty` aborts the load. `unrated` is allowed — not yet judged is not the same as known-bad. All nine shipped targets are rated `common`, pinned by `test_shipped_table_targets_are_all_common`.
+
+Verified on the dev DB: `loaded=9 created=9`, then `loaded=9 created=0` on rerun.
+
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_substitution.py`:
 
@@ -324,13 +353,13 @@ class LoadSubstitutionsTests(TestCase):
             os.unlink(path)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution.LoadSubstitutionsTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::LoadSubstitutionsTests -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'load_availability_substitutions'`
 
-- [ ] **Step 3: Write the seed table**
+- [x] **Step 3: Write the seed table**
 
 Create `diet_planner/data/ingredient_substitutions_cz.yaml`:
 
@@ -432,7 +461,7 @@ print('MISSING:', missing or 'none')
 
 Expected: `MISSING: none`. If a slug is missing, add that canonical to `canonical_ingredients.yaml` **and** rate it in `ingredient_availability.yaml` (the rating command fails loudly otherwise) before continuing.
 
-- [ ] **Step 4: Write the loader command**
+- [x] **Step 4: Write the loader command**
 
 Create `diet_planner/management/commands/load_availability_substitutions.py`:
 
@@ -517,13 +546,13 @@ class Command(BaseCommand):
             f'{prefix}loaded={len(rows)} created={created} updated={updated}'))
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
-Expected: `Ran 10 tests ... OK`
+Expected: `10 passed`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/data/ingredient_substitutions_cz.yaml diet_planner/management/commands/load_availability_substitutions.py diet_planner/tests/test_ingredient_substitution.py
@@ -540,7 +569,13 @@ git commit -m "feat(availability): Czech substitution table and its loader"
 
 This is the decision layer: no LLM, no writes. It answers *"can this recipe be fully saved, and what exactly changes?"*
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-16 (commit pending below). Notes:**
+
+- Four tests added beyond the plan: the vegan/honey refusal (the `_TAG_INCOMPATIBLE` guard's second axis), `apply_changes_to_ingredients` not mutating its input (the caller snapshots that same list into `original_ingredients`), bare-string ingredients not crashing, and `summary()` reading as the adaptation note.
+- `_TAG_INCOMPATIBLE['gluten_free']` also carries `oat-flour`/`oats`, since the `oat-flour -> oats` row would otherwise fire inside a gluten-free recipe.
+- **No local corpus measurement is possible.** The dev DB holds 21 draft recipes and zero published; the 458-recipe corpus is prod-only. How many of the 164 blocked recipes this table can actually save is therefore unknown until Task 9 runs against prod — do not assume it is most of them.
+
+- [x] **Step 1: Write the failing test**
 
 Append to `diet_planner/tests/test_ingredient_substitution.py`:
 
@@ -653,13 +688,13 @@ class PlanSubstitutionsTests(TestCase):
         self.assertEqual(plan.uncovered, [])
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution.PlanSubstitutionsTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py::PlanSubstitutionsTests -q"`
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'diet_planner.services.ingredient_substitution'`
 
-- [ ] **Step 3: Write the planner**
+- [x] **Step 3: Write the planner**
 
 Create `diet_planner/services/ingredient_substitution.py`:
 
@@ -823,13 +858,13 @@ def apply_changes_to_ingredients(ingredients, plan: SubstitutionPlan) -> List[di
     return out
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_ingredient_substitution -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_ingredient_substitution.py -q"`
 
-Expected: `Ran 17 tests ... OK`
+Expected: `17 passed`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/services/ingredient_substitution.py diet_planner/tests/test_ingredient_substitution.py
@@ -846,7 +881,11 @@ git commit -m "feat(availability): pure substitution planner, all-or-nothing cov
 
 Only steps whose text names a swapped ingredient are sent to the LLM. Everything else is passed through verbatim — an unbounded "regenerate the recipe" call is exactly how a sourced recipe silently becomes a different dish.
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-17. One defect in the plan's own implementation, caught by the plan's own test:**
+
+The single `_mentions()` helper below matches on **any** word stem, which is right for *finding* affected steps and wrong for the *fail-closed guard*. `vanilkové aroma` and `vanilkový extrakt` share the `vanilko` stem, so when the model lazily echoed the step back unchanged, `_mentions(new_text, new_name)` returned True and the guard never fired — `test_old_ingredient_left_in_output_fails_closed` failed while the other six passed. Split into two matchers: `_mentions()` (any stem, loose, picks the steps to send) and `_names()` (every stem, strict, used by the guard). Strict matching is also the only thing that separates swaps keeping the head noun — `avokádový olej -> řepkový olej`, a live row in the shipped table — so two regression tests were added for it. Ships **9 tests, not 7**. The Step 3 listing below carries the fixed matchers.
+
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_substitution_rewrite.py`:
 
@@ -959,13 +998,13 @@ class StringStepTests(TestCase):
         self.assertEqual(out[0]['text'], 'Přidejte vanilkové aroma.')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_substitution_rewrite -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_substitution_rewrite.py -q"`
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'diet_planner.services.substitution_rewrite'`
 
-- [ ] **Step 3: Write the rewriter**
+- [x] **Step 3: Write the rewriter**
 
 Create `diet_planner/services/substitution_rewrite.py`:
 
@@ -1022,15 +1061,29 @@ def _step_text(step) -> str:
     return str(step or '')
 
 
-def _mentions(text: str, name: str) -> bool:
-    """Czech is inflected, so match on the stem rather than the exact form
+def _stems(name: str) -> List[str]:
+    """Czech is inflected, so compare stems rather than exact forms
     ('vanilkový extrakt' appears as 'vanilkového extraktu')."""
+    return [w[:-2] if len(w) > 5 else w for w in name.lower().split() if w]
+
+
+def _mentions(text: str, name: str) -> bool:
+    """Loose: ANY stem hits. Decides which steps go to the LLM, where
+    over-including a step costs tokens and nothing else."""
     haystack = text.lower()
-    for word in name.lower().split():
-        stem = word[:-2] if len(word) > 5 else word
-        if stem and stem in haystack:
-            return True
-    return False
+    return any(stem in haystack for stem in _stems(name))
+
+
+def _names(text: str, name: str) -> bool:
+    """Strict: EVERY stem hits. The fail-closed guard needs this, because the
+    loose form is actively wrong there: 'vanilkové aroma' and 'vanilkový
+    extrakt' share the 'vanilko' stem, so ANY-matching reported the new name as
+    present in a step that still said 'vanilkový extrakt' and the guard never
+    fired. Requiring every stem also separates swaps that keep the head noun
+    ('avokádový olej' -> 'řepkový olej')."""
+    haystack = text.lower()
+    stems = _stems(name)
+    return bool(stems) and all(stem in haystack for stem in stems)
 
 
 def rewrite_instructions(
@@ -1082,7 +1135,7 @@ def rewrite_instructions(
         if not new_text:
             raise RewriteError(f'empty step text at position {position}')
         for change in plan.changes:
-            if _mentions(new_text, change.old_name) and not _mentions(
+            if _names(new_text, change.old_name) and not _names(
                     new_text, change.new_name):
                 raise RewriteError(
                     f'step {position} still names {change.old_name!r}')
@@ -1092,13 +1145,13 @@ def rewrite_instructions(
     return out
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_substitution_rewrite -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_substitution_rewrite.py -q"`
 
-Expected: `Ran 7 tests ... OK`
+Expected: `11 passed` (9 planned + high-severity rejection + `--slug`). (7 planned + 2 head-noun regressions). Full suite: `776 passed`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/services/substitution_rewrite.py diet_planner/tests/test_substitution_rewrite.py
@@ -1113,7 +1166,17 @@ git commit -m "feat(availability): bounded LLM rewrite of affected instruction s
 - Create: `diet_planner/management/commands/apply_availability_substitutions.py`
 - Test: `diet_planner/tests/test_apply_substitutions.py`
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-17. Three defects in the plan's listing, two of them fatal:**
+
+1. **`CuratedRecipe.ShoppingDifficulty` does not exist.** The field is `shopping_difficulty = models.CharField(choices=Availability.choices)` (`models/curated.py:151`) — there is no nested choices class, so the queryset would have raised `AttributeError` on the command's first line. Use `Availability.COMMON` from `models.catalog`.
+2. **The judge gate would never have fired.** `judge_curated_recipe` returns `JudgeVerdict.as_stats()`, whose keys are `ran / verdict / shoppable / cookable / human_sane / issue_count / high_severity_count / model / error` — there is **no `passed`**. `verdict.get('passed', True)` therefore always defaulted to True and every rewrite would have sailed through a gate that looked present in the code and in the test (whose mock invented the key). Step 4 existed to catch this; it does. The gate now lives in `_judge_rejected()`: reject when `ran` **and** (`verdict == 'incoherent'` or `high_severity_count > 0`). `minor_issues` alone passes.
+3. `adaptation_note` is `max_length=300`, not 255; truncation now reads the field's own `max_length` rather than a hardcoded number.
+
+**Fail-open is deliberate but now visible.** Per `JudgeVerdict`'s docstring, `ran=False` means *unknown*, not *good*. This command is the first place the judge is used as a gate at all (elsewhere it only lands in `quality_score`), and it keeps the codebase's advisory stance — an unjudged rewrite still applies. That is a real risk during the Task 9 prod run, where a missing key or a quota-exhausted judge could pass a whole batch unjudged while the output looked clean, so the command counts those and prints `judge did not run (...) — applying unjudged` per recipe plus `unjudged=N` in the summary. **Watch that counter in Task 9 Step 3.**
+
+Ships **11 tests, not 9**: added the high-severity rejection, the fail-open-but-announced path, and `--slug` targeting (an unexercised flag the Task 9 batches depend on).
+
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_apply_substitutions.py`:
 
@@ -1151,7 +1214,11 @@ class ApplySubstitutionsTests(TestCase):
         call_command('rate_ingredient_availability', stdout=StringIO())
         call_command('load_availability_substitutions', stdout=StringIO())
 
-    def _patched(self, judge_ok=True):
+    def _patched(self, verdict=None):
+        """judge_curated_recipe returns JudgeVerdict.as_stats() — there is no
+        'passed' key, so the gate reads `ran` + `verdict` + high severity."""
+        if verdict is None:
+            verdict = {'ran': True, 'verdict': 'coherent', 'high_severity_count': 0}
         return (
             mock.patch(
                 'diet_planner.management.commands.apply_availability_substitutions'
@@ -1160,7 +1227,7 @@ class ApplySubstitutionsTests(TestCase):
             mock.patch(
                 'diet_planner.management.commands.apply_availability_substitutions'
                 '.judge_curated_recipe',
-                return_value={'ran': True, 'passed': judge_ok}),
+                return_value=verdict),
         )
 
     def test_dry_run_writes_nothing(self):
@@ -1199,7 +1266,8 @@ class ApplySubstitutionsTests(TestCase):
 
     def test_judge_rejection_discards_the_whole_rewrite(self):
         r = _recipe()
-        rewrite, judge = self._patched(judge_ok=False)
+        rewrite, judge = self._patched(
+            verdict={'ran': True, 'verdict': 'incoherent', 'high_severity_count': 0})
         with rewrite, judge:
             call_command('apply_availability_substitutions', stdout=StringIO())
         r.refresh_from_db()
@@ -1248,13 +1316,13 @@ class ApplySubstitutionsTests(TestCase):
         self.assertEqual(r.adaptation_note, 'Upraveno pro dostupnost: x → y')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'apply_availability_substitutions'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command**
 
 Create `diet_planner/management/commands/apply_availability_substitutions.py`:
 
@@ -1273,6 +1341,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from diet_planner.models import CuratedRecipe
+from diet_planner.models.catalog import Availability
 from diet_planner.services.ingredient_availability import (
     availability_index,
     compute_shopping_difficulty,
@@ -1286,6 +1355,26 @@ from diet_planner.services.recipe_curation import judge_curated_recipe
 from diet_planner.services.substitution_rewrite import RewriteError, rewrite_instructions
 
 _NOTE_PREFIX = 'Upraveno pro dostupnost v českých obchodech: '
+
+#: adaptation_note's max_length. Truncating here rather than letting the DB
+#: raise mid-batch.
+_NOTE_MAX = CuratedRecipe._meta.get_field('adaptation_note').max_length
+
+
+def _judge_rejected(verdict: dict) -> bool:
+    """Did the judge actively reject this rewrite?
+
+    `judge_curated_recipe` returns `JudgeVerdict.as_stats()`, which has no
+    boolean pass/fail — it reports `ran`, a four-value `verdict`, and issue
+    counts. Per JudgeVerdict's own docstring, a verdict is only meaningful
+    when `ran` is True; ran=False means UNKNOWN, and unknown is not rejection.
+    'minor_issues' passes, but a high-severity issue never does.
+    """
+    if not verdict.get('ran'):
+        return False
+    if verdict.get('verdict') == 'incoherent':
+        return True
+    return bool(verdict.get('high_severity_count'))
 
 
 class Command(BaseCommand):
@@ -1309,12 +1398,12 @@ class Command(BaseCommand):
 
         index = availability_index()
         qs = CuratedRecipe.objects.exclude(
-            shopping_difficulty=CuratedRecipe.ShoppingDifficulty.COMMON,
+            shopping_difficulty=Availability.COMMON,
         ).filter(adaptation_note='').order_by('id')
         if options['slug']:
             qs = qs.filter(slug=options['slug'])
 
-        adapted = skipped = failed = 0
+        adapted = skipped = failed = unjudged = 0
 
         for recipe in qs.iterator():
             if options['limit'] is not None and adapted >= options['limit']:
@@ -1355,18 +1444,26 @@ class Command(BaseCommand):
             )
             if not options['skip_judge']:
                 verdict = judge_curated_recipe(candidate)
-                if verdict.get('ran') and not verdict.get('passed', True):
+                if _judge_rejected(verdict):
                     failed += 1
                     self.stdout.write(self.style.WARNING(
-                        '  judge rejected the rewrite — discarded'))
+                        f"  judge rejected the rewrite — discarded "
+                        f"(verdict={verdict.get('verdict')}, "
+                        f"high={verdict.get('high_severity_count')})"))
                     continue
+                if not verdict.get('ran'):
+                    # Applying unjudged is a decision, not a detail: say it.
+                    unjudged += 1
+                    self.stdout.write(self.style.WARNING(
+                        f"  judge did not run ({verdict.get('error') or 'disabled'})"
+                        f" — applying unjudged"))
 
             with transaction.atomic():
                 if not recipe.original_ingredients:
                     recipe.original_ingredients = recipe.ingredients
                 recipe.ingredients = new_ingredients
                 recipe.instructions = new_instructions
-                recipe.adaptation_note = (_NOTE_PREFIX + plan.summary())[:255]
+                recipe.adaptation_note = (_NOTE_PREFIX + plan.summary())[:_NOTE_MAX]
                 tier, blockers = compute_shopping_difficulty(recipe, index=index)
                 recipe.shopping_difficulty = tier
                 recipe.shopping_blockers = blockers
@@ -1378,11 +1475,13 @@ class Command(BaseCommand):
             adapted += 1
 
         prefix = '[dry-run] ' if options['dry_run'] else ''
-        self.stdout.write(self.style.SUCCESS(
-            f'{prefix}adapted={adapted} skipped={skipped} failed={failed}'))
+        summary = f'{prefix}adapted={adapted} skipped={skipped} failed={failed}'
+        if unjudged:
+            summary += f' unjudged={unjudged}'
+        self.stdout.write(self.style.SUCCESS(summary))
 ```
 
-- [ ] **Step 4: Confirm the judge's verdict key**
+- [x] **Step 4: Confirm the judge's verdict key**
 
 The command reads `verdict.get('passed')`. Confirm that is what `judge_curated_recipe` actually returns (it builds its result from `verdict.as_stats()` at `recipe_curation.py:280`):
 
@@ -1392,13 +1491,13 @@ grep -n -A 25 "def judge_curated_recipe" diet_planner/services/recipe_curation.p
 
 If the returned dict uses a different key for the pass/fail signal, use that key in the command instead — do not add a translation layer. Update the test's mock return value to match.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
-Expected: `Ran 9 tests ... OK`
+Expected: `9 passed`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/management/commands/apply_availability_substitutions.py diet_planner/tests/test_apply_substitutions.py
@@ -1413,7 +1512,9 @@ git commit -m "feat(availability): apply substitutions with judge gate and snaps
 - Create: `diet_planner/management/commands/unpublish_unshoppable.py`
 - Test: `diet_planner/tests/test_apply_substitutions.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — written with two tests beyond the
+  four below: `test_blockers_are_reported_so_the_demotion_is_reviewable` and
+  `test_already_draft_specialty_is_not_recounted`.
 
 Append to `diet_planner/tests/test_apply_substitutions.py`:
 
@@ -1464,13 +1565,21 @@ class UnpublishUnshoppableTests(TestCase):
 
 **Note:** if `nori` is not a canonical rated `specialty` in `ingredient_availability.yaml`, pick one that is (check with `grep -B1 "availability: specialty" diet_planner/data/ingredient_availability.yaml | head`) and use its slug and `name_cs` throughout this test class.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails** — the red run was never captured
+  before the command was written, so it was reconstructed afterwards by
+  neutering `handle()` to iterate an empty list: 2 failed, 4 passed. The four
+  that survive a no-op are the negative-space guards (findable stays published,
+  nothing deleted, dry-run writes nothing, already-draft not recounted) — they
+  are meant to pass when nothing happens.
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions.UnpublishUnshoppableTests -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py::UnpublishUnshoppableTests -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'unpublish_unshoppable'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command** — as below, except the difficulty filter
+  reads `Availability.SPECIALTY` from `models.catalog` rather than a
+  `CuratedRecipe.ShoppingDifficulty` inner class, which is where the choices
+  actually live.
 
 Create `diet_planner/management/commands/unpublish_unshoppable.py`:
 
@@ -1510,13 +1619,14 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'{prefix}demoted={demoted}'))
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes** — `17 passed` (11 from task 6
+  plus the 6 written here, not the 13 this step predicted).
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_apply_substitutions -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
-Expected: `Ran 13 tests ... OK`
+Expected: `13 passed`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/management/commands/unpublish_unshoppable.py diet_planner/tests/test_apply_substitutions.py
@@ -1532,7 +1642,10 @@ git commit -m "feat(availability): demote still-unshoppable recipes to draft"
 - Modify: `diet_planner/services/recipe_retrieval.py:425` and `~516`
 - Test: `diet_planner/tests/test_availability_ranking.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — written with `Availability` from
+  `models.catalog` in place of the nonexistent `CuratedRecipe.ShoppingDifficulty`,
+  and two tests beyond the five below, both pinning the `unrated` default:
+  `test_unrated_stays_eligible` and `test_unrated_without_blockers_is_not_penalised`.
 
 Create `diet_planner/tests/test_availability_ranking.py`:
 
@@ -1599,13 +1712,16 @@ class PenaltyTests(TestCase):
         self.assertAlmostEqual(self._score(common), self._score(findable))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_availability_ranking -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_availability_ranking.py -q"`
 
 Expected: FAIL — `test_specialty_is_excluded` returns both recipes.
 
-- [ ] **Step 3: Add the settings flag**
+Actual: `3 failed, 4 passed` — the three behaviour tests (specialty excluded,
+per-blocker cost, cap) fail; the four negative-space ones pass, as they should.
+
+- [x] **Step 3: Add the settings flag**
 
 In `llm_diet_planner_project/settings.py`, directly after the `AVAILABILITY_GATE_ENABLED` line (389):
 
@@ -1615,7 +1731,8 @@ In `llm_diet_planner_project/settings.py`, directly after the `AVAILABILITY_GATE
 AVAILABILITY_RANKING_ENABLED = config('AVAILABILITY_RANKING_ENABLED', default=False, cast=bool)
 ```
 
-- [ ] **Step 4: Add the hard gate**
+- [x] **Step 4: Add the hard gate** — reads `Availability.SPECIALTY`; the
+  module needed `from diet_planner.models.catalog import Availability` added.
 
 In `diet_planner/services/recipe_retrieval.py`, in `eligible_recipes_for_slot`, after the `enforce_mapping` check (line 425-426):
 
@@ -1629,7 +1746,8 @@ In `diet_planner/services/recipe_retrieval.py`, in `eligible_recipes_for_slot`, 
             continue
 ```
 
-- [ ] **Step 5: Add the penalty**
+- [x] **Step 5: Add the penalty** — constants live next to
+  `_RECENT_SERVE_PENALTY`; `settings` was already imported.
 
 In `diet_planner/services/recipe_retrieval.py`, add next to the other weight constants (after line 439):
 
@@ -1659,15 +1777,16 @@ Then in `score_recipe`, after the difficulty bonus (line 515-516):
 
 Confirm `settings` is imported in this module (`from django.conf import settings`); add the import if it is not.
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes** — `7 passed` (the 5 below plus
+  the 2 added in step 1).
 
-Run: `docker-compose run --rm web python manage.py test diet_planner.tests.test_availability_ranking -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_availability_ranking.py -q"`
 
-Expected: `Ran 5 tests ... OK`
+Expected: `5 passed`
 
 - [ ] **Step 7: Run the whole backend suite for regressions**
 
-Run: `docker-compose run --rm web python manage.py test diet_planner billing analytics -v 1`
+Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest -q"`
 
 Expected: `OK`. The retrieval gate is the riskiest change in this plan — any grounding test that builds a fixture recipe without setting `shopping_difficulty` will now get the model default. If failures appear there, fix the fixtures, not the gate.
 
@@ -1704,6 +1823,8 @@ tail -40 /tmp/subs-dryrun.txt
 ```
 
 Expected: a per-recipe list of swaps and a closing `[dry-run] adapted=N skipped=M failed=0`.
+
+**`--dry-run` still calls Gemini.** The instruction rewrite runs *before* the dry-run branch, deliberately: a dry run that skipped it would report `failed=0` while telling you nothing about whether these recipes can actually be rewritten. So budget the tokens and the wall-clock, and read `failed=N` as the real signal. Nothing is written either way. The judge is the one thing a dry run does not reach.
 
 **This is a review checkpoint, not a formality.** Read the swap list. If a swap looks wrong for a specific dish (sesame oil in an Asian dressing is the one to watch), remove that pair from `ingredient_substitutions_cz.yaml`, re-run the loader, and dry-run again.
 

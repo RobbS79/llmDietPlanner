@@ -1,0 +1,90 @@
+# Czech-availability substitutions. Loaded into IngredientSubstitute with
+# purpose='availability' by `manage.py load_availability_substitutions`.
+#
+# Schema per entry:
+#   ingredient:        Required. Canonical slug of the hard-to-buy item.
+#   substitute:        Required. Canonical slug of the CZ-shoppable swap.
+#   quality_score:     0-1, default 0.80. 1.0 = indistinguishable in the dish.
+#   conversion_factor: Multiply the quantity by this. Default 1.0.
+#   substitute_unit:   Unit AFTER the swap; omit to keep the original unit.
+#   note:              Why this swap is faithful. Read by the owner, not code.
+#
+# ONLY faithful swaps belong here. If the ingredient IS the dish (tahini in a
+# tahini dressing, nori in a sushi miska, zelená kari pasta in thajské kari),
+# leave it out — those recipes are meant to fall through to unpublish.
+#
+# Every `substitute` must be rated `common`; the loader refuses anything else,
+# because swapping one unbuyable ingredient for another buys nothing.
+
+- ingredient: vanilla-extract
+  substitute: vanilla-aroma
+  quality_score: 0.95
+  conversion_factor: 1.0
+  substitute_unit: ml
+  note: 'OWNER-SETTLED 2026-08-11. Extract is not sold in CZ; aroma is the
+    local equivalent and used 1:1 in the same volumes. 37 recipes — the
+    corpus largest single blocker.'
+
+- ingredient: maple-syrup
+  substitute: honey
+  quality_score: 0.85
+  conversion_factor: 1.0
+  note: 'OWNER: "med is the swap". Sweetness and viscosity are close enough
+    for bakes, porridges and dressings. 26 recipes.'
+
+- ingredient: tamari
+  substitute: soy-sauce
+  quality_score: 0.95
+  conversion_factor: 1.0
+  note: 'Same product minus the gluten-free guarantee. Recipes tagged
+    gluten_free are excluded from this swap by the planner (_TAG_INCOMPATIBLE
+    in services/ingredient_substitution.py), which is the whole reason that
+    guard exists.'
+
+- ingredient: avocado-oil
+  substitute: rapeseed-oil
+  quality_score: 0.90
+  conversion_factor: 1.0
+  note: 'Neutral high-smoke-point oil; interchangeable for frying and roasting.
+    Owner confirmed avokádový olej is NOT normal CZ retail.'
+
+- ingredient: almond-butter
+  substitute: peanut-butter
+  quality_score: 0.75
+  conversion_factor: 1.0
+  note: 'Both are nut butters used the same way. Flavour differs, dish holds.'
+
+- ingredient: oat-flour
+  substitute: oats
+  quality_score: 0.90
+  conversion_factor: 1.0
+  note: 'Oat flour IS ground oats — the instruction rewrite adds the grinding
+    step, which is exactly what the LLM pass is for. Distinct canonicals:
+    ovesná mouka vs ovesné vločky.'
+
+- ingredient: rice-vinegar
+  substitute: white-wine-vinegar
+  quality_score: 0.80
+  conversion_factor: 1.0
+  note: 'Mild acid; closest ordinary-supermarket vinegar by sharpness.'
+
+- ingredient: sesame-oil
+  substitute: rapeseed-oil
+  quality_score: 0.60
+  conversion_factor: 1.0
+  note: 'Weakest swap in the table — sesame oil is a finishing aroma, not a
+    cooking fat. Kept because the alternative is dropping the recipe; the
+    coherence judge is the backstop.'
+
+- ingredient: coconut-sugar
+  substitute: brown-sugar
+  quality_score: 0.90
+  conversion_factor: 1.0
+  note: 'Same role, same quantity, ordinary supermarket shelf.'
+
+# DELIBERATELY ABSENT — almond-flour -> ground-almonds.
+# The plan proposed it, but "mleté mandle" is already an ALIAS of almond-flour,
+# so the swap would map the ingredient to itself. almond-flour is rated
+# `findable` (6 recipes); if mandlová mouka really is ordinary Kaufland stock,
+# the fix is to re-rate it, not to substitute it. Left for the rating re-check
+# in Task 9 Step 4.

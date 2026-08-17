@@ -388,6 +388,10 @@ RECIPE_GROUNDING_ENABLED = config('RECIPE_GROUNDING_ENABLED', default=False, cas
 # ordinary Czech supermarket. Ships off; flip on once ratings are loaded.
 AVAILABILITY_GATE_ENABLED = config('AVAILABILITY_GATE_ENABLED', default=False, cast=bool)
 
+# Rank easy-to-shop recipes above hard-to-shop ones. Separate from the intake
+# gate so the corpus repair can land before user-visible ranking shifts.
+AVAILABILITY_RANKING_ENABLED = config('AVAILABILITY_RANKING_ENABLED', default=False, cast=bool)
+
 # Refine chat v2: Gemini tool-loop agent + web recipe acquisition (spec
 # 2026-07-27). Off by default; the v1 facet path serves the turn when the flag
 # is off or the agent raises.
