@@ -42,21 +42,32 @@ class DemandTerm:
     rating: Optional[float] = None
 
 
-def _in_suggestion_widget(anchor) -> bool:
-    """True if an ancestor is a "you might like" / related-recipes widget.
+#: Ancestor class markers for widgets that carry real recipe links but are
+#: not the ranking a page was fetched for, so they must not contaminate rank
+#: order or supply a fallback name when the "real" title is truncated:
+#:   toprecepty.cz "b-suggest__item"  -> "Mohlo by se vám líbit" (you might
+#:                                        like) widget, repeated twice ahead
+#:                                        of the actual ranked grid.
+#:   recepty.cz    "recipe-ranking__" -> a "most visited this week" trending
+#:                                        sidebar with its own separate,
+#:                                        CSS-truncated-only titles (no
+#:                                        untruncated "více o" companion).
+#: Each marker is confirmed (via grep against the captured fixtures) to be
+#: unused anywhere in either site's real listing markup, so this stays a
+#: narrow, evidence-backed exclusion rather than a broad content filter.
+_EXCLUDED_WIDGET_MARKERS = ('suggest', 'recipe-ranking')
 
-    toprecepty.cz repeats a "Mohlo by se vám líbit" widget (ancestor class
-    `b-suggest__item`) twice, earlier in the document than the actual ranked
-    grid. Its links are real recipes but not part of the ranking being
-    measured, so counting them would misassign the top ranks. "suggest" is
-    unused elsewhere on either target site's ranking markup (recepty.cz's
-    real listing uses "recommended-recipes", a different word), so this stays
-    a safe, narrow exclusion rather than a broad content filter.
-    """
+
+def _in_excluded_widget(anchor) -> bool:
+    """True if an ancestor's class marks this as a non-ranking widget."""
     for parent in anchor.parents:
         classes = parent.get('class') if hasattr(parent, 'get') else None
-        if classes and any('suggest' in cls.lower() for cls in classes):
-            return True
+        if not classes:
+            continue
+        for cls in classes:
+            cls_lower = cls.lower()
+            if any(marker in cls_lower for marker in _EXCLUDED_WIDGET_MARKERS):
+                return True
     return False
 
 
@@ -86,7 +97,7 @@ def parse_ranking(html: str, *, source: str, category: str) -> List[DemandTerm]:
             # carries a prep-time badge). Skip the wrapper; the nested anchor
             # supplies a candidate name on its own turn through this loop.
             continue
-        if _in_suggestion_widget(anchor):
+        if _in_excluded_widget(anchor):
             continue
         name = ' '.join(anchor.get_text(' ', strip=True).split())
         name = _MORE_ABOUT_PREFIX.sub('', name)

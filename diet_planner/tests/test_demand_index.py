@@ -58,3 +58,63 @@ class ParseRankingTests(TestCase):
 
     def test_empty_html_yields_nothing_rather_than_raising(self):
         self.assertEqual(parse_ranking('', source='x', category='global'), [])
+
+    def test_toprecepty_top_three_are_the_known_ranking_not_the_suggest_widget(self):
+        """toprecepty.cz repeats a 'Mohlo by se vám líbit' suggestion widget
+        (ancestor class b-suggest__item) twice, earlier in the document than
+        the real ranking grid. If that widget were allowed to count, its five
+        unrelated recipes would claim ranks 1-5 instead of the true top-star
+        ranking. Values confirmed by manual inspection of the live page."""
+        terms = parse_ranking(self._html('toprecepty-top-star.html'),
+                              source='toprecepty.cz', category='global')
+        self.assertEqual([t.term for t in terms[:3]], [
+            'Andělsky nadýchaný perník',
+            'Úžasný tvarohový moučník ke kávě',
+            'Klasický hospodský guláš (vídeňský)',
+        ])
+
+    def test_suggestion_widget_link_does_not_claim_rank_one(self):
+        """Minimal reproduction of toprecepty.cz's shape: a suggestion
+        widget's recipe link appears before the real ranking grid's first
+        item in document order, but must not be treated as rank 1."""
+        html = '''
+          <article class="b-horizontal b-suggest__item">
+            <a href="/recept/999-tip-dish/">Tip Dish</a>
+          </article>
+          <article class="b-recipe">
+            <a href="/recept/1-real-top-dish/">Real Top Dish</a>
+          </article>
+        '''
+        terms = parse_ranking(html, source='x', category='global')
+        self.assertNotIn('Tip Dish', [t.term for t in terms])
+        self.assertEqual(terms[0].term, 'Real Top Dish')
+        self.assertEqual(terms[0].rank, 1)
+
+    def test_recepty_cz_wrapper_and_ellipsis_pattern_yields_full_clean_title(self):
+        """Minimal reproduction of recepty.cz's triple-anchor card: an outer
+        wrapper anchor carrying a prep-time badge and a nested, CSS-truncated
+        title anchor, plus a separate 'více o <full title>' anchor lower in
+        the same card. The clean, full, untruncated title must win."""
+        html = '''
+          <a href="/recept/168830-plny-nazev-receptu/" class="loading-placeholder">
+            <div class="recommended-recipes__time">30 minut</div>
+            <a href="/recept/168830-plny-nazev-receptu/"><p>Plný název…</p></a>
+          </a>
+          <p class="recommended-recipes__perex">
+            <a href="/recept/168830-plny-nazev-receptu/">více o Plný název receptu</a>
+          </p>
+        '''
+        terms = parse_ranking(html, source='x', category='global')
+        self.assertEqual(len(terms), 1)
+        self.assertEqual(terms[0].term, 'Plný název receptu')
+
+    def test_recepty_cz_fixture_has_no_truncated_or_more_about_terms(self):
+        """Fixture-level guard: no term from the real recepty.cz page should
+        carry a CSS-truncation ellipsis or an unstripped 'více o' ('more
+        about') prefix — both are card-chrome, not dish names."""
+        terms = parse_ranking(self._html('recepty-oblibene.html'),
+                              source='recepty.cz', category='global')
+        self.assertTrue(terms)
+        for t in terms:
+            self.assertNotIn('…', t.term)
+            self.assertFalse(t.term.lower().startswith('více o'))
