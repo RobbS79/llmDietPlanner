@@ -30,6 +30,17 @@ class ReducePromptTests(TestCase):
     def test_empty_prompt_is_dropped(self):
         self.assertIsNone(reduce_prompt(''))
 
+    def test_short_personal_name_becomes_the_free_short_shape(self):
+        self.assertEqual(reduce_prompt('Petr Novák'), '{free_short}')
+
+    def test_a_punctuated_question_becomes_the_free_short_shape(self):
+        # Dropping punctuated prompts was the wrong default: questions are how
+        # people actually phrase real queries, and this module's whole job is
+        # to harvest phrasing signal. The catch-all admits punctuation but
+        # still only ever emits the fixed {free_short} literal, so safety is
+        # untouched.
+        self.assertEqual(reduce_prompt('Co mám vařit?'), '{free_short}')
+
 
 class ExportGoalPromptsTests(TestCase):
     def setUp(self):
@@ -58,3 +69,10 @@ class ExportGoalPromptsTests(TestCase):
         self.assertNotIn('Petr', raw)
         self.assertNotIn('Kounicova', raw)
         self.assertNotIn('Kounicově', raw)
+
+    def test_short_personal_prompt_never_reaches_the_file(self):
+        self._goal('Petr Novák')  # short enough to hit {free_short}, not the drop path
+        call_command('export_goal_prompts', '--output', self.path, stdout=StringIO())
+        raw = open(self.path, encoding='utf-8').read()
+        self.assertNotIn('Petr', raw)
+        self.assertNotIn('Novák', raw)

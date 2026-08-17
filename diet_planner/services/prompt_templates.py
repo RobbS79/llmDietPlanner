@@ -17,6 +17,11 @@ from typing import List, Optional, Tuple
 _EMAIL = re.compile(r'\S+@\S+')
 _URL = re.compile(r'https?://\S+')
 
+#: Longer than this and a free-text prompt is assumed to carry personal detail.
+#: Drives the catch-all shape's own length bound below, so this is the single
+#: place that controls how much free text gets admitted at all.
+_MAX_FREE_TEXT = 40
+
 #: (pattern, template). Ordered; first match wins.
 _SHAPES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r'^jídelníček na \d+ dní$', re.IGNORECASE), 'jídelníček na {n} dní'),
@@ -28,11 +33,14 @@ _SHAPES: List[Tuple[re.Pattern, str]] = [
      'něco {quality}'),
     (re.compile(r'^chci (zhubnout|nabrat|jíst zdravěji)$', re.IGNORECASE),
      'chci {objective}'),
-    (re.compile(r'^\w[\w\s]{2,40}$', re.IGNORECASE), '{free_short}'),
+    # Catch-all: any short single-line prompt, including common punctuation
+    # ("Co mám vařit?"). Questions are how people actually phrase real
+    # queries; dropping every punctuated prompt biased the phrasing corpus
+    # toward terse declaratives. Still only ever emits the fixed {free_short}
+    # literal, never the matched text, so the safety property is untouched.
+    (re.compile(rf'^[\w][\w\s,?!.\-]{{1,{_MAX_FREE_TEXT - 1}}}$', re.IGNORECASE),
+     '{free_short}'),
 ]
-
-#: Longer than this and a free-text prompt is assumed to carry personal detail.
-_MAX_FREE_TEXT = 40
 
 
 def reduce_prompt(prompt: str) -> Optional[str]:
@@ -45,7 +53,5 @@ def reduce_prompt(prompt: str) -> Optional[str]:
 
     for pattern, template in _SHAPES:
         if pattern.match(text):
-            if template == '{free_short}' and len(text) > _MAX_FREE_TEXT:
-                return None
             return template
     return None
