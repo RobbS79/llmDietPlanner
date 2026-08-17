@@ -36,9 +36,12 @@ _ANIMAL_TERMS = frozenset({
     'syr', 'smetana', 'jogurt', 'tvaroh', 'maslo', 'mleko',
 })
 
-#: (name, dietary_restrictions free text, extra PromptFacets kwargs). Mirrors
-#: the personas in selection_distribution_report so the two harnesses describe
-#: the same users.
+#: (name, dietary_restrictions free text, extra PromptFacets kwargs). Same
+#: SHAPE as the persona tuples in selection_distribution_report.PERSONAS —
+#: NOT the same content: that file has 8 entries curated for plan-selection
+#: concentration metrics, this file has 7 curated for demand-farm gate
+#: attribution (dietary/cross-diet labeling). Keep them separately curated;
+#: they describe different measurement questions, not the same users.
 PERSONAS = [
     ('no-preferences', '', {}),
     ('budget-family', '', {}),
@@ -234,19 +237,41 @@ def _significant_words(text: str) -> Set[str]:
 #: startswith: it stops short, unrelated prefixes like "mas" (shared by
 #: "maso" and "maslo" — different foods) from collapsing into a match. Do
 #: not simplify this to a bare startswith() — that would drop the floor.
+#:
+#: SAME TWO-PART RULE as `demand_index._fuzzy_canonical_slug` (same
+#: constant values, _MIN_STEM_LEN=5 there too): an absolute length floor
+#: alone is not enough on its own — see _MIN_COVERAGE_RATIO below for why —
+#: so the two floors always travel together. That module has the full
+#: worked example (the "cibulová"/"cibule" case); this comment is
+#: deliberately the short version so the reasoning lives in one place. Keep
+#: the two files' constants in sync if either changes: `_loose_hit`'s
+#: canonical-overlap check and this strict-name check both feed the same
+#: headline coverage number, and an over-match here inflates it exactly the
+#: way an over-match there does.
 _MIN_STEM_LEN = 5
+
+#: Minimum fraction of the LONGER of the two words that the shared prefix
+#: must cover. Same ratio, same reasoning, as demand_index's
+#: _MIN_COVERAGE_RATIO: the absolute floor above lets a short word (as
+#: short as 5 characters) claim a prefix match against an arbitrarily long,
+#: unrelated word — this guard is what stops that. See demand_index.py for
+#: the full write-up.
+_MIN_COVERAGE_RATIO = 0.7
 
 
 def _words_match(a: str, b: str) -> bool:
-    """Two folded words match if identical, or if they share a common
-    leading prefix of at least _MIN_STEM_LEN characters.
+    """Two folded words match if identical, or if they share a leading
+    prefix that clears BOTH _MIN_STEM_LEN (absolute length) and
+    _MIN_COVERAGE_RATIO (as a fraction of the longer word's length).
 
     This is a conservative stand-in for real Czech lemmatization (there is
     no stemmer in canonical_lookup to reuse): it catches case/number
-    inflection on the same stem — "hovezi"/"hoveziho", "svickova"/
-    "svickove" — without merging genuinely different words that happen to
-    start alike ("rizek"/"veprovy" share nothing; "maso"/"maslo" share only
-    3 characters, below the floor).
+    inflection on the same stem — "hovezi"/"hoveziho" (6 of 8 = 0.75),
+    "svickova"/"svickove" (7 of 8 = 0.875) — without merging genuinely
+    different words that happen to start alike ("rizek"/"veprovy" share
+    nothing; "maso"/"maslo" share only 3 characters, below the floor) and
+    without letting a short word claim an arbitrarily long, unrelated word
+    just because it happens to be a prefix of it (the ratio guard).
     """
     if a == b:
         return True
@@ -255,7 +280,9 @@ def _words_match(a: str, b: str) -> bool:
         if ca != cb:
             break
         shared += 1
-    return shared >= _MIN_STEM_LEN
+    if shared < _MIN_STEM_LEN:
+        return False
+    return shared / max(len(a), len(b)) >= _MIN_COVERAGE_RATIO
 
 
 def _strict_hit(term_words: Set[str], recipe) -> bool:

@@ -75,6 +75,19 @@ class BuildDemandIndexTests(TestCase):
         for key in ('slot_hint', 'in_scope', 'canonicals', 'folded'):
             self.assertIn(key, row)
 
+    def test_refresh_stamps_generated_at(self):
+        """No timestamp means a six-month-stale snapshot reads identically
+        to one built this morning — simulate_coverage needs this to report
+        staleness."""
+        with self._patched_fetch():
+            call_command('build_demand_index', '--refresh', '--output', self.path,
+                         stdout=StringIO())
+        payload = yaml.safe_load(open(self.path, encoding='utf-8'))
+        self.assertIn('generated_at', payload)
+        from datetime import datetime
+        parsed = datetime.fromisoformat(payload['generated_at'])
+        self.assertIsNotNone(parsed.tzinfo)  # UTC-aware, not a naive local time
+
     def test_per_source_caps_terms(self):
         with self._patched_fetch():
             call_command('build_demand_index', '--refresh', '--output', self.path,

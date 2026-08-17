@@ -229,6 +229,13 @@ _MIN_STEM_LEN = 5
 #: name is exactly the over-matching direction that corrupts loose coverage
 #: (a false demand-side canonical manufactures a false loose hit). 0.7 keeps
 #: "cibulová" ~ "cibule" while rejecting claims on far longer keys.
+#:
+#: Same ratio, same reasoning, now also guards the strict-name path:
+#: `user_simulation._words_match` ports this exact value (against the
+#: longer of its two folded words, rather than a fixed "key" side, since
+#: that comparison has no query/candidate asymmetry) so a strict-side
+#: over-match can't inflate the same headline number this one protects.
+#: This is the canonical write-up — keep the two constants in sync.
 _MIN_COVERAGE_RATIO = 0.7
 
 
@@ -351,5 +358,9 @@ def enrich_term(term: DemandTerm) -> dict:
         'slot_hint': slot,
         'in_scope': slot is not None,
         'canonicals': canonicals,
+        # Written but not read by any consumer today. Retained deliberately:
+        # it costs nothing, it is a natural key for a future matcher, and
+        # removing it would churn the committed snapshot schema for no
+        # benefit.
         'folded': fold_diacritics(term.term).lower(),
     }

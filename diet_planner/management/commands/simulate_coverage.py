@@ -1,17 +1,23 @@
 """The user-query farm: demand x phrasing x persona, run against the real
 corpus. Read-only — no LLM calls in the default mode, no database writes ever.
 
-This is the report the corpus's real-world coverage is judged by. Two rules
+This is the report the corpus's real-world coverage is judged by. Rules that
 protect its honesty: (1) the default mode builds facets directly from the
 query so the number costs nothing and never depends on Gemini being up, with
 an opt-in `--extract-facets` mode that exercises the real extractor and
 measures its known "Mám X" empty-facet defect; (2) a missing or empty demand
 snapshot refuses to print a report at all, rather than a beautiful 100%
-coverage over zero terms.
+coverage over zero terms; (3) the snapshot's own "this is a proxy, not demand
+truth" caveat and its age are surfaced in the header, not left buried in a
+YAML file nobody reading stdout will ever open; (4) demand coverage is
+reported at BOTH the headline cutoff (@20 — the dishes people most want) and
+the full `--top-n` cutoff (the long tail), because a single blended number
+cannot say which of the two is actually failing.
 """
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -29,19 +35,46 @@ from diet_planner.services.user_simulation import (
 _DEFAULT_DEMAND = 'diet_planner/data/demand_index_cz.yaml'
 _DEFAULT_TEMPLATES = 'diet_planner/data/prompt_templates_cz.yaml'
 
+#: The headline demand cutoff, reported separately from --top-n (the long
+#: tail). See the design doc's DWC@20 vs DWC@200 split — the whole point of
+#: the farm is answering "are we failing the dishes people most want, or
+#: only the tail", which a single blended number cannot do.
+_HEADLINE_TOP_N = 20
 
-def _load_yaml_list(path: str, key: str):
-    """The `key` list from a YAML file at `path`, or None if the file is
+#: A snapshot older than this may no longer reflect the market — the sites
+#: it was built from get re-ranked over time and dish popularity drifts.
+_STALE_AFTER_DAYS = 90
+
+
+def _load_yaml(path: str):
+    """The parsed YAML payload at `path`, or None if the file is
     missing/unreadable — callers decide whether that's fatal."""
     p = Path(path)
     if not p.is_absolute():
         p = Path(settings.BASE_DIR) / path
     try:
         with open(p, encoding='utf-8') as fh:
-            data = yaml.safe_load(fh) or {}
+            return yaml.safe_load(fh) or {}
     except (OSError, yaml.YAMLError):
         return None
-    return data.get(key) or []
+
+
+def _load_yaml_list(path: str, key: str):
+    """The `key` list from a YAML file at `path`, or [] if the file is
+    missing/unreadable/lacks the key."""
+    payload = _load_yaml(path)
+    if not payload:
+        return []
+    return payload.get(key) or []
+
+
+def _snapshot_age_days(generated_at) -> float:
+    """Age in days of an ISO-8601 `generated_at` timestamp. Raises
+    ValueError/TypeError on anything unparseable — callers must catch."""
+    stamp = datetime.fromisoformat(str(generated_at))
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - stamp).total_seconds() / 86400
 
 
 class Command(BaseCommand):
@@ -58,7 +91,9 @@ class Command(BaseCommand):
         parser.add_argument('--seed', type=int, default=42,
                             help='RNG seed — same seed, same queries.')
         parser.add_argument('--top-n', type=int, default=200,
-                            help='How much of the ranked demand to score for coverage.')
+                            help='How much of the ranked demand to score for '
+                                 'the long-tail coverage cut (headline @20 is '
+                                 'always also reported).')
         parser.add_argument('--extract-facets', action='store_true',
                             help='Run the real Gemini facet extractor instead of '
                                  'building facets directly from the query. Makes '
@@ -66,7 +101,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         w = self.stdout.write
-        demand = _load_yaml_list(options['demand'], 'terms')
+        demand_payload = _load_yaml(options['demand'])
+        demand = (demand_payload or {}).get('terms') or []
         if not demand:
             w(self.style.ERROR(
                 f"no demand snapshot found at {options['demand']!r} — refusing "
@@ -89,10 +125,45 @@ class Command(BaseCommand):
                 'MEANINGLESS — there is nothing to measure. Populate the corpus '
                 '(see load_curated_corpus) before trusting this report.'))
 
-        queries = generate_queries(demand, templates, PERSONAS, seed=seed, n=n)
-        if not queries:
-            w(self.style.WARNING('no in-scope demand terms — nothing to simulate.'))
-            return
+        # The snapshot's own caveat, read from the YAML rather than
+        # hardcoded — editing the note in the snapshot updates the report.
+        note = demand_payload.get('note')
+        if note:
+            w(f'  snapshot note: {note}')
+
+        # Staleness: a six-month-old snapshot reads identically to one built
+        # this morning unless its age is surfaced somewhere. The committed
+        # snapshot predates this field, so a missing/unparseable value must
+        # degrade gracefully rather than crash.
+        generated_at = demand_payload.get('generated_at')
+        if generated_at is None:
+            w('  snapshot age unknown, rebuild with --refresh')
+        else:
+            try:
+                age_days = _snapshot_age_days(generated_at)
+            except (ValueError, TypeError):
+                w('  snapshot age unknown, rebuild with --refresh')
+            else:
+                w(f'  snapshot age: {age_days:.0f} days (generated {generated_at})')
+                if age_days > _STALE_AFTER_DAYS:
+                    w(self.style.WARNING(
+                        f'  WARNING: snapshot is older than {_STALE_AFTER_DAYS} '
+                        f'days — demand data may no longer reflect the market.'))
+
+        if n <= 0:
+            w(self.style.WARNING(
+                f'  --queries={n}: no queries requested — the flag, not the '
+                f'demand data, is why nothing is simulated below; demand '
+                f'coverage does not depend on generated queries and is still '
+                f'reported.'))
+            queries = []
+        else:
+            queries = generate_queries(demand, templates, PERSONAS, seed=seed, n=n)
+            if not queries:
+                w(self.style.WARNING(
+                    'no in-scope demand terms in this snapshot — nothing to '
+                    'simulate; demand coverage does not depend on generated '
+                    'queries and is still reported.'))
 
         cuisine_vocab = rr.published_cuisine_vocab() if extract_mode else []
 
@@ -138,15 +209,28 @@ class Command(BaseCommand):
         w('\n-- slot fill --')
         w(f'  slots filled by curated recipes: {filled}/{total} ({fill_pct:.1f}%)')
 
-        coverage = demand_coverage(demand, top_n=top_n)
-        scored = coverage['scored']
-        strict_pct = (100.0 * coverage['strict_hits'] / scored) if scored else 0.0
-        loose_pct = (100.0 * coverage['loose_hits'] / scored) if scored else 0.0
+        # DWC@20 (headline demand) reported separately from DWC@top-n (the
+        # long tail) — a single blended number cannot say whether gaps are
+        # in the dishes people most want or only in the tail.
+        headline_coverage = demand_coverage(demand, top_n=_HEADLINE_TOP_N)
+        full_coverage = demand_coverage(demand, top_n=top_n)
+
         w('\n-- demand coverage --')
-        w(f'  scored terms (top {top_n}, in-scope): {scored}')
-        w(f'  out-of-scope (no meal slot, e.g. desserts/drinks): {coverage["out_of_scope"]}')
-        w(f'  strict (we have that dish): {coverage["strict_hits"]}/{scored} ({strict_pct:.1f}%)')
-        w(f'  loose (same ingredients at least): {coverage["loose_hits"]}/{scored} ({loose_pct:.1f}%)')
+        for label, coverage in (
+            (f'@{_HEADLINE_TOP_N} (headline demand)', headline_coverage),
+            (f'@{top_n} (full)', full_coverage),
+        ):
+            scored = coverage['scored']
+            strict_pct = (100.0 * coverage['strict_hits'] / scored) if scored else 0.0
+            loose_pct = (100.0 * coverage['loose_hits'] / scored) if scored else 0.0
+            w(f'  {label}:')
+            w(f'    scored terms (in-scope): {scored}')
+            w(f'    out-of-scope (no meal slot, e.g. desserts/drinks): '
+              f'{coverage["out_of_scope"]}')
+            w(f'    strict (we have that dish): {coverage["strict_hits"]}/{scored} '
+              f'({strict_pct:.1f}%)')
+            w(f'    loose (same ingredients at least): {coverage["loose_hits"]}/'
+              f'{scored} ({loose_pct:.1f}%)')
 
         w('\n-- queries killed, by gate --')
         w('  (cross-diet = a vegan/vegetarian persona asking for an animal-based '
@@ -164,7 +248,8 @@ class Command(BaseCommand):
         else:
             w(self.style.WARNING(
                 '  no gate recorded a kill, but nothing was filled either — this '
-                'reading is not trustworthy (see the corpus-size warning above).'))
+                'reading is not trustworthy (see the corpus-size warning above, '
+                'or the --queries=0 note, if either applies).'))
 
         w('\n-- biggest drop, by gate --')
         if drop_counts:
@@ -183,7 +268,7 @@ class Command(BaseCommand):
                 'extractor accuracy a real user\'s well-formed prompt would not.'))
 
         w('\n-- top demand we cannot serve at all --')
-        misses = coverage['misses'][:25]
+        misses = full_coverage['misses'][:25]
         if misses:
             for term in misses:
                 w(f'  {term}')

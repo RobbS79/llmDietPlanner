@@ -1,4 +1,7 @@
 """The farm command: no LLM in the default mode, no DB writes, ever."""
+import copy
+import re
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from unittest import mock
 
@@ -52,6 +55,12 @@ class SimulateCoverageTests(TestCase):
                      '--templates', self.templates, '--queries', '6',
                      '--seed', '42', *extra, stdout=out)
         return out.getvalue()
+
+    def _write_demand(self, **overrides):
+        payload = copy.deepcopy(DEMAND_YAML)
+        payload.update(overrides)
+        with open(self.demand, 'w', encoding='utf-8') as fh:
+            yaml.safe_dump(payload, fh, allow_unicode=True)
 
     def test_report_states_the_seed_so_runs_are_comparable(self):
         _recipe('gulas', name_cs='Hovězí guláš')
@@ -137,3 +146,82 @@ class SimulateCoverageTests(TestCase):
     def test_header_states_corpus_size(self):
         _recipe('gulas', name_cs='Hovězí guláš')
         self.assertIn('corpus=1 published recipes', self._run())
+
+    def test_report_prints_the_snapshots_proxy_caveat(self):
+        """The spec places the 'not demand truth' caveat in the report
+        itself — nobody reading stdout should have to go dig up the YAML
+        to find out these ranks are a dish-first proxy."""
+        _recipe('gulas', name_cs='Hovězí guláš')
+        self._write_demand(note='This is a proxy, not demand truth — read '
+                                 'me before trusting the headline number.')
+        report = self._run()
+        self.assertIn(
+            'This is a proxy, not demand truth — read me before trusting '
+            'the headline number.', report)
+
+    def test_missing_generated_at_says_age_unknown_rather_than_crashing(self):
+        """The committed snapshot predates this field — must degrade
+        gracefully, not raise."""
+        _recipe('gulas', name_cs='Hovězí guláš')
+        report = self._run()  # DEMAND_YAML carries no generated_at
+        self.assertIn('age unknown, rebuild with --refresh', report)
+
+    def test_report_prints_snapshot_age_when_generated_at_present(self):
+        _recipe('gulas', name_cs='Hovězí guláš')
+        self._write_demand(generated_at=datetime.now(timezone.utc).isoformat())
+        report = self._run()
+        self.assertIn('snapshot age', report)
+        self.assertNotIn('age unknown, rebuild with --refresh', report)
+
+    def test_a_stale_snapshot_warns_the_market_may_have_moved(self):
+        _recipe('gulas', name_cs='Hovězí guláš')
+        stale = (datetime.now(timezone.utc) - timedelta(days=200)).isoformat()
+        self._write_demand(generated_at=stale)
+        report = self._run()
+        self.assertIn('may no longer reflect the market', report)
+
+    def test_a_fresh_snapshot_does_not_warn(self):
+        _recipe('gulas', name_cs='Hovězí guláš')
+        fresh = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        self._write_demand(generated_at=fresh)
+        report = self._run()
+        self.assertNotIn('may no longer reflect the market', report)
+
+    def test_demand_coverage_reports_headline_and_full_cutoffs_separately(self):
+        """DWC@20 (headline demand) and DWC@top-n (long tail) must be
+        reported separately — without the split the report cannot say
+        whether gaps are in the dishes people most want or only the tail."""
+        terms = [
+            {'term': f'Dish {i}', 'rank': i, 'source': 'x', 'category': 'maso',
+             'slot_hint': 'dinner', 'in_scope': True, 'canonicals': [],
+             'folded': f'dish {i}'}
+            for i in range(1, 26)
+        ]
+        with open(self.demand, 'w', encoding='utf-8') as fh:
+            yaml.safe_dump({'terms': terms}, fh, allow_unicode=True)
+        report = self._run()
+        self.assertIn('@20', report)
+        self.assertIn('@200', report)  # default --top-n
+        match = re.search(r'@20[^\n]*\n\s*scored terms[^:]*:\s*(\d+)', report)
+        self.assertIsNotNone(match)
+        self.assertLessEqual(int(match.group(1)), 20)
+
+    def test_queries_zero_blames_the_flag_not_the_data(self):
+        """--queries 0 is an empty run by request, not a corpus/data gap —
+        the two causes must read differently, and demand coverage (which
+        does not depend on generated queries) must still be reported."""
+        _recipe('gulas', name_cs='Hovězí guláš')
+        report = self._run('--queries', '0')
+        self.assertIn('--queries=0', report)
+        self.assertNotIn('no in-scope demand terms', report)
+        self.assertIn('demand coverage', report)
+
+    def test_no_in_scope_demand_still_blames_the_data_not_the_flag(self):
+        """Regression guard for the queries=0 fix: the genuine data-cause
+        message must still fire when demand truly has nothing in scope."""
+        self._write_demand(terms=[{
+            'term': 'Bublanina', 'rank': 1, 'source': 'x', 'category': 'moucniky',
+            'slot_hint': None, 'in_scope': False, 'canonicals': [], 'folded': 'bublanina',
+        }])
+        report = self._run()
+        self.assertIn('no in-scope demand terms', report)

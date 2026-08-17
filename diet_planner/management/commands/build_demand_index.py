@@ -10,6 +10,7 @@ never enter the scored denominator.
 The live fetch only happens under --refresh. A plain run reports what the
 committed snapshot holds, so tests and CI never touch the network.
 """
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -87,6 +88,7 @@ class Command(BaseCommand):
 
         payload = {
             'generated_from': [url for url, _, _ in SOURCES],
+            'generated_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
             'note': ('Positional ranks from public listing pages. Recipe-site '
                      'demand is dish-first; a meal planner is week-first. This '
                      'is a proxy, not demand truth.'),

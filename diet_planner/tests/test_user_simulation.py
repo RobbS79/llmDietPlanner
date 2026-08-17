@@ -265,3 +265,16 @@ class DemandCoverageTests(TestCase):
         _recipe('svickova', name_cs='Svíčková')
         result = demand_coverage([row], top_n=1)
         self.assertEqual(result['strict_hits'], 0)
+
+    def test_a_short_word_cannot_claim_a_much_longer_word_by_prefix_alone(self):
+        """The absolute floor (_MIN_STEM_LEN=5) is not sufficient on its own:
+        a 5-character word is an exact prefix of the much longer word below,
+        which would pass the length floor alone but must still be rejected
+        by the coverage-ratio guard — the same guard demand_index.py already
+        applies in `_fuzzy_canonical_slug`, now ported here so a strict-side
+        over-match can't inflate the headline number the way a fuzzy-side one
+        already couldn't."""
+        row = {'term': 'Gulas', 'in_scope': True, 'canonicals': []}
+        _recipe('long-word', name_cs='Gulasovnicovitostmi')
+        result = demand_coverage([row], top_n=1)
+        self.assertEqual(result['strict_hits'], 0)
