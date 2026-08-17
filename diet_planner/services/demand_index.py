@@ -12,10 +12,12 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
 
+from diet_planner.models import CanonicalIngredient, IngredientAlias
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
 
 logger = logging.getLogger(__name__)
@@ -173,11 +175,25 @@ def parse_ranking(html: str, *, source: str, category: str) -> List[DemandTerm]:
     return terms
 
 
-#: Source category -> the meal slot that demand belongs to. `None` means the
-#: category has no slot in a meal plan (desserts, drinks, preserves): real
-#: demand, deliberately out of scope, reported but never scored.
+#: Source category -> the meal slot that demand belongs to. `None` means
+#: either of two different things, deliberately conflated for now:
+#:   - the category genuinely has no slot in a meal plan (desserts, drinks,
+#:     preserves): real demand, out of scope on merit, reported but never
+#:     scored.
+#:   - 'global': the all-time/star ranking page mixes every dish type by
+#:     construction (perník and bublanina sit next to guláš and svíčková on
+#:     the same listing). No single slot label could be honest for it, so it
+#:     cannot be scored either — scoring it as 'dinner' would mark every
+#:     dessert on that page in-scope and manufacture exactly the false
+#:     coverage gap this module exists to avoid. Scored demand comes from the
+#:     per-category pages instead (maso, polevky, testoviny, salaty, ...);
+#:     `build_demand_index` already fetches those separately.
+#: Both collapse to `in_scope=False` here. If that conflation ever needs to
+#: be told apart downstream (e.g. a report that shows "has no meal slot" vs
+#: "page not classifiable" as separate buckets), split this into two fields
+#: rather than overloading `None` further.
 CATEGORY_SLOTS = {
-    'global': 'dinner',
+    'global': None,
     'maso': 'dinner',
     'testoviny': 'dinner',
     'polevky': 'lunch',
@@ -197,14 +213,109 @@ def _words(text: str) -> List[str]:
     return [w for w in _WORD.split(text.lower()) if len(w) > 2]
 
 
+#: Minimum shared leading-prefix length for two folded words to count as the
+#: same word under Czech inflection. Same floor and same reasoning as
+#: `_words_match` in `user_simulation.py`: 5 is a conservative stand-in for
+#: real lemmatization — long enough that unrelated words sharing a short
+#: prefix ("mas" in "maso" vs "máslo") don't collapse into a false match.
+_MIN_STEM_LEN = 5
+
+
+@lru_cache(maxsize=1)
+def _farm_fuzzy_index() -> Dict[str, List[str]]:
+    """Diacritics-folded word -> canonical slugs, built ONLY to power the
+    farm-local fuzzy fallback below.
+
+    FARM-ONLY BOUNDARY: this is a measurement-only convenience with a
+    conservative shared-prefix heuristic (see `_MIN_STEM_LEN`). It must
+    NEVER be promoted into `canonical_lookup.resolve_canonical` — that
+    function backs curation intake and pricing, where a fuzzy match could
+    silently corrupt real ingredient data. Keep this local to demand_index.py.
+
+    Follows the shape of `_normalized_index()` in canonical_lookup.py (build
+    once, cache, iterate name/name_cs/name_sk + aliases) but indexes
+    individual words rather than whole-name multisets, since the fuzzy
+    lookup below matches a single dish-name word at a time.
+    """
+    index: Dict[str, List[str]] = {}
+
+    def add(text: Optional[str], slug: str) -> None:
+        for word in _words(text or ''):
+            key = fold_diacritics(word).lower()
+            if not key:
+                continue
+            slugs = index.setdefault(key, [])
+            if slug not in slugs:
+                slugs.append(slug)
+
+    for ci in CanonicalIngredient.objects.all().values('slug', 'name', 'name_cs', 'name_sk'):
+        for field in ('name_cs', 'name', 'name_sk'):
+            add(ci[field], ci['slug'])
+    for alias in IngredientAlias.objects.select_related('canonical_ingredient'):
+        add(alias.alias, alias.canonical_ingredient.slug)
+
+    return index
+
+
+def _shared_prefix_len(a: str, b: str) -> int:
+    shared = 0
+    for ca, cb in zip(a, b):
+        if ca != cb:
+            break
+        shared += 1
+    return shared
+
+
+def _fuzzy_canonical_slug(word: str) -> Optional[str]:
+    """Farm-local fallback for `resolve_canonical` misses on inflected Czech
+    dish-name words (e.g. 'bramborem' -> 'brambory' -> slug 'potatoes').
+
+    Only ever called after `resolve_canonical` has already returned None for
+    this word — see `enrich_term`. Longest shared prefix wins first. A raw
+    longest-prefix-then-lexicographic-slug tie-break is NOT enough on its
+    own: 'bramborem' shares exactly 7 characters with both 'brambory'
+    (potatoes, key length 8) and 'bramborovy' (potato-starch's 'bramborový',
+    key length 10) — a real tie at shared=7 observed against the seeded
+    data. Lexicographic slug alone would then pick 'potato-starch' ahead of
+    'potatoes', which is wrong. So among same-shared-length ties we prefer
+    the key the match consumes most fully (the smaller key — closer to
+    being exactly the query's stem, not a truncated prefix of a longer,
+    unrelated word); only a remaining tie after that falls back to
+    lexicographic slug, for reproducibility.
+    """
+    query = fold_diacritics(word).lower()
+    if not query:
+        return None
+
+    best_shared = -1
+    best_key_len: Optional[int] = None
+    best_slugs: List[str] = []
+    for key, slugs in _farm_fuzzy_index().items():
+        shared = _shared_prefix_len(query, key)
+        if shared < _MIN_STEM_LEN:
+            continue
+        key_len = len(key)
+        if shared > best_shared or (shared == best_shared and key_len < best_key_len):
+            best_shared = shared
+            best_key_len = key_len
+            best_slugs = list(slugs)
+        elif shared == best_shared and key_len == best_key_len:
+            best_slugs.extend(slugs)
+
+    if not best_slugs:
+        return None
+    return sorted(set(best_slugs))[0]
+
+
 def enrich_term(term: DemandTerm) -> dict:
     """Add slot scope and resolved canonicals to a parsed demand term."""
     slot = CATEGORY_SLOTS.get(term.category, 'dinner')
     canonicals = []
     for word in _words(term.term):
         canonical = resolve_canonical(word)
-        if canonical is not None and canonical.slug not in canonicals:
-            canonicals.append(canonical.slug)
+        slug = canonical.slug if canonical is not None else _fuzzy_canonical_slug(word)
+        if slug is not None and slug not in canonicals:
+            canonicals.append(slug)
 
     return {
         'term': term.term,

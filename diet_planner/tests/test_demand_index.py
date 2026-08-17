@@ -193,7 +193,9 @@ class EnrichTermTests(TestCase):
     def test_canonicals_are_resolved_from_the_dish_name(self):
         term = DemandTerm(term='Kuřecí řízek s bramborem', rank=1,
                           source='x', category='maso')
-        self.assertIn('potato', enrich_term(term)['canonicals'])
+        # 'potatoes' is the seeded canonical's actual slug (not 'potato' —
+        # that was a typo in this test, not a code problem).
+        self.assertIn('potatoes', enrich_term(term)['canonicals'])
 
     def test_unknown_words_do_not_break_resolution(self):
         term = DemandTerm(term='Dobětický guláš', rank=1, source='x', category='maso')
@@ -223,3 +225,47 @@ class EnrichTermTests(TestCase):
         row = enrich_term(term)
         self.assertEqual((row['rank'], row['source'], row['category']),
                          (7, 'recepty.cz', 'maso'))
+
+    def test_bramborem_resolves_via_fuzzy_fallback_to_potatoes(self):
+        """'bramborem' (instrumental case) has no exact/alias/normalized
+        match in canonical_lookup — it only resolves through the farm-local
+        fuzzy fallback, via the shared 'brambor' stem."""
+        term = DemandTerm(term='Bramborem', rank=1, source='x', category='maso')
+        self.assertIn('potatoes', enrich_term(term)['canonicals'])
+
+    def test_short_word_does_not_fuzzy_match_a_longer_unrelated_canonical(self):
+        """'mas' (3 chars) shares only 3 characters with 'maso' (beef/pork/
+        ground-meat) and with 'máslo' (butter) — below the 5-char floor, so
+        neither must match. Same rule as _words_match in user_simulation.py."""
+        term = DemandTerm(term='Mas', rank=1, source='x', category='maso')
+        row = enrich_term(term)
+        self.assertNotIn('beef', row['canonicals'])
+        self.assertNotIn('pork', row['canonicals'])
+        self.assertNotIn('ground-meat', row['canonicals'])
+        self.assertNotIn('butter', row['canonicals'])
+
+    def test_global_category_term_is_out_of_scope(self):
+        """The all-time/star ranking page mixes every dish type by
+        construction (desserts alongside mains) — it cannot be honestly
+        slot-scoped, so it must never contribute to the scored denominator."""
+        term = DemandTerm(term='Svíčková na smetaně', rank=1, source='x',
+                          category='global')
+        self.assertFalse(enrich_term(term)['in_scope'])
+
+    def test_maso_category_term_is_still_in_scope(self):
+        """Guard against over-correcting: only 'global' loses its slot,
+        real categories keep theirs."""
+        term = DemandTerm(term='Svíčková na smetaně', rank=1, source='x',
+                          category='maso')
+        self.assertTrue(enrich_term(term)['in_scope'])
+
+    def test_authoritative_match_is_never_overridden_by_fuzzy(self):
+        """resolve_canonical succeeding is the last word — the farm-local
+        fuzzy fallback must not even be consulted in that case."""
+        from unittest.mock import patch
+
+        term = DemandTerm(term='Brambory', rank=1, source='x', category='maso')
+        with patch('diet_planner.services.demand_index._fuzzy_canonical_slug') as mock_fuzzy:
+            row = enrich_term(term)
+        self.assertEqual(row['canonicals'], ['potatoes'])
+        mock_fuzzy.assert_not_called()
