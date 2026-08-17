@@ -1,0 +1,2431 @@
+generated_from:
+- https://www.toprecepty.cz/top-star.php
+- https://www.toprecepty.cz/kategorie/46-maso/
+- https://www.toprecepty.cz/kategorie/16-polevky/
+- https://www.toprecepty.cz/kategorie/17-testoviny/
+- https://www.toprecepty.cz/kategorie/27-moucniky/
+- https://www.recepty.cz/recept/oblibene
+- https://www.recepty.cz/polevky-kucharka
+- https://www.recepty.cz/salaty-kucharka
+note: Positional ranks from public listing pages. Recipe-site demand is dish-first; a meal planner is
+  week-first. This is a proxy, not demand truth.
+terms:
+- term: Andělsky nadýchaný perník
+  rank: 1
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: andelsky nadychany pernik
+- term: Úžasný tvarohový moučník ke kávě
+  rank: 2
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  folded: uzasny tvarohovy moucnik ke kave
+- term: Klasický hospodský guláš (vídeňský)
+  rank: 3
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: klasicky hospodsky gulas (vidensky)
+- term: Úžasně rychlá tvarohová buchta s povidlím, chuť jako koláče, hned hotová
+  rank: 4
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  - jam
+  folded: uzasne rychla tvarohova buchta s povidlim, chut jako kolace, hned hotova
+- term: Bublanina - nadýchaná - s jakýmkoli ovocem
+  rank: 5
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - fruit
+  folded: bublanina - nadychana - s jakymkoli ovocem
+- term: Svíčková na smetaně
+  rank: 6
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - beef-tenderloin
+  - cream
+  folded: svickova na smetane
+- term: Nadýchaný hrnečkový perník
+  rank: 7
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: nadychany hrneckovy pernik
+- term: Domácí langoše
+  rank: 8
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: domaci langose
+- term: Perníčky, které jsou hned měkké
+  rank: 9
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: pernicky, ktere jsou hned mekke
+- term: Frankfurtská jemná polévka
+  rank: 10
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: frankfurtska jemna polevka
+- term: Domácí kmínový chleba
+  rank: 11
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - bread-loaf
+  folded: domaci kminovy chleba
+- term: Rohlíčky ze šlehačkového těsta
+  rank: 12
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - bread-roll
+  - cream
+  folded: rohlicky ze slehackoveho testa
+- term: Extra rychlé lívance
+  rank: 13
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: extra rychle livance
+- term: Kynuté buchty, plněné marmeládou
+  rank: 14
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - jam
+  folded: kynute buchty, plnene marmeladou
+- term: Gnocchi s kuřecím masem, špenátem a sýrovo-smetanovou omáčkou
+  rank: 15
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - chicken-breast
+  - spinach
+  - cream
+  folded: gnocchi s kurecim masem, spenatem a syrovo-smetanovou omackou
+- term: Ovocné tvarohové knedlíky
+  rank: 16
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  folded: ovocne tvarohove knedliky
+- term: Francouzské palačinky
+  rank: 17
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: francouzske palacinky
+- term: Babiččina třená bábovka
+  rank: 18
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: babiccina trena babovka
+- term: Rajčata smažená nebo pečená v sýrovém těstíčku
+  rank: 19
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - tomatoes
+  folded: rajcata smazena nebo pecena v syrovem testicku
+- term: Nízkosacharidová palačinka s tvarohem
+  rank: 20
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  folded: nizkosacharidova palacinka s tvarohem
+- term: Závitky ze pstruha
+  rank: 21
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - trout
+  folded: zavitky ze pstruha
+- term: Pomazánka z červené řepy s hrubozrnnou francouzskou hořčicí
+  rank: 22
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - mustard
+  folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
+- term: Kefírový koláč
+  rank: 23
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
+  rank: 24
+  source: toprecepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - garlic
+  folded: platky z krkovicky na cesneku
+- term: Dobětický guláš
+  rank: 1
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: dobeticky gulas
+- term: Grilovaný vepřový bok s domácími karbanátky
+  rank: 2
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pork
+  folded: grilovany veprovy bok s domacimi karbanatky
+- term: Střapaté řízečky
+  rank: 3
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: strapate rizecky
+- term: Dušené hovězí na mrkvi a hrášku
+  rank: 4
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - beef
+  folded: dusene hovezi na mrkvi a hrasku
+- term: Jehněčí hřbet na rozmarýnu
+  rank: 5
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - rosemary
+  folded: jehneci hrbet na rozmarynu
+- term: Rychlovka ze zbytků pečeného kuřete
+  rank: 6
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: rychlovka ze zbytku peceneho kurete
+- term: Domácí klobásy (5 kg)
+  rank: 7
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - sausage
+  folded: domaci klobasy (5 kg)
+- term: Kuřecí stehna plněná nádivkou s medvědím česnekem
+  rank: 8
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - chicken-breast
+  - garlic
+  folded: kureci stehna plnena nadivkou s medvedim cesnekem
+- term: Závin s trhaným masem
+  rank: 9
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: zavin s trhanym masem
+- term: Opečená vinná klobása
+  rank: 10
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - sausage
+  folded: opecena vinna klobasa
+- term: Ražniči tří barev na plechu
+  rank: 11
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: raznici tri barev na plechu
+- term: Pečené maso a speciální cibulová omáčka
+  rank: 12
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - onion
+  folded: pecene maso a specialni cibulova omacka
+- term: Mleté maso po čínsku
+  rank: 13
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: mlete maso po cinsku
+- term: Kančí nudličky
+  rank: 14
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: kanci nudlicky
+- term: Smažený řízek podle babičky jednoho šéfkuchaře
+  rank: 15
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: smazeny rizek podle babicky jednoho sefkuchare
+- term: Pivní sekaná
+  rank: 16
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: pivni sekana
+- term: Nákyp s masem a ředkvičkami
+  rank: 17
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - radishes
+  folded: nakyp s masem a redkvickami
+- term: Jarní kuřátka s hráškem
+  rank: 18
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: jarni kuratka s hraskem
+- term: Velikonoční sekaná
+  rank: 19
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: velikonocni sekana
+- term: Kuřecí na kopřivách
+  rank: 20
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - chicken-breast
+  folded: kureci na koprivach
+- term: Kroupy s houbami a uzeným masem
+  rank: 21
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: kroupy s houbami a uzenym masem
+- term: Pečená krkovička s jarním bramborovým salátem
+  rank: 22
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - potatoes
+  - lettuce
+  folded: pecena krkovicka s jarnim bramborovym salatem
+- term: Vepřová kotleta v pikantní šťávě
+  rank: 23
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pork
+  folded: veprova kotleta v pikantni stave
+- term: Vepřové kousky a omáčka s medvědím česnekem
+  rank: 24
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pork
+  - garlic
+  folded: veprove kousky a omacka s medvedim cesnekem
+- term: Rajčata smažená nebo pečená v sýrovém těstíčku
+  rank: 25
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - tomatoes
+  folded: rajcata smazena nebo pecena v syrovem testicku
+- term: Nízkosacharidová palačinka s tvarohem
+  rank: 26
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - cottage-cheese
+  folded: nizkosacharidova palacinka s tvarohem
+- term: Závitky ze pstruha
+  rank: 27
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - trout
+  folded: zavitky ze pstruha
+- term: Pomazánka z červené řepy s hrubozrnnou francouzskou hořčicí
+  rank: 28
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - mustard
+  folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
+- term: Kefírový koláč
+  rank: 29
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
+  rank: 30
+  source: toprecepty.cz
+  category: maso
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - garlic
+  folded: platky z krkovicky na cesneku
+- term: Kuřecí polévka s kari kořením
+  rank: 1
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - chicken-breast
+  - curry-powder
+  - black-pepper
+  folded: kureci polevka s kari korenim
+- term: Krémová brokolicová polévka se smetanou
+  rank: 2
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - broccoli
+  - cream
+  folded: kremova brokolicova polevka se smetanou
+- term: Hrachovka se zeleným hráškem a slaninou
+  rank: 3
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - bacon
+  folded: hrachovka se zelenym hraskem a slaninou
+- term: Bramborovo-pórková krémová polévka
+  rank: 4
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  folded: bramborovo-porkova kremova polevka
+- term: Polévka z pečeného květáku a pečeného česneku
+  rank: 5
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cauliflower
+  - garlic
+  folded: polevka z peceneho kvetaku a peceneho cesneku
+- term: Babiččina polévka ze sušených hub
+  rank: 6
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: babiccina polevka ze susenych hub
+- term: Polévka z pečené papriky, rajčat a mrkve
+  rank: 7
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - bell-pepper
+  - tomatoes
+  folded: polevka z pecene papriky, rajcat a mrkve
+- term: Hrášková polévka s brambory
+  rank: 8
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  folded: hraskova polevka s brambory
+- term: Krémová žampionová polévka s kurkumou
+  rank: 9
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - mushrooms
+  - turmeric
+  folded: kremova zampionova polevka s kurkumou
+- term: Vločková polévka s droždím
+  rank: 10
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: vlockova polevka s drozdim
+- term: Hovězí polévka z oháňky se sýrovými noky
+  rank: 11
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - beef
+  folded: hovezi polevka z ohanky se syrovymi noky
+- term: Kedlubnová polévka s vejci
+  rank: 12
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: kedlubnova polevka s vejci
+- term: Cibulačka krémová
+  rank: 13
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - onion
+  folded: cibulacka kremova
+- term: Cuketová gulášovka s bramborem a tempehem
+  rank: 14
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - zucchini
+  - potatoes
+  - tempeh
+  folded: cuketova gulasovka s bramborem a tempehem
+- term: Krémová čedarová polévka s kukuřicí
+  rank: 15
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cheese
+  - corn
+  folded: kremova cedarova polevka s kukurici
+- term: Mléčná polévka s drobením a šafránem
+  rank: 16
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - saffron
+  folded: mlecna polevka s drobenim a safranem
+- term: Rybářská polévka
+  rank: 17
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: rybarska polevka
+- term: Fazolová polévka se sušenými švestkami
+  rank: 18
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - beans
+  folded: fazolova polevka se susenymi svestkami
+- term: Polévka z choroše oříše
+  rank: 19
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: polevka z chorose orise
+- term: Moje zeleninová polévka s celestýnskými nudlemi
+  rank: 20
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: moje zeleninova polevka s celestynskymi nudlemi
+- term: Krémová květáková polévka z uzeného vývaru
+  rank: 21
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cauliflower
+  - stock
+  folded: kremova kvetakova polevka z uzeneho vyvaru
+- term: Rajčatová polévka s fazolemi
+  rank: 22
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - tomatoes
+  - beans
+  folded: rajcatova polevka s fazolemi
+- term: Květákový krém s Lučinou
+  rank: 23
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cauliflower
+  - cream-cheese
+  folded: kvetakovy krem s lucinou
+- term: Jednoduchá rajčatovo-čočková polévka
+  rank: 24
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - tomatoes
+  folded: jednoducha rajcatovo-cockova polevka
+- term: Rajčata smažená nebo pečená v sýrovém těstíčku
+  rank: 25
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - tomatoes
+  folded: rajcata smazena nebo pecena v syrovem testicku
+- term: Nízkosacharidová palačinka s tvarohem
+  rank: 26
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cottage-cheese
+  folded: nizkosacharidova palacinka s tvarohem
+- term: Závitky ze pstruha
+  rank: 27
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - trout
+  folded: zavitky ze pstruha
+- term: Pomazánka z červené řepy s hrubozrnnou francouzskou hořčicí
+  rank: 28
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - mustard
+  folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
+- term: Kefírový koláč
+  rank: 29
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
+  rank: 30
+  source: toprecepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - garlic
+  folded: platky z krkovicky na cesneku
+- term: Těstoviny s rajčaty, česnekem a zakysanou smetanou
+  rank: 1
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - tomatoes
+  - garlic
+  - cream
+  folded: testoviny s rajcaty, cesnekem a zakysanou smetanou
+- term: Masové kuličky s těstovinami v rajčatové omáčce
+  rank: 2
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - tomatoes
+  folded: masove kulicky s testovinami v rajcatove omacce
+- term: Krémové těstoviny s chorizem
+  rank: 3
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - chorizo
+  folded: kremove testoviny s chorizem
+- term: Poctivé lasagne
+  rank: 4
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: poctive lasagne
+- term: Lahodné těstoviny s omáčkou z nivy
+  rank: 5
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  folded: lahodne testoviny s omackou z nivy
+- term: Pikantní špagety se slaninou, švestkami, paprikami a žampiony
+  rank: 6
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta-spaghetti
+  - bacon
+  - bell-pepper
+  - mushrooms
+  folded: pikantni spagety se slaninou, svestkami, paprikami a zampiony
+- term: Zapečené špagety s masem, zeleninou a sýrem
+  rank: 7
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta-spaghetti
+  folded: zapecene spagety s masem, zeleninou a syrem
+- term: Krémové těstoviny s pečenou cibulí
+  rank: 8
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - onion
+  folded: kremove testoviny s pecenou cibuli
+- term: Krémové orzo s kuřecím masem a zeleninou
+  rank: 9
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - chicken-breast
+  folded: kremove orzo s kurecim masem a zeleninou
+- term: Krémové těstoviny s cuketou a sýrem
+  rank: 10
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - zucchini
+  folded: kremove testoviny s cuketou a syrem
+- term: Těstoviny s mletým hovězím a omáčkou
+  rank: 11
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - beef
+  folded: testoviny s mletym hovezim a omackou
+- term: Těstoviny s kuřecím, zeleninou a smetanovou omáčkou
+  rank: 12
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - chicken-breast
+  - cream
+  folded: testoviny s kurecim, zeleninou a smetanovou omackou
+- term: Šunkofleky z pánve
+  rank: 13
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: sunkofleky z panve
+- term: Špagety s červenou čočkou
+  rank: 14
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta-spaghetti
+  folded: spagety s cervenou cockou
+- term: Špagetový koláč
+  rank: 15
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta-spaghetti
+  folded: spagetovy kolac
+- term: Mišmaš ze zbytků
+  rank: 16
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: mismas ze zbytku
+- term: Rychlý oběd z květáku a těstovin
+  rank: 17
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - cauliflower
+  - pasta
+  folded: rychly obed z kvetaku a testovin
+- term: Špagety s cuketou
+  rank: 18
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta-spaghetti
+  - zucchini
+  folded: spagety s cuketou
+- term: Domácí ravioly
+  rank: 19
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: domaci ravioly
+- term: Hanácké nudle se skořicí
+  rank: 20
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - cinnamon
+  folded: hanacke nudle se skorici
+- term: Conchiglioni plněné boloňskou omáčkou
+  rank: 21
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: conchiglioni plnene bolonskou omackou
+- term: Rajčatové orzo
+  rank: 22
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - tomatoes
+  folded: rajcatove orzo
+- term: Cuketové šunkofleky
+  rank: 23
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - zucchini
+  folded: cuketove sunkofleky
+- term: Rychlé těstoviny s chřestem
+  rank: 24
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - pasta
+  - asparagus
+  folded: rychle testoviny s chrestem
+- term: Rajčata smažená nebo pečená v sýrovém těstíčku
+  rank: 25
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - tomatoes
+  folded: rajcata smazena nebo pecena v syrovem testicku
+- term: Nízkosacharidová palačinka s tvarohem
+  rank: 26
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - cottage-cheese
+  folded: nizkosacharidova palacinka s tvarohem
+- term: Závitky ze pstruha
+  rank: 27
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - trout
+  folded: zavitky ze pstruha
+- term: Pomazánka z červené řepy s hrubozrnnou francouzskou hořčicí
+  rank: 28
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - mustard
+  folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
+- term: Kefírový koláč
+  rank: 29
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals: []
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
+  rank: 30
+  source: toprecepty.cz
+  category: testoviny
+  slot_hint: dinner
+  in_scope: true
+  canonicals:
+  - garlic
+  folded: platky z krkovicky na cesneku
+- term: Nepečené jahodové dortíčky z jemné krupičky
+  rank: 1
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - strawberries
+  - semolina
+  folded: nepecene jahodove dorticky z jemne krupicky
+- term: Košíčky plněné tvarohem ochuceným rybízovou marmeládou
+  rank: 2
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  - jam
+  folded: kosicky plnene tvarohem ochucenym rybizovou marmeladou
+- term: Kešu pralinky s křupinkami
+  rank: 3
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cashews
+  - semolina
+  folded: kesu pralinky s krupinkami
+- term: Borůvkové mřížkové tartaletky
+  rank: 4
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - blueberries
+  folded: boruvkove mrizkove tartaletky
+- term: Sněhová roláda bez mouky s kakaovým krémem
+  rank: 5
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cocoa-powder
+  folded: snehova rolada bez mouky s kakaovym kremem
+- term: Barevná cuketová buchta
+  rank: 6
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - zucchini
+  folded: barevna cuketova buchta
+- term: Taštičky z tvarohového těsta s ostružinami nebo jiným ovocem
+  rank: 7
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  - fruit
+  folded: tasticky z tvarohoveho testa s ostruzinami nebo jinym ovocem
+- term: Švestková pochoutka Petry Černocké
+  rank: 8
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: svestkova pochoutka petry cernocke
+- term: Piškotový koláč s černým rybízem
+  rank: 9
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: piskotovy kolac s cernym rybizem
+- term: Fazolovo-banánový perník
+  rank: 10
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - beans
+  - bananas
+  folded: fazolovo-bananovy pernik
+- term: Kynutá kakaová bábovka s kokosovou náplní
+  rank: 11
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cocoa-powder
+  folded: kynuta kakaova babovka s kokosovou naplni
+- term: Vláčná kokosová bábovka
+  rank: 12
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: vlacna kokosova babovka
+- term: Honzovy buchty
+  rank: 13
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: honzovy buchty
+- term: Domácí cookies s čokoládou
+  rank: 14
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - dark-chocolate
+  folded: domaci cookies s cokoladou
+- term: Nadýchaná roláda podle Josefa Maršálka
+  rank: 15
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: nadychana rolada podle josefa marsalka
+- term: Tvarožník s mákem a višněmi
+  rank: 16
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  folded: tvaroznik s makem a visnemi
+- term: Krémové koláčky s ovocem a drobenkou
+  rank: 17
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - fruit
+  folded: kremove kolacky s ovocem a drobenkou
+- term: Rychlý mrkvový řez
+  rank: 18
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: rychly mrkvovy rez
+- term: Banánové rolky s čokoládou
+  rank: 19
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - bananas
+  - dark-chocolate
+  folded: bananove rolky s cokoladou
+- term: Likérové špičky do skleničky
+  rank: 20
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: likerove spicky do sklenicky
+- term: Vláčná vánočka
+  rank: 21
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: vlacna vanocka
+- term: Müsli loupáky
+  rank: 22
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: musli loupaky
+- term: Modravské koláče
+  rank: 23
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: modravske kolace
+- term: Čokoládový dezert s ostružinami v rumu
+  rank: 24
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - dark-chocolate
+  folded: cokoladovy dezert s ostruzinami v rumu
+- term: Rajčata smažená nebo pečená v sýrovém těstíčku
+  rank: 25
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - tomatoes
+  folded: rajcata smazena nebo pecena v syrovem testicku
+- term: Nízkosacharidová palačinka s tvarohem
+  rank: 26
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cottage-cheese
+  folded: nizkosacharidova palacinka s tvarohem
+- term: Závitky ze pstruha
+  rank: 27
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - trout
+  folded: zavitky ze pstruha
+- term: Pomazánka z červené řepy s hrubozrnnou francouzskou hořčicí
+  rank: 28
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - mustard
+  folded: pomazanka z cervene repy s hrubozrnnou francouzskou horcici
+- term: Kefírový koláč
+  rank: 29
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: kefirovy kolac
+- term: Plátky z krkovičky na česneku
+  rank: 30
+  source: toprecepty.cz
+  category: moucniky
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - garlic
+  folded: platky z krkovicky na cesneku
+- term: Špízy tandoori s kuřetem a zelenou rýží
+  rank: 1
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: spizy tandoori s kuretem a zelenou ryzi
+- term: Zapečený květák se sýrovým bešamelem
+  rank: 2
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - cauliflower
+  folded: zapeceny kvetak se syrovym besamelem
+- term: Knedlíčky se švestkovým přelivem
+  rank: 3
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: knedlicky se svestkovym prelivem
+- term: Pečená vepřová panenka na zelenině s tymiánem
+  rank: 4
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - pork
+  - pork-tenderloin
+  - thyme
+  folded: pecena veprova panenka na zelenine s tymianem
+- term: Zapečené těstoviny s cuketou a bazalkovou strouhankou
+  rank: 5
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - pasta
+  - zucchini
+  - basil
+  - breadcrumbs
+  folded: zapecene testoviny s cuketou a bazalkovou strouhankou
+- term: Bifteky ze svíčkové s rozmarýnem
+  rank: 6
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - beef-tenderloin
+  - rosemary
+  folded: bifteky ze svickove s rozmarynem
+- term: Krevetové špízy s asijským okurkovým salátem
+  rank: 7
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - shrimp
+  - cucumber
+  - lettuce
+  folded: krevetove spizy s asijskym okurkovym salatem
+- term: Křehký koláč s citronovým krémem
+  rank: 8
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - lemons
+  folded: krehky kolac s citronovym kremem
+- term: Kuřecí špízy a ořechový dip
+  rank: 9
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - chicken-breast
+  - walnuts
+  folded: kureci spizy a orechovy dip
+- term: Nepečený koláč se švestkami
+  rank: 10
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: nepeceny kolac se svestkami
+- term: Candát ve slanině se špičatým zelím a bramborami
+  rank: 11
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - bacon
+  - potatoes
+  folded: candat ve slanine se spicatym zelim a bramborami
+- term: Topinky s guacamole a tuňákem
+  rank: 12
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - guacamole
+  folded: topinky s guacamole a tunakem
+- term: Vafle se špenátem a vejci
+  rank: 13
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - spinach
+  folded: vafle se spenatem a vejci
+- term: Cuketová buchta s citronem a pistáciemi
+  rank: 14
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - zucchini
+  - lemons
+  folded: cuketova buchta s citronem a pistaciemi
+- term: Kynutý koláč s malinami a borůvkami
+  rank: 15
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - raspberries
+  - blueberries
+  folded: kynuty kolac s malinami a boruvkami
+- term: Grilovaná kuřecí srdíčka s koriandrem
+  rank: 16
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - chicken-breast
+  - coriander
+  folded: grilovana kureci srdicka s koriandrem
+- term: Matcha zmrzlina
+  rank: 17
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - matcha
+  folded: matcha zmrzlina
+- term: Asijské kuřecí nudličky s cuketou
+  rank: 18
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - chicken-breast
+  - zucchini
+  folded: asijske kureci nudlicky s cuketou
+- term: Letní koláč s pudinkem a ovocem
+  rank: 19
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - fruit
+  folded: letni kolac s pudinkem a ovocem
+- term: Vegetariánské karbanátky
+  rank: 20
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - vegeta-seasoning
+  folded: vegetarianske karbanatky
+- term: Hovězí koule s rajčatovou omáčkou
+  rank: 21
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - beef
+  - tomatoes
+  folded: hovezi koule s rajcatovou omackou
+- term: Perníkové sušenky
+  rank: 22
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: pernikove susenky
+- term: Ředkvičkový salát s kuřecími stripsy
+  rank: 23
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - radishes
+  - lettuce
+  - chicken-breast
+  folded: redkvickovy salat s kurecimi stripsy
+- term: Brioškový koláč se smetanovým sýrem
+  rank: 24
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - bread-loaf
+  - cream
+  folded: brioskovy kolac se smetanovym syrem
+- term: Cuketové chipsy
+  rank: 25
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - zucchini
+  folded: cuketove chipsy
+- term: Cuketa z plechu se sušenými rajčaty a olivami
+  rank: 26
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - zucchini
+  - tomatoes
+  folded: cuketa z plechu se susenymi rajcaty a olivami
+- term: Prázdninový dort s ovocem
+  rank: 27
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - fruit
+  folded: prazdninovy dort s ovocem
+- term: Pikantní cuketová směs na zimu
+  rank: 28
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - zucchini
+  - ground-meat
+  folded: pikantni cuketova smes na zimu
+- term: Rajčatová bruschetta s mozzarellou
+  rank: 29
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - tomatoes
+  - mozzarella
+  folded: rajcatova bruschetta s mozzarellou
+- term: Domácí chléb s cuketou
+  rank: 30
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - bread-loaf
+  - zucchini
+  folded: domaci chleb s cuketou
+- term: Houbové ragú s knedlíkem
+  rank: 31
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: houbove ragu s knedlikem
+- term: Meruňkové knedlíky z odpalovaného těsta
+  rank: 32
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: merunkove knedliky z odpalovaneho testa
+- term: Letní tiramisu s jahodami a malinami
+  rank: 33
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - strawberries
+  - raspberries
+  folded: letni tiramisu s jahodami a malinami
+- term: Plněné papriky s rajskou omáčkou
+  rank: 34
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - bell-pepper
+  folded: plnene papriky s rajskou omackou
+- term: Bramborové placky s posypem
+  rank: 35
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - potatoes
+  folded: bramborove placky s posypem
+- term: Pečené brambory s dipem
+  rank: 36
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - potatoes
+  folded: pecene brambory s dipem
+- term: Zeleninové špízy se sýrem
+  rank: 37
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: zeleninove spizy se syrem
+- term: Hrnkový meruňkový koláč s drobenkou
+  rank: 38
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: hrnkovy merunkovy kolac s drobenkou
+- term: Domácí lečo s volským okem
+  rank: 39
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals: []
+  folded: domaci leco s volskym okem
+- term: Králík cibulář na tymiánu
+  rank: 40
+  source: recepty.cz
+  category: global
+  slot_hint: null
+  in_scope: false
+  canonicals:
+  - rabbit
+  - onion
+  - thyme
+  folded: kralik cibular na tymianu
+- term: Broskvovo-rajské gazpacho s krevetami
+  rank: 1
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - peaches
+  - shrimp
+  folded: broskvovo-rajske gazpacho s krevetami
+- term: Mrkvový krém se smetanou
+  rank: 2
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cream
+  folded: mrkvovy krem se smetanou
+- term: Italská dršťková polévka
+  rank: 3
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: italska drstkova polevka
+- term: Rajčatová polévka s pistáciemi
+  rank: 4
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - tomatoes
+  folded: rajcatova polevka s pistaciemi
+- term: Rajčatová polévka se zeleninou
+  rank: 5
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - tomatoes
+  folded: rajcatova polevka se zeleninou
+- term: Toskánská jarní polévka s chřestem
+  rank: 6
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - asparagus
+  folded: toskanska jarni polevka s chrestem
+- term: Asijská polévka s hovězím masem a nudlemi
+  rank: 7
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - beef
+  folded: asijska polevka s hovezim masem a nudlemi
+- term: Rychlá asijská polévka
+  rank: 8
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: rychla asijska polevka
+- term: Žilinská polévka chábovica
+  rank: 9
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: zilinska polevka chabovica
+- term: Špenátový krém
+  rank: 10
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - spinach
+  folded: spenatovy krem
+- term: Jarní špenátová polévka
+  rank: 11
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - spinach
+  folded: jarni spenatova polevka
+- term: Krémová polévka z medvědího česneku
+  rank: 12
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - garlic
+  folded: kremova polevka z medvediho cesneku
+- term: Jarní zeleninová polévka
+  rank: 13
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: jarni zeleninova polevka
+- term: Květáková polévka s parmazánem
+  rank: 14
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cauliflower
+  - parmesan
+  folded: kvetakova polevka s parmazanem
+- term: Zeleninová polévka s fazolkami
+  rank: 15
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - green-beans
+  folded: zeleninova polevka s fazolkami
+- term: Celerová polévka s modrým sýrem
+  rank: 16
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - celery-root
+  folded: celerova polevka s modrym syrem
+- term: Mrkvová polévka se semínky
+  rank: 17
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: mrkvova polevka se seminky
+- term: Květákový krém s parmazánem
+  rank: 18
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cauliflower
+  - parmesan
+  folded: kvetakovy krem s parmazanem
+- term: Baskická česnečka s vejci a uzenou paprikou
+  rank: 19
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - garlic
+  - bell-pepper
+  folded: baskicka cesnecka s vejci a uzenou paprikou
+- term: Ostrá česnečka s tvarůžky
+  rank: 20
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - garlic
+  folded: ostra cesnecka s tvaruzky
+- term: Hrášková polévka se slaninou
+  rank: 21
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - bacon
+  folded: hraskova polevka se slaninou
+- term: Bramborová krémová polévka s houbami
+  rank: 22
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  folded: bramborova kremova polevka s houbami
+- term: Rybí vývar s knedlíčky
+  rank: 23
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - stock
+  folded: rybi vyvar s knedlicky
+- term: Štědrovečerní hrachová polévka
+  rank: 24
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: stedrovecerni hrachova polevka
+- term: Pórkový krém s gorgonzolou
+  rank: 25
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: porkovy krem s gorgonzolou
+- term: Dýňový krém s pistáciemi
+  rank: 26
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: dynovy krem s pistaciemi
+- term: Klasická gulášová polévka
+  rank: 27
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: klasicka gulasova polevka
+- term: Husí polévka s játrovými knedlíčky
+  rank: 28
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: husi polevka s jatrovymi knedlicky
+- term: Klasická zelňačka
+  rank: 29
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: klasicka zelnacka
+- term: Španělská bramborová polévka
+  rank: 30
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  folded: spanelska bramborova polevka
+- term: Polévka z pečené mrkve a červené čočky
+  rank: 31
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: polevka z pecene mrkve a cervene cocky
+- term: Květáková polévka v chlebu
+  rank: 32
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cauliflower
+  - bread-loaf
+  folded: kvetakova polevka v chlebu
+- term: Gulášová polévka v chlebu
+  rank: 33
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - bread-loaf
+  folded: gulasova polevka v chlebu
+- term: Bramboračka s bylinkovými noky
+  rank: 34
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  - parsley
+  folded: bramboracka s bylinkovymi noky
+- term: Cuketovo-brokolicový krém
+  rank: 35
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - zucchini
+  - broccoli
+  folded: cuketovo-brokolicovy krem
+- term: Zelňačka s bramborovou kaší
+  rank: 36
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  folded: zelnacka s bramborovou kasi
+- term: Mulligan stew, základní recept
+  rank: 37
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: mulligan stew, zakladni recept
+- term: Těstovinová polévka Hoover stew, základní recept
+  rank: 38
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - pasta
+  folded: testovinova polevka hoover stew, zakladni recept
+- term: Mexická kuřecí polévka
+  rank: 39
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - chicken-breast
+  folded: mexicka kureci polevka
+- term: Mrkvovo-batátový krém
+  rank: 40
+  source: recepty.cz
+  category: polevky
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - sweet-potato
+  folded: mrkvovo-batatovy krem
+- term: Ředkvičkový salát s kuřecími stripsy
+  rank: 1
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - radishes
+  - lettuce
+  - chicken-breast
+  folded: redkvickovy salat s kurecimi stripsy
+- term: Řecký salát s kuskusem
+  rank: 2
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  folded: recky salat s kuskusem
+- term: Turecký pastýřský salát
+  rank: 3
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  folded: turecky pastyrsky salat
+- term: Rajčatový salát s mátou
+  rank: 4
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - tomatoes
+  - lettuce
+  folded: rajcatovy salat s matou
+- term: Kadeřávkový salát s lososem
+  rank: 5
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - kale
+  - lettuce
+  - salmon-fillet
+  folded: kaderavkovy salat s lososem
+- term: Toskánský chlebový salát s kapary
+  rank: 6
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - bread-loaf
+  - lettuce
+  - capers
+  folded: toskansky chlebovy salat s kapary
+- term: Condiglione
+  rank: 7
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: condiglione
+- term: Bramborový salát s pistáciemi
+  rank: 8
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  - lettuce
+  folded: bramborovy salat s pistaciemi
+- term: Salát z jahod a gorgonzoly
+  rank: 9
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - strawberries
+  folded: salat z jahod a gorgonzoly
+- term: Jarní kuřecí salát s chřestem
+  rank: 10
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - chicken-breast
+  - lettuce
+  - asparagus
+  folded: jarni kureci salat s chrestem
+- term: Salát s grilovaným sýrem
+  rank: 11
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  folded: salat s grilovanym syrem
+- term: Ředkvičkový salát s krevetami a zázvorovým dresinkem
+  rank: 12
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - radishes
+  - lettuce
+  - shrimp
+  - ginger
+  folded: redkvickovy salat s krevetami a zazvorovym dresinkem
+- term: Celerový salát s jablky
+  rank: 13
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - celery-root
+  - lettuce
+  - apples
+  folded: celerovy salat s jablky
+- term: Čekankový salát s pomeranči a čočkou
+  rank: 14
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - radicchio
+  - lettuce
+  folded: cekankovy salat s pomeranci a cockou
+- term: Teplý salát ze zelené čočky
+  rank: 15
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  folded: teply salat ze zelene cocky
+- term: Salát s červenou čočkou
+  rank: 16
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  folded: salat s cervenou cockou
+- term: Salát s fíky a pekanovými ořechy
+  rank: 17
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - pecans
+  - walnuts
+  folded: salat s fiky a pekanovymi orechy
+- term: Teplý salát z restované panenky
+  rank: 18
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - pork-tenderloin
+  folded: teply salat z restovane panenky
+- term: Salát z pečených paprik a fazolí
+  rank: 19
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - bell-pepper
+  - beans
+  folded: salat z pecenych paprik a fazoli
+- term: Těstovinový salát z grilu
+  rank: 20
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - pasta
+  - lettuce
+  folded: testovinovy salat z grilu
+- term: Těstovinový salát Caprese
+  rank: 21
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - pasta
+  - lettuce
+  folded: testovinovy salat caprese
+- term: Těstovinový salát s pečenou zeleninou a bazalkovým pestem
+  rank: 22
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - pasta
+  - lettuce
+  - basil
+  folded: testovinovy salat s pecenou zeleninou a bazalkovym pestem
+- term: Bramborový salát se zelenými fazolkami
+  rank: 23
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - potatoes
+  - lettuce
+  - green-beans
+  folded: bramborovy salat se zelenymi fazolkami
+- term: Svěží okurkový salát s acidofilním mlékem
+  rank: 24
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cucumber
+  - lettuce
+  folded: svezi okurkovy salat s acidofilnim mlekem
+- term: Salát s krevetami a exotickým ovocem
+  rank: 25
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - shrimp
+  - fruit
+  folded: salat s krevetami a exotickym ovocem
+- term: César salát s kuřecím a krutony
+  rank: 26
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - chicken-breast
+  folded: cesar salat s kurecim a krutony
+- term: fermentované zelí (a la Kimchi)
+  rank: 27
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - cabbage
+  folded: fermentovane zeli (a la kimchi)
+- term: Ředkvičkový salát III.
+  rank: 28
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - radishes
+  - lettuce
+  folded: redkvickovy salat iii.
+- term: Chřestové Caprese
+  rank: 29
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - asparagus
+  folded: chrestove caprese
+- term: Caesar salát
+  rank: 30
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  folded: caesar salat
+- term: Majolka
+  rank: 31
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: majolka
+- term: Vaječná tlačenka
+  rank: 32
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals: []
+  folded: vajecna tlacenka
+- term: Salát a la Tabouleh s pečeným kuřecím prsem a tzatziki
+  rank: 33
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - chicken-breast
+  folded: salat a la tabouleh s pecenym kurecim prsem a tzatziki
+- term: Cizrnový salát s tuňákem
+  rank: 34
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - chickpeas
+  - lettuce
+  folded: cizrnovy salat s tunakem
+- term: Tuňákové těstoviny
+  rank: 35
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - pasta
+  folded: tunakove testoviny
+- term: Salát s ořechy a bobulemi
+  rank: 36
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - walnuts
+  - fruit
+  folded: salat s orechy a bobulemi
+- term: Steakový salát s balzamikem
+  rank: 37
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - balsamic-vinegar
+  folded: steakovy salat s balzamikem
+- term: Salát s grilovaným melounem
+  rank: 38
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  folded: salat s grilovanym melounem
+- term: Salát s jahodami a rozpečeným sýrem
+  rank: 39
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - lettuce
+  - strawberries
+  folded: salat s jahodami a rozpecenym syrem
+- term: Chřestový salát s vejcem
+  rank: 40
+  source: recepty.cz
+  category: salaty
+  slot_hint: lunch
+  in_scope: true
+  canonicals:
+  - asparagus
+  - lettuce
+  - eggs
+  folded: chrestovy salat s vejcem
