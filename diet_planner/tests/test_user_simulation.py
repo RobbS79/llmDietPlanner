@@ -212,3 +212,40 @@ class DemandCoverageTests(TestCase):
         most actionable thing the farm produces."""
         result = demand_coverage([DEMAND[0]], top_n=1)
         self.assertIn('Hovězí guláš', result['misses'])
+
+    def test_inflected_forms_still_count_as_a_strict_hit(self):
+        """'Hovězí guláš' vs 'Guláš z hovězího masa' is the same dish;
+        exact-token set intersection missed it because 'hovezi' != 'hoveziho',
+        which would systematically under-report the headline coverage number
+        and invent corpus gaps that don't exist."""
+        _recipe('gulas-z-hoveziho-masa', name_cs='Guláš z hovězího masa')
+        result = demand_coverage([DEMAND[0]], top_n=1)
+        self.assertEqual(result['strict_hits'], 1)
+
+    def test_different_meats_stay_distinct_despite_the_inflection_fix(self):
+        """Regression guard: without the 5-char floor, loosening word
+        matching further could silently turn every řízek into every other
+        řízek. Kuřecí (chicken) and Vepřový (pork) řízek must stay apart."""
+        row = {'term': 'Kuřecí řízek', 'in_scope': True, 'canonicals': []}
+        _recipe('veprovy-rizek', name_cs='Vepřový řízek')
+        result = demand_coverage([row], top_n=1)
+        self.assertEqual(result['strict_hits'], 0)
+
+    def test_a_short_significant_word_cannot_prefix_match_a_longer_word(self):
+        """Guards the 5-character floor: 'maso' (4 chars) must not loosely
+        match an unrelated longer word like 'maslova' just because they
+        happen to share a short prefix."""
+        row = {'term': 'Maso', 'in_scope': True, 'canonicals': []}
+        _recipe('maslova-babovka', name_cs='Máslová bábovka')
+        result = demand_coverage([row], top_n=1)
+        self.assertEqual(result['strict_hits'], 0)
+
+    def test_a_more_specific_demand_term_is_not_satisfied_by_a_plainer_name(self):
+        """Deliberate under-claim: the demand term is more specific ('na
+        smetaně') than the recipe name ('Svíčková' alone), and we would
+        rather under-report coverage than tell a user we have a dish we
+        don't actually have on file."""
+        row = {'term': 'Svíčková na smetaně', 'in_scope': True, 'canonicals': []}
+        _recipe('svickova', name_cs='Svíčková')
+        result = demand_coverage([row], top_n=1)
+        self.assertEqual(result['strict_hits'], 0)

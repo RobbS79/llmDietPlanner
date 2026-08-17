@@ -221,11 +221,43 @@ def _significant_words(text: str) -> Set[str]:
     return {w for w in _WORD_SPLIT.split(folded) if len(w) > 2}
 
 
+#: Minimum length of the shared prefix for two folded words to count as the
+#: same word under inflection (see _words_match). 5 is a floor, not a
+#: startswith: it stops short, unrelated prefixes like "mas" (shared by
+#: "maso" and "maslo" — different foods) from collapsing into a match. Do
+#: not simplify this to a bare startswith() — that would drop the floor.
+_MIN_STEM_LEN = 5
+
+
+def _words_match(a: str, b: str) -> bool:
+    """Two folded words match if identical, or if they share a common
+    leading prefix of at least _MIN_STEM_LEN characters.
+
+    This is a conservative stand-in for real Czech lemmatization (there is
+    no stemmer in canonical_lookup to reuse): it catches case/number
+    inflection on the same stem — "hovezi"/"hoveziho", "svickova"/
+    "svickove" — without merging genuinely different words that happen to
+    start alike ("rizek"/"veprovy" share nothing; "maso"/"maslo" share only
+    3 characters, below the floor).
+    """
+    if a == b:
+        return True
+    shared = 0
+    for ca, cb in zip(a, b):
+        if ca != cb:
+            break
+        shared += 1
+    return shared >= _MIN_STEM_LEN
+
+
 def _strict_hit(term_words: Set[str], recipe) -> bool:
     if not term_words:
         return False
     recipe_words = _significant_words(recipe.name_cs)
-    return len(term_words & recipe_words) / len(term_words) >= _STRICT_OVERLAP
+    matched = sum(
+        1 for tw in term_words if any(_words_match(tw, rw) for rw in recipe_words)
+    )
+    return matched / len(term_words) >= _STRICT_OVERLAP
 
 
 def _loose_hit(canonicals: Set[str], recipe) -> bool:
