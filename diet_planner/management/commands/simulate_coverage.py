@@ -216,6 +216,11 @@ class Command(BaseCommand):
         full_coverage = demand_coverage(demand, top_n=top_n)
 
         w('\n-- demand coverage --')
+        # A property of the whole snapshot, not of either cutoff below (both
+        # cutoffs slice the same in-scope-ranked list, so this number would
+        # otherwise print identically, and confusingly, inside each block).
+        w(f'  out-of-scope in this snapshot (no meal slot, e.g. desserts/'
+          f'drinks — whole snapshot, not this cutoff): {full_coverage["out_of_scope"]}')
         for label, coverage in (
             (f'@{_HEADLINE_TOP_N} (headline demand)', headline_coverage),
             (f'@{top_n} (full)', full_coverage),
@@ -224,9 +229,7 @@ class Command(BaseCommand):
             strict_pct = (100.0 * coverage['strict_hits'] / scored) if scored else 0.0
             loose_pct = (100.0 * coverage['loose_hits'] / scored) if scored else 0.0
             w(f'  {label}:')
-            w(f'    scored terms (in-scope): {scored}')
-            w(f'    out-of-scope (no meal slot, e.g. desserts/drinks): '
-              f'{coverage["out_of_scope"]}')
+            w(f'    scored terms (in-scope, ranked across sources): {scored}')
             w(f'    strict (we have that dish): {coverage["strict_hits"]}/{scored} '
               f'({strict_pct:.1f}%)')
             w(f'    loose (same ingredients at least): {coverage["loose_hits"]}/'

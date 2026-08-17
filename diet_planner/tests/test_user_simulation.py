@@ -216,6 +216,52 @@ class DemandCoverageTests(TestCase):
     def test_top_n_limits_the_denominator(self):
         self.assertEqual(demand_coverage(DEMAND, top_n=1)['scored'], 1)
 
+    def test_top_n_ranks_across_in_scope_terms_not_by_file_position(self):
+        """Regression: the real snapshot lists a dessert-dominated 'global'
+        source first (see SOURCES in build_demand_index.py), so slicing the
+        raw file position would give '@20' zero in-scope terms — forever,
+        on every corpus. top_n must apply to in-scope terms ranked by their
+        own `rank`, not to the raw list order."""
+        out_of_scope_first = [
+            {'term': f'Dessert {i}', 'rank': i, 'source': 'toprecepty.cz',
+             'in_scope': False, 'canonicals': []}
+            for i in range(1, 21)
+        ]
+        in_scope_later = [
+            {'term': f'Dish {i}', 'rank': i, 'source': 'toprecepty.cz',
+             'in_scope': True, 'canonicals': []}
+            for i in range(1, 6)
+        ]
+        demand = out_of_scope_first + in_scope_later
+        result = demand_coverage(demand, top_n=20)
+        self.assertEqual(result['scored'], 5)
+
+    def test_at_20_never_scores_more_than_20_terms(self):
+        demand = [
+            {'term': f'Dish {i}', 'rank': i, 'source': 'x', 'in_scope': True,
+             'canonicals': []}
+            for i in range(1, 31)
+        ]
+        result = demand_coverage(demand, top_n=20)
+        self.assertEqual(result['scored'], 20)
+
+    def test_tied_ranks_across_sources_break_ties_deterministically(self):
+        """Several sources each have a rank 1 — the tie-break (rank, then
+        source, then term) must be stable across calls so two runs of the
+        farm agree on the same top_n, not just on the same count."""
+        demand = [
+            {'term': 'Z Dish', 'rank': 1, 'source': 'z-site.cz',
+             'in_scope': True, 'canonicals': []},
+            {'term': 'A Dish', 'rank': 1, 'source': 'a-site.cz',
+             'in_scope': True, 'canonicals': []},
+            {'term': 'M Dish', 'rank': 1, 'source': 'm-site.cz',
+             'in_scope': True, 'canonicals': []},
+        ]
+        first = demand_coverage(demand, top_n=1)
+        second = demand_coverage(demand, top_n=1)
+        self.assertEqual(first['misses'], second['misses'])
+        self.assertEqual(first['misses'], ['A Dish'])
+
     def test_a_strict_hit_also_counts_as_loose(self):
         """loose is a superset of strict — a report where strict > loose would
         be nonsense, so pin it."""

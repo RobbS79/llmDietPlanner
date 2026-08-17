@@ -305,15 +305,40 @@ def _loose_hit(canonicals: Set[str], recipe) -> bool:
 
 
 def demand_coverage(demand, *, top_n: int) -> Dict[str, object]:
-    """How much of the top-N demand the published corpus can serve.
+    """How much of the top-N RANKED, IN-SCOPE demand the published corpus can
+    serve.
 
-    Returns strict and loose hit counts over IN-SCOPE terms only; out-of-scope
-    demand (desserts, drinks) is counted separately and never scored, because
-    the planner has no slot for it and failing it would be a false alarm.
+    `top_n` is applied AFTER filtering to in-scope terms and sorting them by
+    `rank` ascending (tie-broken by source then term, for reproducibility) —
+    NOT by raw position in `demand`. Slicing the raw list would make top_n
+    mean "the first source's top N": `build_demand_index.SOURCES` lists a
+    dessert-dominated 'global' ranking page first, which is out-of-scope by
+    construction, so a raw-position `@20` would score zero in-scope terms on
+    every corpus, forever — a metric that always reads 0/0 is worse than no
+    metric, since it looks like a finding instead of a bug.
+
+    Ranks are PER-SOURCE and not commensurable: rank 3 on toprecepty's maso
+    page is not equivalent to rank 3 on recepty.cz's salads page. Sorting
+    across sources by raw rank is a defensible approximation of "most
+    wanted," not a true global popularity ordering — treat `@20` as that
+    approximation, not a strict ranking. A real cross-source ordering is
+    what the deferred pytrends weighting was for.
+
+    Returns strict and loose hit counts over the scored (in-scope, top_n)
+    terms; `out_of_scope` counts out-of-scope rows across the WHOLE snapshot,
+    not just the scored slice — it describes a property of the demand data
+    (how much of it a meal plan has no slot for at all), not of what got
+    scored, and the planner has no slot for it so failing it would be a
+    false alarm.
     """
-    considered = list(demand)[:top_n]
-    scored = [row for row in considered if row.get('in_scope')]
-    out_of_scope = len(considered) - len(scored)
+    demand = list(demand)
+    out_of_scope = sum(1 for row in demand if not row.get('in_scope'))
+
+    in_scope = [row for row in demand if row.get('in_scope')]
+    in_scope.sort(key=lambda row: (
+        int(row.get('rank') or 0), str(row.get('source') or ''), str(row.get('term') or ''),
+    ))
+    scored = in_scope[:top_n]
 
     pool = list(rr.published_pool(CuratedRecipe.Status.PUBLISHED))
     strict_hits = loose_hits = 0
