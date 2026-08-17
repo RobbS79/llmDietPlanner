@@ -41,6 +41,7 @@ from django.conf import settings
 from django.db.models import F
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
+from diet_planner.models.catalog import Availability
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
 from diet_planner.services.prompt_facets import (
     ENFORCEABLE_DIETARY_TAGS,
@@ -424,6 +425,11 @@ def eligible_recipes_for_slot(
             continue
         if enforce_mapping and not r.is_catalog_mapped():
             continue
+        # Unshoppable in an ordinary Czech supermarket. Unconditional: after
+        # unpublish_unshoppable this is belt-and-braces for published rows, but
+        # it still covers the enforce_mapping=False chat-draft path.
+        if r.shopping_difficulty == Availability.SPECIALTY:
+            continue
         if facets is not None and not recipe_matches_facets(r, facets):
             continue
         out.append(r)
@@ -437,6 +443,13 @@ _WANTED_HIT_WEIGHT = 20.0
 # near-peers, but the penalty stays under _WANTED_HIT_WEIGHT so prompt fit
 # still wins ("kuřecí" beats a fresh cabbage salad even on a repeat).
 _RECENT_SERVE_PENALTY = 8.0
+
+# Shopping friction. At 1.0 per blocker a single blocker is exactly enough to
+# push a findable recipe out of the _SAMPLING_WINDOW against an equally-scoring
+# common one — it loses ties, which is the intent. Against _WANTED_HIT_WEIGHT
+# (20.0) it is negligible, so it can never override what the user asked for.
+_SHOPPING_BLOCKER_PENALTY = 1.0
+_SHOPPING_PENALTY_CAP = 3.0
 
 # Near-tied candidates (within this score distance of the top) are sampled,
 # not argmax'd, so equally-good dishes rotate across plans instead of one
@@ -514,6 +527,15 @@ def score_recipe(
     # Difficulty: prefer easy (novice-friendly is the whole point).
     if recipe.difficulty == CuratedRecipe.Difficulty.EASY:
         score += 2.0
+
+    # Shopping friction: prefer a dish the user can buy in one stop. Driven by
+    # the blocker list, not the tier, so an 'unrated' row (the model default,
+    # i.e. merely not-yet-recomputed) costs nothing.
+    if (getattr(settings, 'AVAILABILITY_RANKING_ENABLED', False)
+            and recipe.shopping_difficulty != Availability.COMMON):
+        score -= min(
+            len(recipe.shopping_blockers or []) * _SHOPPING_BLOCKER_PENALTY,
+            _SHOPPING_PENALTY_CAP)
 
     # Optional macro fit: closeness of PER-PORTION calories to the per-meal
     # target. base_nutrition is whole-recipe (per base_servings) — comparing
