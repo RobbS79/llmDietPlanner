@@ -1149,7 +1149,7 @@ def rewrite_instructions(
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_substitution_rewrite.py -q"`
 
-Expected: `9 passed` (7 planned + 2 head-noun regressions). Full suite: `776 passed`.
+Expected: `11 passed` (9 planned + high-severity rejection + `--slug`). (7 planned + 2 head-noun regressions). Full suite: `776 passed`.
 
 - [x] **Step 5: Commit**
 
@@ -1166,7 +1166,17 @@ git commit -m "feat(availability): bounded LLM rewrite of affected instruction s
 - Create: `diet_planner/management/commands/apply_availability_substitutions.py`
 - Test: `diet_planner/tests/test_apply_substitutions.py`
 
-- [ ] **Step 1: Write the failing test**
+**Executed 2026-08-17. Three defects in the plan's listing, two of them fatal:**
+
+1. **`CuratedRecipe.ShoppingDifficulty` does not exist.** The field is `shopping_difficulty = models.CharField(choices=Availability.choices)` (`models/curated.py:151`) — there is no nested choices class, so the queryset would have raised `AttributeError` on the command's first line. Use `Availability.COMMON` from `models.catalog`.
+2. **The judge gate would never have fired.** `judge_curated_recipe` returns `JudgeVerdict.as_stats()`, whose keys are `ran / verdict / shoppable / cookable / human_sane / issue_count / high_severity_count / model / error` — there is **no `passed`**. `verdict.get('passed', True)` therefore always defaulted to True and every rewrite would have sailed through a gate that looked present in the code and in the test (whose mock invented the key). Step 4 existed to catch this; it does. The gate now lives in `_judge_rejected()`: reject when `ran` **and** (`verdict == 'incoherent'` or `high_severity_count > 0`). `minor_issues` alone passes.
+3. `adaptation_note` is `max_length=300`, not 255; truncation now reads the field's own `max_length` rather than a hardcoded number.
+
+**Fail-open is deliberate but now visible.** Per `JudgeVerdict`'s docstring, `ran=False` means *unknown*, not *good*. This command is the first place the judge is used as a gate at all (elsewhere it only lands in `quality_score`), and it keeps the codebase's advisory stance — an unjudged rewrite still applies. That is a real risk during the Task 9 prod run, where a missing key or a quota-exhausted judge could pass a whole batch unjudged while the output looked clean, so the command counts those and prints `judge did not run (...) — applying unjudged` per recipe plus `unjudged=N` in the summary. **Watch that counter in Task 9 Step 3.**
+
+Ships **11 tests, not 9**: added the high-severity rejection, the fail-open-but-announced path, and `--slug` targeting (an unexercised flag the Task 9 batches depend on).
+
+- [x] **Step 1: Write the failing test**
 
 Create `diet_planner/tests/test_apply_substitutions.py`:
 
@@ -1204,7 +1214,11 @@ class ApplySubstitutionsTests(TestCase):
         call_command('rate_ingredient_availability', stdout=StringIO())
         call_command('load_availability_substitutions', stdout=StringIO())
 
-    def _patched(self, judge_ok=True):
+    def _patched(self, verdict=None):
+        """judge_curated_recipe returns JudgeVerdict.as_stats() — there is no
+        'passed' key, so the gate reads `ran` + `verdict` + high severity."""
+        if verdict is None:
+            verdict = {'ran': True, 'verdict': 'coherent', 'high_severity_count': 0}
         return (
             mock.patch(
                 'diet_planner.management.commands.apply_availability_substitutions'
@@ -1213,7 +1227,7 @@ class ApplySubstitutionsTests(TestCase):
             mock.patch(
                 'diet_planner.management.commands.apply_availability_substitutions'
                 '.judge_curated_recipe',
-                return_value={'ran': True, 'passed': judge_ok}),
+                return_value=verdict),
         )
 
     def test_dry_run_writes_nothing(self):
@@ -1252,7 +1266,8 @@ class ApplySubstitutionsTests(TestCase):
 
     def test_judge_rejection_discards_the_whole_rewrite(self):
         r = _recipe()
-        rewrite, judge = self._patched(judge_ok=False)
+        rewrite, judge = self._patched(
+            verdict={'ran': True, 'verdict': 'incoherent', 'high_severity_count': 0})
         with rewrite, judge:
             call_command('apply_availability_substitutions', stdout=StringIO())
         r.refresh_from_db()
@@ -1301,13 +1316,13 @@ class ApplySubstitutionsTests(TestCase):
         self.assertEqual(r.adaptation_note, 'Upraveno pro dostupnost: x → y')
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'apply_availability_substitutions'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command**
 
 Create `diet_planner/management/commands/apply_availability_substitutions.py`:
 
@@ -1326,6 +1341,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from diet_planner.models import CuratedRecipe
+from diet_planner.models.catalog import Availability
 from diet_planner.services.ingredient_availability import (
     availability_index,
     compute_shopping_difficulty,
@@ -1339,6 +1355,26 @@ from diet_planner.services.recipe_curation import judge_curated_recipe
 from diet_planner.services.substitution_rewrite import RewriteError, rewrite_instructions
 
 _NOTE_PREFIX = 'Upraveno pro dostupnost v českých obchodech: '
+
+#: adaptation_note's max_length. Truncating here rather than letting the DB
+#: raise mid-batch.
+_NOTE_MAX = CuratedRecipe._meta.get_field('adaptation_note').max_length
+
+
+def _judge_rejected(verdict: dict) -> bool:
+    """Did the judge actively reject this rewrite?
+
+    `judge_curated_recipe` returns `JudgeVerdict.as_stats()`, which has no
+    boolean pass/fail — it reports `ran`, a four-value `verdict`, and issue
+    counts. Per JudgeVerdict's own docstring, a verdict is only meaningful
+    when `ran` is True; ran=False means UNKNOWN, and unknown is not rejection.
+    'minor_issues' passes, but a high-severity issue never does.
+    """
+    if not verdict.get('ran'):
+        return False
+    if verdict.get('verdict') == 'incoherent':
+        return True
+    return bool(verdict.get('high_severity_count'))
 
 
 class Command(BaseCommand):
@@ -1362,12 +1398,12 @@ class Command(BaseCommand):
 
         index = availability_index()
         qs = CuratedRecipe.objects.exclude(
-            shopping_difficulty=CuratedRecipe.ShoppingDifficulty.COMMON,
+            shopping_difficulty=Availability.COMMON,
         ).filter(adaptation_note='').order_by('id')
         if options['slug']:
             qs = qs.filter(slug=options['slug'])
 
-        adapted = skipped = failed = 0
+        adapted = skipped = failed = unjudged = 0
 
         for recipe in qs.iterator():
             if options['limit'] is not None and adapted >= options['limit']:
@@ -1408,18 +1444,26 @@ class Command(BaseCommand):
             )
             if not options['skip_judge']:
                 verdict = judge_curated_recipe(candidate)
-                if verdict.get('ran') and not verdict.get('passed', True):
+                if _judge_rejected(verdict):
                     failed += 1
                     self.stdout.write(self.style.WARNING(
-                        '  judge rejected the rewrite — discarded'))
+                        f"  judge rejected the rewrite — discarded "
+                        f"(verdict={verdict.get('verdict')}, "
+                        f"high={verdict.get('high_severity_count')})"))
                     continue
+                if not verdict.get('ran'):
+                    # Applying unjudged is a decision, not a detail: say it.
+                    unjudged += 1
+                    self.stdout.write(self.style.WARNING(
+                        f"  judge did not run ({verdict.get('error') or 'disabled'})"
+                        f" — applying unjudged"))
 
             with transaction.atomic():
                 if not recipe.original_ingredients:
                     recipe.original_ingredients = recipe.ingredients
                 recipe.ingredients = new_ingredients
                 recipe.instructions = new_instructions
-                recipe.adaptation_note = (_NOTE_PREFIX + plan.summary())[:255]
+                recipe.adaptation_note = (_NOTE_PREFIX + plan.summary())[:_NOTE_MAX]
                 tier, blockers = compute_shopping_difficulty(recipe, index=index)
                 recipe.shopping_difficulty = tier
                 recipe.shopping_blockers = blockers
@@ -1431,11 +1475,13 @@ class Command(BaseCommand):
             adapted += 1
 
         prefix = '[dry-run] ' if options['dry_run'] else ''
-        self.stdout.write(self.style.SUCCESS(
-            f'{prefix}adapted={adapted} skipped={skipped} failed={failed}'))
+        summary = f'{prefix}adapted={adapted} skipped={skipped} failed={failed}'
+        if unjudged:
+            summary += f' unjudged={unjudged}'
+        self.stdout.write(self.style.SUCCESS(summary))
 ```
 
-- [ ] **Step 4: Confirm the judge's verdict key**
+- [x] **Step 4: Confirm the judge's verdict key**
 
 The command reads `verdict.get('passed')`. Confirm that is what `judge_curated_recipe` actually returns (it builds its result from `verdict.as_stats()` at `recipe_curation.py:280`):
 
@@ -1445,13 +1491,13 @@ grep -n -A 25 "def judge_curated_recipe" diet_planner/services/recipe_curation.p
 
 If the returned dict uses a different key for the pass/fail signal, use that key in the command instead — do not add a translation layer. Update the test's mock return value to match.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
 Expected: `9 passed`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add diet_planner/management/commands/apply_availability_substitutions.py diet_planner/tests/test_apply_substitutions.py
@@ -1757,6 +1803,8 @@ tail -40 /tmp/subs-dryrun.txt
 ```
 
 Expected: a per-recipe list of swaps and a closing `[dry-run] adapted=N skipped=M failed=0`.
+
+**`--dry-run` still calls Gemini.** The instruction rewrite runs *before* the dry-run branch, deliberately: a dry run that skipped it would report `failed=0` while telling you nothing about whether these recipes can actually be rewritten. So budget the tokens and the wall-clock, and read `failed=N` as the real signal. Nothing is written either way. The judge is the one thing a dry run does not reach.
 
 **This is a review checkpoint, not a formality.** Read the swap list. If a swap looks wrong for a specific dish (sesame oil in an Asian dressing is the one to watch), remove that pair from `ingredient_substitutions_cz.yaml`, re-run the loader, and dry-run again.
 
