@@ -1512,7 +1512,9 @@ git commit -m "feat(availability): apply substitutions with judge gate and snaps
 - Create: `diet_planner/management/commands/unpublish_unshoppable.py`
 - Test: `diet_planner/tests/test_apply_substitutions.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — written with two tests beyond the
+  four below: `test_blockers_are_reported_so_the_demotion_is_reviewable` and
+  `test_already_draft_specialty_is_not_recounted`.
 
 Append to `diet_planner/tests/test_apply_substitutions.py`:
 
@@ -1563,13 +1565,21 @@ class UnpublishUnshoppableTests(TestCase):
 
 **Note:** if `nori` is not a canonical rated `specialty` in `ingredient_availability.yaml`, pick one that is (check with `grep -B1 "availability: specialty" diet_planner/data/ingredient_availability.yaml | head`) and use its slug and `name_cs` throughout this test class.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails** — the red run was never captured
+  before the command was written, so it was reconstructed afterwards by
+  neutering `handle()` to iterate an empty list: 2 failed, 4 passed. The four
+  that survive a no-op are the negative-space guards (findable stays published,
+  nothing deleted, dry-run writes nothing, already-draft not recounted) — they
+  are meant to pass when nothing happens.
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py::UnpublishUnshoppableTests -q"`
 
 Expected: FAIL — `CommandError: Unknown command: 'unpublish_unshoppable'`
 
-- [ ] **Step 3: Write the command**
+- [x] **Step 3: Write the command** — as below, except the difficulty filter
+  reads `Availability.SPECIALTY` from `models.catalog` rather than a
+  `CuratedRecipe.ShoppingDifficulty` inner class, which is where the choices
+  actually live.
 
 Create `diet_planner/management/commands/unpublish_unshoppable.py`:
 
@@ -1609,13 +1619,14 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'{prefix}demoted={demoted}'))
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes** — `17 passed` (11 from task 6
+  plus the 6 written here, not the 13 this step predicted).
 
 Run: `docker-compose run --rm web sh -c "pip install -q -r requirements-dev.txt >/dev/null 2>&1; python -m pytest diet_planner/tests/test_apply_substitutions.py -q"`
 
 Expected: `13 passed`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add diet_planner/management/commands/unpublish_unshoppable.py diet_planner/tests/test_apply_substitutions.py
