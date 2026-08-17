@@ -4,7 +4,8 @@ from django.test import TestCase
 from diet_planner.models import CuratedRecipe
 from diet_planner.models.catalog import Availability
 from diet_planner.services.user_simulation import (
-    PERSONAS, SimulatedQuery, gate_funnel, generate_queries, pairing_kind,
+    PERSONAS, SimulatedQuery, demand_coverage, gate_funnel, generate_queries,
+    pairing_kind,
 )
 
 DEMAND = [
@@ -164,3 +165,50 @@ class GateFunnelTests(TestCase):
         funnel = gate_funnel(slot='dinner', required_tags=set(), facets=None)
         self.assertEqual(funnel['slot'], 0)
         self.assertEqual(funnel['killer'], 'slot')
+
+
+class DemandCoverageTests(TestCase):
+    def test_strict_match_needs_the_dish_itself(self):
+        _recipe('gulas', name_cs='Hovězí guláš')
+        result = demand_coverage([DEMAND[0]], top_n=1)
+        self.assertEqual(result['strict_hits'], 1)
+
+    def test_diacritics_do_not_defeat_the_strict_match(self):
+        _recipe('gulas', name_cs='Hovezi gulas')
+        self.assertEqual(demand_coverage([DEMAND[0]], top_n=1)['strict_hits'], 1)
+
+    def test_a_different_dish_is_not_a_strict_hit(self):
+        _recipe('rizek', name_cs='Kuřecí řízek')
+        result = demand_coverage([DEMAND[0]], top_n=1)
+        self.assertEqual(result['strict_hits'], 0)
+
+    def test_loose_match_accepts_a_canonical_overlap(self):
+        """'we have something beefy' is a weaker promise than 'we have guláš',
+        so it is reported as its own number."""
+        _recipe('hovezi-pecene', name_cs='Hovězí pečeně',
+                ingredients=[{'name': 'hovězí maso', 'canonical': 'beef',
+                              'quantity': 500, 'unit': 'g', 'catalog_id': 1}])
+        result = demand_coverage([DEMAND[0]], top_n=1)
+        self.assertEqual(result['strict_hits'], 0)
+        self.assertEqual(result['loose_hits'], 1)
+
+    def test_out_of_scope_terms_are_excluded_from_the_denominator(self):
+        result = demand_coverage(DEMAND, top_n=3)
+        self.assertEqual(result['scored'], 2)
+        self.assertEqual(result['out_of_scope'], 1)
+
+    def test_top_n_limits_the_denominator(self):
+        self.assertEqual(demand_coverage(DEMAND, top_n=1)['scored'], 1)
+
+    def test_a_strict_hit_also_counts_as_loose(self):
+        """loose is a superset of strict — a report where strict > loose would
+        be nonsense, so pin it."""
+        _recipe('gulas', name_cs='Hovězí guláš')
+        result = demand_coverage([DEMAND[0]], top_n=1)
+        self.assertGreaterEqual(result['loose_hits'], result['strict_hits'])
+
+    def test_unservable_demand_is_listed_by_name(self):
+        """The miss list is the corpus-acquisition shopping list; it is the
+        most actionable thing the farm produces."""
+        result = demand_coverage([DEMAND[0]], top_n=1)
+        self.assertIn('Hovězí guláš', result['misses'])

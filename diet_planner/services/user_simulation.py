@@ -12,6 +12,7 @@ comparable across a corpus change.
 from __future__ import annotations
 
 import random
+import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
@@ -204,4 +205,67 @@ def gate_funnel(*, slot: str, required_tags: Set[str],
         'specialty_cost': specialty_cost,
         'killer': killer,
         'biggest_drop': biggest_drop,
+    }
+
+
+#: Share of a demand term's significant words that must appear in a recipe
+#: name for a STRICT hit. 0.6 keeps "Hovězí guláš" ~ "Guláš hovězí" while
+#: rejecting "Kuřecí guláš"-style near misses on a single shared word.
+_STRICT_OVERLAP = 0.6
+
+_WORD_SPLIT = re.compile(r'[^0-9a-z]+')
+
+
+def _significant_words(text: str) -> Set[str]:
+    folded = fold_diacritics(text or '').lower()
+    return {w for w in _WORD_SPLIT.split(folded) if len(w) > 2}
+
+
+def _strict_hit(term_words: Set[str], recipe) -> bool:
+    if not term_words:
+        return False
+    recipe_words = _significant_words(recipe.name_cs)
+    return len(term_words & recipe_words) / len(term_words) >= _STRICT_OVERLAP
+
+
+def _loose_hit(canonicals: Set[str], recipe) -> bool:
+    if not canonicals:
+        return False
+    recipe_canonicals = {
+        (i.get('canonical') or '') for i in (recipe.ingredients or [])
+    }
+    return bool(canonicals & recipe_canonicals)
+
+
+def demand_coverage(demand, *, top_n: int) -> Dict[str, object]:
+    """How much of the top-N demand the published corpus can serve.
+
+    Returns strict and loose hit counts over IN-SCOPE terms only; out-of-scope
+    demand (desserts, drinks) is counted separately and never scored, because
+    the planner has no slot for it and failing it would be a false alarm.
+    """
+    considered = list(demand)[:top_n]
+    scored = [row for row in considered if row.get('in_scope')]
+    out_of_scope = len(considered) - len(scored)
+
+    pool = list(rr.published_pool(CuratedRecipe.Status.PUBLISHED))
+    strict_hits = loose_hits = 0
+    misses = []
+
+    for row in scored:
+        term_words = _significant_words(row['term'])
+        canonicals = set(row.get('canonicals') or [])
+        strict = any(_strict_hit(term_words, r) for r in pool)
+        loose = strict or any(_loose_hit(canonicals, r) for r in pool)
+        strict_hits += int(strict)
+        loose_hits += int(loose)
+        if not loose:
+            misses.append(row['term'])
+
+    return {
+        'scored': len(scored),
+        'out_of_scope': out_of_scope,
+        'strict_hits': strict_hits,
+        'loose_hits': loose_hits,
+        'misses': misses,
     }
