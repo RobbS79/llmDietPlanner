@@ -9,11 +9,14 @@ into "of the dishes people look for, we can serve N".
 """
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 #: Recipe detail links, single path segment after /recept/ containing a
 #: digit somewhere in it (the id). Both target sites are covered:
@@ -42,32 +45,52 @@ class DemandTerm:
     rating: Optional[float] = None
 
 
-#: Ancestor class markers for widgets that carry real recipe links but are
-#: not the ranking a page was fetched for, so they must not contaminate rank
-#: order or supply a fallback name when the "real" title is truncated:
-#:   toprecepty.cz "b-suggest__item"  -> "Mohlo by se vám líbit" (you might
-#:                                        like) widget, repeated twice ahead
-#:                                        of the actual ranked grid.
-#:   recepty.cz    "recipe-ranking__" -> a "most visited this week" trending
-#:                                        sidebar with its own separate,
-#:                                        CSS-truncated-only titles (no
-#:                                        untruncated "více o" companion).
-#: Each marker is confirmed (via grep against the captured fixtures) to be
-#: unused anywhere in either site's real listing markup, so this stays a
-#: narrow, evidence-backed exclusion rather than a broad content filter.
-_EXCLUDED_WIDGET_MARKERS = ('suggest', 'recipe-ranking')
+#: BEM block names for widgets that carry real recipe links but are not the
+#: ranking a page was fetched for, so they must not contaminate rank order or
+#: supply a fallback name when the "real" title is truncated:
+#:   toprecepty.cz "b-suggest__item"    -> "Mohlo by se vám líbit" (you might
+#:                                          like) widget, repeated twice ahead
+#:                                          of the actual ranked grid.
+#:   recepty.cz    "recipe-ranking__*"  -> the "Poslední sledované recepty"
+#:                                          (recently viewed recipes) sidebar,
+#:                                          whose only text-bearing anchor is
+#:                                          CSS-truncated with no untruncated
+#:                                          "více o" companion anywhere in the
+#:                                          card.
+#: Both fixtures were captured anonymously via plain curl (no cookies, no
+#: session), so these widgets are confirmed to render for an unauthenticated
+#: fetch too — `build_demand_index` will hit the same markup, not a
+#: logged-in-only variant. That means this is live, load-bearing exclusion
+#: logic, not dead code guarding against a hypothetical.
+#:
+#: Matching is anchored to the BEM block boundary (exact block class, or
+#: block followed by "__" or "--") rather than bare substring: the
+#: recepty.cz fixture also has an unrelated `class="main-suggest"` header
+#: search-autocomplete container, which a bare "suggest" substring check
+#: would also match. It is currently harmless only because that div holds no
+#: anchors — bare substring matching would become a silent-zero-yield risk
+#: of its own the day a real listing grid class contains one of these words
+#: as a substring (e.g. a hypothetical "recipe-ranking-list" for the actual
+#: ranking).
+_EXCLUDED_WIDGET_BLOCKS = ('b-suggest', 'recipe-ranking')
+
+
+def _matches_excluded_block(cls: str) -> bool:
+    cls = cls.lower()
+    return any(
+        cls == block or cls.startswith(block + '__') or cls.startswith(block + '--')
+        for block in _EXCLUDED_WIDGET_BLOCKS
+    )
 
 
 def _in_excluded_widget(anchor) -> bool:
-    """True if an ancestor's class marks this as a non-ranking widget."""
-    for parent in anchor.parents:
-        classes = parent.get('class') if hasattr(parent, 'get') else None
+    """True if the anchor itself, or an ancestor, is a non-ranking widget."""
+    for element in (anchor, *anchor.parents):
+        classes = element.get('class') if hasattr(element, 'get') else None
         if not classes:
             continue
-        for cls in classes:
-            cls_lower = cls.lower()
-            if any(marker in cls_lower for marker in _EXCLUDED_WIDGET_MARKERS):
-                return True
+        if any(_matches_excluded_block(cls) for cls in classes):
+            return True
     return False
 
 
@@ -78,14 +101,27 @@ def parse_ranking(html: str, *, source: str, category: str) -> List[DemandTerm]:
     images on only the first few items. Duplicate links (thumbnail + title
     anchor pointing at the same recipe) collapse to their first occurrence so
     ranks stay dense; when duplicates disagree on the name (one truncated,
-    one not — see `_MORE_ABOUT_PREFIX`), the fullest name wins.
+    one not — see `_MORE_ABOUT_PREFIX`), the longest untruncated candidate
+    wins.
+
+    Known accepted risk in that "longest untruncated candidate wins" rule:
+    it assumes a shorter candidate sharing an href is the truncated one. That
+    breaks if a site instead folds badge text (e.g. a "30 minut" prep-time
+    label) into the SAME anchor as the title with no nested `<a>` to trigger
+    the wrapper skip above — the badge-plus-title text would be longer than
+    the clean title and would win. Not observed on either target site as of
+    this writing (toprecepty.cz keeps badges outside the title anchor;
+    recepty.cz's badge-carrying anchor is the wrapper, which is skipped). If
+    a future source hits this shape, the fix is source-specific badge
+    stripping, not changing this heuristic — the `více o` full title on
+    recepty.cz depends on "longest wins" as written.
     """
     if not html:
         return []
 
     soup = BeautifulSoup(html, 'lxml')
     order: List[str] = []  # hrefs in first-seen order, i.e. rank order
-    candidates: dict = {}  # href -> candidate names seen for it
+    candidates: Dict[str, List[str]] = {}  # href -> candidate names seen for it
 
     for anchor in soup.find_all('a', href=True):
         href = anchor['href']
@@ -112,8 +148,24 @@ def parse_ranking(html: str, *, source: str, category: str) -> List[DemandTerm]:
     for rank, href in enumerate(order, start=1):
         names = candidates[href]
         untruncated = [n for n in names if not n.endswith(_ELLIPSIS)]
-        name = max(untruncated, key=len) if untruncated else names[0]
+        if untruncated:
+            name = max(untruncated, key=len)
+        else:
+            # Every candidate is CSS-truncated (no "více o"-style full-title
+            # companion anchor exists for this recipe). Strip the trailing
+            # ellipsis rather than shipping it as part of the "dish name".
+            name = names[0].rstrip(_ELLIPSIS).rstrip()
         terms.append(DemandTerm(
             term=name, rank=rank, source=source, category=category))
+
+    if not terms:
+        # html was already confirmed non-empty above (the early `if not
+        # html: return []`), so reaching here with zero terms means a
+        # selector drifted, not that the page was blank.
+        logger.warning(
+            'demand_index.parse_ranking: 0 terms from non-empty html '
+            '(source=%r, category=%r) — a selector likely drifted',
+            source, category,
+        )
 
     return terms

@@ -118,3 +118,51 @@ class ParseRankingTests(TestCase):
         for t in terms:
             self.assertNotIn('…', t.term)
             self.assertFalse(t.term.lower().startswith('více o'))
+
+    def test_zero_terms_from_nonempty_html_logs_a_warning(self):
+        """If _RECIPE_HREF or the widget-block markers drift after a site
+        redesign, parse_ranking must not silently return zero terms — a
+        dead source has to be identifiable in a run log, or downstream
+        corpus coverage looks better than it really is for the wrong
+        reason."""
+        html = '<a href="/kategorie/46-maso/">Maso</a>'  # no dish links at all
+        with self.assertLogs('diet_planner.services.demand_index', level='WARNING') as cm:
+            terms = parse_ranking(html, source='dead-source', category='global')
+        self.assertEqual(terms, [])
+        self.assertTrue(any('dead-source' in message for message in cm.output))
+        self.assertTrue(any('global' in message for message in cm.output))
+
+    def test_main_suggest_is_not_excluded_but_b_suggest_item_is(self):
+        """The recepty.cz fixture has an unrelated class="main-suggest"
+        header search-autocomplete container. A bare substring match on
+        "suggest" would also match it; matching must instead be anchored to
+        the BEM block boundary so a real listing grid never gets excluded
+        just because its class name happens to contain one of these words."""
+        html = '''
+          <div class="main-suggest">
+            <a href="/recept/1-real-dish/">Real Dish</a>
+          </div>
+          <article class="b-horizontal b-suggest__item">
+            <a href="/recept/2-widget-dish/">Widget Dish</a>
+          </article>
+        '''
+        terms = parse_ranking(html, source='x', category='global')
+        self.assertEqual([t.term for t in terms], ['Real Dish'])
+
+    def test_marker_directly_on_the_anchor_is_excluded(self):
+        """BeautifulSoup's `.parents` excludes the element itself, so the
+        exclusion check must also test the anchor's own class list — not
+        only its ancestors — in case a future markup change puts the widget
+        marker directly on the `<a>`."""
+        html = '<a class="b-suggest__item" href="/recept/3-inline-marker/">Inline Marker Dish</a>'
+        terms = parse_ranking(html, source='x', category='global')
+        self.assertEqual(terms, [])
+
+    def test_all_truncated_candidates_strip_the_trailing_ellipsis(self):
+        """When every candidate anchor sharing an href is CSS-truncated (no
+        untruncated 'více o'-style companion exists for that recipe), the
+        fallback name must not ship the trailing ellipsis as part of the
+        'dish name'."""
+        html = '<a href="/recept/4-only-truncated/">Zkrácený název…</a>'
+        terms = parse_ranking(html, source='x', category='global')
+        self.assertEqual(terms[0].term, 'Zkrácený název')
