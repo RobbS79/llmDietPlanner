@@ -8,6 +8,7 @@ change on the recipe page.
 
 See docs/superpowers/specs/2026-08-11-ingredient-obtainability-design.md §6
 """
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -23,7 +24,9 @@ from diet_planner.services.ingredient_substitution import (
     substitution_table,
 )
 from diet_planner.services.recipe_curation import judge_curated_recipe
-from diet_planner.services.substitution_rewrite import RewriteError, rewrite_instructions
+from diet_planner.services.substitution_rewrite import (
+    RewriteError, reset_usage, rewrite_instructions, usage_snapshot,
+)
 
 _NOTE_PREFIX = 'Upraveno pro dostupnost v českých obchodech: '
 
@@ -60,6 +63,7 @@ class Command(BaseCommand):
             help='Skip the coherence judge (for offline reruns; not for prod)')
 
     def handle(self, *args, **options):
+        reset_usage()
         table = substitution_table()
         if not table:
             self.stdout.write(self.style.WARNING(
@@ -150,3 +154,16 @@ class Command(BaseCommand):
         if unjudged:
             summary += f' unjudged={unjudged}'
         self.stdout.write(self.style.SUCCESS(summary))
+
+        # The bill. Printed even on a dry run, because a dry run spends the
+        # same tokens as a real one — the rewrite happens before the dry-run
+        # branch by design.
+        usage = usage_snapshot()
+        model = getattr(settings, 'GEMINI_MODEL', '(unset)')
+        line = (f'{prefix}llm model={model} calls={usage["calls"]} '
+                f'prompt_tokens={usage["prompt_tokens"]} '
+                f'output_tokens={usage["output_tokens"]} '
+                f'total_tokens={usage["total_tokens"]}')
+        if usage['unmetered_calls']:
+            line += f' unmetered_calls={usage["unmetered_calls"]}'
+        self.stdout.write(line)

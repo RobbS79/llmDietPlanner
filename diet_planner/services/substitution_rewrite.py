@@ -18,6 +18,39 @@ from diet_planner.services.ingredient_substitution import SubstitutionPlan
 logger = logging.getLogger(__name__)
 
 
+#: What this run has spent. Module-level because the cost is a property of
+#: the run, not of any one recipe, and the command reports it once at the end.
+#: `unmetered_calls` exists so an unknown cost can never read as a zero cost.
+_USAGE = {'calls': 0, 'unmetered_calls': 0, 'prompt_tokens': 0,
+          'output_tokens': 0, 'total_tokens': 0}
+
+
+def reset_usage() -> None:
+    """Zero the counters. Call once at the start of a run."""
+    for key in _USAGE:
+        _USAGE[key] = 0
+
+
+def usage_snapshot() -> dict:
+    return dict(_USAGE)
+
+
+def record_usage(resp) -> None:
+    """Accumulate one response's token usage.
+
+    A response without usage_metadata is counted as unmetered rather than as
+    free: the tokens were spent either way, and a silent zero would understate
+    the bill.
+    """
+    meta = getattr(resp, 'usage_metadata', None)
+    if meta is None:
+        _USAGE['unmetered_calls'] += 1
+        return
+    _USAGE['prompt_tokens'] += int(getattr(meta, 'prompt_token_count', 0) or 0)
+    _USAGE['output_tokens'] += int(getattr(meta, 'candidates_token_count', 0) or 0)
+    _USAGE['total_tokens'] += int(getattr(meta, 'total_token_count', 0) or 0)
+
+
 class RewriteError(Exception):
     """The rewrite could not be trusted; caller must discard it."""
 
@@ -41,6 +74,7 @@ def _default_generate(prompt: str) -> str:
     genai.configure(api_key=getattr(settings, 'GEMINI_API_KEY', None))
     model = genai.GenerativeModel(getattr(settings, 'GEMINI_MODEL', 'gemini-2.5-flash'))
     resp = model.generate_content(prompt)
+    record_usage(resp)
     return getattr(resp, 'text', '') or ''
 
 
@@ -103,6 +137,9 @@ def rewrite_instructions(
     prompt = _PROMPT.format(swaps=swaps, count=len(affected), steps=numbered)
 
     gen = generate or _default_generate
+    # Counted before the call, not after: a rewrite that fails or gets
+    # discarded still burned the tokens.
+    _USAGE['calls'] += 1
     try:
         raw = gen(prompt)
         data = json.loads(_strip_code_fence(raw))
