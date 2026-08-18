@@ -139,3 +139,78 @@ class StringStepTests(TestCase):
 
         out = rewrite_instructions(steps, _plan(), generate=fake_generate)
         self.assertEqual(out[0]['text'], 'Přidejte vanilkové aroma.')
+
+
+class UsageAccountingTests(TestCase):
+    """What the substitution run costs. An unknown cost must never read as
+    zero cost, so unmetered calls are counted separately rather than folded
+    into the token totals."""
+
+    def setUp(self):
+        from diet_planner.services.substitution_rewrite import reset_usage
+        reset_usage()
+
+    def test_reset_zeroes_every_counter(self):
+        from diet_planner.services.substitution_rewrite import usage_snapshot
+        self.assertEqual(
+            usage_snapshot(),
+            {'calls': 0, 'unmetered_calls': 0, 'prompt_tokens': 0,
+             'output_tokens': 0, 'total_tokens': 0})
+
+    def test_every_llm_attempt_is_counted(self):
+        from diet_planner.services.substitution_rewrite import (
+            rewrite_instructions, usage_snapshot)
+        steps = [{'text': 'Přidejte vanilkový extrakt.'}]
+        rewrite_instructions(steps, _plan(), generate=lambda p: json.dumps(
+            {'steps': [{'text': 'Přidejte vanilkové aroma.'}]}))
+        self.assertEqual(usage_snapshot()['calls'], 1)
+
+    def test_skipped_llm_is_not_counted(self):
+        """No affected step means no call, so it must not inflate the bill."""
+        from diet_planner.services.substitution_rewrite import (
+            rewrite_instructions, usage_snapshot)
+        rewrite_instructions([{'text': 'Smíchejte mouku a cukr.'}], _plan(),
+                             generate=lambda p: self.fail('must not be called'))
+        self.assertEqual(usage_snapshot()['calls'], 0)
+
+    def test_a_failed_rewrite_still_costs_and_is_counted(self):
+        from diet_planner.services.substitution_rewrite import (
+            RewriteError, rewrite_instructions, usage_snapshot)
+        with self.assertRaises(RewriteError):
+            rewrite_instructions([{'text': 'Přidejte vanilkový extrakt.'}],
+                                 _plan(), generate=lambda p: 'not json')
+        self.assertEqual(usage_snapshot()['calls'], 1,
+                         'tokens were spent even though the rewrite was discarded')
+
+    def test_record_usage_accumulates_token_counts(self):
+        from diet_planner.services.substitution_rewrite import (
+            record_usage, usage_snapshot)
+
+        class _Meta:
+            prompt_token_count = 300
+            candidates_token_count = 120
+            total_token_count = 420
+
+        class _Resp:
+            usage_metadata = _Meta()
+
+        record_usage(_Resp())
+        record_usage(_Resp())
+        snap = usage_snapshot()
+        self.assertEqual(snap['prompt_tokens'], 600)
+        self.assertEqual(snap['output_tokens'], 240)
+        self.assertEqual(snap['total_tokens'], 840)
+        self.assertEqual(snap['unmetered_calls'], 0)
+
+    def test_missing_metadata_counts_as_unmetered_not_free(self):
+        from diet_planner.services.substitution_rewrite import (
+            record_usage, usage_snapshot)
+
+        class _Resp:
+            usage_metadata = None
+
+        record_usage(_Resp())
+        snap = usage_snapshot()
+        self.assertEqual(snap['total_tokens'], 0)
+        self.assertEqual(snap['unmetered_calls'], 1,
+                         'a call with no usage metadata must be visible, not silent')
