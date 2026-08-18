@@ -82,6 +82,15 @@
   conversion_factor: 1.0
   note: 'Same role, same quantity, ordinary supermarket shelf.'
 
+- ingredient: pico-de-gallo
+  substitute: salsa
+  quality_score: 0.80
+  conversion_factor: 1.0
+  note: 'OWNER-SETTLED 2026-08-18 during the Task 9 rating re-check. Pico de
+    gallo is a preparation, not a shelf product — the corpus lists it as an
+    ingredient in quantities up to 720 ml, which no shopper can buy. Jarred
+    salsa fills the same role and is on every ordinary shelf. 4 recipes.'
+
 # DELIBERATELY ABSENT — almond-flour -> ground-almonds.
 # The plan proposed it, but "mleté mandle" is already an ALIAS of almond-flour,
 # so the swap would map the ingredient to itself. almond-flour is rated

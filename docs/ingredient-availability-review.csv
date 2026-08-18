@@ -9,7 +9,7 @@
 ***,5,pecans,pekanové ořechy,nuts,findable,low,pekanove orechy - bigger stores,,
 ***,5,rice-vinegar,Rýžový ocet,condiments,findable,low,"asian shelf, bigger stores",,
 ***,4,cardamom,kardamom,spices,findable,low,bigger stores,,
-***,4,pico-de-gallo,pico de gallo,condiments,specialty,low,"not a shelf product, its a prepared salsa",,
+***,4,pico-de-gallo,pico de gallo,condiments,specialty,low,"not a shelf product, its a prepared salsa",,"OWNER 2026-08-18: stays specialty - it is a preparation, not a shelf product. Swap pico-de-gallo -> salsa added to ingredient_substitutions_cz.yaml instead."
 ***,4,sesame-oil,Sezamový olej,oils,findable,low,"asian shelf, bigger stores",,
 ***,4,tamari,tamari,condiments,specialty,low,bio corner only? sojova omacka is the swap,,
 ***,3,goat-cheese,kozí sýr,dairy,findable,low,kozi syr - bigger stores,,
@@ -18,7 +18,7 @@
 ***,2,beef-tenderloin,hovězí svíčková,meat,findable,low,"hovezi svickova - butcher counter, not every store",,
 ***,2,butternut-squash,máslová dýně,vegetables,findable,low,maslova dyne - seasonal,,
 ***,2,dates,datle,fruits,findable,low,datle - bigger stores,,
-***,2,edamame,edamame,vegetables,specialty,low,frozen edamame in some Kaufland?,,
+***,2,edamame,edamame,vegetables,specialty,low,frozen edamame in some Kaufland?,,"OWNER 2026-08-18: ""probably never seen it myself, but I'm quite a conservative shopper"" - not vouched for, so specialty stands by default. Revisit if the pool needs it."
 ***,2,green-curry-paste,zelená kari pasta,condiments,findable,low,"asian shelf, bigger stores. (Mapping defect FIXED: name_cs was generic ""kari pasta"" and owned the cervena aliases.)",,
 ***,2,hemp-seeds,konopná semínka,nuts,findable,low,konopna seminka - bio/bigger stores,,
 ***,2,protein-powder,proteinový prášek,other,findable,low,Lidl/Kaufland fitness shelf,,
@@ -26,17 +26,17 @@
 ***,1,asparagus,chřest,vegetables,findable,low,chrest - seasonal,,
 ***,1,cauliflower-rice,květáková rýže,vegetables,findable,low,frozen kvetakova ryze - bigger stores,,
 ***,1,cherries,třešně,fruits,findable,low,tresne - seasonal,,
-***,1,chickpea-flour,cizrnová mouka,baking,specialty,low,bio shops; Kaufland sometimes?,,
+***,1,chickpea-flour,cizrnová mouka,baking,specialty,low,bio shops; Kaufland sometimes?,,"OWNER 2026-08-18: ""probably never seen it myself, but I'm quite a conservative shopper"" - not vouched for, so specialty stands by default. Revisit if the pool needs it."
 ***,1,chorizo,chorizo,meat,findable,low,bigger stores,,
 ***,1,cornmeal,kukuřičná mouka,baking,findable,low,kukuricna mouka - bigger stores,,
 ***,1,english-muffins,anglické muffiny,grains,specialty,low,anglicke muffiny basically unknown in CZ retail,,
 ***,1,fennel,fenykl,vegetables,findable,low,fenykl - not everywhere,,
 ***,1,ghee,Přepuštěné máslo,oils,findable,low,prepustene maslo - bigger stores,,
-***,1,harissa,harissa,condiments,specialty,low,world-foods shelf in bigger stores?,,
+***,1,harissa,harissa,condiments,specialty,low,world-foods shelf in bigger stores?,,"OWNER 2026-08-18: ""probably never seen it myself, but I'm quite a conservative shopper"" - not vouched for, so specialty stands by default. Revisit if the pool needs it."
 ***,1,juniper-berries,jalovec,spices,findable,low,"jalovec - traditional CZ spice, but stocked everywhere?",,
 ***,1,panko-breadcrumbs,panko strouhanka,baking,findable,low,asian shelf; normal strouhanka is the swap,,
 ***,1,parsnip,pastinák,vegetables,findable,low,pastinak - not everywhere,,
-***,1,radicchio,radicchio,vegetables,specialty,low,occasionally in bigger Albert?,,
+***,1,radicchio,radicchio,vegetables,specialty,low,occasionally in bigger Albert?,,"OWNER 2026-08-18: ""probably never seen it myself, but I'm quite a conservative shopper"" - not vouched for, so specialty stands by default. Revisit if the pool needs it."
 ***,1,raspberries,maliny,fruits,findable,low,fresh seasonal; frozen is common,,
 ***,1,red-curry-paste,červená kari pasta,condiments,findable,low,"asian shelf, bigger stores. NEW canonical, split out of green-curry-paste.",,
 ***,1,rice-noodles,rýžové nudle,grains,findable,low,"asian shelf, bigger stores",,
@@ -132,7 +132,7 @@ SETTLED,14,kale,kadeřávek,vegetables,findable,owner,"OWNER: bigger stores/Rohl
 ,13,marjoram,majoránka,spices,common,high,,,
 ,13,semi-skimmed-milk,mléko polotučné,dairy,common,high,,,
 ,13,sweet-potato,batáty,vegetables,common,high,,,
-,13,tahini,tahini,condiments,specialty,high,asian/bio shops only,,
+,13,tahini,tahini,condiments,specialty,high,asian/bio shops only,findable,"OWNER 2026-08-18: findable - bigger shop, not a one-stop item. Hummus is mainstream enough. Keeps 13 vegan snack/small_meal recipes published."
 ,13,vinegar,ocet,condiments,common,high,,,
 ,12,basil,bazalka,vegetables,common,high,,,
 ,12,beef-stock,hovězí vývar,condiments,common,high,,,
@@ -219,7 +219,7 @@ SETTLED,7,mint,máta,vegetables,findable,owner,OWNER: fresh mint bigger stores/R
 ,3,jam,marmeláda,condiments,common,high,,,
 ,3,leek,pórek,vegetables,common,high,,,
 ,3,lettuce,hlávkový salát,vegetables,common,high,,,
-,3,nutritional-yeast,lahůdkové droždí,condiments,specialty,high,bio shops only,,
+,3,nutritional-yeast,lahůdkové droždí,condiments,specialty,high,bio shops only,findable,"OWNER 2026-08-18: findable. Sold as lahudkove drozdi in the health corner of bigger stores; the specialty rating judged the US product, not the CZ shelf."
 ,3,pasta,těstoviny,grains,common,high,,,
 ,3,powdered-sugar,moučkový cukr,baking,common,high,,,
 ,3,pumpkin-puree,dýňové pyré,canned,specialty,high,canned pumpkin puree essentially absent in CZ,,
@@ -278,7 +278,7 @@ SETTLED,7,mint,máta,vegetables,findable,owner,OWNER: fresh mint bigger stores/R
 ,1,semolina,krupice,grains,common,high,,,
 ,1,sumac,sumak,spices,specialty,high,no CZ retail presence,,
 ,1,tapioca-starch,tapiokový škrob,baking,specialty,high,bio/online only,,
-,1,tempeh,tempeh,legumes,specialty,high,bio shops only,,
+,1,tempeh,tempeh,legumes,specialty,high,bio shops only,,"OWNER 2026-08-18: ""probably never seen it myself, but I'm quite a conservative shopper"" - not vouched for, so specialty stands by default. Revisit if the pool needs it."
 ,1,turkey-breast,krůtí prsa,meat,common,high,,,
 ,1,vegeta-seasoning,Vegeta,spices,common,high,,,
 ,1,white-pepper,Mletý bílý pepř,spices,common,high,,,
@@ -296,3 +296,4 @@ SETTLED,7,mint,máta,vegetables,findable,owner,OWNER: fresh mint bigger stores/R
 ,0,tartar-sauce,tatarská omáčka,condiments,common,high,,,
 ,0,tuna-canned,tuňák v konzervě,canned,common,high,,,
 ,0,white-vinegar,Bílý ocet,condiments,common,high,,,
+,37,vanilla-aroma,vanilkové aroma,baking,common,owner,"added in phase 2 as the vanilla-extract swap target",common,"SETTLED by owner 2026-08-11: the CZ equivalent of vanilla extract. Small bottle, every supermarket baking aisle. Swap target for vanilla-extract (37 recipes)."
