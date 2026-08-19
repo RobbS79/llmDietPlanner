@@ -175,6 +175,63 @@ class LoadSubstitutionsTests(TestCase):
         row = IngredientSubstitute.objects.get(ingredient=a, substitute=b)
         self.assertEqual(row.purpose, IngredientSubstitute.Purpose.PREFERENCE)
 
+    def test_every_swap_target_reads_as_a_lowercase_ingredient(self):
+        """`new_name` is spliced into an ingredient line, so a capitalised
+        canonical (`Řepkový olej`) reads there as a proper noun. Every other
+        target in the table is lowercase; this keeps the odd one out honest."""
+        import yaml
+        from pathlib import Path
+        from django.conf import settings
+        rows = yaml.safe_load(
+            (Path(settings.BASE_DIR) / 'diet_planner' / 'data'
+             / 'ingredient_substitutions_cz.yaml').read_text(encoding='utf-8'))
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        offenders = [
+            c.slug for c in CanonicalIngredient.objects.filter(
+                slug__in={r['substitute'] for r in rows})
+            if c.name_cs[:1].isupper()
+        ]
+        self.assertEqual(offenders, [], f'capitalised swap target(s): {offenders}')
+
+    def test_a_row_dropped_from_the_yaml_is_dropped_from_the_table(self):
+        """The file is the table. The loader only ever upserted, so retiring a
+        swap in the YAML left it live in every already-seeded database — prod
+        included, where the retired pair would have kept firing."""
+        import os
+        import tempfile
+        call_command('load_availability_substitutions', stdout=StringIO())
+        self.assertTrue(IngredientSubstitute.objects.filter(
+            ingredient__slug='tamari', substitute__slug='soy-sauce').exists())
+
+        with tempfile.NamedTemporaryFile('w', suffix='.yaml', delete=False,
+                                         encoding='utf-8') as fh:
+            fh.write('- ingredient: vanilla-extract\n  substitute: vanilla-aroma\n')
+            path = fh.name
+        try:
+            out = StringIO()
+            call_command('load_availability_substitutions', f'--path={path}',
+                         stdout=out)
+        finally:
+            os.unlink(path)
+
+        self.assertFalse(
+            IngredientSubstitute.objects.filter(
+                ingredient__slug='tamari', substitute__slug='soy-sauce').exists(),
+            'a swap absent from the YAML survived the load')
+        self.assertTrue(IngredientSubstitute.objects.filter(
+            ingredient__slug='vanilla-extract',
+            substitute__slug='vanilla-aroma').exists())
+        self.assertIn('removed=', out.getvalue())
+
+    def test_pruning_spares_hand_made_rows(self):
+        """Only rows this table owns may be pruned. A preference/dietary swap
+        is not in the YAML by design and must survive every load."""
+        hand_made = IngredientSubstitute.objects.create(
+            ingredient=CanonicalIngredient.objects.get(slug='vanilla-extract'),
+            substitute=CanonicalIngredient.objects.get(slug='vanilla-sugar'))
+        call_command('load_availability_substitutions', stdout=StringIO())
+        self.assertTrue(IngredientSubstitute.objects.filter(pk=hand_made.pk).exists())
+
     def test_unknown_slug_fails_loudly(self):
         """A typo in the table must not silently skip a swap."""
         import os
