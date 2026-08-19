@@ -652,9 +652,10 @@
   note: 'OWNER 2026-08-18: findable. Sold as lahudkove drozdi in the health corner
     of bigger stores; the specialty rating judged the US product, not the CZ shelf.'
 - slug: oat-flour
-  availability: specialty
-  confidence: low
-  note: ovesna mouka rare; ground oats is the swap
+  availability: findable
+  confidence: owner
+  note: 'OWNER: bigger stores/Rohlik. The ground-oats swap can never fire - every
+    recipe using it is gluten_free'
 - slug: oats
   availability: common
   confidence: high
@@ -1053,8 +1054,9 @@
     mainstream enough. Keeps 13 vegan snack/small_meal recipes published.'
 - slug: tamari
   availability: specialty
-  confidence: low
-  note: bio corner only? sojova omacka is the swap
+  confidence: owner
+  note: 'OWNER: stays specialty. No gluten-free soy sauce is normal CZ stock, so NO
+    swap - all 8 recipes are gluten_free'
 - slug: tapioca-starch
   availability: specialty
   confidence: high
