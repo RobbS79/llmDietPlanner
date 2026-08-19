@@ -55,7 +55,12 @@ class IngredientChange:
 class SubstitutionPlan:
     saveable: bool = False
     changes: List[IngredientChange] = field(default_factory=list)
+    #: Every non-common ingredient we have no usable swap for, both tiers.
+    #: Reported, not all fatal.
     uncovered: List[str] = field(default_factory=list)
+    #: The subset of `uncovered` that is `specialty` — the only tier retrieval
+    #: actually gates on, and therefore the only one that can sink a plan.
+    blocking: List[str] = field(default_factory=list)
 
     def summary(self) -> str:
         """The adaptation_note body: 'tamari → sójová omáčka, ...'."""
@@ -99,9 +104,17 @@ def plan_substitutions(
 ) -> SubstitutionPlan:
     """What it would take to make `recipe` shoppable.
 
-    `saveable` is True only when EVERY blocker is covered. Partial coverage is
-    worthless: a recipe with one remaining unbuyable ingredient still fails the
-    one-stop bar, and we would have rewritten a sourced recipe for nothing.
+    `saveable` is True when every SPECIALTY blocker is covered and at least one
+    swap results. Specialty is the bar because it is what
+    `eligible_recipes_for_slot` hard-gates on: a recipe carrying one is invisible
+    to every user, so rescuing it is what buys anything. A leftover `findable`
+    item ("large store or Rohlík only") costs the recipe a ranking penalty, not
+    its existence — refusing the rescue over one would keep the recipe gated out
+    for no gain. Those are still reported in `uncovered`.
+
+    Demanding full coverage of both tiers was the original rule and it recovered
+    nothing: measured against the prod corpus on 2026-08-18, 0 of 252 eligible
+    recipes cleared it, 149 of them missing by exactly one findable item.
     """
     if index is None:
         index = availability_index()
@@ -121,6 +134,8 @@ def plan_substitutions(
         rule = table.get(key)
         if rule is None or _breaks_dietary_promise(recipe, rule):
             plan.uncovered.append(key)
+            if availability == Availability.SPECIALTY:
+                plan.blocking.append(key)
             continue
 
         quantity = ing.get('quantity')
@@ -143,7 +158,8 @@ def plan_substitutions(
         ))
 
     plan.uncovered = sorted(set(plan.uncovered))
-    plan.saveable = bool(plan.changes) and not plan.uncovered
+    plan.blocking = sorted(set(plan.blocking))
+    plan.saveable = bool(plan.changes) and not plan.blocking
     if not plan.saveable:
         plan.changes = []
     return plan

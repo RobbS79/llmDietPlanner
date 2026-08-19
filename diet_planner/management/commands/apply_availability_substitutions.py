@@ -61,6 +61,11 @@ class Command(BaseCommand):
         parser.add_argument(
             '--skip-judge', action='store_true',
             help='Skip the coherence judge (for offline reruns; not for prod)')
+        parser.add_argument(
+            '--tier', choices=['all', 'specialty'], default='all',
+            help=("'specialty' edits only recipes whose rescue lifts a "
+                  "SPECIALTY blocker — the tier retrieval gates on. 'all' "
+                  "(default) also improves findable recipes."))
 
     def handle(self, *args, **options):
         reset_usage()
@@ -87,9 +92,20 @@ class Command(BaseCommand):
             plan = plan_substitutions(recipe, table, index=index)
             if not plan.saveable:
                 skipped += 1
-                if plan.uncovered:
+                if plan.blocking:
                     self.stdout.write(
-                        f'  skip {recipe.slug}: uncovered {", ".join(plan.uncovered)}')
+                        f'  skip {recipe.slug}: specialty, no swap — '
+                        f'{", ".join(plan.blocking)}')
+                continue
+
+            # --tier=specialty: only edit a recipe when the rescue clears a
+            # gated ingredient. A findable-only rewrite is a real improvement
+            # but it touches an attributed recipe for a rank nudge, so it is
+            # opt-in rather than something a bare run does.
+            if options['tier'] == 'specialty' and not any(
+                    index.get(c.old_slug) == Availability.SPECIALTY
+                    for c in plan.changes):
+                skipped += 1
                 continue
 
             self.stdout.write(f'{recipe.slug}: {plan.summary()}')

@@ -1944,6 +1944,52 @@ Run `/qa-prod`. Recipe pages must show the adaptation note where one exists, and
 
 ---
 
+### Task 9 run log — 2026-08-18
+
+**Step 1-2 were measured against prod without spending a single Gemini call**,
+by running the *pure* planner over the real corpus first (`plan_substitutions`
+has no LLM in it). Doing that before the dry run is the correction to this
+plan's own ordering: Step 2 warns that `--dry-run` still bills tokens, so the
+free census belongs first.
+
+**The run as designed would have adapted nothing.** 252 recipes are eligible
+(non-common, un-adapted) and **0 were saveable** — so the dry run would have
+printed `adapted=0 skipped=252 calls=0`. Cause: all-or-nothing over *both*
+non-common tiers against a 10-row table. 149 of the 252 missed by exactly one
+uncovered item, and the top uncovered items are `coriander` 34, `kale` 18,
+`maple-syrup` 17, `tahini` 14, `tamari` 10 — mostly `findable`, which retrieval
+never gates on.
+
+**Fix: saveability now keys on `specialty` only** (`SubstitutionPlan.blocking`),
+because `eligible_recipes_for_slot:431` gates on `specialty` and nothing else.
+A leftover `findable` costs a rank penalty, not existence. `apply_...` gains
+`--tier=specialty|all` so the prod run can be staged: 30 recipes (16 published)
+become saveable under the specialty bar.
+
+**Prod state confirmed** (nothing had drifted): the #67 rating corrections were
+applied *and* rolled up — stored and recomputed tiers match on all 582 rows.
+Published corpus is **329 common / 92 findable / 37 specialty**, so `specialty`
+had already fallen 79 → 37 and the gate is costing far less than assumed.
+
+**`maple-syrup` (17), `tamari` (10) and `oat-flour` (5) are refused by the
+dietary guard, not missing from the table** — honey on a vegan recipe, soy sauce
+on a gluten-free one. They need diet-safe swap rows, not a rule change.
+
+**Step 10's ordering changed by owner decision.** The plan flips
+`AVAILABILITY_RANKING_ENABLED` *last*; it went first instead. The penalty is
+soft (≤3.0 against a 20.0 prompt-fit weight), independent of the repair, and it
+is what actually addresses "recipes want ingredients I can't buy" for the 92
+`findable` recipes that were never gated at all. Pools say a hard gate on
+`findable` would be the wrong answer: vegan is roughly half findable
+(breakfast×vegan 12 common / 11 findable, snack×vegan 21 / 23).
+
+**Follow-up feature, owner-chosen 2026-08-18:** a profile toggle on `/nastaveni`
+("nevadí mi zajít do specializovaného obchodu") that lifts the specialty gate
+and skips the penalty for that user. Opt-in, off by default — the project exists
+because the *default* user could not shop the corpus. Not part of this plan.
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
