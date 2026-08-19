@@ -261,8 +261,24 @@ class PlanSubstitutionsTests(TestCase):
         self.assertEqual(change.new_canonical, 'vanilla-aroma')
         self.assertEqual(change.new_unit, 'ml')
 
-    def test_partially_covered_recipe_is_not_saveable(self):
-        """One uncovered blocker leaves the recipe unbuyable — change nothing."""
+    def test_uncovered_specialty_blocks_the_whole_plan(self):
+        """A specialty item we cannot swap leaves the recipe unservable — change
+        nothing, because retrieval gates the recipe out either way."""
+        from diet_planner.services.ingredient_substitution import plan_substitutions
+        r = _recipe(ingredients=[
+            {'name': 'vanilkový extrakt', 'canonical': 'vanilla-extract',
+             'quantity': 1, 'unit': 'lžička'},
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2, 'unit': 'list'},
+        ])
+        plan = plan_substitutions(r, self.table)
+        self.assertFalse(plan.saveable)
+        self.assertEqual(plan.blocking, ['nori'])
+        self.assertEqual(plan.changes, [])
+
+    def test_uncovered_findable_does_not_block_a_specialty_rescue(self):
+        """`findable` is 'bigger shop', not 'unbuyable', and retrieval never
+        gates it. Refusing the rescue over one leaves the recipe invisible for
+        no gain — the swap still happens, the findable item is reported."""
         from diet_planner.services.ingredient_substitution import plan_substitutions
         r = _recipe(ingredients=[
             {'name': 'vanilkový extrakt', 'canonical': 'vanilla-extract',
@@ -270,9 +286,11 @@ class PlanSubstitutionsTests(TestCase):
             {'name': 'tahini', 'canonical': 'tahini', 'quantity': 30, 'unit': 'g'},
         ])
         plan = plan_substitutions(r, self.table)
-        self.assertFalse(plan.saveable)
+        self.assertTrue(plan.saveable)
+        self.assertEqual(plan.blocking, [])
         self.assertEqual(plan.uncovered, ['tahini'])
-        self.assertEqual(plan.changes, [])
+        self.assertEqual(len(plan.changes), 1)
+        self.assertEqual(plan.changes[0].new_canonical, 'vanilla-aroma')
 
     def test_common_recipe_needs_no_plan(self):
         from diet_planner.services.ingredient_substitution import plan_substitutions

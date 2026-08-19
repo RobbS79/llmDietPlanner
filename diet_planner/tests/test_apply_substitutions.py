@@ -139,6 +139,42 @@ class ApplySubstitutionsTests(TestCase):
         r.refresh_from_db()
         self.assertEqual(r.ingredients[0]['canonical'], 'tahini')
 
+    def test_tier_specialty_only_touches_gated_recipes(self):
+        """Staging control for the prod run: `findable` recipes are servable
+        today, so a first pass should edit only what retrieval gates out."""
+        gated = _recipe(slug='vanilkovy-kolac')
+        findable = _recipe(
+            slug='javorove-lividance',
+            ingredients=[{'name': 'javorový sirup', 'canonical': 'maple-syrup',
+                          'quantity': 50, 'unit': 'ml'}],
+            instructions=[{'text': 'Polijte javorovým sirupem.'}])
+        rewrite, judge = self._patched()
+        with rewrite, judge:
+            call_command('apply_availability_substitutions', '--tier=specialty',
+                         stdout=StringIO())
+        gated.refresh_from_db()
+        findable.refresh_from_db()
+        self.assertEqual(gated.ingredients[0]['canonical'], 'vanilla-aroma')
+        self.assertEqual(findable.ingredients[0]['canonical'], 'maple-syrup')
+
+    def test_skip_names_the_specialty_item_that_blocked_it(self):
+        """The skip line must name the fatal item, not every findable one, or
+        the operator reads the run as blocked by things that cost nothing."""
+        _recipe(slug='sushi-miska', ingredients=[
+            {'name': 'vanilkový extrakt', 'canonical': 'vanilla-extract',
+             'quantity': 1, 'unit': 'lžička'},
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2, 'unit': 'list'},
+            {'name': 'tahini', 'canonical': 'tahini', 'quantity': 30, 'unit': 'g'},
+        ], instructions=[{'text': 'Zabalte do nori.'}])
+        rewrite, judge = self._patched()
+        out = StringIO()
+        with rewrite, judge:
+            call_command('apply_availability_substitutions', stdout=out)
+        line = [ln for ln in out.getvalue().splitlines() if 'skip' in ln]
+        self.assertTrue(line, 'no skip line was printed')
+        self.assertIn('nori', line[0])
+        self.assertNotIn('tahini', line[0])
+
     def test_limit_bounds_the_batch(self):
         for n in range(3):
             _recipe(slug=f'kolac-{n}')
