@@ -44,6 +44,34 @@ def _plan():
     }
 
 
+def _plan_with_optional_garnish():
+    """A recipe whose garnish is marked optional.
+
+    `judge_curated_recipe` builds the shopping list from NON-optional
+    ingredients only, so an optional item is absent from the list by design.
+    The judge must be told which items are optional or it reports the gap as
+    a missing ingredient — which is how four of ten substitution rewrites got
+    rejected on prod on 2026-08-19 for garnishes nobody has to buy.
+    """
+    return {
+        "days": [
+            {
+                "day_number": 1,
+                "lunch": {
+                    "name": "Huevos Rancheros",
+                    "description": "",
+                    "instructions": [{"text": "Osmažte tortillu."}],
+                    "ingredients": [
+                        {"name": "tortilla", "quantity": 2, "unit": "ks"},
+                        {"name": "čerstvý koriandr", "quantity": 10, "unit": "g",
+                         "optional": True},
+                    ],
+                },
+            }
+        ]
+    }
+
+
 def _shopping_list():
     return [
         {"ingredient": "cibule", "quantity": 100, "unit": "g", "price": 5.0, "store": "Rohlik"},
@@ -77,6 +105,20 @@ class SerializationTest(SimpleTestCase):
         meals = serialize_plan(plan)
         self.assertEqual([m["name"] for m in meals], ["A", "B"])
         self.assertEqual([m["index"] for m in meals], [0, 1])
+
+    def test_serialize_plan_marks_optional_ingredients(self):
+        """An optional ingredient must reach the judge flagged as optional."""
+        meals = serialize_plan(_plan_with_optional_garnish())
+        by_name = {i["name"]: i for i in meals[0]["ingredients"]}
+        self.assertTrue(
+            by_name["čerstvý koriandr"].get("optional"),
+            "optional garnish lost its flag — the judge cannot tell it is "
+            "allowed to be missing from the shopping list",
+        )
+        self.assertFalse(
+            by_name["tortilla"].get("optional"),
+            "a required ingredient must not be marked optional",
+        )
 
     def test_serialize_shopping_list_normalises_name_fields(self):
         items = serialize_shopping_list([
@@ -186,6 +228,35 @@ class JudgingTest(SimpleTestCase):
             verdict = judge_plan_coherence(_plan(), _shopping_list())
         self.assertFalse(verdict.ran)
         self.assertEqual(verdict.error, "anthropic_not_installed")
+
+
+class OptionalIngredientContractTest(SimpleTestCase):
+    """The judge rejects rewrites when it mistakes an optional garnish for a
+    missing ingredient. Both halves of the contract are pinned here: the flag
+    travels in the payload, and the prompt says what it means."""
+
+    @override_settings(RECIPE_HUMAN_JUDGE_ENABLED=True, ANTHROPIC_API_KEY="k")
+    def test_optional_flag_reaches_the_api_payload(self):
+        payload = {"verdict": "coherent", "shoppable": True, "cookable": True,
+                   "human_sane": True, "summary": "fine", "issues": []}
+        fake_client = mock.Mock()
+        fake_client.messages.create.return_value = _fake_response(payload)
+        fake_anthropic = mock.Mock()
+        fake_anthropic.Anthropic.return_value = fake_client
+        # the list omits the optional garnish, exactly as judge_curated_recipe builds it
+        shopping = [{"ingredient": "tortilla", "quantity": 2, "unit": "ks"}]
+        with mock.patch.dict("sys.modules", {"anthropic": fake_anthropic}):
+            judge_plan_coherence(_plan_with_optional_garnish(), shopping, language="cs")
+
+        _, kwargs = fake_client.messages.create.call_args
+        sent = kwargs["messages"][0]["content"]
+        self.assertIn('"optional": true', sent.lower(),
+                      "the optional flag never reached the model")
+
+    def test_prompt_tells_the_judge_optional_items_may_be_absent(self):
+        self.assertIn("optional", judge_mod._SYSTEM_PROMPT.lower(),
+                      "prompt never explains what an optional ingredient means, "
+                      "so the flag in the payload is uninterpretable")
 
 
 class VerdictHelpersTest(SimpleTestCase):
