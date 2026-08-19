@@ -1803,7 +1803,7 @@ git commit -m "feat(grounding): exclude specialty recipes, penalise shopping blo
 
 Code is done; this task changes data. Local first, then prod.
 
-- [ ] **Step 1: Load everything locally**
+- [x] **Step 1: Load everything locally**
 
 ```bash
 docker-compose run --rm web python manage.py migrate
@@ -1815,7 +1815,7 @@ docker-compose run --rm web python manage.py recompute_shopping_difficulty
 
 Expected: `loaded=10 created=10 updated=0`, then `recipes=<N> changed=<N>`
 
-- [ ] **Step 2: Dry-run the substitutions and READ THE DIFF**
+- [x] **Step 2: Dry-run the substitutions and READ THE DIFF**
 
 ```bash
 docker-compose run --rm web python manage.py apply_availability_substitutions --dry-run > /tmp/subs-dryrun.txt
@@ -1828,7 +1828,7 @@ Expected: a per-recipe list of swaps and a closing `[dry-run] adapted=N skipped=
 
 **This is a review checkpoint, not a formality.** Read the swap list. If a swap looks wrong for a specific dish (sesame oil in an Asian dressing is the one to watch), remove that pair from `ingredient_substitutions_cz.yaml`, re-run the loader, and dry-run again.
 
-- [ ] **Step 3: Apply in a reviewable first batch**
+- [x] **Step 3: Apply in a reviewable first batch**
 
 ```bash
 docker-compose run --rm web python manage.py apply_availability_substitutions --limit=20
@@ -1852,7 +1852,7 @@ Confirm the ingredient names, the instruction text and the note all agree. Then 
 docker-compose run --rm web python manage.py apply_availability_substitutions
 ```
 
-- [ ] **Step 4: Re-check the long-tail ratings BEFORE demoting anything**
+- [x] **Step 4: Re-check the long-tail ratings BEFORE demoting anything**
 
 Unpublish acts on `specialty` ratings, and the Phase 1 review knowingly left ~57 low-impact rows as Claude's guess rather than the owner's judgement. Known-suspect calls flagged at the time: `hřebíček`/cloves (ordinary in any CZ supermarket), `nálev z oliv` (a mapping artifact, not a purchasable item at all), and asparagus / fennel / parsnip / cherries / dates (rated harshly). Demoting a recipe on a wrong rating is a silent, invisible loss.
 
@@ -1878,14 +1878,14 @@ docker-compose run --rm web python manage.py recompute_shopping_difficulty
 
 Repeat Step 2-3 if the corrections newly make some recipes saveable.
 
-- [ ] **Step 5: Demote the residue**
+- [x] **Step 5: Demote the residue**
 
 ```bash
 docker-compose run --rm web python manage.py unpublish_unshoppable --dry-run
 docker-compose run --rm web python manage.py unpublish_unshoppable
 ```
 
-- [ ] **Step 6: Re-measure**
+- [x] **Step 6: Re-measure**
 
 ```bash
 docker-compose run --rm web python manage.py report_shopping_difficulty > docs/shopping-difficulty-report-phase2.txt
@@ -1894,7 +1894,7 @@ cat docs/shopping-difficulty-report-phase2.txt
 
 Expected: `common` well above the 294 baseline, `specialty` at 0 among published rows, and — the number that decides whether this shipped or backfired — **no `<-- THIN` marker that was not already thin in the 2026-08-11 baseline**.
 
-- [ ] **Step 7: STOP — pool check before prod**
+- [x] **Step 7: STOP — pool check before prod**
 
 Compare the two reports side by side:
 
@@ -1905,14 +1905,14 @@ diff <(sed -n '/pool by meal_type/,/blocking ingredients/p' docs/shopping-diffic
 
 If any facet pool **shrank** (unpublish outran substitution for that diet), do not roll to prod. Report to the owner instead: the fix is more substitution pairs or new curation, not a smaller corpus. Phase 1's report showed breakfast/vegan and snack/vegan as the fragile ones — those are where this will show up first.
 
-- [ ] **Step 8: Commit the report**
+- [x] **Step 8: Commit the report**
 
 ```bash
 git add docs/shopping-difficulty-report-phase2.txt
 git commit -m "docs: corpus obtainability after the substitution repair"
 ```
 
-- [ ] **Step 9: PR, CI, merge**
+- [x] **Step 9: PR, CI, merge**
 
 ```bash
 git push -u origin feat/ingredient-obtainability-phase-2
@@ -1923,7 +1923,7 @@ gh pr merge <pr> --squash
 
 CI runs the backend suite and the frontend typecheck on every PR into `develop` (`.github/workflows/tests.yml`). Wait for green before merging.
 
-- [ ] **Step 10: Prod rollout**
+- [x] **Step 10: Prod rollout**
 
 Prod deploys from the `prod` branch, not `develop` (`[[recipe-coherence-judge]]`). Commands run through the DO console harness at `/tmp/do_exec.py` (`[[prod-console-exec-harness]]`).
 
@@ -1941,6 +1941,52 @@ Read the prod dry-run before applying — prod's corpus is not identical to loca
 - [ ] **Step 11: QA**
 
 Run `/qa-prod`. Recipe pages must show the adaptation note where one exists, and no plan may contain a demoted recipe.
+
+---
+
+### Task 9 run log — 2026-08-19 (completed)
+
+The repair is done. Final state of the published corpus:
+
+    common      329  (74.6%)
+    findable    112  (25.4%)
+    specialty     0  (0.0%)
+
+**112 of 441 published recipes (25.4%) fail the one-stop bar**, against the
+2026-08-11 baseline of **164 of 458 (35.8%)**. Report committed at
+`docs/shopping-difficulty-report-2026-08-19.txt`. `specialty` is 0 among
+published by construction — the residue was demoted, not hidden — so the
+unconditional gate in `eligible_recipes_for_slot` now costs the retrieval pool
+nothing.
+
+Sequence actually run on prod, in this order:
+
+1. `rate_ingredient_availability` + `recompute_shopping_difficulty` after the
+   PR #72 re-rating — `rated=298 changed=2`, `recipes=582 changed=2`.
+   Published specialty 21 -> 19.
+2. `apply_availability_substitutions --tier=specialty` — `adapted=2
+   skipped=220 failed=0`, **no `unjudged`**: the judge ran and passed both
+   (`snadne-bezlepkove-ovesne-vafle` coherent/0 issues, `datlove-kulicky`
+   minor_issues with nothing high). Specialty 19 -> 17.
+3. `unpublish_unshoppable` — `demoted=17`, status only, nothing deleted.
+
+**65 + 2 = 67 recipes carry an `adaptation_note`** and their pre-rewrite
+ingredients in `original_ingredients`.
+
+**The demoted 17 are honestly un-shoppable, not mis-rated.** The tail is
+zaatar, harissa, sumac, aleppo-pepper-flakes, radicchio, bok-choy, nori,
+english-muffins, molasses, tempeh, chickpea-flour, pumpkin-puree (three dýně
+recipes fall to canned pumpkin purée alone) and tapioca-starch.
+
+**Pool check held.** The only `<-- THIN` cells in the final report are the
+`(none)`-tag buckets (breakfast 2/2, small_meal 6/6, snack 3/3), which were
+already thin at baseline. `breakfast x vegan`, the cell the drop-first pass
+would have gutted, *improved* to 12/26 common of 26 total.
+
+**Known, deliberately left open:** `bezlepkove-livance` was demoted carrying
+`maple-syrup` and `vanilla-extract` — both have swap rows, both refused
+because the recipe is vegan (honey). A vegan-safe sweetener row would recover
+it and others; that is a follow-up, not part of this plan.
 
 ---
 

@@ -1,0 +1,75 @@
+published recipes: 441
+
+-- distribution --
+  common      329  (74.6%)
+  findable    112  (25.4%)
+  specialty     0  (0.0%)
+  unrated       0  (0.0%)
+
+-- pool by meal_type x dietary_tag (common / total) --
+  breakfast    (none)              2 / 2     <-- THIN
+  breakfast    dairy_free         24 / 42  
+  breakfast    gluten_free        40 / 62  
+  breakfast    high_protein       43 / 53  
+  breakfast    low_carb           27 / 31  
+  breakfast    vegan              12 / 26  
+  breakfast    vegetarian         86 / 112 
+  dinner       (none)             10 / 11  
+  dinner       dairy_free         73 / 110 
+  dinner       gluten_free       106 / 150 
+  dinner       high_protein      119 / 142 
+  dinner       low_carb           50 / 58  
+  dinner       vegan              38 / 72  
+  dinner       vegetarian         81 / 122 
+  lunch        (none)             10 / 11  
+  lunch        dairy_free         66 / 103 
+  lunch        gluten_free        90 / 137 
+  lunch        high_protein      106 / 127 
+  lunch        low_carb           40 / 48  
+  lunch        vegan              35 / 68  
+  lunch        vegetarian         80 / 124 
+  small_meal   (none)              6 / 6     <-- THIN
+  small_meal   dairy_free         53 / 88  
+  small_meal   gluten_free        84 / 128 
+  small_meal   high_protein       59 / 76  
+  small_meal   low_carb           37 / 44  
+  small_meal   vegan              41 / 74  
+  small_meal   vegetarian        111 / 157 
+  snack        (none)              3 / 3     <-- THIN
+  snack        dairy_free         30 / 60  
+  snack        gluten_free        46 / 81  
+  snack        high_protein       24 / 34  
+  snack        low_carb           15 / 17  
+  snack        vegan              21 / 49  
+  snack        vegetarian         89 / 127 
+
+-- blocking ingredients by recipes cost --
+    25  coriander
+    14  kale
+    13  tahini
+    13  maple-syrup
+     6  mint
+     6  blueberries
+     6  tofu
+     5  garam-masala
+     5  ground-coriander
+     5  pecans
+     5  almond-butter
+     4  almond-flour
+     4  oat-flour
+     4  cardamom
+     3  goat-cheese
+     3  nutritional-yeast
+     2  ground-ginger
+     2  butternut-squash
+     2  dates
+     2  beef-tenderloin
+     2  artichokes
+     2  green-curry-paste
+     2  protein-powder
+     2  hemp-seeds
+     1  trout
+  ... and 21 more blocking ingredient(s) not shown (raise --top-blockers)
+[33;1m
+112 of 441 published recipes (25.4%) fail the one-stop bar.[0m
+
