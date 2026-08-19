@@ -164,7 +164,8 @@ A. SHOPPABLE — "If I go buy exactly what is on this shopping list, will I \
      - an ingredient a recipe needs that is NOT on the shopping list \
        (missing_from_shopping_list) — unless the recipe itself clearly says \
        it is a leftover / already prepared, in which case it is correct to \
-       omit it;
+       omit it, or the ingredient is marked `"optional": true`, which the \
+       customer is free to skip and the list is right to leave off;
      - an item on the shopping list that NO recipe uses (orphan_shopping_item);
      - a quantity or unit on the list that disagrees with the recipe \
        (quantity_drift / unit_drift).
@@ -205,11 +206,19 @@ Rules:
 
 def _ingredient_view(ing: Any) -> Dict[str, Any]:
     if isinstance(ing, dict):
-        return {
+        view = {
             "name": str(ing.get("name") or ing.get("ingredient") or "").strip(),
             "quantity": ing.get("quantity") or ing.get("amount"),
             "unit": ing.get("unit"),
         }
+        # Optional items are legitimately absent from a shopping list — a
+        # garnish nobody has to buy is not a missing ingredient. Without this
+        # flag the judge reads the gap as `missing_from_shopping_list` at high
+        # severity, which is a false rejection. Only emitted when true, to
+        # keep the payload compact.
+        if ing.get("optional"):
+            view["optional"] = True
+        return view
     return {"name": str(ing or "").strip(), "quantity": None, "unit": None}
 
 
