@@ -92,6 +92,26 @@ class Command(BaseCommand):
                         setattr(existing, key, value)
                     existing.save(update_fields=list(defaults))
 
+        # The file is the table. Without this, retiring a swap in the YAML
+        # removed it from git and nowhere else: every already-seeded database
+        # kept firing it, prod included. Scoped to AVAILABILITY rows — the
+        # hand-made preference/dietary swaps are not in this file by design.
+        wanted = {(by_slug[r['ingredient']].pk, by_slug[r['substitute']].pk)
+                  for r in rows}
+        stale = [
+            row for row in IngredientSubstitute.objects.filter(
+                purpose=IngredientSubstitute.Purpose.AVAILABILITY)
+            if (row.ingredient_id, row.substitute_id) not in wanted
+        ]
+        for row in stale:
+            self.stdout.write(
+                f'  remove {row.ingredient.slug} -> {row.substitute.slug} '
+                f'(no longer in the table)')
+        if stale and not options['dry_run']:
+            IngredientSubstitute.objects.filter(
+                pk__in=[row.pk for row in stale]).delete()
+
         prefix = '[dry-run] ' if options['dry_run'] else ''
         self.stdout.write(self.style.SUCCESS(
-            f'{prefix}loaded={len(rows)} created={created} updated={updated}'))
+            f'{prefix}loaded={len(rows)} created={created} updated={updated} '
+            f'removed={len(stale)}'))

@@ -68,13 +68,12 @@
   conversion_factor: 1.0
   note: 'Mild acid; closest ordinary-supermarket vinegar by sharpness.'
 
-- ingredient: sesame-oil
-  substitute: rapeseed-oil
-  quality_score: 0.60
-  conversion_factor: 1.0
-  note: 'Weakest swap in the table — sesame oil is a finishing aroma, not a
-    cooking fat. Kept because the alternative is dropping the recipe; the
-    coherence judge is the backstop.'
+# RETIRED 2026-08-19: sesame-oil -> rapeseed-oil. Sesame oil is rated
+# `findable`, so it never gated a recipe out — the swap only ever rode along
+# inside a specialty rescue, trading a finishing aroma for a neutral frying
+# fat in two Asian bowls. Nothing is lost by dropping it: those recipes are
+# still rescued by their avocado-oil / tamari swaps, now with the sesame
+# intact.
 
 - ingredient: coconut-sugar
   substitute: brown-sugar

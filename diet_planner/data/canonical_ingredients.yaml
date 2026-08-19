@@ -2559,3 +2559,19 @@
   default_unit: g
   aliases:
     - { alias: "klobása chorizo", language_code: cs }
+
+- name: rapeseed oil
+  slug: rapeseed-oil
+  name_cs: řepkový olej
+  name_sk: repkový olej
+  category: oils
+  default_unit: ml
+  typical_package_sizes: [500, 1000]
+  estimated_price_czk: 50.0
+  estimated_price_eur: 2.00
+  aliases:
+    - { alias: "canola oil", language_code: en }
+  # Seeded by migration 0022 with a capitalised name_cs ("Řepkový olej"). It is
+  # a substitution target, so that name gets spliced into an ingredient line
+  # mid-sentence and reads there as a proper noun. Carried into the YAML so the
+  # seeder can correct it on every database, prod included.
