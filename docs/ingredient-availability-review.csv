@@ -2,7 +2,7 @@
 ***,7,tofu,tofu,legumes,findable,low,"now in most Albert/Kaufland; ""extra pevne"" variant is the risky one",,
 ***,6,almond-flour,mandlová mouka,baking,findable,low,mandlova mouka - Kaufland baking aisle?,,
 ***,6,blueberries,borůvky,fruits,findable,low,fresh seasonal; frozen is common,,
-***,6,oat-flour,ovesná mouka,baking,specialty,low,ovesna mouka rare; ground oats is the swap,,
+***,6,oat-flour,ovesná mouka,baking,specialty,low,ovesna mouka rare; ground oats is the swap,findable,"OWNER: bigger stores/Rohlik. The ground-oats swap can never fire - every recipe using it is gluten_free"
 ***,5,garam-masala,garam masala,spices,findable,low,"world-foods shelf, bigger stores",,
 ***,5,ground-coriander,Mletý koriandr,spices,findable,low,mlety koriandr - bigger spice ranges,,
 ***,5,ground-ginger,Mletý zázvor,spices,findable,low,mlety zazvor - bigger spice ranges,,
@@ -11,7 +11,7 @@
 ***,4,cardamom,kardamom,spices,findable,low,bigger stores,,
 ***,4,pico-de-gallo,pico de gallo,condiments,specialty,low,"not a shelf product, its a prepared salsa",,"OWNER 2026-08-18: stays specialty - it is a preparation, not a shelf product. Swap pico-de-gallo -> salsa added to ingredient_substitutions_cz.yaml instead."
 ***,4,sesame-oil,Sezamový olej,oils,findable,low,"asian shelf, bigger stores",,
-***,4,tamari,tamari,condiments,specialty,low,bio corner only? sojova omacka is the swap,,
+***,4,tamari,tamari,condiments,specialty,low,bio corner only? sojova omacka is the swap,specialty,"OWNER: stays specialty. No gluten-free soy sauce is normal CZ stock, so NO swap - all 8 recipes are gluten_free"
 ***,3,goat-cheese,kozí sýr,dairy,findable,low,kozi syr - bigger stores,,
 ***,2,applesauce,jablečné pyré,fruits,common,low,sold as detska presnidavka / jablecne pyre,,
 ***,2,artichokes,artyčoky,vegetables,findable,low,"jarred, bigger stores",,
