@@ -81,6 +81,15 @@
   conversion_factor: 1.0
   note: 'Same role, same quantity, ordinary supermarket shelf.'
 
+- ingredient: tapioca-starch
+  substitute: potato-starch
+  quality_score: 0.85
+  conversion_factor: 1.0
+  note: 'OWNER-SETTLED 2026-08-23. Tapiokový škrob is specialty; bramborový škrob
+    (Solamyl) is on every ordinary Czech shelf, gluten-free, and interchangeable
+    as a binder/thickener in bakes. Was the sole specialty blocker on
+    bezlepkove-livance (1 recipe).'
+
 - ingredient: pico-de-gallo
   substitute: salsa
   quality_score: 0.80

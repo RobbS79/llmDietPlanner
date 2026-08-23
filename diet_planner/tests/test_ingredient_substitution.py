@@ -158,6 +158,17 @@ class LoadSubstitutionsTests(TestCase):
         self.assertEqual(row.purpose, IngredientSubstitute.Purpose.AVAILABILITY)
         self.assertIn('loaded=', out.getvalue())
 
+    def test_tapioca_starch_swaps_to_potato_starch(self):
+        """OWNER-SETTLED 2026-08-23: the sole specialty blocker on
+        bezlepkove-livance. potato-starch (Solamyl) is common + gluten-free, so
+        the swap is safe on a gluten_free recipe."""
+        from diet_planner.services.ingredient_substitution import _TAG_INCOMPATIBLE
+        call_command('load_availability_substitutions', stdout=StringIO())
+        self.assertTrue(IngredientSubstitute.objects.filter(
+            ingredient__slug='tapioca-starch', substitute__slug='potato-starch',
+            purpose=IngredientSubstitute.Purpose.AVAILABILITY).exists())
+        self.assertNotIn('potato-starch', _TAG_INCOMPATIBLE['gluten_free'])
+
     def test_load_is_idempotent(self):
         call_command('load_availability_substitutions', stdout=StringIO())
         first = IngredientSubstitute.objects.count()
