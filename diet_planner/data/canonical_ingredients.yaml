@@ -2575,3 +2575,21 @@
   # a substitution target, so that name gets spliced into an ingredient line
   # mid-sentence and reads there as a proper noun. Carried into the YAML so the
   # seeder can correct it on every database, prod included.
+
+- name: potato starch
+  slug: potato-starch
+  name_cs: bramborový škrob
+  name_sk: zemiakový škrob
+  category: baking
+  default_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [200, 500]
+  estimated_price_czk: 25.0
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "potato flour", language_code: en }
+    - { alias: "solamyl", language_code: cs }
+  # Existing canonical whose name_cs seeded capitalised ("Bramborový škrob"). Now
+  # the tapioca-starch -> potato-starch availability swap target, which splices
+  # name_cs into an ingredient line mid-sentence; lowercased so it reads as a
+  # common noun. Mirrors the rapeseed-oil correction in #70.
