@@ -275,6 +275,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     price_range = serializers.SerializerMethodField()
     deals = serializers.SerializerMethodField()
     shopping_list = serializers.SerializerMethodField()
+    ingredients = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -311,6 +312,14 @@ class RecipeSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+    def get_ingredients(self, obj):
+        """Display-clean ingredient list. Catalog-constrained generation stores
+        internal strings like `pappudia tofu (#2153)`; never surface the brand /
+        store-product id on the page, SSR, or JSON-LD. See
+        services.ingredient_display."""
+        from .services.ingredient_display import display_ingredients
+        return display_ingredients(obj.ingredients)
 
     def get_image_url(self, obj):
         from .food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
