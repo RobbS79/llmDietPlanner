@@ -359,6 +359,10 @@ GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
 GEMINI_MAX_OUTPUT_TOKENS = int(config('GEMINI_MAX_OUTPUT_TOKENS', default=65536))
 GEMINI_IMAGE_MODEL = config('GEMINI_IMAGE_MODEL', default='gemini-2.5-flash-image')
 
+# Slack incoming-webhook for the LLM outage canary (manage.py check_llm_health).
+# Unset is a supported state: the canary still runs and still fails the job.
+LLM_HEALTH_SLACK_WEBHOOK_URL = config('LLM_HEALTH_SLACK_WEBHOOK_URL', default='')
+
 if not GEMINI_API_KEY:
     import logging as _log
     _log.getLogger(__name__).warning("GEMINI_API_KEY is not set")
