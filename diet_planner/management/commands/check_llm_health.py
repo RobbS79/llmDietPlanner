@@ -40,11 +40,13 @@ class Command(BaseCommand):
         delivered = notify_slack(
             text,
             webhook_url=getattr(settings, 'LLM_HEALTH_SLACK_WEBHOOK_URL', ''),
+            bot_token=getattr(settings, 'SLACK_BOT_TOKEN', ''),
+            channel=getattr(settings, 'LLM_HEALTH_SLACK_CHANNEL', ''),
             post=post,
         )
         if not delivered:
             self.stderr.write('[llm_health] alert NOT delivered '
-                              '(no webhook configured, or Slack failed)')
+                              '(Slack not configured, or Slack refused it)')
         # Non-zero exit is what makes a scheduled job visibly red.
         raise CommandError(
             f'[llm_health] LLM unreachable: {result.error_type}: {result.detail}')

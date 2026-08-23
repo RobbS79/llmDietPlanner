@@ -35,20 +35,45 @@ def probe_llm(generate) -> HealthResult:
     return HealthResult(ok=True, detail=(text or '').strip()[:200])
 
 
-def notify_slack(text, *, webhook_url, post) -> bool:
-    """Post `text` to a Slack incoming webhook. True when it went out.
+SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage'
+
+
+def notify_slack(text, *, webhook_url='', bot_token='', channel='',
+                 post) -> bool:
+    """Deliver `text` to Slack. True only when Slack actually accepted it.
+
+    Two transports. A bot token + channel wins when both are set, because it
+    reuses the credentials slack_bot already holds — nothing new to create.
+    An incoming webhook is the fallback.
 
     Unconfigured is a normal state, not an error: the canary must still run
-    (and still fail the job) before anyone wires up a webhook.
+    (and still fail the job) before anyone wires up Slack.
     """
-    if not webhook_url:
+    if bot_token and channel:
+        url = SLACK_POST_MESSAGE_URL
+        payload = {'channel': channel, 'text': text}
+        headers = {'Content-Type': 'application/json; charset=utf-8',
+                   'Authorization': f'Bearer {bot_token}'}
+    elif webhook_url:
+        url = webhook_url
+        payload = {'text': text}
+        headers = {'Content-Type': 'application/json'}
+    else:
         return False
+
     try:
-        post(webhook_url, {'text': text})
+        body = post(url, payload, headers) or {}
     except Exception as exc:
         # Never let the alert channel mask the outage it is reporting: the
         # command still logs and still exits non-zero.
         logger.warning('[llm_health] Slack notify failed: %s', exc)
+        return False
+
+    # chat.postMessage answers HTTP 200 even when it refuses the message
+    # ({"ok": false, "error": "not_in_channel"}), so status alone would lie.
+    if body.get('ok') is False:
+        logger.warning('[llm_health] Slack rejected the message: %s',
+                       body.get('error') or body)
         return False
     return True
 
@@ -64,14 +89,21 @@ def default_generate(prompt: str) -> str:
     return getattr(response, 'text', '') or ''
 
 
-def default_post(url: str, payload: dict) -> None:
-    """Minimal Slack incoming-webhook POST. No SDK, no new dependency."""
+def default_post(url: str, payload: dict, headers: dict) -> dict:
+    """Minimal Slack POST. No SDK, no new dependency.
+
+    Returns the parsed JSON body when there is one — chat.postMessage reports
+    refusals in the body, not the status code. A webhook answers plain "ok",
+    which parses to {} and is treated as delivered.
+    """
     import json
     import urllib.request
 
     request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode('utf-8'),
-        headers={'Content-Type': 'application/json'},
-    )
-    urllib.request.urlopen(request, timeout=10).close()
+        url, data=json.dumps(payload).encode('utf-8'), headers=headers)
+    with urllib.request.urlopen(request, timeout=10) as response:
+        raw = response.read().decode('utf-8', 'replace')
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {}

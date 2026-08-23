@@ -359,8 +359,12 @@ GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
 GEMINI_MAX_OUTPUT_TOKENS = int(config('GEMINI_MAX_OUTPUT_TOKENS', default=65536))
 GEMINI_IMAGE_MODEL = config('GEMINI_IMAGE_MODEL', default='gemini-2.5-flash-image')
 
-# Slack incoming-webhook for the LLM outage canary (manage.py check_llm_health).
-# Unset is a supported state: the canary still runs and still fails the job.
+# Slack delivery for the LLM outage canary (manage.py check_llm_health).
+# Preferred: the bot token slack_bot already uses, plus a channel id — nothing
+# new to create. An incoming webhook is the fallback. All unset is a supported
+# state: the canary still runs and still fails the job.
+SLACK_BOT_TOKEN = config('SLACK_BOT_TOKEN', default='')
+LLM_HEALTH_SLACK_CHANNEL = config('LLM_HEALTH_SLACK_CHANNEL', default='')
 LLM_HEALTH_SLACK_WEBHOOK_URL = config('LLM_HEALTH_SLACK_WEBHOOK_URL', default='')
 
 if not GEMINI_API_KEY:

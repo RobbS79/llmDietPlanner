@@ -45,7 +45,7 @@ class NotifySlackTest(TestCase):
         calls = []
 
         sent = notify_slack('prod LLM is down', webhook_url='',
-                            post=lambda url, payload: calls.append(url))
+                            post=lambda url, payload, headers: calls.append(url))
 
         self.assertFalse(sent)
         self.assertEqual(calls, [])
@@ -55,7 +55,7 @@ class NotifySlackTest(TestCase):
 
         sent = notify_slack('prod LLM is down',
                             webhook_url='https://hooks.slack.test/abc',
-                            post=lambda url, payload: calls.append((url, payload)))
+                            post=lambda url, payload, headers: calls.append((url, payload)))
 
         self.assertTrue(sent)
         self.assertEqual(len(calls), 1)
@@ -64,7 +64,7 @@ class NotifySlackTest(TestCase):
         self.assertIn('prod LLM is down', payload['text'])
 
     def test_swallows_a_slack_failure_rather_than_masking_the_outage(self):
-        def broken(url, payload):
+        def broken(url, payload, headers):
             raise OSError('slack unreachable')
 
         with self.assertLogs('diet_planner.services.llm_health', 'WARNING'):
@@ -82,7 +82,7 @@ class CheckLlmHealthCommandTest(TestCase):
 
         call_command('check_llm_health',
                      generate=lambda prompt: 'ok',
-                     post=lambda url, payload: calls.append(payload),
+                     post=lambda url, payload, headers: calls.append(payload),
                      stdout=StringIO(), stderr=StringIO())
 
         self.assertEqual(calls, [])
@@ -95,8 +95,69 @@ class CheckLlmHealthCommandTest(TestCase):
 
         with self.assertRaises(CommandError):
             call_command('check_llm_health', generate=denied,
-                         post=lambda url, payload: calls.append(payload),
+                         post=lambda url, payload, headers: calls.append(payload),
                          stdout=StringIO(), stderr=StringIO())
 
         self.assertEqual(len(calls), 1)
         self.assertIn('Lightning dunning', calls[0]['text'])
+
+
+class NotifySlackBotTokenTest(TestCase):
+    """Delivery via chat.postMessage, reusing the bot credentials that already
+    exist for slack_bot — no incoming webhook to create."""
+
+    def test_posts_to_chat_postmessage_with_the_bot_token(self):
+        calls = []
+
+        sent = notify_slack('prod LLM is down', bot_token='xoxb-test',
+                            channel='C0B6L3',
+                            post=lambda url, payload, headers: (
+                                calls.append((url, payload, headers)) or {'ok': True}))
+
+        self.assertTrue(sent)
+        url, payload, headers = calls[0]
+        self.assertEqual(url, 'https://slack.com/api/chat.postMessage')
+        self.assertEqual(payload['channel'], 'C0B6L3')
+        self.assertIn('prod LLM is down', payload['text'])
+        self.assertEqual(headers['Authorization'], 'Bearer xoxb-test')
+
+    def test_treats_an_ok_false_body_as_undelivered(self):
+        # Slack answers HTTP 200 with {"ok": false} when the bot is not in the
+        # channel. Trusting the status code would report a phantom delivery.
+        with self.assertLogs('diet_planner.services.llm_health', 'WARNING'):
+            sent = notify_slack('prod LLM is down', bot_token='xoxb-test',
+                                channel='C0B6L3',
+                                post=lambda url, payload, headers: {
+                                    'ok': False, 'error': 'not_in_channel'})
+
+        self.assertFalse(sent)
+
+    def test_prefers_the_bot_token_over_a_webhook_when_both_are_set(self):
+        calls = []
+
+        notify_slack('prod LLM is down', webhook_url='https://hooks.slack.test/abc',
+                     bot_token='xoxb-test', channel='C0B6L3',
+                     post=lambda url, payload, headers: (
+                         calls.append(url) or {'ok': True}))
+
+        self.assertEqual(calls, ['https://slack.com/api/chat.postMessage'])
+
+    @override_settings(SLACK_BOT_TOKEN='xoxb-test',
+                       LLM_HEALTH_SLACK_CHANNEL='C0B6L3',
+                       LLM_HEALTH_SLACK_WEBHOOK_URL='')
+    def test_command_alerts_through_the_bot_token(self):
+        calls = []
+
+        def denied(prompt):
+            raise PermissionError('403 Lightning dunning decision is deny')
+
+        with self.assertRaises(CommandError):
+            call_command('check_llm_health', generate=denied,
+                         post=lambda url, payload, headers: (
+                             calls.append((url, payload)) or {'ok': True}),
+                         stdout=StringIO(), stderr=StringIO())
+
+        self.assertEqual(len(calls), 1)
+        url, payload = calls[0]
+        self.assertEqual(url, 'https://slack.com/api/chat.postMessage')
+        self.assertEqual(payload['channel'], 'C0B6L3')
