@@ -64,8 +64,14 @@ def public_recipe_view(request, pk, slug=None):
     if not template:
         raise Http404
 
+    # Display-clean names: catalog-constrained generation caches internal
+    # strings like `pappudia tofu (#2153)`; the brand / store-product id must
+    # never reach the page or the JSON-LD. Shared with RecipeSerializer.
+    from diet_planner.services.ingredient_display import display_ingredients
+    display_ings = display_ingredients(recipe.ingredients)
+
     ingredients_html = ''
-    for ing in (recipe.ingredients or []):
+    for ing in display_ings:
         if isinstance(ing, dict):
             ingredients_html += f'<li>{escape(ing.get("name", ""))} — {escape(str(ing.get("quantity", "")))} {escape(ing.get("unit", ""))}</li>'
         else:
@@ -92,7 +98,7 @@ def public_recipe_view(request, pk, slug=None):
         "recipeIngredient": [
             f"{ing.get('quantity', '')} {ing.get('unit', '')} {ing.get('name', '')}".strip()
             if isinstance(ing, dict) else str(ing)
-            for ing in (recipe.ingredients or [])
+            for ing in display_ings
         ],
         "recipeInstructions": [
             {"@type": "HowToStep", "position": i + 1, "text": step}
