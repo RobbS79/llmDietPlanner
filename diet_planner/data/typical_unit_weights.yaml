@@ -23,3 +23,34 @@ grams_per_piece:
   leek: 150
   fennel: 250
   radicchio: 250
+
+  # --- added 2026-08-24 for the nutrition-basis repair -------------------
+  # These were the count-unit lines the mass estimator could not resolve in
+  # the published corpus (`eggs` alone appeared on 36 lines). Edible weight,
+  # i.e. egg without shell. Ambiguous ones are deliberately absent: `beans`
+  # ("1 ks" is a can in some rows, a pod in others) would over-count mass,
+  # and over-counting is the one direction that could wave a bad repair
+  # through -- see nutrition_basis_repair.
+  eggs: 55
+  potatoes: 150
+  carrots: 80
+  tomatoes: 120
+  spring-onion: 15
+  celery-root: 300      # a whole root; rows saying "1/4 celeru" store 0.25
+  parsley: 30           # a bunch/sprigs, not the root
+  tortilla: 45
+  chicken-thigh: 130
+  chicken-breast: 170
+  salmon-fillet: 150
+  mushrooms: 20
+  apples: 180
+  bananas: 120
+  cauliflower: 600
+  beetroot: 150
+  radishes: 15
+  pickles: 40
+  olives: 4
+  dates: 8
+  bay-leaves: 0.2
+  allspice: 0.1
+  black-pepper: 0.05    # one peppercorn
