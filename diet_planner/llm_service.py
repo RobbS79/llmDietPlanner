@@ -832,8 +832,14 @@ Produce a JSON object with EXACTLY these keys:
     times, and doneness cues ("until golden", "until the juices run clear").
   * "time_min": integer minutes this step takes, or null.
   * "tip": a short optional helper tip in Czech, or null.
-- "base_servings": integer — how many portions the quantities/nutrition below describe.
-- "base_nutrition": {{"calories","protein","carbs","fat"}} per base_servings (numbers, grams for macros). Estimate from the ingredients if the source omits it.
+- "base_servings": integer — how many portions the quantities below make.
+- "base_nutrition": {{"calories","protein","carbs","fat"}} — the TOTAL for the
+  whole recipe, i.e. all base_servings portions added together. NOT per portion.
+  Numbers, grams for macros; estimate from the ingredients if the source omits it.
+  * Worked example: 12 muffins of roughly 270 kcal each is
+    "base_servings": 12 with "calories": 3240 — never "calories": 270.
+  * Check it before you answer: calories divided by base_servings must land on a
+    believable single portion, and the total must match the ingredients you listed.
 - "prep_time": integer minutes of hands-on prep, or null.
 - "cook_time": integer minutes of cooking, or null.
 

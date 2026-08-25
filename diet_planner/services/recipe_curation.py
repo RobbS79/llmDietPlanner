@@ -33,6 +33,8 @@ from diet_planner.services.ingredient_availability import (
     compute_shopping_difficulty,
     unshoppable_ingredients,
 )
+from diet_planner.services.nutrition_basis_repair import plan_basis_repair
+from diet_planner.services.nutrition_lookups import category_table, piece_weight_table
 from diet_planner.services.recipe_plausibility import check_portion_plausibility
 from diet_planner.services import recipe_human_judge
 
@@ -248,6 +250,35 @@ def build_recipe_fields(
     }
 
 
+def correct_nutrition_basis(fields: Dict[str, Any]) -> Optional[str]:
+    """Rewrite `base_nutrition` in place when it holds ONE portion, not the total.
+
+    The curation model writes a per-portion figure into this per-recipe field
+    often enough to have corrupted 96 published recipes before anyone noticed
+    (repaired 2026-08-25). The prompt now says so explicitly, but a prompt is
+    probabilistic and this bug is silent — the recipe looks fine, it just
+    understates itself 4x-16x and gets OVER-SERVED by `portions_for_target`.
+
+    So intake re-checks it with the same ingredient evidence the repair command
+    uses. Corrects only when the recipe's own ingredients carry the energy to
+    prove it; a piece-counted recipe (4 hard-boiled eggs) is left alone, as is
+    anything the evidence cannot settle. Returns the reason when it rewrote,
+    else None.
+    """
+    plan = plan_basis_repair(
+        fields.get("base_nutrition"),
+        fields.get("base_servings"),
+        None,  # dish_role is assigned later by retag_dish_roles
+        fields.get("ingredients"),
+        piece_weights=piece_weight_table(),
+        categories=category_table(),
+    )
+    if plan.action != "repair" or not plan.proposed:
+        return None
+    fields["base_nutrition"] = plan.proposed
+    return plan.reason
+
+
 # ---------------------------------------------------------------------------
 # Clarity / coherence judge (reuse the recipe_human_judge infra)
 # ---------------------------------------------------------------------------
@@ -354,6 +385,13 @@ def curate_from_source(
     if not fields["instructions"]:
         result.error = "no instructions after curation"
         return result
+
+    corrected = correct_nutrition_basis(fields)
+    if corrected:
+        logger.info(
+            "recipe_curation: base_nutrition held one portion, corrected to the "
+            "whole recipe for %s (%s)", url, corrected,
+        )
 
     if enforce_plausibility:
         plausibility = check_portion_plausibility(
