@@ -32,34 +32,14 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from diet_planner.models import CuratedRecipe
-from diet_planner.models.catalog import CanonicalIngredient
 from diet_planner.services.nutrition_basis_repair import plan_basis_repair
-from diet_planner.services.piece_weights import load_piece_weights
+from diet_planner.services.nutrition_lookups import category_table, piece_weight_table
 
 _FIELDS = [
     'slug', 'name_cs', 'dish_role', 'base_servings', 'action', 'reason',
     'stored_kcal', 'corrected_kcal', 'estimated_kcal', 'stored_vs_estimate',
     'corrected_vs_estimate', 'mass_g', 'coverage', 'category_coverage',
 ]
-
-
-def category_table():
-    """Canonical slug -> catalog category, for the ingredient-energy estimate."""
-    return dict(CanonicalIngredient.objects.values_list('slug', 'category'))
-
-
-def piece_weight_table():
-    """Canonical slug -> grams per piece, YAML defaults overlaid with the DB."""
-    weights = dict(load_piece_weights())
-    for canonical in CanonicalIngredient.objects.exclude(avg_piece_weight_g=None).only(
-            'slug', 'avg_piece_weight_g'):
-        try:
-            grams = float(canonical.avg_piece_weight_g)
-        except (TypeError, ValueError):
-            continue
-        if grams > 0:
-            weights[canonical.slug] = grams
-    return weights
 
 
 class Command(BaseCommand):
