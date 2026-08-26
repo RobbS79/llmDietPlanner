@@ -580,10 +580,13 @@ class DiffAppliedChangesTests(TestCase):
         self.assertEqual(changes[0].old_slug, 'maple-syrup')
         self.assertEqual(changes[0].new_name, 'med')
         self.assertEqual(changes[0].new_canonical, 'honey')
+        self.assertEqual(changes[0].new_quantity, 2)
+        self.assertEqual(changes[0].new_unit, 'lžíce')
 
     def test_ignores_entries_whose_name_did_not_change(self):
-        entries = [{'name': 'sůl', 'canonical': 'salt'}]
-        self.assertEqual(diff_applied_changes(entries, entries), [])
+        original = [{'name': 'sůl', 'canonical': 'salt'}]
+        current = [{'name': 'sůl', 'canonical': 'salt'}]
+        self.assertEqual(diff_applied_changes(original, current), [])
 
     def test_length_mismatch_yields_nothing_rather_than_guessing(self):
         # Misaligned lists cannot be diffed positionally; refusing beats
@@ -645,3 +648,16 @@ class DisclosedSwapsTests(TestCase):
 
     def test_chunk_without_an_arrow_is_skipped(self):
         self.assertEqual(disclosed_swaps('nějaká poznámka', []), set())
+
+    def test_unions_both_sources(self):
+        # The reason this function takes two arguments: a row can carry a swap
+        # in its note and another in its ingredients, and both are disclosed.
+        note = ('Upraveno pro dostupnost v českých obchodech: '
+                'javorový sirup → med')
+        changes = [IngredientChange(
+            index=0, old_name='tamari', old_slug='tamari',
+            new_name='sójová omáčka', new_canonical='soy-sauce',
+            new_quantity=1, new_unit='lžíce')]
+        self.assertEqual(
+            disclosed_swaps(note, changes),
+            {('javorový sirup', 'med'), ('tamari', 'sójová omáčka')})
