@@ -25,7 +25,8 @@ from diet_planner.services.ingredient_substitution import (
 )
 from diet_planner.services.recipe_curation import judge_curated_recipe
 from diet_planner.services.substitution_rewrite import (
-    RewriteError, reset_usage, rewrite_instructions, usage_snapshot,
+    RewriteError, reset_usage, rewrite_instructions, rewrite_prose,
+    usage_snapshot,
 )
 
 _NOTE_PREFIX = 'Upraveno pro dostupnost v českých obchodech: '
@@ -113,6 +114,11 @@ class Command(BaseCommand):
             new_ingredients = apply_changes_to_ingredients(recipe.ingredients, plan)
             try:
                 new_instructions = rewrite_instructions(recipe.instructions, plan)
+                # The prose around the steps makes claims too: a title still
+                # promising the removed ingredient is the first thing a reader
+                # sees. Same fail-closed contract as the steps.
+                new_name, new_description = rewrite_prose(
+                    recipe.name_cs, recipe.description, plan)
             except RewriteError as exc:
                 failed += 1
                 self.stdout.write(self.style.WARNING(f'  rewrite failed: {exc}'))
@@ -128,8 +134,8 @@ class Command(BaseCommand):
 
             # Judge the CANDIDATE, not the stored row: build an unsaved copy.
             candidate = CuratedRecipe(
-                id=recipe.id, slug=recipe.slug, name_cs=recipe.name_cs,
-                description=recipe.description,
+                id=recipe.id, slug=recipe.slug, name_cs=new_name,
+                description=new_description,
                 ingredients=new_ingredients, instructions=new_instructions,
                 base_servings=recipe.base_servings,
             )
@@ -154,14 +160,17 @@ class Command(BaseCommand):
                     recipe.original_ingredients = recipe.ingredients
                 recipe.ingredients = new_ingredients
                 recipe.instructions = new_instructions
+                # slug is deliberately NOT regenerated: the URL is public.
+                recipe.name_cs = new_name
+                recipe.description = new_description
                 recipe.adaptation_note = (_NOTE_PREFIX + plan.summary())[:_NOTE_MAX]
                 tier, blockers = compute_shopping_difficulty(recipe, index=index)
                 recipe.shopping_difficulty = tier
                 recipe.shopping_blockers = blockers
                 recipe.save(update_fields=[
-                    'ingredients', 'instructions', 'adaptation_note',
-                    'original_ingredients', 'shopping_difficulty',
-                    'shopping_blockers', 'updated_at',
+                    'ingredients', 'instructions', 'name_cs', 'description',
+                    'adaptation_note', 'original_ingredients',
+                    'shopping_difficulty', 'shopping_blockers', 'updated_at',
                 ])
             adapted += 1
 

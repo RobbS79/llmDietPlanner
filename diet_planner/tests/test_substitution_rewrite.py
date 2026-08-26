@@ -13,6 +13,13 @@ def _plan():
         new_quantity=1.0, new_unit='ml')])
 
 
+def _maple_plan():
+    return SubstitutionPlan(saveable=True, changes=[IngredientChange(
+        index=0, old_name='javorový sirup', old_slug='maple-syrup',
+        new_name='med', new_canonical='honey',
+        new_quantity=60.0, new_unit='ml')])
+
+
 class RewriteInstructionsTests(TestCase):
     def test_only_affected_steps_are_sent_to_the_llm(self):
         from diet_planner.services.substitution_rewrite import rewrite_instructions
@@ -214,3 +221,155 @@ class UsageAccountingTests(TestCase):
         self.assertEqual(snap['total_tokens'], 0)
         self.assertEqual(snap['unmetered_calls'], 1,
                          'a call with no usage metadata must be visible, not silent')
+
+
+class RewriteProseTests(TestCase):
+    """Name and description must not keep advertising a swapped-out ingredient.
+
+    Found on prod 2026-08-25: 10 adapted recipes still promised the removed
+    item in their description and 2 in their title — 'Ovesná kaše s javorovým
+    sirupem a skořicí' contained no maple syrup at all.
+    """
+
+    def test_description_naming_the_old_ingredient_is_rewritten(self):
+        from diet_planner.services.substitution_rewrite import rewrite_prose
+
+        def fake_generate(prompt):
+            return json.dumps({
+                'name': 'Banánový chléb',
+                'description': 'Vláčný banánový chléb oslazený pouze medem.',
+            })
+
+        name, description = rewrite_prose(
+            'Banánový chléb',
+            'Vláčný banánový chléb oslazený pouze javorovým sirupem.',
+            _maple_plan(), generate=fake_generate)
+
+        self.assertEqual(description,
+                         'Vláčný banánový chléb oslazený pouze medem.')
+        self.assertEqual(name, 'Banánový chléb')
+
+    def test_name_naming_the_old_ingredient_is_rewritten(self):
+        from diet_planner.services.substitution_rewrite import rewrite_prose
+
+        def fake_generate(prompt):
+            return json.dumps({
+                'name': 'Ovesná kaše s medem a skořicí',
+                'description': 'Krémová ovesná kaše.',
+            })
+
+        name, _ = rewrite_prose(
+            'Ovesná kaše s javorovým sirupem a skořicí',
+            'Krémová ovesná kaše.', _maple_plan(), generate=fake_generate)
+
+        self.assertEqual(name, 'Ovesná kaše s medem a skořicí')
+
+    def test_prose_that_never_mentions_the_swap_skips_the_llm(self):
+        from diet_planner.services.substitution_rewrite import rewrite_prose
+
+        def explode(prompt):
+            raise AssertionError('LLM must not be called')
+
+        name, description = rewrite_prose(
+            'Banánový chléb', 'Vláčný a sladký banánový chléb.',
+            _maple_plan(), generate=explode)
+
+        self.assertEqual(name, 'Banánový chléb')
+        self.assertEqual(description, 'Vláčný a sladký banánový chléb.')
+
+    def test_result_still_naming_the_old_ingredient_fails_closed(self):
+        from diet_planner.services.substitution_rewrite import (
+            RewriteError, rewrite_prose,
+        )
+
+        def lazy_generate(prompt):
+            # The model echoed the input back unchanged.
+            return json.dumps({
+                'name': 'Banánový chléb',
+                'description': 'Oslazený pouze javorovým sirupem.',
+            })
+
+        with self.assertRaises(RewriteError):
+            rewrite_prose('Banánový chléb',
+                          'Oslazený pouze javorovým sirupem.',
+                          _maple_plan(), generate=lazy_generate)
+
+    def test_malformed_llm_response_fails_closed(self):
+        from diet_planner.services.substitution_rewrite import (
+            RewriteError, rewrite_prose,
+        )
+
+        def bad_generate(prompt):
+            return json.dumps({'description': 'chybí jméno'})
+
+        with self.assertRaises(RewriteError):
+            rewrite_prose('Banánový chléb',
+                          'Oslazený pouze javorovým sirupem.',
+                          _maple_plan(), generate=bad_generate)
+
+    def test_prose_keeping_the_surviving_word_is_left_alone(self):
+        """'Vanilkový koláč' is still vanilla after extrakt -> aroma.
+
+        Only a word the swap actually REMOVES should trigger a rewrite;
+        otherwise every vanilla recipe gets its title regenerated for nothing.
+        """
+        from diet_planner.services.substitution_rewrite import rewrite_prose
+
+        def explode(prompt):
+            raise AssertionError('LLM must not be called')
+
+        name, description = rewrite_prose(
+            'Vanilkový koláč', 'Sladký vanilkový koláč.',
+            _plan(), generate=explode)
+
+        self.assertEqual(name, 'Vanilkový koláč')
+        self.assertEqual(description, 'Sladký vanilkový koláč.')
+
+    def test_title_naming_only_part_of_the_removed_item_is_rewritten(self):
+        """'Javorové banánové muffiny' never says 'sirup', but the maple is
+        gone — requiring every word of the phrase would miss it."""
+        from diet_planner.services.substitution_rewrite import rewrite_prose
+        called = {}
+
+        def fake_generate(prompt):
+            called['yes'] = True
+            return json.dumps({'name': 'Banánové muffiny s medem',
+                               'description': 'Vláčné banánové muffiny.'})
+
+        name, _ = rewrite_prose('Javorové banánové muffiny',
+                                'Vláčné banánové muffiny.',
+                                _maple_plan(), generate=fake_generate)
+
+        self.assertTrue(called.get('yes'), 'stale title must be rewritten')
+        self.assertEqual(name, 'Banánové muffiny s medem')
+
+    def test_short_filler_word_in_the_old_name_never_triggers_alone(self):
+        """'pico de gallo' -> 'salsa' drops the word 'de', which is a substring
+        of half the Czech language ('dezert', 'deset', 'medailonky'). A stem
+        that short cannot identify the ingredient, so it must not put a title
+        in front of the model — while the real name still must."""
+        from diet_planner.services.substitution_rewrite import rewrite_prose
+        plan = SubstitutionPlan(saveable=True, changes=[IngredientChange(
+            index=0, old_name='pico de gallo', old_slug='pico-de-gallo',
+            new_name='salsa', new_canonical='salsa',
+            new_quantity=100.0, new_unit='g')])
+
+        def explode(prompt):
+            raise AssertionError('LLM must not be called')
+
+        name, description = rewrite_prose(
+            'Domácí dezert', 'Lehký domácí dezert.', plan, generate=explode)
+        self.assertEqual(name, 'Domácí dezert')
+        self.assertEqual(description, 'Lehký domácí dezert.')
+
+        called = {}
+
+        def fake_generate(prompt):
+            called['yes'] = True
+            return json.dumps({'name': 'Tacos se salsou',
+                               'description': 'Tacos se salsou.'})
+
+        name, _ = rewrite_prose('Tacos s pico de gallo', 'Tacos.',
+                                plan, generate=fake_generate)
+        self.assertTrue(called.get('yes'), 'a real mention must still rewrite')
+        self.assertEqual(name, 'Tacos se salsou')
