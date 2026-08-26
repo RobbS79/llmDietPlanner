@@ -59,10 +59,66 @@ class Command(BaseCommand):
         if options['slug']:
             qs = qs.filter(slug=options['slug'])
 
+        table = substitution_table()
+        if not table:
+            self.stdout.write(self.style.WARNING(
+                'no availability substitutions loaded — '
+                'run load_availability_substitutions first'))
+            return
+        index = availability_index()
+
         for recipe in qs.iterator():
             if options['limit'] is not None and repaired >= options['limit']:
                 break
-            skipped += 1
+
+            applied = diff_applied_changes(
+                recipe.original_ingredients, recipe.ingredients)
+            if not applied:
+                # No usable snapshot, or nothing was ever swapped: there is no
+                # disclosure to finish and no change list to describe.
+                skipped += 1
+                continue
+
+            disclosed = disclosed_swaps(recipe.adaptation_note, applied)
+
+            # Step 1 — optional entries the rescue skipped. `gate=False`
+            # because `saveable` guards against *introducing* a change, and
+            # the disclosure filter below means we introduce none.
+            plan = plan_substitutions(recipe, table, index=index, gate=False)
+            optional = [
+                c for c in plan.optional_changes
+                if (c.old_name.strip().lower(),
+                    c.new_name.strip().lower()) in disclosed
+            ]
+            for change in plan.optional_changes:
+                if change not in optional:
+                    self.stdout.write(
+                        f'  {recipe.slug}: leaving undisclosed optional swap '
+                        f'{change.old_name} → {change.new_name}')
+
+            new_ingredients = recipe.ingredients
+            if optional:
+                new_ingredients = apply_changes_to_ingredients(
+                    recipe.ingredients,
+                    SubstitutionPlan(changes=[], optional_changes=optional))
+                # The prose must describe the list as it now stands.
+                applied = diff_applied_changes(
+                    recipe.original_ingredients, new_ingredients)
+
+            if new_ingredients == recipe.ingredients:
+                skipped += 1
+                continue
+
+            with transaction.atomic():
+                recipe.ingredients = new_ingredients
+                tier, blockers = compute_shopping_difficulty(recipe, index=index)
+                recipe.shopping_difficulty = tier
+                recipe.shopping_blockers = blockers
+                recipe.save(update_fields=[
+                    'ingredients', 'shopping_difficulty', 'shopping_blockers',
+                    'updated_at',
+                ])
+            repaired += 1
 
         summary = f'repaired={repaired} skipped={skipped} failed={failed}'
         if unjudged:
