@@ -6,7 +6,8 @@ from django.test import TestCase
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe, IngredientAlias
 from diet_planner.models.catalog import IngredientSubstitute
-from diet_planner.services.ingredient_substitution import diff_applied_changes
+from diet_planner.services.ingredient_substitution import (
+    IngredientChange, diff_applied_changes, disclosed_swaps)
 
 
 class SubstitutePurposeFieldTests(TestCase):
@@ -608,3 +609,39 @@ class DiffAppliedChangesTests(TestCase):
             diff_applied_changes([{'name': ''}], [{'name': 'med'}]), [])
         self.assertEqual(
             diff_applied_changes([{'name': 'med'}], [{'name': ''}]), [])
+
+
+class DisclosedSwapsTests(TestCase):
+    """Which (old -> new) pairs a row has already published."""
+
+    def test_reads_pairs_out_of_the_note(self):
+        note = ('Upraveno pro dostupnost v českých obchodech: '
+                'javorový sirup → med, avokádový olej → řepkový olej')
+        self.assertEqual(
+            disclosed_swaps(note, []),
+            {('javorový sirup', 'med'), ('avokádový olej', 'řepkový olej')})
+
+    def test_reads_pairs_out_of_the_applied_diff(self):
+        changes = [IngredientChange(
+            index=0, old_name='javorový sirup', old_slug='maple-syrup',
+            new_name='med', new_canonical='honey',
+            new_quantity=2, new_unit='lžíce')]
+        self.assertEqual(
+            disclosed_swaps('', changes), {('javorový sirup', 'med')})
+
+    def test_comparison_is_case_insensitive(self):
+        # The note preserves whatever case the rule carried: prod holds
+        # 'avokádový olej → Řepkový olej' with a capitalised replacement.
+        note = 'Upraveno pro dostupnost v českých obchodech: Javorový Sirup → Med'
+        self.assertIn(('javorový sirup', 'med'), disclosed_swaps(note, []))
+
+    def test_empty_note_and_no_changes_disclose_nothing(self):
+        self.assertEqual(disclosed_swaps('', []), set())
+
+    def test_note_without_the_prefix_is_still_parsed(self):
+        self.assertEqual(
+            disclosed_swaps('javorový sirup → med', []),
+            {('javorový sirup', 'med')})
+
+    def test_chunk_without_an_arrow_is_skipped(self):
+        self.assertEqual(disclosed_swaps('nějaká poznámka', []), set())

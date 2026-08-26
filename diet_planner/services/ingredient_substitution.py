@@ -244,3 +244,34 @@ def diff_applied_changes(original, current) -> List[IngredientChange]:
             new_unit=(new.get('unit') or '').strip(),
         ))
     return changes
+
+
+#: The `adaptation_note` body's separators. Duplicated from the command that
+#: writes it rather than imported, because a service importing a management
+#: command inverts the dependency.
+_NOTE_ARROW = '→'
+_NOTE_JOIN = ', '
+
+
+def disclosed_swaps(note: str, applied: List[IngredientChange]) -> set:
+    """The (old_name, new_name) pairs this row has already published, lowered.
+
+    Two sources, unioned: the `adaptation_note` — what the reader was told —
+    and the diff of what was actually applied. A swap present in either is one
+    the recipe already claims, so finishing it in an unreached optional entry
+    completes a disclosure rather than making a new editorial change.
+    """
+    pairs = {(c.old_name.strip().lower(), c.new_name.strip().lower())
+             for c in applied}
+
+    body = note or ''
+    if ': ' in body:
+        body = body.split(': ', 1)[1]
+    for chunk in body.split(_NOTE_JOIN):
+        if _NOTE_ARROW not in chunk:
+            continue
+        old, new = chunk.split(_NOTE_ARROW, 1)
+        old, new = old.strip().lower(), new.strip().lower()
+        if old and new:
+            pairs.add((old, new))
+    return pairs
