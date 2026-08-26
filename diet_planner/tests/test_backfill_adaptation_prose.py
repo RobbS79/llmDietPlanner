@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from diet_planner.models import CuratedRecipe
+from diet_planner.services.substitution_rewrite import RewriteError
 
 CMD = 'diet_planner.management.commands.backfill_adaptation_prose'
 NOTE = ('Upraveno pro dostupnost v českých obchodech: '
@@ -122,3 +123,72 @@ class OptionalLineTests(TestCase):
         recipe.refresh_from_db()
         self.assertEqual(recipe.ingredients[1]['name'], 'vanilkový extrakt')
         self.assertIn('undisclosed', out.getvalue())
+
+
+class ProseRepairTests(TestCase):
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        call_command('load_availability_substitutions', stdout=StringIO())
+        judge = mock.patch(
+            f'{CMD}.judge_curated_recipe',
+            return_value={'ran': True, 'verdict': 'coherent',
+                          'high_severity_count': 0})
+        judge.start()
+        self.addCleanup(judge.stop)
+
+    def test_rewrites_a_title_and_description_the_swap_made_false(self):
+        recipe = _adapted()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        return_value=('Medové muffiny',
+                                      'Muffiny slazené medem.')) as prose:
+            call_command('backfill_adaptation_prose', stdout=StringIO())
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.name_cs, 'Medové muffiny')
+        self.assertEqual(recipe.description, 'Muffiny slazené medem.')
+        # The reconstructed plan is what the rewriter was handed.
+        plan = prose.call_args.args[2]
+        self.assertEqual(
+            [(c.old_name, c.new_name) for c in plan.changes],
+            [('javorový sirup', 'med')])
+
+    def test_leaves_the_slug_alone_even_when_the_name_changes(self):
+        recipe = _adapted()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        return_value=('Medové muffiny', 'Muffiny s medem.')):
+            call_command('backfill_adaptation_prose', stdout=StringIO())
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.slug, 'javorove-muffiny')
+
+    def test_a_clean_row_is_left_completely_alone(self):
+        recipe = _adapted(name_cs='Medové muffiny',
+                          description='Muffiny slazené medem.')
+        before = recipe.updated_at
+        out = StringIO()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        side_effect=lambda n, d, p: (n, d)):
+            call_command('backfill_adaptation_prose', stdout=out)
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.updated_at, before)
+        self.assertIn('repaired=0', out.getvalue())
+
+    def test_a_rewrite_error_leaves_the_row_untouched(self):
+        recipe = _adapted()
+        out = StringIO()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        side_effect=RewriteError('bad shape')):
+            call_command('backfill_adaptation_prose', stdout=out)
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.name_cs, 'Javorové muffiny')
+        self.assertIn('failed=1', out.getvalue())
+
+    def test_dry_run_writes_nothing(self):
+        recipe = _adapted()
+        out = StringIO()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        return_value=('Medové muffiny', 'Muffiny s medem.')):
+            call_command('backfill_adaptation_prose', '--dry-run', stdout=out)
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.name_cs, 'Javorové muffiny')
+        self.assertIn('[dry-run]', out.getvalue())
+        self.assertIn('repaired=1', out.getvalue())

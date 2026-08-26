@@ -105,22 +105,49 @@ class Command(BaseCommand):
                 applied = diff_applied_changes(
                     recipe.original_ingredients, new_ingredients)
 
-            if new_ingredients == recipe.ingredients:
+            # Step 2 — the prose. The change list is the diff, so the rewrite
+            # describes the list as it actually stands, not as today's table
+            # would have swapped it.
+            plan_for_prose = SubstitutionPlan(changes=applied)
+            try:
+                new_name, new_description = rewrite_prose(
+                    recipe.name_cs, recipe.description, plan_for_prose)
+            except RewriteError as exc:
+                failed += 1
+                self.stdout.write(self.style.WARNING(
+                    f'  {recipe.slug}: prose rewrite failed: {exc}'))
+                continue
+
+            prose_changed = (new_name != recipe.name_cs
+                             or new_description != recipe.description)
+            if new_ingredients == recipe.ingredients and not prose_changed:
                 skipped += 1
+                continue
+
+            self.stdout.write(f'{recipe.slug}: {plan_for_prose.summary()}')
+            if prose_changed:
+                self.stdout.write(f'    {recipe.name_cs!r} -> {new_name!r}')
+
+            if options['dry_run']:
+                repaired += 1
                 continue
 
             with transaction.atomic():
                 recipe.ingredients = new_ingredients
+                # slug is deliberately NOT regenerated: the URL is public.
+                recipe.name_cs = new_name
+                recipe.description = new_description
                 tier, blockers = compute_shopping_difficulty(recipe, index=index)
                 recipe.shopping_difficulty = tier
                 recipe.shopping_blockers = blockers
                 recipe.save(update_fields=[
-                    'ingredients', 'shopping_difficulty', 'shopping_blockers',
-                    'updated_at',
+                    'ingredients', 'name_cs', 'description',
+                    'shopping_difficulty', 'shopping_blockers', 'updated_at',
                 ])
             repaired += 1
 
-        summary = f'repaired={repaired} skipped={skipped} failed={failed}'
+        prefix = '[dry-run] ' if options['dry_run'] else ''
+        summary = f'{prefix}repaired={repaired} skipped={skipped} failed={failed}'
         if unjudged:
             summary += f' unjudged={unjudged}'
         self.stdout.write(self.style.SUCCESS(summary))
