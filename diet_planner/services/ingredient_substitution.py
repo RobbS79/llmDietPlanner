@@ -204,3 +204,43 @@ def apply_changes_to_ingredients(ingredients, plan: SubstitutionPlan) -> List[di
         # Points at a StoreProduct for the ingredient we just replaced.
         entry.pop('catalog_id', None)
     return out
+
+
+def diff_applied_changes(original, current) -> List[IngredientChange]:
+    """The swaps a row already carries: entries renamed since the snapshot.
+
+    Ground truth for what THIS row contains. Re-planning from
+    `original_ingredients` would instead report what the swap *would be today*,
+    and the table has drifted since these rows were adapted (the PR #72
+    oat-flour/tamari re-rating, the PR #75 tapioca swap) — so a re-plan can name
+    an ingredient the list does not hold. Prose has to describe the actual food.
+
+    `apply_changes_to_ingredients` edits entries positionally and preserves
+    length, so the two lists align by index. A length mismatch means that
+    invariant was broken by something else, and diffing on would pair unrelated
+    ingredients into a fictional swap: return nothing and let the caller report
+    the row instead.
+    """
+    changes: List[IngredientChange] = []
+    original = original or []
+    current = current or []
+    if not original or len(original) != len(current):
+        return changes
+
+    for position, (old, new) in enumerate(zip(original, current)):
+        if not isinstance(old, dict) or not isinstance(new, dict):
+            continue
+        old_name = (old.get('name') or '').strip()
+        new_name = (new.get('name') or '').strip()
+        if not old_name or not new_name or old_name == new_name:
+            continue
+        changes.append(IngredientChange(
+            index=position,
+            old_name=old_name,
+            old_slug=(old.get('canonical') or '').strip(),
+            new_name=new_name,
+            new_canonical=(new.get('canonical') or '').strip(),
+            new_quantity=new.get('quantity'),
+            new_unit=(new.get('unit') or '').strip(),
+        ))
+    return changes

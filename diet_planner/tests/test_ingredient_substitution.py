@@ -6,6 +6,7 @@ from django.test import TestCase
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe, IngredientAlias
 from diet_planner.models.catalog import IngredientSubstitute
+from diet_planner.services.ingredient_substitution import diff_applied_changes
 
 
 class SubstitutePurposeFieldTests(TestCase):
@@ -556,3 +557,54 @@ class OptionalIngredientSwapTests(TestCase):
             plan.summary(),
             'vanilkový extrakt → vanilkové aroma, '
             'javorový sirup na podávání → med')
+
+
+class DiffAppliedChangesTests(TestCase):
+    """Reconstructing the swaps a row already carries, from its own snapshot."""
+
+    def test_reports_a_renamed_entry_with_its_index(self):
+        original = [
+            {'name': 'sůl', 'canonical': 'salt', 'quantity': 5, 'unit': 'g'},
+            {'name': 'javorový sirup', 'canonical': 'maple-syrup',
+             'quantity': 2, 'unit': 'lžíce'},
+        ]
+        current = [
+            {'name': 'sůl', 'canonical': 'salt', 'quantity': 5, 'unit': 'g'},
+            {'name': 'med', 'canonical': 'honey', 'quantity': 2, 'unit': 'lžíce'},
+        ]
+        changes = diff_applied_changes(original, current)
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].index, 1)
+        self.assertEqual(changes[0].old_name, 'javorový sirup')
+        self.assertEqual(changes[0].old_slug, 'maple-syrup')
+        self.assertEqual(changes[0].new_name, 'med')
+        self.assertEqual(changes[0].new_canonical, 'honey')
+
+    def test_ignores_entries_whose_name_did_not_change(self):
+        entries = [{'name': 'sůl', 'canonical': 'salt'}]
+        self.assertEqual(diff_applied_changes(entries, entries), [])
+
+    def test_length_mismatch_yields_nothing_rather_than_guessing(self):
+        # Misaligned lists cannot be diffed positionally; refusing beats
+        # inventing a swap between two unrelated ingredients.
+        self.assertEqual(
+            diff_applied_changes(
+                [{'name': 'a'}, {'name': 'b'}], [{'name': 'a'}]),
+            [])
+
+    def test_missing_snapshot_yields_nothing(self):
+        self.assertEqual(diff_applied_changes(None, [{'name': 'med'}]), [])
+        self.assertEqual(diff_applied_changes([], [{'name': 'med'}]), [])
+
+    def test_skips_non_dict_entries(self):
+        # Generated (non-corpus) meals carry bare strings.
+        changes = diff_applied_changes(
+            ['javorový sirup', {'name': 'sůl', 'canonical': 'salt'}],
+            ['med', {'name': 'sůl', 'canonical': 'salt'}])
+        self.assertEqual(changes, [])
+
+    def test_blank_name_on_either_side_is_not_a_swap(self):
+        self.assertEqual(
+            diff_applied_changes([{'name': ''}], [{'name': 'med'}]), [])
+        self.assertEqual(
+            diff_applied_changes([{'name': 'med'}], [{'name': ''}]), [])
