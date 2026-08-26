@@ -30,6 +30,17 @@ class ApplySubstitutionsTests(TestCase):
         call_command('seed_canonical_ingredients', stdout=StringIO())
         call_command('rate_ingredient_availability', stdout=StringIO())
         call_command('load_availability_substitutions', stdout=StringIO())
+        # These tests are about the ingredient swap, not the prose. Hold name
+        # and description still class-wide: unpatched, the command's prose
+        # rewrite reaches for a live LLM and the RewriteError skips the recipe,
+        # so every swap assertion below would fail for an unrelated reason.
+        # ProseIsAdaptedTests covers the prose path properly.
+        prose = mock.patch(
+            'diet_planner.management.commands.apply_availability_substitutions'
+            '.rewrite_prose',
+            side_effect=lambda name, description, plan: (name, description))
+        prose.start()
+        self.addCleanup(prose.stop)
 
     def _patched(self, verdict=None):
         """judge_curated_recipe returns JudgeVerdict.as_stats() — there is no
@@ -266,3 +277,86 @@ class UnpublishUnshoppableTests(TestCase):
         out = StringIO()
         call_command('unpublish_unshoppable', stdout=out)
         self.assertIn('demoted=0', out.getvalue())
+
+
+class ProseIsAdaptedTests(TestCase):
+    """The command rewrote ingredients and steps but left the prose claiming
+    the old ingredient — 10 published recipes on prod said so, 2 in the title.
+    """
+
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        call_command('load_availability_substitutions', stdout=StringIO())
+
+    def _patched(self, prose=('Koláč s aroma', 'Koláč s vanilkovým aroma.')):
+        return (
+            mock.patch(
+                'diet_planner.management.commands.apply_availability_substitutions'
+                '.rewrite_instructions',
+                return_value=[{'text': 'Přidejte vanilkové aroma.', 'time_min': 1}]),
+            mock.patch(
+                'diet_planner.management.commands.apply_availability_substitutions'
+                '.rewrite_prose', return_value=prose),
+            mock.patch(
+                'diet_planner.management.commands.apply_availability_substitutions'
+                '.judge_curated_recipe',
+                return_value={'ran': True, 'verdict': 'coherent',
+                              'high_severity_count': 0}),
+        )
+
+    def test_name_and_description_are_saved(self):
+        r = _recipe(name_cs='Koláč s vanilkovým extraktem',
+                    description='Koláč s vanilkovým extraktem.')
+        rewrite, prose, judge = self._patched()
+        with rewrite, prose, judge:
+            call_command('apply_availability_substitutions', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.name_cs, 'Koláč s aroma')
+        self.assertEqual(r.description, 'Koláč s vanilkovým aroma.')
+
+    def test_slug_never_changes(self):
+        """URLs are public; the title is what the reader sees."""
+        r = _recipe(name_cs='Koláč s vanilkovým extraktem',
+                    description='Koláč s vanilkovým extraktem.')
+        rewrite, prose, judge = self._patched()
+        with rewrite, prose, judge:
+            call_command('apply_availability_substitutions', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.slug, 'vanilkovy-kolac')
+
+    def test_prose_rewrite_failure_discards_the_whole_adaptation(self):
+        """Half-adapted is worse than unadapted — same contract as steps."""
+        from diet_planner.services.substitution_rewrite import RewriteError
+        r = _recipe(name_cs='Koláč s vanilkovým extraktem',
+                    description='Koláč s vanilkovým extraktem.')
+        rewrite, _prose, judge = self._patched()
+        boom = mock.patch(
+            'diet_planner.management.commands.apply_availability_substitutions'
+            '.rewrite_prose', side_effect=RewriteError('nope'))
+        with rewrite, boom, judge:
+            call_command('apply_availability_substitutions', stdout=StringIO())
+        r.refresh_from_db()
+        self.assertEqual(r.adaptation_note, '')
+        self.assertEqual(r.ingredients[0]['canonical'], 'vanilla-extract')
+        self.assertEqual(r.name_cs, 'Koláč s vanilkovým extraktem')
+
+    def test_judge_sees_the_rewritten_prose(self):
+        """The judge must score what we intend to save, not the stale title."""
+        r = _recipe(name_cs='Koláč s vanilkovým extraktem',
+                    description='Koláč s vanilkovým extraktem.')
+        seen = {}
+
+        def capture(candidate):
+            seen['name'] = candidate.name_cs
+            seen['description'] = candidate.description
+            return {'ran': True, 'verdict': 'coherent', 'high_severity_count': 0}
+
+        rewrite, prose, _judge = self._patched()
+        with rewrite, prose, mock.patch(
+            'diet_planner.management.commands.apply_availability_substitutions'
+            '.judge_curated_recipe', side_effect=capture,
+        ):
+            call_command('apply_availability_substitutions', stdout=StringIO())
+        self.assertEqual(seen['name'], 'Koláč s aroma')
+        self.assertEqual(seen['description'], 'Koláč s vanilkovým aroma.')

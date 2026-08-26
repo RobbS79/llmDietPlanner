@@ -463,3 +463,96 @@ class PlanSubstitutionsTests(TestCase):
                                                        'canonical': 'salt'}])
         plan = plan_substitutions(r, self.table)
         self.assertEqual(plan.changes, [])
+
+
+class OptionalIngredientSwapTests(TestCase):
+    """Optional lines were skipped entirely, so an adapted recipe could keep
+    listing the very item it claims to have replaced.
+
+    Measured on prod 2026-08-25: `ovesne-livance` still listed
+    'avokádový olej na pánev' — a SPECIALTY item — after adaptation.
+
+    Optional entries must never enter the gating calculus (they cannot sink a
+    plan), but once a recipe is being adapted anyway they must be swapped too.
+    """
+
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        call_command('load_availability_substitutions', stdout=StringIO())
+        from diet_planner.services.ingredient_substitution import substitution_table
+        self.table = substitution_table()
+
+    def test_optional_entry_is_swapped_when_the_recipe_is_adapted_anyway(self):
+        from diet_planner.services.ingredient_substitution import plan_substitutions
+        r = _recipe(ingredients=[
+            {'name': 'vanilkový extrakt', 'canonical': 'vanilla-extract',
+             'quantity': 1, 'unit': 'lžička'},
+            {'name': 'javorový sirup na podávání', 'canonical': 'maple-syrup',
+             'quantity': 30, 'unit': 'ml', 'optional': True},
+        ])
+        plan = plan_substitutions(r, self.table)
+        self.assertTrue(plan.saveable)
+        self.assertEqual(len(plan.optional_changes), 1)
+        self.assertEqual(plan.optional_changes[0].new_canonical, 'honey')
+        self.assertEqual(plan.optional_changes[0].index, 1)
+
+    def test_optional_entry_never_blocks_a_plan(self):
+        """A specialty optional item must not gate the recipe out."""
+        from diet_planner.services.ingredient_substitution import plan_substitutions
+        r = _recipe(ingredients=[
+            {'name': 'vanilkový extrakt', 'canonical': 'vanilla-extract',
+             'quantity': 1, 'unit': 'lžička'},
+            {'name': 'nori', 'canonical': 'nori', 'quantity': 2,
+             'unit': 'list', 'optional': True},
+        ])
+        plan = plan_substitutions(r, self.table)
+        self.assertTrue(plan.saveable)
+        self.assertEqual(plan.blocking, [])
+        self.assertEqual(plan.uncovered, [])
+
+    def test_optional_only_recipe_is_not_adapted(self):
+        """Never rewrite a credited recipe just for a garnish: an optional swap
+        is a passenger on a real rescue, not a reason to start one."""
+        from diet_planner.services.ingredient_substitution import plan_substitutions
+        r = _recipe(ingredients=[
+            {'name': 'sůl', 'canonical': 'salt', 'quantity': 5, 'unit': 'g'},
+            {'name': 'javorový sirup', 'canonical': 'maple-syrup',
+             'quantity': 30, 'unit': 'ml', 'optional': True},
+        ])
+        plan = plan_substitutions(r, self.table)
+        self.assertFalse(plan.saveable)
+        self.assertEqual(plan.optional_changes, [])
+
+    def test_apply_changes_swaps_optional_entries_too(self):
+        from diet_planner.services.ingredient_substitution import (
+            apply_changes_to_ingredients, plan_substitutions,
+        )
+        ingredients = [
+            {'name': 'vanilkový extrakt', 'canonical': 'vanilla-extract',
+             'quantity': 1, 'unit': 'lžička'},
+            {'name': 'javorový sirup na podávání', 'canonical': 'maple-syrup',
+             'quantity': 30, 'unit': 'ml', 'optional': True},
+        ]
+        r = _recipe(ingredients=ingredients)
+        plan = plan_substitutions(r, self.table)
+        out = apply_changes_to_ingredients(ingredients, plan)
+        self.assertEqual(out[1]['canonical'], 'honey')
+        self.assertTrue(out[1]['optional'], 'optional flag must survive')
+        self.assertEqual(ingredients[1]['canonical'], 'maple-syrup',
+                         'input must not be mutated')
+
+    def test_summary_discloses_optional_swaps_too(self):
+        """The note is what the reader — and any later audit — is told."""
+        from diet_planner.services.ingredient_substitution import plan_substitutions
+        r = _recipe(ingredients=[
+            {'name': 'vanilkový extrakt', 'canonical': 'vanilla-extract',
+             'quantity': 1, 'unit': 'lžička'},
+            {'name': 'javorový sirup na podávání', 'canonical': 'maple-syrup',
+             'quantity': 30, 'unit': 'ml', 'optional': True},
+        ])
+        plan = plan_substitutions(r, self.table)
+        self.assertEqual(
+            plan.summary(),
+            'vanilkový extrakt → vanilkové aroma, '
+            'javorový sirup na podávání → med')

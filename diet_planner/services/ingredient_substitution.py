@@ -61,10 +61,21 @@ class SubstitutionPlan:
     #: The subset of `uncovered` that is `specialty` — the only tier retrieval
     #: actually gates on, and therefore the only one that can sink a plan.
     blocking: List[str] = field(default_factory=list)
+    #: Swaps on `optional` entries. Kept apart from `changes` because optional
+    #: items must never enter the gating calculus — they cannot sink a plan and
+    #: are not a reason to start one. They ride along on a real rescue so an
+    #: adapted recipe stops listing the ingredient it says it replaced.
+    optional_changes: List[IngredientChange] = field(default_factory=list)
 
     def summary(self) -> str:
-        """The adaptation_note body: 'tamari → sójová omáčka, ...'."""
-        return ', '.join(f'{c.old_name} → {c.new_name}' for c in self.changes)
+        """The adaptation_note body: 'tamari → sójová omáčka, ...'.
+
+        Optional swaps are disclosed too — the note is what the reader is told
+        we changed, and what a later audit reads back.
+        """
+        return ', '.join(
+            f'{c.old_name} → {c.new_name}'
+            for c in list(self.changes) + list(self.optional_changes))
 
 
 def substitution_table() -> Dict[str, SubstitutionRule]:
@@ -124,8 +135,9 @@ def plan_substitutions(
     for position, ing in enumerate(recipe.ingredients or []):
         # Generated (non-corpus) meals carry bare strings rather than dicts;
         # those have no canonical to rate, so they are skipped, not crashed on.
-        if not isinstance(ing, dict) or ing.get('optional'):
+        if not isinstance(ing, dict):
             continue
+        optional = bool(ing.get('optional'))
 
         availability, key = _entry_availability(ing, index)
         if availability == Availability.COMMON:
@@ -133,9 +145,13 @@ def plan_substitutions(
 
         rule = table.get(key)
         if rule is None or _breaks_dietary_promise(recipe, rule):
-            plan.uncovered.append(key)
-            if availability == Availability.SPECIALTY:
-                plan.blocking.append(key)
+            # An optional entry we cannot swap is not a shopping problem: the
+            # cook simply leaves it out. Reporting it would let a garnish gate
+            # the whole recipe out of retrieval.
+            if not optional:
+                plan.uncovered.append(key)
+                if availability == Availability.SPECIALTY:
+                    plan.blocking.append(key)
             continue
 
         quantity = ing.get('quantity')
@@ -147,7 +163,8 @@ def plan_substitutions(
         except (TypeError, ValueError):
             new_quantity = None
 
-        plan.changes.append(IngredientChange(
+        target = plan.optional_changes if optional else plan.changes
+        target.append(IngredientChange(
             index=position,
             old_name=(ing.get('name') or '').strip(),
             old_slug=key,
@@ -159,9 +176,12 @@ def plan_substitutions(
 
     plan.uncovered = sorted(set(plan.uncovered))
     plan.blocking = sorted(set(plan.blocking))
+    # `changes` alone decides saveability: an optional-only plan would
+    # rewrite a credited recipe for a garnish and rescue nothing.
     plan.saveable = bool(plan.changes) and not plan.blocking
     if not plan.saveable:
         plan.changes = []
+        plan.optional_changes = []
     return plan
 
 
@@ -173,7 +193,7 @@ def apply_changes_to_ingredients(ingredients, plan: SubstitutionPlan) -> List[di
     quietly corrupt the very record that proves what we changed.
     """
     out = [dict(ing) if isinstance(ing, dict) else ing for ing in (ingredients or [])]
-    for change in plan.changes:
+    for change in list(plan.changes) + list(plan.optional_changes):
         entry = out[change.index]
         entry['name'] = change.new_name
         entry['canonical'] = change.new_canonical
