@@ -192,3 +192,65 @@ class ProseRepairTests(TestCase):
         self.assertEqual(recipe.name_cs, 'Javorové muffiny')
         self.assertIn('[dry-run]', out.getvalue())
         self.assertIn('repaired=1', out.getvalue())
+
+
+class JudgeGateTests(TestCase):
+    """A rewrite the judge rejects must never reach the row."""
+
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        call_command('load_availability_substitutions', stdout=StringIO())
+        prose = mock.patch(
+            f'{CMD}.rewrite_prose',
+            return_value=('Medové muffiny', 'Muffiny slazené medem.'))
+        prose.start()
+        self.addCleanup(prose.stop)
+
+    def test_a_rejected_rewrite_is_discarded(self):
+        recipe = _adapted()
+        out = StringIO()
+        with mock.patch(f'{CMD}.judge_curated_recipe',
+                        return_value={'ran': True, 'verdict': 'incoherent',
+                                      'high_severity_count': 2}):
+            call_command('backfill_adaptation_prose', stdout=out)
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.name_cs, 'Javorové muffiny')
+        self.assertIn('failed=1', out.getvalue())
+
+    def test_an_unavailable_judge_applies_and_says_so(self):
+        recipe = _adapted()
+        out = StringIO()
+        with mock.patch(f'{CMD}.judge_curated_recipe',
+                        return_value={'ran': False, 'error': 'no credit'}):
+            call_command('backfill_adaptation_prose', stdout=out)
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.name_cs, 'Medové muffiny')
+        self.assertIn('unjudged=1', out.getvalue())
+        self.assertIn('applying unjudged', out.getvalue())
+
+    def test_skip_judge_never_calls_the_judge(self):
+        _adapted()
+        with mock.patch(f'{CMD}.judge_curated_recipe') as judge:
+            call_command('backfill_adaptation_prose', '--skip-judge',
+                         stdout=StringIO())
+        judge.assert_not_called()
+
+    def test_the_judge_sees_the_candidate_not_the_stored_row(self):
+        recipe = _adapted()
+        seen = {}
+
+        def _judge(candidate):
+            # Captured DURING the call: the stored row must still hold the old
+            # prose at this point, or we are judging something already written.
+            seen['candidate_name'] = candidate.name_cs
+            seen['stored_name'] = CuratedRecipe.objects.get(
+                pk=recipe.pk).name_cs
+            return {'ran': True, 'verdict': 'coherent',
+                    'high_severity_count': 0}
+
+        with mock.patch(f'{CMD}.judge_curated_recipe', side_effect=_judge):
+            call_command('backfill_adaptation_prose', stdout=StringIO())
+
+        self.assertEqual(seen['candidate_name'], 'Medové muffiny')
+        self.assertEqual(seen['stored_name'], 'Javorové muffiny')

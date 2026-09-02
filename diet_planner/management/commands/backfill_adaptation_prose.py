@@ -132,6 +132,29 @@ class Command(BaseCommand):
                 repaired += 1
                 continue
 
+            # Judge the CANDIDATE, not the stored row: build an unsaved copy.
+            candidate = CuratedRecipe(
+                id=recipe.id, slug=recipe.slug, name_cs=new_name,
+                description=new_description,
+                ingredients=new_ingredients, instructions=recipe.instructions,
+                base_servings=recipe.base_servings,
+            )
+            if not options['skip_judge']:
+                verdict = judge_curated_recipe(candidate)
+                if _judge_rejected(verdict):
+                    failed += 1
+                    self.stdout.write(self.style.WARNING(
+                        f"  judge rejected the rewrite — discarded "
+                        f"(verdict={verdict.get('verdict')}, "
+                        f"high={verdict.get('high_severity_count')})"))
+                    continue
+                if not verdict.get('ran'):
+                    # Applying unjudged is a decision, not a detail: say it.
+                    unjudged += 1
+                    self.stdout.write(self.style.WARNING(
+                        f"  judge did not run ({verdict.get('error') or 'disabled'})"
+                        f" — applying unjudged"))
+
             with transaction.atomic():
                 recipe.ingredients = new_ingredients
                 # slug is deliberately NOT regenerated: the URL is public.
