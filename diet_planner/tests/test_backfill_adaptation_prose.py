@@ -254,3 +254,81 @@ class JudgeGateTests(TestCase):
 
         self.assertEqual(seen['candidate_name'], 'Medové muffiny')
         self.assertEqual(seen['stored_name'], 'Javorové muffiny')
+
+
+class NoteAndIdempotenceTests(TestCase):
+    """The note stays true to the food, and a second run is a no-op."""
+
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        call_command('load_availability_substitutions', stdout=StringIO())
+        judge = mock.patch(
+            f'{CMD}.judge_curated_recipe',
+            return_value={'ran': True, 'verdict': 'coherent',
+                          'high_severity_count': 0})
+        judge.start()
+        self.addCleanup(judge.stop)
+
+    def test_the_note_is_left_alone_when_it_already_names_every_swap(self):
+        recipe = _adapted()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        return_value=('Medové muffiny', 'Muffiny s medem.')):
+            call_command('backfill_adaptation_prose', stdout=StringIO())
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.adaptation_note, NOTE)
+
+    def test_a_second_run_writes_nothing(self):
+        recipe = _adapted()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        return_value=('Medové muffiny', 'Muffiny s medem.')):
+            call_command('backfill_adaptation_prose', stdout=StringIO())
+        recipe.refresh_from_db()
+        after_first = recipe.updated_at
+
+        out = StringIO()
+        # Second run: the prose no longer leans on anything removed, so the
+        # real rewrite_prose returns it untouched without an LLM call.
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        side_effect=lambda n, d, p: (n, d)):
+            call_command('backfill_adaptation_prose', stdout=out)
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.updated_at, after_first)
+        self.assertIn('repaired=0', out.getvalue())
+
+    def test_an_unusable_snapshot_is_skipped_not_crashed_on(self):
+        _adapted(slug='rozbity', original_ingredients=[{'name': 'jen jedna'}])
+        out = StringIO()
+        call_command('backfill_adaptation_prose', stdout=out)
+        self.assertIn('repaired=0', out.getvalue())
+
+    def test_the_note_is_extended_when_it_omits_an_applied_swap(self):
+        """The guard's only real case: a note that under-discloses.
+
+        `adaptation_note` truncates at 300 chars, so a row carrying many swaps
+        can hold food its note never names. The prose then describes an
+        ingredient the disclosure does not account for.
+        """
+        recipe = _adapted(
+            slug='zkraceny-zapis',
+            original_ingredients=[
+                {'name': 'javorový sirup', 'canonical': 'maple-syrup',
+                 'quantity': 2, 'unit': 'lžíce'},
+                {'name': 'pekanové ořechy', 'canonical': 'pecans',
+                 'quantity': 50, 'unit': 'g'},
+            ],
+            ingredients=[
+                {'name': 'med', 'canonical': 'honey',
+                 'quantity': 2, 'unit': 'lžíce'},
+                {'name': 'vlašské ořechy', 'canonical': 'walnuts',
+                 'quantity': 50, 'unit': 'g'},
+            ],
+        )
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        return_value=('Medové muffiny',
+                                      'Muffiny s medem a vlašskými ořechy.')):
+            call_command('backfill_adaptation_prose', stdout=StringIO())
+        recipe.refresh_from_db()
+        self.assertIn('javorový sirup → med', recipe.adaptation_note)
+        self.assertIn('pekanové ořechy → vlašské ořechy',
+                      recipe.adaptation_note)

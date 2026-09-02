@@ -155,16 +155,34 @@ class Command(BaseCommand):
                         f"  judge did not run ({verdict.get('error') or 'disabled'})"
                         f" — applying unjudged"))
 
+            # Every applied swap should already be named in the note — the
+            # disclosure filter guarantees it for the optional entries we add.
+            # It is not guaranteed for what the rescue itself applied: the note
+            # truncates at 300 chars, so a row can carry food its note never
+            # names. Extend it rather than let the prose describe an
+            # undisclosed swap.
+            note = recipe.adaptation_note
+            named = disclosed_swaps(note, [])
+            missing = [c for c in applied
+                       if (c.old_name.strip().lower(),
+                           c.new_name.strip().lower()) not in named]
+            if missing:
+                extra = SubstitutionPlan(changes=missing).summary()
+                note = (f'{note}, {extra}' if note else _NOTE_PREFIX + extra)
+                note = note[:_NOTE_MAX]
+                self.stdout.write(f'    note extended: {extra}')
+
             with transaction.atomic():
                 recipe.ingredients = new_ingredients
                 # slug is deliberately NOT regenerated: the URL is public.
                 recipe.name_cs = new_name
                 recipe.description = new_description
+                recipe.adaptation_note = note
                 tier, blockers = compute_shopping_difficulty(recipe, index=index)
                 recipe.shopping_difficulty = tier
                 recipe.shopping_blockers = blockers
                 recipe.save(update_fields=[
-                    'ingredients', 'name_cs', 'description',
+                    'ingredients', 'name_cs', 'description', 'adaptation_note',
                     'shopping_difficulty', 'shopping_blockers', 'updated_at',
                 ])
             repaired += 1
