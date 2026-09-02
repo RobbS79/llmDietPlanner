@@ -192,3 +192,12 @@ class Command(BaseCommand):
         if unjudged:
             summary += f' unjudged={unjudged}'
         self.stdout.write(self.style.SUCCESS(summary))
+
+        # The run spends real tokens; report the bill rather than let it pass
+        # silently. `unmetered` is kept separate so an unknown cost can never
+        # read as a zero cost.
+        usage = usage_snapshot()
+        self.stdout.write(
+            f"  llm: calls={usage['calls']} "
+            f"unmetered={usage['unmetered_calls']} "
+            f"tokens={usage['total_tokens']}")

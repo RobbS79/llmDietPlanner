@@ -332,3 +332,23 @@ class NoteAndIdempotenceTests(TestCase):
         self.assertIn('javorový sirup → med', recipe.adaptation_note)
         self.assertIn('pekanové ořechy → vlašské ořechy',
                       recipe.adaptation_note)
+
+
+class UsageReportTests(TestCase):
+    """A run costs real money; a silent cost is an understated one."""
+
+    def setUp(self):
+        call_command('seed_canonical_ingredients', stdout=StringIO())
+        call_command('rate_ingredient_availability', stdout=StringIO())
+        call_command('load_availability_substitutions', stdout=StringIO())
+
+    def test_the_summary_reports_the_llm_bill(self):
+        _adapted()
+        out = StringIO()
+        with mock.patch(f'{CMD}.rewrite_prose',
+                        return_value=('Medové muffiny', 'Muffiny s medem.')), \
+             mock.patch(f'{CMD}.judge_curated_recipe',
+                        return_value={'ran': True, 'verdict': 'coherent',
+                                      'high_severity_count': 0}):
+            call_command('backfill_adaptation_prose', stdout=out)
+        self.assertIn('calls=', out.getvalue())
