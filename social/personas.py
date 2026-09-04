@@ -1,7 +1,9 @@
 """Fixed prompts for the Friday plan showcase. Each is a realistic Czech
 request from a target persona (docs/persona-test-prompts.md); the pipeline
-rotates through them by ISO week number so the same one is not shown twice
-in a row. Keep them honest to what the product does well."""
+rotates by absolute week index so no prompt repeats week-to-week. Keep them
+honest to what the product does well."""
+
+from .weeks import week_start
 
 PERSONA_PROMPTS = [
     # Time-Pressed Couple
@@ -13,6 +15,5 @@ PERSONA_PROMPTS = [
 ]
 
 
-def persona_for_week(iso_week: str) -> str:
-    week_number = int(iso_week.split('-W')[1])
-    return PERSONA_PROMPTS[week_number % len(PERSONA_PROMPTS)]
+def persona_for_week(iso: str) -> str:
+    return PERSONA_PROMPTS[week_start(iso).toordinal() // 7 % len(PERSONA_PROMPTS)]
