@@ -420,3 +420,13 @@ class CancelSubscriptionHelperTests(TestCase):
         from billing.services import cancel_subscription_for_user
         with self.assertRaises(RuntimeError):
             cancel_subscription_for_user(self.user)
+
+
+class PlanBrandingTests(TestCase):
+    """The seeded tiers must carry the current brand, not the pre-rename one."""
+
+    def test_seeded_plans_are_branded_varto(self):
+        names = dict(SubscriptionPlan.objects.values_list('tier', 'name'))
+        self.assertEqual(names['standard'], 'Vařto Standard')
+        self.assertEqual(names['premium'], 'Vařto Premium')
+        self.assertFalse(any('Eatalníček' in n for n in names.values()))
