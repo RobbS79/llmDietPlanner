@@ -153,15 +153,15 @@ second JSON field and validated the same way.
 
 ### Layer 3 — image card (`social/cards.py`)
 
-Pillow only. Fonts (Fraunces for display, Inter for text — the site's
-`font-display` and body faces) are vendored under `social/fonts/` with their
+Pillow only. Fonts (Bricolage Grotesque for display, Hanken Grotesk for text — the site's
+`font-display` and `font-body` faces) are vendored under `social/fonts/` with their
 OFL licences. Canvas 1080 × 1350 (4:5, the portrait size both platforms show
-full-size). Palette is the Market Paper theme: paper `#F7F3EC`, ink `#1F1A17`,
-paprika accent, moss for the deal badge — values copied from the Tailwind
+full-size). Palette is the Market Paper theme: paper `#F7F3EC`, ink `#241E1A`,
+paprika `#DB5026` accent, green `#2E6B43` for the deal badge — values copied from the Tailwind
 config into one `PALETTE` dict with a test that fails if the two drift.
 
-- **recipe**: recipe photo (fetched from `https://eatalnicek.eu` + `image_url`,
-  cached in the row's facts as bytes are not; fetch failure → `NoFacts`),
+- **recipe**: recipe photo (fetched over HTTPS from `https://eatalnicek.eu` +
+  `image_url` at generation time; fetch failure → `NoFacts`),
   cover-cropped to the top 60 %; paper panel below with name, `kcal / porce`,
   time if known, "N surovin ve slevě" badge if N > 0, small "Zdroj: <source_name>"
   line, Vařto wordmark bottom-right.
