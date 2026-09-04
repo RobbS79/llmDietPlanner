@@ -2235,7 +2235,7 @@ class Command(BaseCommand):
 
         if dry_run:
             DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
-            (DRY_RUN_DIR / f'{kind}-{week}.png').write_post.image_bytes
+            (DRY_RUN_DIR / f'{kind}-{week}.png').write_bytes(post.image_bytes)
             (DRY_RUN_DIR / f'{kind}-{week}.txt').write_text(
                 f'{post.caption or "(caption rejected: " + post.error + ")"}\n\n{post.group_variant}')
             return 'draft' if post.caption else f'draft without caption ({post.error})'
