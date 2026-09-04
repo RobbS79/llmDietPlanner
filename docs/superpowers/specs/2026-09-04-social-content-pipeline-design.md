@@ -213,7 +213,7 @@ A tiny common interface: `publish(post, image_bytes, caption, link) -> str`
 
 **facebook.py** — Meta Graph API v21: `POST /{PAGE_ID}/photos` multipart with
 `source=<png>`, `message=<caption + link>`, `published=true`, using
-`META_PAGE_ACCESS_TOKEN` (a long-lived Page token; the app may stay in
+`FB_PAGE_ACCESS_TOKEN` (a long-lived Page token; the app may stay in
 development mode because the owner is the Page admin). Returns `post_id`.
 
 **pinterest.py** — Pinterest API v5: `POST /v5/pins` JSON with `board_id`
@@ -246,7 +246,7 @@ non-zero if anything failed.
 DO app spec: two `SCHEDULED` jobs on the same image and env as
 `llm-health-canary`, crons `0 18 * * 0` and `0 9 * * 1,3,5`,
 `time_zone: Europe/Prague`. Env additions (all secrets): `SOCIAL_SLACK_CHANNEL`,
-`META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `PINTEREST_ACCESS_TOKEN`,
+`FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`, `PINTEREST_ACCESS_TOKEN`,
 `PINTEREST_BOARD_ID`. Missing publisher credentials make that channel
 `failed` with a clear message, never a crash of the whole run.
 

@@ -281,8 +281,8 @@ class SocialPostAdmin(admin.ModelAdmin):
 # the publisher reports "no credentials" per channel instead of crashing.
 SOCIAL_SITE_URL = config('SOCIAL_SITE_URL', default='https://eatalnicek.eu')
 SOCIAL_SLACK_CHANNEL = config('SOCIAL_SLACK_CHANNEL', default='')
-META_PAGE_ID = config('META_PAGE_ID', default='')
-META_PAGE_ACCESS_TOKEN = config('META_PAGE_ACCESS_TOKEN', default='')
+FB_PAGE_ID = config('FB_PAGE_ID', default='')
+FB_PAGE_ACCESS_TOKEN = config('FB_PAGE_ACCESS_TOKEN', default='')
 PINTEREST_ACCESS_TOKEN = config('PINTEREST_ACCESS_TOKEN', default='')
 PINTEREST_BOARD_ID = config('PINTEREST_BOARD_ID', default='')
 ```
@@ -1726,7 +1726,7 @@ class SlackDrafts:
         post.save(update_fields=['slack_channel', 'slack_ts'])
         if post.image:
             self.client.files_upload_v2(channel=self.channel, thread_ts=ts,
-                                        content=bytes(post.image),
+                                        content=post.image_bytes,
                                         filename=f'{post.kind}-{post.iso_week}.png',
                                         title=f'{post.kind} {post.iso_week}')
         if post.group_variant:
@@ -1813,7 +1813,7 @@ def _response(status=200, payload=None):
     return resp
 
 
-@override_settings(META_PAGE_ID='111', META_PAGE_ACCESS_TOKEN='EAAtoken')
+@override_settings(FB_PAGE_ID='111', FB_PAGE_ACCESS_TOKEN='EAAtoken')
 class FacebookTests(SimpleTestCase):
     def test_posts_photo_with_caption_and_link(self):
         post = MagicMock(return_value=_response(200, {'id': '999', 'post_id': '111_999'}))
@@ -1834,12 +1834,12 @@ class FacebookTests(SimpleTestCase):
             publish_facebook(caption='x', link='https://e', image=b'PNG', post_fn=post)
         self.assertIn('Invalid OAuth access token', str(ctx.exception))
 
-    @override_settings(META_PAGE_ACCESS_TOKEN='')
+    @override_settings(FB_PAGE_ACCESS_TOKEN='')
     def test_missing_credentials_raise_before_any_request(self):
         post = MagicMock()
         with self.assertRaises(PublishError) as ctx:
             publish_facebook(caption='x', link='https://e', image=b'PNG', post_fn=post)
-        self.assertIn('META_PAGE_ACCESS_TOKEN', str(ctx.exception))
+        self.assertIn('FB_PAGE_ACCESS_TOKEN', str(ctx.exception))
         post.assert_not_called()
 
 
@@ -1914,9 +1914,9 @@ GRAPH = 'https://graph.facebook.com/v21.0'
 
 def publish(*, caption: str, link: str, image: bytes, title: str = '',
             post_fn=requests.post) -> str:
-    page_id, token = settings.META_PAGE_ID, settings.META_PAGE_ACCESS_TOKEN
+    page_id, token = settings.FB_PAGE_ID, settings.FB_PAGE_ACCESS_TOKEN
     if not page_id or not token:
-        raise PublishError('META_PAGE_ID / META_PAGE_ACCESS_TOKEN not configured')
+        raise PublishError('FB_PAGE_ID / FB_PAGE_ACCESS_TOKEN not configured')
     try:
         response = post_fn(
             f'{GRAPH}/{page_id}/photos',
@@ -2068,6 +2068,15 @@ class GenerateCommandTests(TestCase):
         self.assertEqual(seams['slack'].post_draft.call_count, 3)
         self.assertIn('deals 2026-W37: draft', out.getvalue())
 
+    def test_skipped_week_is_retried_on_next_run(self):
+        SocialPost.objects.create(kind='deals', iso_week='2026-W37', scheduled_for='2026-09-07',
+                                  status='skipped', error='only 0 ingredients on offer')
+        seams = _seams(build_facts=lambda kind, week, **kw: FACTS[kind])
+        call_command('generate_social_drafts', kind='deals', **seams)
+        post = SocialPost.objects.get(kind='deals')
+        self.assertEqual((post.status, post.error), ('draft', ''))
+        self.assertTrue(post.image)
+
     def test_rerun_is_idempotent(self):
         seams = _seams()
         call_command('generate_social_drafts', **seams)
@@ -2184,10 +2193,12 @@ class Command(BaseCommand):
         shops, recipes = known_shops(), known_recipe_names()
         failures = []
         for kind in kinds:
-            if not dry_run and SocialPost.objects.filter(kind=kind, iso_week=week).exists():
-                self.stdout.write(f'{kind} {week}: already exists, skipping')
+            existing = SocialPost.objects.filter(kind=kind, iso_week=week).first()
+            if existing and existing.status != SocialPost.Status.SKIPPED and not dry_run:
+                self.stdout.write(f'{kind} {week}: already exists ({existing.status}), skipping')
                 continue
-            outcome = self._draft(kind, week, build, fetch, generate, shops, recipes, slack, dry_run)
+            outcome = self._draft(kind, week, build, fetch, generate, shops, recipes, slack, dry_run,
+                                  existing=None if dry_run else existing)
             self.stdout.write(f'{kind} {week}: {outcome}')
             if outcome != 'draft':
                 failures.append(f'{kind}: {outcome}')
@@ -2195,8 +2206,12 @@ class Command(BaseCommand):
         if failures:
             raise CommandError('some posts were not drafted — ' + '; '.join(failures))
 
-    def _draft(self, kind, week, build, fetch, generate, shops, recipes, slack, dry_run) -> str:
-        post = SocialPost(kind=kind, iso_week=week, scheduled_for=scheduled_date(week, kind))
+    def _draft(self, kind, week, build, fetch, generate, shops, recipes, slack, dry_run,
+               existing=None) -> str:
+        # A week that ended `skipped` (no facts on Sunday) is retried on the next
+        # run by reusing its row, so the (kind, week) constraint never blocks recovery.
+        post = existing or SocialPost(kind=kind, iso_week=week, scheduled_for=scheduled_date(week, kind))
+        post.status, post.error = SocialPost.Status.DRAFT, ''
         try:
             facts = build(kind, week)
             photo = None
@@ -2220,7 +2235,7 @@ class Command(BaseCommand):
 
         if dry_run:
             DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
-            (DRY_RUN_DIR / f'{kind}-{week}.png').write_bytes(post.image)
+            (DRY_RUN_DIR / f'{kind}-{week}.png').write_post.image_bytes
             (DRY_RUN_DIR / f'{kind}-{week}.txt').write_text(
                 f'{post.caption or "(caption rejected: " + post.error + ")"}\n\n{post.group_variant}')
             return 'draft' if post.caption else f'draft without caption ({post.error})'
@@ -2514,7 +2529,7 @@ class Command(BaseCommand):
             publish = publishers.get(channel) or get_publisher(channel)
             link = post.facts['link'].replace('{channel}', channel)
             try:
-                external_id = publish(caption=post.caption, link=link, image=bytes(post.image),
+                external_id = publish(caption=post.caption, link=link, image=post.image_bytes,
                                       title=post.facts.get('name', ''))
             except PublishError as exc:
                 errors.append(f'{channel}: {exc}')
@@ -2609,7 +2624,7 @@ unattended and you only react ✅/❌ in Slack.
    `/oauth/access_token?grant_type=fb_exchange_token&client_id=<app id>&client_secret=<app secret>&fb_exchange_token=<user token>`
    then repeat `/me/accounts` with the long-lived user token — the Page token
    it returns does not expire.
-4. DO env: `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`. The app can stay in
+4. DO env: `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`. The app can stay in
    Development mode: you admin the Page, so publishing works without review.
 
 ## 3. Pinterest
