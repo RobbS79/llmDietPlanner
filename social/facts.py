@@ -21,7 +21,7 @@ from diet_planner.models import DietaryGoal, DietaryPlan, Recipe
 from diet_planner.services.recipe_deals import _active_deal_index, recipe_deals
 
 from .models import SocialPost
-from .personas import persona_for_week
+from .personas import PERSONA_PROMPTS, persona_for_week
 
 MIN_DEAL_INGREDIENTS = 3
 MAX_DEAL_INGREDIENTS = 8
@@ -91,7 +91,29 @@ def _recently_posted_recipe_ids() -> set:
     return {f.get('recipe_id') for f in rows if f}
 
 
+def _per_portion_kcal(nutritional_info, servings, curated: bool):
+    """kcal for ONE portion, or None when we cannot say honestly.
+
+    A corpus-backed meal (`curated_recipe_slug` set) was rendered by
+    `scale_recipe_to_meal`, whose `nutritional_info` is the TOTAL for all
+    `servings` portions — the site divides before showing "na porci"
+    (frontend/src/lib/nutrition.ts `nutritionBasisFor`). For an LLM-authored
+    meal the basis is unlabelled, so the frontend only guesses; a post may not
+    guess, so we publish no number at all.
+    """
+    if not curated:
+        return None
+    calories = (nutritional_info or {}).get('calories')
+    if not isinstance(calories, (int, float)) or isinstance(calories, bool) or calories <= 0:
+        return None
+    return round(calories / max(int(servings or 1), 1))
+
+
 def recipe_facts(iso_week: str) -> dict:
+    """Facts for the weekly recipe card. `kcal` is per portion and is only ever
+    filled in for corpus-backed recipes, whose stored calories cover all
+    `servings`; for LLM-authored rows the basis is a guess, so it stays None.
+    """
     exclude = _recently_posted_recipe_ids()
     candidates = []
     for recipe in _public_recipes().order_by('pk'):
@@ -106,12 +128,13 @@ def recipe_facts(iso_week: str) -> dict:
                       f'(all posted within {RECIPE_REPOST_DAYS} days or missing images)')
     candidates.sort(key=lambda c: (-c[0], c[1].pk))
     _, recipe, hit = candidates[0]
-    kcal = (recipe.nutritional_info or {}).get('calories')
+    kcal = _per_portion_kcal(recipe.nutritional_info, recipe.servings,
+                             bool(recipe.curated_recipe_slug))
     minutes = (recipe.preparation_time or 0) + (recipe.cooking_time or 0) or None
     return {
         'kind': 'recipe', 'iso_week': iso_week,
         'recipe_id': recipe.pk, 'name': recipe.name,
-        'kcal': int(kcal) if kcal else None,
+        'kcal': kcal,
         'minutes': minutes, 'servings': recipe.servings,
         'source_name': recipe.source_name, 'source_url': recipe.source_url,
         'deals_matched': hit['matched'], 'deals_total': hit['total'],
@@ -152,9 +175,19 @@ def _qa_user() -> User:
 
 
 def _prune_showcase_goals(user: User) -> None:
-    keep = list(DietaryGoal.objects.filter(user=user).order_by('-id')
-                .values_list('id', flat=True)[:SHOWCASE_GOALS_TO_KEEP])
-    DietaryGoal.objects.filter(user=user).exclude(id__in=keep).delete()
+    """Delete this pipeline's own old showcase goals, nothing else.
+
+    The QA account is shared with the /qa-prod tester, whose goals must
+    survive (Supabase cascades a goal's plan away with it). A goal is ours
+    only when its prompt is one of the fixed persona prompts; `prompt` is
+    encrypted, so the match happens in Python, not in SQL.
+    """
+    ours = [goal.id for goal in
+            DietaryGoal.objects.filter(user=user).order_by('-id').only('id', 'prompt')
+            if (goal.prompt or '') in PERSONA_PROMPTS]
+    stale = ours[SHOWCASE_GOALS_TO_KEEP:]
+    if stale:
+        DietaryGoal.objects.filter(id__in=stale).delete()
 
 
 def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run_plan) -> dict:
@@ -176,10 +209,11 @@ def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run
         meal = day.get(slot)
         if not meal or not meal.get('name'):
             continue
-        kcal = (meal.get('nutritional_info') or {}).get('calories')
+        kcal = _per_portion_kcal(meal.get('nutritional_info'), meal.get('servings'),
+                                 bool(meal.get('curated_recipe_slug')))
         hit = recipe_deals(meal.get('ingredients') or [])
         meals.append({'slot': slot, 'name': meal['name'],
-                      'kcal': int(kcal) if kcal else None,
+                      'kcal': kcal,
                       'deals_matched': hit['matched']})
     if len(meals) < 2:
         raise NoFacts('day 1 has fewer than two named meals')

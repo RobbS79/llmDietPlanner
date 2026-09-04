@@ -4,24 +4,57 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.text import slugify
 
 from diet_planner.models import DietaryGoal, DietaryPlan, PriceSourceType, Recipe
 from diet_planner.services.canonical_lookup import clear_cache
 from diet_planner.tests.factories import make_canonical, make_price, make_store
-from social.facts import NoFacts, build_facts, recipe_photo
+from social.facts import NoFacts, _per_portion_kcal, build_facts, recipe_photo
 from social.models import SocialPost
 from social.personas import persona_for_week
 
 
-def _public_recipe(goal, name, slug, ingredients, kcal=420, prep=10, cook=20,
-                   source='Apetit', source_url='https://apetit.cz/x'):
+def _public_recipe(goal, name, slug, ingredients, kcal=840, prep=10, cook=20,
+                   source='Apetit', source_url='https://apetit.cz/x',
+                   curated_slug='kureci-rizoto'):
+    """`kcal` is the stored total for all `servings`, the way a corpus-backed
+    row really stores it; pass curated_slug='' for an LLM-authored row."""
     return Recipe.objects.create(
         meal_identifier=f'g{goal.id}:1:dinner:{slug}', dietary_goal=goal, name=name,
         slug=slug, ingredients=ingredients, servings=2, is_public=True,
         instructions=['Nakrájejte cibuli a osmahněte ji.'] * 6,
         nutritional_info={'calories': kcal}, preparation_time=prep, cooking_time=cook,
-        source_name=source, source_url=source_url,
+        source_name=source, source_url=source_url, curated_recipe_slug=curated_slug,
     )
+
+
+def _curated_meal(name, calories, ingredients, servings=2, curated=True):
+    """A day-plan meal the way `scale_recipe_to_meal` renders one: nutrition is
+    the total for `servings` portions and provenance is carried on the dict."""
+    meal = {'name': name, 'servings': servings, 'ingredients': ingredients,
+            'nutritional_info': {'calories': calories}}
+    if curated:
+        meal.update({'source': 'curated', 'curated_recipe_slug': slugify(name)})
+    return meal
+
+
+class PerPortionKcalTests(TestCase):
+    def test_curated_total_is_divided_by_servings(self):
+        self.assertEqual(_per_portion_kcal({'calories': 840}, 2, True), 420)
+        self.assertEqual(_per_portion_kcal({'calories': 835}, 2, True), 418)
+
+    def test_uncurated_basis_is_unknown_so_no_number_is_published(self):
+        self.assertIsNone(_per_portion_kcal({'calories': 840}, 2, False))
+
+    def test_missing_or_unusable_calories_give_none(self):
+        self.assertIsNone(_per_portion_kcal(None, 2, True))
+        self.assertIsNone(_per_portion_kcal({}, 2, True))
+        self.assertIsNone(_per_portion_kcal({'calories': 0}, 2, True))
+        self.assertIsNone(_per_portion_kcal({'calories': '840 kcal'}, 2, True))
+
+    def test_missing_servings_falls_back_to_one_portion(self):
+        self.assertEqual(_per_portion_kcal({'calories': 420}, None, True), 420)
+        self.assertEqual(_per_portion_kcal({'calories': 420}, 0, True), 420)
 
 
 class DealsFactsTests(TestCase):
@@ -81,11 +114,17 @@ class RecipeFactsTests(TestCase):
             facts = build_facts('recipe', '2026-W37')
         self.assertEqual(facts['recipe_id'], fresh.pk)
         self.assertEqual(facts['name'], 'Nová')
-        self.assertEqual(facts['kcal'], 420)
+        self.assertEqual(facts['kcal'], 420)   # 840 stored / 2 servings
         self.assertEqual(facts['minutes'], 30)
         self.assertEqual(facts['source_name'], 'Apetit')
         self.assertEqual(facts['image_url'], 'https://eatalnicek.eu/static/food-images/dishes/nova.webp')
         self.assertEqual(facts['link'], f'https://eatalnicek.eu/recepty/{fresh.pk}/nova/?utm_source={{channel}}&utm_medium=social&utm_campaign=auto-recipe-2026-W37')
+
+    def test_recipe_facts_publish_no_kcal_for_an_llm_authored_recipe(self):
+        _public_recipe(self.goal, 'Nová', 'nova', [{'name': 'cibule'}], curated_slug='')
+        with patch('social.facts.has_dish_image', return_value=True):
+            facts = build_facts('recipe', '2026-W37')
+        self.assertIsNone(facts['kcal'])
 
     def test_recipe_facts_raise_when_pool_is_exhausted(self):
         _public_recipe(self.goal, 'Bez obrázku', 'bez-obrazku', [{'name': 'cibule'}])
@@ -113,12 +152,11 @@ class ShowcaseFactsTests(TestCase):
         goal.save(update_fields=['status'])
         DietaryPlan.objects.create(dietary_goal=goal, days=[{
             'day_number': 1,
-            'breakfast': {'name': 'Ovesná kaše', 'nutritional_info': {'calories': 350},
-                          'ingredients': [{'name': 'ovesné vločky'}]},
-            'lunch': {'name': 'Kuřecí rizoto', 'nutritional_info': {'calories': 620},
-                      'ingredients': [{'name': 'rýže'}]},
-            'dinner': {'name': 'Zeleninová polévka', 'nutritional_info': {'calories': 280},
-                       'ingredients': [{'name': 'mrkev'}]},
+            'breakfast': _curated_meal('Ovesná kaše', 700, [{'name': 'ovesné vločky'}]),
+            'lunch': _curated_meal('Kuřecí rizoto', 1240, [{'name': 'rýže'}]),
+            # LLM-authored: no provenance, so its calories have no known basis.
+            'dinner': _curated_meal('Zeleninová polévka', 280, [{'name': 'mrkev'}],
+                                    curated=False),
             'small_meals': [], 'snacks': [],
         }])
 
@@ -128,7 +166,8 @@ class ShowcaseFactsTests(TestCase):
         self.assertEqual(facts['prompt'], persona_for_week('2026-W37'))
         self.assertEqual([m['name'] for m in facts['meals']],
                          ['Ovesná kaše', 'Kuřecí rizoto', 'Zeleninová polévka'])
-        self.assertEqual(facts['total_kcal'], 1250)
+        self.assertEqual([m['kcal'] for m in facts['meals']], [350, 620, None])
+        self.assertEqual(facts['total_kcal'], 970)   # only the meals we can stand behind
         goal = DietaryGoal.objects.get(pk=facts['goal_id'])
         self.assertEqual(goal.user, self.qa)
         self.assertEqual(goal.num_days, 1)
@@ -151,6 +190,17 @@ class ShowcaseFactsTests(TestCase):
             for week in range(30, 36):
                 build_facts('showcase', f'2026-W{week}', run_plan=self._fake_run)
         self.assertEqual(DietaryGoal.objects.filter(user=self.qa).count(), 4)
+
+    def test_showcase_pruning_leaves_other_qa_goals_alone(self):
+        # The QA account is also driven by the /qa-prod tester; its goals (and
+        # the plans that cascade with them) must survive our housekeeping.
+        theirs = DietaryGoal.objects.create(user=self.qa, prompt='QA smoke run',
+                                            country='CZ', num_days=1)
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            for week in range(30, 36):
+                build_facts('showcase', f'2026-W{week}', run_plan=self._fake_run)
+        self.assertTrue(DietaryGoal.objects.filter(pk=theirs.pk).exists())
+        self.assertEqual(DietaryGoal.objects.filter(user=self.qa).count(), 5)
 
     # The three NoFacts reasons below have no test in the plan; they are the
     # remaining honest-refusal paths of showcase_facts and are cheap to pin.
@@ -178,8 +228,7 @@ class ShowcaseFactsTests(TestCase):
             goal.save(update_fields=['status'])
             DietaryPlan.objects.create(dietary_goal=goal, days=[{
                 'day_number': 1,
-                'breakfast': {'name': 'Ovesná kaše', 'nutritional_info': {'calories': 350},
-                              'ingredients': []},
+                'breakfast': _curated_meal('Ovesná kaše', 700, []),
                 'lunch': {}, 'dinner': None, 'small_meals': [], 'snacks': [],
             }])
         with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
