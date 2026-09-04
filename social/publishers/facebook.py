@@ -29,8 +29,8 @@ def publish(*, caption: str, link: str, image: bytes, title: str = '',
     payload = safe_json(response)
     if response.status_code >= 400 or 'error' in payload:
         err = payload.get('error')
-        detail = err.get('message') if isinstance(err, dict) else (err or response.text[:300])
-        raise PublishError(f'facebook {response.status_code}: {detail}')
+        detail = err.get('message') if isinstance(err, dict) else err
+        raise PublishError(f'facebook {response.status_code}: {detail or response.text[:300]}')
     external_id = payload.get('post_id') or payload.get('id')
     if not external_id:
         raise PublishError(f'facebook {response.status_code}: no post id in response ({response.text[:200]})')

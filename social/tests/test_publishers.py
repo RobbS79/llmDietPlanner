@@ -93,6 +93,16 @@ class FacebookTests(SimpleTestCase):
         post.assert_not_called()
 
 
+@override_settings(FB_PAGE_ID='111', FB_PAGE_ACCESS_TOKEN='EAAtoken')
+class FacebookErrorWithoutMessageTests(SimpleTestCase):
+    def test_error_dict_without_message_falls_back_to_body(self):
+        post = MagicMock(return_value=_response(400, {'error': {'code': 190, 'type': 'OAuthException'}}))
+        with self.assertRaises(PublishError) as ctx:
+            publish_facebook(caption='x', link='https://e', image=b'PNG', post_fn=post)
+        self.assertIn('OAuthException', str(ctx.exception))
+        self.assertNotIn('None', str(ctx.exception))
+
+
 @override_settings(PINTEREST_ACCESS_TOKEN='pina', PINTEREST_BOARD_ID='123456789')
 class PinterestTests(SimpleTestCase):
     def test_creates_pin_with_base64_image(self):
