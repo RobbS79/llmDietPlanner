@@ -371,10 +371,14 @@ LLM_HEALTH_SLACK_WEBHOOK_URL = config('LLM_HEALTH_SLACK_WEBHOOK_URL', default=''
 # --- Social content pipeline (manage.py generate_social_drafts / publish_social_posts) ---
 # All optional: without them the generator still drafts locally (--dry-run) and
 # the publisher reports "no credentials" per channel instead of crashing.
+# Deliberately not FRONTEND_URL: social links must always point at the public
+# site, even from dev.
 SOCIAL_SITE_URL = config('SOCIAL_SITE_URL', default='https://eatalnicek.eu')
 SOCIAL_SLACK_CHANNEL = config('SOCIAL_SLACK_CHANNEL', default='')
-META_PAGE_ID = config('META_PAGE_ID', default='')
-META_PAGE_ACCESS_TOKEN = config('META_PAGE_ACCESS_TOKEN', default='')
+# The Page token (posts to the Facebook Page) is distinct from FB_CAPI_ACCESS_TOKEN
+# above (server-side Conversions API events) — same app, different tokens/scopes.
+FB_PAGE_ID = config('FB_PAGE_ID', default='')
+FB_PAGE_ACCESS_TOKEN = config('FB_PAGE_ACCESS_TOKEN', default='')
 PINTEREST_ACCESS_TOKEN = config('PINTEREST_ACCESS_TOKEN', default='')
 PINTEREST_BOARD_ID = config('PINTEREST_BOARD_ID', default='')
 

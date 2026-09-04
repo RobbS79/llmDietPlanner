@@ -1,3 +1,6 @@
+"""SocialPost is the shared contract between the generator job (writes) and
+the publisher job (reads); the database is the only storage the two
+containers share."""
 from django.db import models
 
 
@@ -48,16 +51,29 @@ class SocialPost(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.channels:
-            self.channels = list(CHANNELS_BY_KIND[self.kind])
+            channels = CHANNELS_BY_KIND.get(self.kind)
+            if channels is None:
+                raise ValueError(f'unknown kind {self.kind!r}')
+            self.channels = list(channels)
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'channels'}
         super().save(*args, **kwargs)
 
     @property
     def utm_campaign(self) -> str:
         return f'auto-{self.kind}-{self.iso_week}'
 
+    @property
+    def image_bytes(self) -> bytes:
+        """psycopg2 returns bytea as memoryview; sqlite returns bytes."""
+        return bytes(self.image) if self.image else b''
+
     def external_id(self, channel: str) -> str:
-        return {'facebook': self.facebook_post_id,
-                'pinterest': self.pinterest_pin_id}[channel]
+        ids = {'facebook': self.facebook_post_id, 'pinterest': self.pinterest_pin_id}
+        if channel not in ids:
+            raise ValueError(channel)
+        return ids[channel]
 
     def set_external_id(self, channel: str, value: str) -> None:
         if channel == 'facebook':
