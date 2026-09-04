@@ -2079,6 +2079,14 @@ class GenerateCommandTests(TestCase):
         self.assertEqual((post.status, post.error), ('draft', ''))
         self.assertTrue(post.image)
 
+    def test_draft_without_slack_message_is_retried(self):
+        SocialPost.objects.create(kind='deals', iso_week='2026-W37', scheduled_for='2026-09-07',
+                                  status='draft', slack_ts='')
+        seams = _seams()
+        call_command('generate_social_drafts', kind='deals', **seams)
+        seams['slack'].post_draft.assert_called_once()
+        self.assertEqual(SocialPost.objects.count(), 1)
+
     def test_rerun_is_idempotent(self):
         seams = _seams()
         call_command('generate_social_drafts', **seams)
@@ -2196,7 +2204,10 @@ class Command(BaseCommand):
         failures = []
         for kind in kinds:
             existing = SocialPost.objects.filter(kind=kind, iso_week=week).first()
-            if existing and existing.status != SocialPost.Status.SKIPPED and not dry_run:
+            retryable = existing is not None and (
+                existing.status == SocialPost.Status.SKIPPED
+                or (existing.status == SocialPost.Status.DRAFT and not existing.slack_ts))
+            if existing and not retryable and not dry_run:
                 self.stdout.write(f'{kind} {week}: already exists ({existing.status}), skipping')
                 continue
             outcome = self._draft(kind, week, build, fetch, generate, shops, recipes, slack, dry_run,
@@ -2210,8 +2221,9 @@ class Command(BaseCommand):
 
     def _draft(self, kind, week, build, fetch, generate, shops, recipes, slack, dry_run,
                existing=None) -> str:
-        # A week that ended `skipped` (no facts on Sunday) is retried on the next
-        # run by reusing its row, so the (kind, week) constraint never blocks recovery.
+        # A week that ended `skipped` (no facts on Sunday), or a draft whose Slack
+        # post never completed (slack_ts empty), is retried on the next run by
+        # reusing its row, so the (kind, week) constraint never blocks recovery.
         post = existing or SocialPost(kind=kind, iso_week=week, scheduled_for=scheduled_date(week, kind))
         post.status, post.error = SocialPost.Status.DRAFT, ''
         try:
@@ -2611,7 +2623,8 @@ unattended and you only react ✅/❌ in Slack.
 ## 1. Slack
 1. api.slack.com/apps → the existing Vařto bot → OAuth & Permissions → Bot Token
    Scopes: add `files:write`, `reactions:read`, `channels:history`
-   (`chat:write` is already there). Reinstall the app to the workspace.
+   (`chat:write` is already there); if you make the channel private, also
+   `groups:history`. Reinstall the app to the workspace.
 2. Create channel `#varto-social`, invite the bot (`/invite @<bot>`), copy the
    channel id (channel details → bottom of the About tab, starts with `C`).
 3. DO env: `SOCIAL_SLACK_CHANNEL=<C…>` (SLACK_BOT_TOKEN is already set).
