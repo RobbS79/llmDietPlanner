@@ -97,10 +97,12 @@ Pure functions over the ORM; no LLM, no network. Each returns a dict or raises
 `NoFacts(reason)`, which the generator records as `status=skipped` with the
 reason and reports to Slack.
 
-**deals** — `LeafletOffer` rows that are active now (`expires_at > now`,
-`freshness_state` fresh), grouped by canonical ingredient, ranked by number of
-shops offering it, top 8. For each: display name, shops, lowest price with
-unit. Plus two public `Recipe` rows whose ingredients hit the most of those
+**deals** — the active leaflet deals index from
+`diet_planner.services.recipe_deals._active_deal_index()` (LEAFLET_DISCOUNT
+`PriceRecord` rows inside their validity window, one per canonical
+ingredient), ranked by soonest expiry, top 8. For each: Czech ingredient name,
+shop, valid-until date. No prices — the deals layer carries none on purpose.
+Plus two public `Recipe` rows whose ingredients hit the most of those
 deals (reuse `recipe_deals()`), each with name, public URL, matched count.
 `NoFacts` if fewer than 3 ingredients are on offer.
 
@@ -257,7 +259,7 @@ DO app spec: two `SCHEDULED` jobs on the same image and env as
 - **No silent publication.** The publisher only ever acts on an explicit ✅
   reaction it read this run; a Slack outage means "pending", never "approved".
 - **Stale data guard.** Deals facts are built from offers active on Sunday but
-  published Monday; the facts record `expires_at` per offer, and the publisher
+  published Monday; the facts record `valid_until` per offer, and the publisher
   refuses a deals post if more than half its offers have expired by publish
   time (status `rejected`, reason in-thread).
 - **Cost guard.** One Gemini text call per post (two with retry) and one plan
