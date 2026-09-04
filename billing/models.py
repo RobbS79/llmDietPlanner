@@ -27,7 +27,7 @@ class SubscriptionPlan(models.Model):
         max_length=20, choices=Tier.choices, unique=True,
         help_text="Matches Stripe metadata + the entitlement tier.",
     )
-    name = models.CharField(max_length=100, help_text="Display name, e.g. 'Eatalníček Standard'.")
+    name = models.CharField(max_length=100, help_text="Display name, e.g. 'Vařto Standard'.")
     price_czk = models.PositiveIntegerField(help_text="Monthly price in CZK (display + sanity check).")
     stripe_price_id = models.CharField(
         max_length=255, blank=True,
