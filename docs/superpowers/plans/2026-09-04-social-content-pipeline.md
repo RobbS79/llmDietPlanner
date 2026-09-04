@@ -1998,6 +1998,8 @@ git commit -m "feat(social): Facebook Page and Pinterest publishers"
 
 ### Task 8: `generate_social_drafts` command
 
+> `prague_today()` lives in `social/weeks.py` (added after the Task 2 review): `datetime.now(ZoneInfo('Europe/Prague')).date()`. The container runs UTC and settings define no TIME_ZONE, so "today" must be computed explicitly.
+
 **Files:**
 - Create: `social/management/__init__.py`, `social/management/commands/__init__.py`, `social/management/commands/generate_social_drafts.py`, `social/tests/test_generate_command.py`
 
@@ -2157,7 +2159,7 @@ from social.cards import render_card
 from social.facts import NoFacts, build_facts, recipe_photo
 from social.models import SocialPost
 from social.slack import SlackDrafts, SlackNotConfigured
-from social.weeks import KIND_OFFSETS, next_iso_week, scheduled_date
+from social.weeks import KIND_OFFSETS, next_iso_week, prague_today, scheduled_date
 
 DRY_RUN_DIR = Path('social_dry_run')
 KINDS = list(KIND_OFFSETS)
@@ -2178,7 +2180,7 @@ class Command(BaseCommand):
         build = options.get('build_facts') or build_facts
         fetch = options.get('fetch_image')
         generate = options.get('generate')
-        today = options.get('today') or date.today()
+        today = options.get('today') or prague_today()
         dry_run = options['dry_run']
         week = options.get('week') or next_iso_week(today)
         kinds = [options['kind']] if options.get('kind') else KINDS
@@ -2454,6 +2456,7 @@ from social.captions import known_recipe_names, known_shops, validate_caption
 from social.models import SocialPost
 from social.publishers import PublishError, get_publisher
 from social.slack import SlackDrafts, SlackNotConfigured
+from social.weeks import prague_today
 
 STALE_AFTER_DAYS = 7
 WAITING_NOTE = '⏳ still waiting for ✅ — will retry next run'
@@ -2468,7 +2471,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         today = (date.fromisoformat(options['date']) if options.get('date')
-                 else options.get('today') or date.today())
+                 else options.get('today') or prague_today())
         publishers = options.get('publishers') or {}
         try:
             slack = options.get('slack') or SlackDrafts()
