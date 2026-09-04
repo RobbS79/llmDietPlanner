@@ -55,7 +55,7 @@ class ValidateCaptionTests(SimpleTestCase):
     def test_percentage_discount_is_flagged(self):
         violations = validate_caption('Cibule 20 % sleva.', DEALS_FACTS, known_shops=SHOPS,
                                       known_recipes=RECIPES)
-        self.assertTrue(any('percentage discount' in v for v in violations))
+        self.assertTrue(any('states a percentage' in v for v in violations))
 
     def test_length_limit(self):
         caption = 'cibule ' * 120
@@ -96,6 +96,96 @@ class WriteCaptionTests(SimpleTestCase):
         result = write_caption(facts, generate=lambda p: json.dumps({'caption': 'Svíčková má 420 kcal.'}),
                                known_shops=SHOPS, known_recipes=RECIPES)
         self.assertEqual(result['group_variant'], '')
+
+
+class ShopMentionTests(SimpleTestCase):
+    """A shop name is a proper noun; a common noun that merely starts the same is not."""
+
+    ROHLIK_FACTS = {
+        'kind': 'deals', 'iso_week': '2026-W37',
+        'deals': [{'ingredient': 'cibule', 'shop': 'Rohlik', 'valid_until': '2026-09-13'}],
+        'link': 'https://eatalnicek.eu/',
+    }
+
+    def check(self, caption, facts=None, shops=None):
+        return validate_caption(caption, facts if facts is not None else DEALS_FACTS,
+                                known_shops=shops if shops is not None else SHOPS,
+                                known_recipes=set())
+
+    def test_domain_suffix_does_not_split_a_shop_in_two(self):
+        self.assertEqual(self.check('Cibule je v akci na Rohlíku.', facts=self.ROHLIK_FACTS,
+                                    shops={'Rohlik.cz', 'Lidl'}), [])
+
+    def test_common_noun_rohlik_is_not_the_shop(self):
+        self.assertEqual(self.check('K polévce si dej rohlík.', shops={'Rohlik.cz'}), [])
+
+    def test_common_noun_kosik_is_not_the_shop(self):
+        self.assertEqual(self.check('Hoď cibuli do košíku.', shops={'Kosik.cz'}), [])
+
+    def test_common_noun_penne_is_not_penny(self):
+        self.assertEqual(self.check('Uvař penne s cibulí.', shops={'Penny'}), [])
+
+    def test_inflected_shop_outside_the_facts_is_flagged(self):
+        self.assertTrue(any('Kaufland' in v for v in self.check('Cibule je v akci v Kauflandu.')))
+
+    def test_longer_lookalike_is_not_the_shop(self):
+        self.assertEqual(self.check('Kaufmann je jméno.'), [])
+
+
+class RecipeMentionTests(SimpleTestCase):
+    def check(self, caption, recipes):
+        return validate_caption(caption, DEALS_FACTS, known_shops=SHOPS, known_recipes=recipes)
+
+    def test_declined_recipe_name_is_flagged(self):
+        self.assertTrue(any('Svíčková' in v for v in self.check('Uvařte si svíčkovou.', {'Svíčková'})))
+
+    def test_shorter_lookalike_word_is_not_the_recipe(self):
+        self.assertEqual(self.check('Zapal si svíčku u večeře.', {'Svíčková'}), [])
+
+    def test_ingredient_word_is_not_the_dish(self):
+        self.assertEqual(self.check('Brambory jsou v akci.', {'Bramborák'}), [])
+
+    def test_plural_dish_is_flagged(self):
+        self.assertTrue(self.check('Bramboráky z brambor', {'Bramborák'}))
+
+    def test_unrelated_word_sharing_a_prefix_is_not_the_recipe(self):
+        self.assertEqual(self.check('Zvaž rizika, cibule je v akci.', {'Rizoto'}), [])
+
+    def test_recipe_that_is_in_the_facts_is_allowed(self):
+        self.assertEqual(self.check('Vepřové s cibulí zvládneš dnes.', RECIPES), [])
+
+
+class NumberRuleTests(SimpleTestCase):
+    def check(self, caption, facts=None):
+        return validate_caption(caption, facts if facts is not None else DEALS_FACTS,
+                                known_shops=SHOPS, known_recipes=RECIPES)
+
+    def test_czech_rendering_of_a_fact_date_is_allowed(self):
+        self.assertEqual(self.check('Akce platí do 13. 9. 2026.'), [])
+
+    def test_price_is_banned_even_when_the_digit_appears_in_the_facts(self):
+        violations = self.check('Cibule za 4 Kč v Lidlu.')          # 4 == recipes[0]["total"]
+        self.assertTrue(any('price' in v for v in violations))
+
+    def test_percentage_is_banned(self):
+        self.assertTrue(any('percentage' in v for v in self.check('Cibule je levnější o 37 procent.')))
+
+    def test_identifier_digits_do_not_whitelist_a_number(self):
+        facts = {'kind': 'recipe', 'name': 'Svíčková', 'recipe_id': 37,
+                 'link': 'https://eatalnicek.eu/'}
+        self.assertTrue(any("'37'" in v for v in self.check('Svíčková má 37 fanoušků.', facts=facts)))
+
+    def test_counting_number_from_the_facts_is_allowed(self):
+        self.assertEqual(self.check('Máme pro tebe 2 recepty s cibulí.'), [])
+
+
+class GroupVariantRequiredTests(SimpleTestCase):
+    def test_deals_without_group_variant_is_rejected(self):
+        def generate(prompt):
+            return json.dumps({'caption': 'Cibule je tenhle týden v akci.'})
+        with self.assertRaises(CaptionRejected) as ctx:
+            write_caption(DEALS_FACTS, generate=generate, known_shops=SHOPS, known_recipes=RECIPES)
+        self.assertIn('group_variant', str(ctx.exception))
 
 
 class KnownSetsTests(TestCase):

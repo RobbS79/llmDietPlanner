@@ -1,7 +1,25 @@
 """Czech captions written by Gemini from a facts dict, then checked by a
-deterministic validator. The validator is the honesty gate: any number, shop
-or recipe the caption mentions must be in the facts, and sales-speak that the
-data cannot back is banned outright. The human ✅ in Slack is the taste gate.
+deterministic validator. The validator is the honesty gate; the human ✅ in
+Slack is the taste gate.
+
+What the validator enforces:
+
+- **Numbers.** Every number in the caption must appear in the facts. Facts
+  dates (``2026-09-13``) also license the Czech rendering ``13. 9. 2026``.
+  Identifier fields (``recipe_id``, ``iso_week``, urls…) are *not* claims, so
+  the digits inside them license nothing.
+- **Shops.** A shop is "mentioned" when a *capitalized* caption word starts
+  with the shop's base name and is at most 3 characters longer — Czech shop
+  names are proper nouns, so ``Lidlu``/``Kauflandu``/``Rohlíku`` are hits
+  while the common nouns ``rohlík``, ``košíku`` and ``penne`` are not. Bases
+  ignore the domain suffix, so known ``Rohlik.cz`` matches fact shop
+  ``Rohlik``. A mentioned shop that is not in the facts is a violation.
+- **Recipes.** A known recipe counts as mentioned when *every* one of its
+  significant word stems appears in the caption (allowing up to 3 characters
+  of Czech case ending), so ``svíčkovou`` hits ``Svíčková`` but ``svíčku``,
+  ``brambory`` and ``rizika`` do not.
+- **Sales-speak.** Savings, exclusivity, "cheapest", guarantees — plus prices
+  and percentages, which the facts never carry — are banned outright.
 """
 from __future__ import annotations
 
@@ -16,12 +34,22 @@ MAX_CAPTION_CHARS = 600
 MAX_GROUP_CHARS = 350
 NUMBER_RE = re.compile(r'\d+(?:[.,]\d+)?')
 URL_RE = re.compile(r'https?://\S+')
+WORD_RE = re.compile(r'\w+', re.UNICODE)
+ISO_DATE_RE = re.compile(r'(\d{4})-(\d{2})-(\d{2})')
+VOWELS = 'aeiouy'
+MAX_ENDING_CHARS = 3        # Czech case endings: Lidl->Lidlu, Svíčková->svíčkovou
+# Digits inside these fields identify a row; they are never a claim about the
+# world, so they must not whitelist a number the caption invents.
+IDENTIFIER_KEYS = {'recipe_id', 'goal_id', 'iso_week', 'kind', 'link', 'url',
+                   'source_url', 'image_url', 'canonical', 'slot'}
 BANNED = [
     (re.compile(r'ušetří', re.I), 'promises savings we do not compute'),
     (re.compile(r'exkluzivn', re.I), 'claims exclusivity'),
     (re.compile(r'nejlevnější', re.I), 'claims cheapest'),
     (re.compile(r'zaručen', re.I), 'guarantees a result'),
-    (re.compile(r'\d+\s*%\s*slev', re.I), 'percentage discount not in facts'),
+    # The facts carry neither prices nor percentages, so any of either is made up.
+    (re.compile(r'\d+(?:[.,]\d+)?\s*(?:Kč|CZK|korun|,-)', re.I), 'states a price'),
+    (re.compile(r'\d+\s*(?:%|procent)', re.I), 'states a percentage'),
 ]
 
 
@@ -38,7 +66,9 @@ def _fold(text: str) -> str:
 def _numbers_in(value) -> set:
     found = set()
     if isinstance(value, dict):
-        for v in value.values():
+        for key, v in value.items():
+            if key in IDENTIFIER_KEYS:
+                continue
             found |= _numbers_in(v)
     elif isinstance(value, (list, tuple)):
         for v in value:
@@ -52,7 +82,38 @@ def _numbers_in(value) -> set:
         for m in NUMBER_RE.findall(URL_RE.sub('', value)):
             found.add(m)
             found.add(m.replace('.', ','))
+        # An ISO date licenses its Czech rendering too: "13. 9. 2026".
+        for year, month, day in ISO_DATE_RE.findall(value):
+            found |= {year, month, month.lstrip('0'), day, day.lstrip('0')}
     return found
+
+
+def _shop_base(name: str) -> str:
+    """'Rohlik.cz' -> 'rohlik', 'Kaufland' -> 'kaufland'. The first alphabetic
+    token of the folded name, so a domain suffix never splits one shop in two."""
+    match = re.match(r'[^\W\d_]+', _fold(name), re.UNICODE)
+    return match.group(0) if match else ''
+
+
+def _capitalized_words(body: str) -> list:
+    """Folded forms of the capitalized words. Czech shop names are proper nouns,
+    so a lowercase 'rohlík' mid-sentence is bread, not the shop."""
+    return [_fold(w) for w in WORD_RE.findall(body) if w[:1].isupper()]
+
+
+def _inflects_from(word: str, base: str) -> bool:
+    return bool(base) and word.startswith(base) and len(word) - len(base) <= MAX_ENDING_CHARS
+
+
+def _recipe_stems(name: str) -> list:
+    """Significant word stems of a recipe name, one per word longer than two
+    characters, with a trailing vowel dropped so the stem survives declension."""
+    stems = []
+    for token in WORD_RE.findall(_fold(name)):
+        if len(token) <= 2:
+            continue
+        stems.append(token[:-1] if token[-1] in VOWELS else token)
+    return stems
 
 
 def _names_in_facts(facts: dict) -> set:
@@ -79,18 +140,25 @@ def validate_caption(caption: str, facts: dict, *, known_shops: Iterable[str],
         if number not in allowed_numbers and number.replace(',', '.') not in allowed_numbers:
             violations.append(f'number {number!r} is not in the facts')
 
-    fact_shops = {_fold(s) for s in _numbers_free_strings(facts, key='shop')}
+    fact_shops = {_shop_base(s) for s in _numbers_free_strings(facts, key='shop')}
     folded_body = _fold(body)
+    proper_nouns = _capitalized_words(body)
+    reported = set()
     for shop in known_shops:
-        stem = _fold(shop)[:4]            # "Lidl" matches "Lidlu", "Kauf" matches "Kauflandu"
-        if stem and stem in folded_body and _fold(shop) not in fact_shops:
+        base = _shop_base(shop)
+        if not base or base in fact_shops or base in reported:
+            continue
+        if any(_inflects_from(word, base) for word in proper_nouns):
+            reported.add(base)
             violations.append(f'shop {shop!r} is not in the facts')
 
     fact_names = _names_in_facts(facts)
     for name in known_recipes:
-        folded = _fold(name)
-        stem = folded[:max(4, len(folded) - 3)]   # tolerate Czech case endings
-        if stem in folded_body and folded not in fact_names:
+        if _fold(name) in fact_names:
+            continue
+        stems = _recipe_stems(name)
+        if stems and all(re.search(rf'\b{re.escape(stem)}\w{{0,{MAX_ENDING_CHARS}}}\b', folded_body)
+                         for stem in stems):
             violations.append(f'recipe {name!r} is not in the facts')
 
     for pattern, why in BANNED:
@@ -167,6 +235,8 @@ def write_caption(facts: dict, *, generate: Callable[[str], str] = default_gener
             last_violations += [f'group_variant: {v}' for v in validate_caption(
                 group, facts, known_shops=known_shops, known_recipes=known_recipes,
                 max_chars=MAX_GROUP_CHARS)]
+        elif kind == 'deals':
+            last_violations.append('group_variant missing for deals')
         if not last_violations:
             return {'caption': caption, 'group_variant': group}
     raise CaptionRejected('; '.join(last_violations))
