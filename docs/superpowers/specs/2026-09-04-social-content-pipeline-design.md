@@ -142,14 +142,27 @@ Czech, informal, no emoji walls, no claims beyond the facts, ≤ 600 characters
 for Facebook, hashtags only for Pinterest. Output is validated by
 `validate_caption(caption, facts)`, a deterministic check that:
 
-- every integer and decimal in the caption appears in the facts (kcal, prices,
-  minutes, counts);
-- every shop name from the known shop list that appears in the caption is in
-  the facts;
-- every recipe name in the caption is in the facts (fuzzy, case- and
-  diacritic-insensitive);
-- banned phrases are absent: `ušetříte`, `exkluzivn`, `nejlevnější`, `zaručen`,
-  `%` followed by `sleva` unless the percentage is a fact.
+- every number in the caption appears in the facts (kcal, minutes, counts).
+  Identifier keys (`recipe_id`, `goal_id`, `iso_week`, `kind`, urls) are
+  excluded — the digits inside an id are not a claim — and an ISO date in the
+  facts also licenses its Czech rendering, so `2026-09-13` allows
+  "13. 9. 2026";
+- every shop mention is in the facts. A shop is mentioned when a caption word
+  starts with the shop's stem (the base name minus its domain suffix and, for
+  names that decline, its final vowel: `Rohlik.cz` → `rohlik`, `Tesco` →
+  `tesc`) and is at most 3 characters longer, so `Kauflandu` and `Tescu` count
+  while `Kaufmann` and `penne` do not. Case does not matter except for the two
+  bases that are ordinary Czech words, `rohlik` and `kosik`, which count only
+  when capitalized;
+- every recipe mention is in the facts. A known recipe is mentioned when
+  *every* word of its name matches a caption word: stems are folded (case- and
+  diacritic-insensitive) with a trailing vowel dropped and up to 3 characters
+  of case ending tolerated, so `svíčkovou` hits `Svíčková` while `svíčku` and
+  `brambory` do not. A stem that folds below 4 characters keeps its diacritics
+  instead, so `Rýže` does not fire on `ryze`;
+- banned phrases are absent: `ušetří`, `exkluzivn`, `nejlevnější`, `zaručen`,
+  any price (`Kč`, `CZK`, `korun`, `,-`) and any percentage (`%`, `procent`) —
+  the facts carry neither prices nor percentages, so either is invented.
 
 On failure it retries once with the violations appended to the prompt, then
 raises `CaptionRejected`, and the generator posts the draft to Slack anyway with

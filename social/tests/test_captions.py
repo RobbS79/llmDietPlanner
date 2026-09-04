@@ -131,6 +131,23 @@ class ShopMentionTests(SimpleTestCase):
     def test_longer_lookalike_is_not_the_shop(self):
         self.assertEqual(self.check('Kaufmann je jméno.'), [])
 
+    def test_lowercase_shop_name_is_still_a_mention(self):
+        self.assertTrue(any('Kaufland' in v for v in self.check('cibule je v akci v kauflandu.')))
+
+    def test_each_missing_shop_is_reported_once(self):
+        violations = self.check('Cibule je v akci v tescu a v kauflandu.',
+                                shops={'Tesco', 'Kaufland'})
+        self.assertEqual(len(violations), 2, violations)
+
+    def test_common_noun_base_still_needs_a_capital(self):
+        # 'do košíku' is a basket; only 'Kosik' the shop is capitalized.
+        self.assertEqual(self.check('cibule hoď do košíku.', shops={'Kosik.cz'}), [])
+
+    def test_capitalized_common_noun_is_a_known_false_positive(self):
+        # Documented FP: a sentence-initial bread roll reads as the shop. The
+        # human ✅ in Slack is the backstop; a missed real shop would not be.
+        self.assertTrue(self.check('Rohlík k polévce.', shops={'Rohlik.cz'}))
+
 
 class RecipeMentionTests(SimpleTestCase):
     def check(self, caption, recipes):
@@ -153,6 +170,15 @@ class RecipeMentionTests(SimpleTestCase):
 
     def test_recipe_that_is_in_the_facts_is_allowed(self):
         self.assertEqual(self.check('Vepřové s cibulí zvládneš dnes.', RECIPES), [])
+
+    def test_short_name_does_not_fire_on_a_folded_lookalike(self):
+        self.assertEqual(self.check('Kasa v obchodě je vzadu.', {'Kaše'}), [])
+
+    def test_short_name_does_not_fire_on_a_diacritic_lookalike(self):
+        self.assertEqual(self.check('Ryze česká klasika, cibule v akci.', {'Rýže'}), [])
+
+    def test_short_name_still_matches_its_own_declension(self):
+        self.assertTrue(any('Kaše' in v for v in self.check('Dej si kaši.', {'Kaše'})))
 
 
 class NumberRuleTests(SimpleTestCase):

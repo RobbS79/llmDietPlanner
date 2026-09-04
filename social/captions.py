@@ -8,16 +8,18 @@ What the validator enforces:
   dates (``2026-09-13``) also license the Czech rendering ``13. 9. 2026``.
   Identifier fields (``recipe_id``, ``iso_week``, urls…) are *not* claims, so
   the digits inside them license nothing.
-- **Shops.** A shop is "mentioned" when a *capitalized* caption word starts
-  with the shop's base name and is at most 3 characters longer — Czech shop
-  names are proper nouns, so ``Lidlu``/``Kauflandu``/``Rohlíku`` are hits
-  while the common nouns ``rohlík``, ``košíku`` and ``penne`` are not. Bases
+- **Shops.** A shop is "mentioned" when any caption word starts with the
+  shop's stem and is at most 3 characters longer, so ``Lidlu``, ``Kauflandu``
+  and ``Tescu`` are hits while ``Kaufmann`` and ``penne`` are not. Bases
   ignore the domain suffix, so known ``Rohlik.cz`` matches fact shop
-  ``Rohlik``. A mentioned shop that is not in the facts is a violation.
+  ``Rohlik``. Two bases are ordinary Czech words as well (``rohlik``,
+  ``kosik``); those count only when capitalized, so ``do košíku`` is a basket.
+  A mentioned shop that is not in the facts is a violation.
 - **Recipes.** A known recipe counts as mentioned when *every* one of its
   significant word stems appears in the caption (allowing up to 3 characters
   of Czech case ending), so ``svíčkovou`` hits ``Svíčková`` but ``svíčku``,
-  ``brambory`` and ``rizika`` do not.
+  ``brambory`` and ``rizika`` do not. Stems that fold down below 4 characters
+  keep their diacritics, so ``Rýže`` does not fire on ``ryze``.
 - **Sales-speak.** Savings, exclusivity, "cheapest", guarantees — plus prices
   and percentages, which the facts never carry — are banned outright.
 """
@@ -38,6 +40,14 @@ WORD_RE = re.compile(r'\w+', re.UNICODE)
 ISO_DATE_RE = re.compile(r'(\d{4})-(\d{2})-(\d{2})')
 VOWELS = 'aeiouy'
 MAX_ENDING_CHARS = 3        # Czech case endings: Lidl->Lidlu, Svíčková->svíčkovou
+MIN_STEM_CHARS = 4          # shorter stems fire on every lookalike word
+# Vowels a Czech shop name swaps when it declines: Tesco -> v Tescu, Billa ->
+# v Bille. 'y' is deliberately absent: Penny does not decline, and dropping it
+# would make the common noun "penne" look like the shop.
+SHOP_DECLINING_VOWELS = 'aeo'
+# Shop bases that are also ordinary Czech words (a bread roll, a basket). For
+# these — and only these — a lowercase word is the common noun, not the shop.
+COMMON_NOUN_BASES = frozenset({'rohlik', 'kosik'})
 # Digits inside these fields identify a row; they are never a claim about the
 # world, so they must not whitelist a number the caption invents.
 IDENTIFIER_KEYS = {'recipe_id', 'goal_id', 'iso_week', 'kind', 'link', 'url',
@@ -95,24 +105,44 @@ def _shop_base(name: str) -> str:
     return match.group(0) if match else ''
 
 
-def _capitalized_words(body: str) -> list:
-    """Folded forms of the capitalized words. Czech shop names are proper nouns,
-    so a lowercase 'rohlík' mid-sentence is bread, not the shop."""
-    return [_fold(w) for w in WORD_RE.findall(body) if w[:1].isupper()]
+def _shop_stem(base: str) -> str:
+    """The part of a shop base that survives declension: 'tesco' -> 'tesc'
+    (v Tescu), 'kaufland' -> 'kaufland'. Never shorter than MIN_STEM_CHARS."""
+    stem = base[:-1] if base[-1:] in SHOP_DECLINING_VOWELS else base
+    return stem if len(stem) >= MIN_STEM_CHARS else base
 
 
-def _inflects_from(word: str, base: str) -> bool:
-    return bool(base) and word.startswith(base) and len(word) - len(base) <= MAX_ENDING_CHARS
+def _words(body: str) -> list:
+    """(folded word, was it capitalized) for every word in the caption."""
+    return [(_fold(w), w[:1].isupper()) for w in WORD_RE.findall(body)]
+
+
+def _inflects_from(word: str, stem: str) -> bool:
+    """True when `word` looks like `stem` carrying a Czech case ending —
+    same opening, at most MAX_ENDING_CHARS longer ('lidl' -> 'lidlu',
+    'kaufland' -> 'kauflandu', but not 'kaufland' -> 'kaufmann')."""
+    return bool(stem) and word.startswith(stem) and len(word) - len(stem) <= MAX_ENDING_CHARS
 
 
 def _recipe_stems(name: str) -> list:
-    """Significant word stems of a recipe name, one per word longer than two
-    characters, with a trailing vowel dropped so the stem survives declension."""
+    """(stem, keep_diacritics) for every word of a recipe name longer than two
+    characters, with a trailing vowel dropped so the stem survives declension.
+
+    A stem below MIN_STEM_CHARS is too blunt once diacritics are folded away —
+    'kaše' would become 'kas' and fire on "kasa", 'rýže' would become 'ryz' and
+    fire on "ryze". Those short stems are therefore matched with their
+    diacritics intact, which is exactly the signal folding threw away.
+    """
     stems = []
-    for token in WORD_RE.findall(_fold(name)):
+    for token in WORD_RE.findall(name.lower()):
         if len(token) <= 2:
             continue
-        stems.append(token[:-1] if token[-1] in VOWELS else token)
+        folded = _fold(token)
+        stem = folded[:-1] if folded[-1] in VOWELS else folded
+        if len(stem) >= MIN_STEM_CHARS:
+            stems.append((stem, False))
+        else:
+            stems.append((token[:-1] if _fold(token[-1:]) in VOWELS else token, True))
     return stems
 
 
@@ -142,13 +172,17 @@ def validate_caption(caption: str, facts: dict, *, known_shops: Iterable[str],
 
     fact_shops = {_shop_base(s) for s in _numbers_free_strings(facts, key='shop')}
     folded_body = _fold(body)
-    proper_nouns = _capitalized_words(body)
+    lowered_body = body.lower()
+    words = _words(body)
     reported = set()
     for shop in known_shops:
         base = _shop_base(shop)
         if not base or base in fact_shops or base in reported:
             continue
-        if any(_inflects_from(word, base) for word in proper_nouns):
+        stem = _shop_stem(base)
+        proper_noun_only = base in COMMON_NOUN_BASES
+        if any(_inflects_from(word, stem) and (capitalized or not proper_noun_only)
+               for word, capitalized in words):
             reported.add(base)
             violations.append(f'shop {shop!r} is not in the facts')
 
@@ -157,8 +191,10 @@ def validate_caption(caption: str, facts: dict, *, known_shops: Iterable[str],
         if _fold(name) in fact_names:
             continue
         stems = _recipe_stems(name)
-        if stems and all(re.search(rf'\b{re.escape(stem)}\w{{0,{MAX_ENDING_CHARS}}}\b', folded_body)
-                         for stem in stems):
+        if stems and all(
+                re.search(rf'\b{re.escape(stem)}\w{{0,{MAX_ENDING_CHARS}}}\b',
+                          lowered_body if keep_diacritics else folded_body)
+                for stem, keep_diacritics in stems):
             violations.append(f'recipe {name!r} is not in the facts')
 
     for pattern, why in BANNED:
