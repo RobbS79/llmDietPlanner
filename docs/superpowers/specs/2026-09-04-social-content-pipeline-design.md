@@ -215,10 +215,10 @@ post URL and Pinterest pin URL; on failure the platform's error text.
 
 ### Layer 5 — publishers (`social/publishers/`)
 
-A tiny common interface: `publish(post, image_bytes, caption, link) -> str`
+A tiny common interface: `publish(*, caption, link, image, title="", post_fn=requests.post) -> str`
 (external id) raising `PublishError(detail)`.
 
-**facebook.py** — Meta Graph API v21: `POST /{PAGE_ID}/photos` multipart with
+**facebook.py** — Meta Graph API v24: `POST /{PAGE_ID}/photos` multipart with
 `source=<png>`, `message=<caption + link>`, `published=true`, using
 `FB_PAGE_ACCESS_TOKEN` (a long-lived Page token; the app may stay in
 development mode because the owner is the Page admin). Returns `post_id`.
