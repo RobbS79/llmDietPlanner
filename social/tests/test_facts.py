@@ -1,0 +1,187 @@
+from datetime import timedelta
+from unittest.mock import patch
+
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.utils import timezone
+
+from diet_planner.models import DietaryGoal, DietaryPlan, PriceSourceType, Recipe
+from diet_planner.services.canonical_lookup import clear_cache
+from diet_planner.tests.factories import make_canonical, make_price, make_store
+from social.facts import NoFacts, build_facts, recipe_photo
+from social.models import SocialPost
+
+
+def _public_recipe(goal, name, slug, ingredients, kcal=420, prep=10, cook=20,
+                   source='Apetit', source_url='https://apetit.cz/x'):
+    return Recipe.objects.create(
+        meal_identifier=f'g{goal.id}:1:dinner:{slug}', dietary_goal=goal, name=name,
+        slug=slug, ingredients=ingredients, servings=2, is_public=True,
+        instructions=['Nakrájejte cibuli a osmahněte ji.'] * 6,
+        nutritional_info={'calories': kcal}, preparation_time=prep, cooking_time=cook,
+        source_name=source, source_url=source_url,
+    )
+
+
+class DealsFactsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('u1', password='x')
+        self.goal = DietaryGoal.objects.create(user=self.user, country='CZ')
+        make_store('LIDL', name='Lidl')
+        make_store('ALBERT', name='Albert')
+        self.onion = make_canonical('onion', default_unit='ks', name_cs='cibule')
+        self.carrot = make_canonical('carrot', default_unit='ks', name_cs='mrkev')
+        self.pork = make_canonical('pork', default_unit='g', name_cs='vepřové')
+        clear_cache()
+        for canonical, name, store in [(self.onion, 'cibule', 'LIDL'),
+                                       (self.carrot, 'mrkev', 'ALBERT'),
+                                       (self.pork, 'vepřové', 'LIDL')]:
+            make_price(store_code=store, normalized_name=name, price='9.90',
+                       source_type=PriceSourceType.LEAFLET_DISCOUNT, canonical=canonical,
+                       source_url='http://x', valid_for_days=6)
+
+    def test_deals_facts_list_ingredients_and_recipes_that_use_them(self):
+        r = _public_recipe(self.goal, 'Vepřové s cibulí', 'veprove-s-cibuli',
+                           [{'name': 'vepřové', 'canonical': 'pork'},
+                            {'name': 'cibule', 'canonical': 'onion'}])
+        _public_recipe(self.goal, 'Mrkvový salát', 'mrkvovy-salat',
+                       [{'name': 'mrkev', 'canonical': 'carrot'}])
+        facts = build_facts('deals', '2026-W37')
+        self.assertEqual({d['ingredient'] for d in facts['deals']},
+                         {'cibule', 'mrkev', 'vepřové'})
+        self.assertEqual(facts['deals'][0].keys() >= {'ingredient', 'shop', 'valid_until'}, True)
+        self.assertEqual(facts['recipes'][0]['name'], r.name)
+        self.assertEqual(facts['recipes'][0]['matched'], 2)
+        self.assertEqual(facts['recipes'][0]['url'],
+                         f'https://eatalnicek.eu/recepty/{r.pk}/veprove-s-cibuli/')
+        self.assertIn('utm_campaign=auto-deals-2026-W37', facts['link'])
+        self.assertIn('utm_source={channel}', facts['link'])
+
+    def test_deals_facts_need_at_least_three_ingredients(self):
+        from diet_planner.models import PriceRecord
+        PriceRecord.objects.filter(store_product__canonical_ingredient=self.pork).delete()
+        with self.assertRaises(NoFacts) as ctx:
+            build_facts('deals', '2026-W37')
+        self.assertIn('2 ingredients', str(ctx.exception))
+
+
+class RecipeFactsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('u1', password='x')
+        self.goal = DietaryGoal.objects.create(user=self.user, country='CZ')
+
+    def test_recipe_facts_pick_public_recipe_with_image_not_recently_posted(self):
+        old = _public_recipe(self.goal, 'Stará', 'stara', [{'name': 'cibule'}])
+        fresh = _public_recipe(self.goal, 'Nová', 'nova', [{'name': 'cibule'}])
+        SocialPost.objects.create(kind='recipe', iso_week='2026-W30', scheduled_for='2026-07-22',
+                                  status='published', facts={'recipe_id': old.pk},
+                                  published_at=timezone.now())
+        with patch('social.facts.has_dish_image', return_value=True):
+            facts = build_facts('recipe', '2026-W37')
+        self.assertEqual(facts['recipe_id'], fresh.pk)
+        self.assertEqual(facts['name'], 'Nová')
+        self.assertEqual(facts['kcal'], 420)
+        self.assertEqual(facts['minutes'], 30)
+        self.assertEqual(facts['source_name'], 'Apetit')
+        self.assertEqual(facts['image_url'], 'https://eatalnicek.eu/static/food-images/dishes/nova.webp')
+        self.assertEqual(facts['link'], f'https://eatalnicek.eu/recepty/{fresh.pk}/nova/?utm_source={{channel}}&utm_medium=social&utm_campaign=auto-recipe-2026-W37')
+
+    def test_recipe_facts_raise_when_pool_is_exhausted(self):
+        _public_recipe(self.goal, 'Bez obrázku', 'bez-obrazku', [{'name': 'cibule'}])
+        with patch('social.facts.has_dish_image', return_value=False):
+            with self.assertRaises(NoFacts):
+                build_facts('recipe', '2026-W37')
+
+    def test_recipe_photo_uses_injected_fetcher_and_wraps_failure(self):
+        facts = {'image_url': 'https://eatalnicek.eu/static/food-images/dishes/x.webp'}
+        self.assertEqual(recipe_photo(facts, fetch=lambda url: b'PNG'), b'PNG')
+
+        def boom(url):
+            raise OSError('timeout')
+        with self.assertRaises(NoFacts):
+            recipe_photo(facts, fetch=boom)
+
+
+class ShowcaseFactsTests(TestCase):
+    def setUp(self):
+        self.qa = User.objects.create_user('qa_bot', password='x')
+
+    def _fake_run(self, goal_id):
+        goal = DietaryGoal.objects.get(pk=goal_id)
+        goal.status = DietaryGoal.StatusChoices.COMPLETED
+        goal.save(update_fields=['status'])
+        DietaryPlan.objects.create(dietary_goal=goal, days=[{
+            'day_number': 1,
+            'breakfast': {'name': 'Ovesná kaše', 'nutritional_info': {'calories': 350},
+                          'ingredients': [{'name': 'ovesné vločky'}]},
+            'lunch': {'name': 'Kuřecí rizoto', 'nutritional_info': {'calories': 620},
+                      'ingredients': [{'name': 'rýže'}]},
+            'dinner': {'name': 'Zeleninová polévka', 'nutritional_info': {'calories': 280},
+                       'ingredients': [{'name': 'mrkev'}]},
+            'small_meals': [], 'snacks': [],
+        }])
+
+    def test_showcase_creates_goal_for_qa_user_and_reads_day_one(self):
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            facts = build_facts('showcase', '2026-W37', run_plan=self._fake_run)
+        self.assertEqual(facts['prompt'], 'Rodina se dvěma dětmi, chceme levně a jednoduše, klasická česká kuchyně.')
+        self.assertEqual([m['name'] for m in facts['meals']],
+                         ['Ovesná kaše', 'Kuřecí rizoto', 'Zeleninová polévka'])
+        self.assertEqual(facts['total_kcal'], 1250)
+        goal = DietaryGoal.objects.get(pk=facts['goal_id'])
+        self.assertEqual(goal.user, self.qa)
+        self.assertEqual(goal.num_days, 1)
+
+    def test_showcase_raises_when_generation_fails(self):
+        def failing(goal_id):
+            DietaryGoal.objects.filter(pk=goal_id).update(status='failed', error_message='LLM down')
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            with self.assertRaises(NoFacts) as ctx:
+                build_facts('showcase', '2026-W37', run_plan=failing)
+        self.assertIn('LLM down', str(ctx.exception))
+
+    def test_showcase_requires_qa_account(self):
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': ''}):
+            with self.assertRaises(NoFacts):
+                build_facts('showcase', '2026-W37', run_plan=self._fake_run)
+
+    def test_showcase_keeps_only_four_most_recent_goals(self):
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            for week in range(30, 36):
+                build_facts('showcase', f'2026-W{week}', run_plan=self._fake_run)
+        self.assertEqual(DietaryGoal.objects.filter(user=self.qa).count(), 4)
+
+    # The three NoFacts reasons below have no test in the plan; they are the
+    # remaining honest-refusal paths of showcase_facts and are cheap to pin.
+    def test_showcase_requires_the_qa_account_to_exist(self):
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'nobody'}):
+            with self.assertRaises(NoFacts) as ctx:
+                build_facts('showcase', '2026-W37', run_plan=self._fake_run)
+        self.assertIn('seed_qa_account', str(ctx.exception))
+
+    def test_showcase_raises_when_the_plan_has_no_day_one(self):
+        def empty(goal_id):
+            goal = DietaryGoal.objects.get(pk=goal_id)
+            goal.status = DietaryGoal.StatusChoices.COMPLETED
+            goal.save(update_fields=['status'])
+            DietaryPlan.objects.create(dietary_goal=goal, days=[])
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            with self.assertRaises(NoFacts) as ctx:
+                build_facts('showcase', '2026-W37', run_plan=empty)
+        self.assertIn('no day 1', str(ctx.exception))
+
+    def test_showcase_raises_when_day_one_has_a_single_meal(self):
+        def thin(goal_id):
+            goal = DietaryGoal.objects.get(pk=goal_id)
+            goal.status = DietaryGoal.StatusChoices.COMPLETED
+            goal.save(update_fields=['status'])
+            DietaryPlan.objects.create(dietary_goal=goal, days=[{
+                'day_number': 1,
+                'breakfast': {'name': 'Ovesná kaše', 'nutritional_info': {'calories': 350},
+                              'ingredients': []},
+                'lunch': {}, 'dinner': None, 'small_meals': [], 'snacks': [],
+            }])
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            with self.assertRaises(NoFacts) as ctx:
+                build_facts('showcase', '2026-W37', run_plan=thin)
+        self.assertIn('fewer than two', str(ctx.exception))
