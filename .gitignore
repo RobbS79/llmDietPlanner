@@ -54,7 +54,8 @@ venv.bak/
 
 # Screenshots & artifacts
 *.png
-!social/tests/golden/*.png   # card golden images are fixtures, not artifacts
+# card golden images are test fixtures, not artifacts
+!social/tests/golden/*.png
 .playwright-mcp/
 test-results/
 do-screenshot*
