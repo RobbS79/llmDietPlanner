@@ -10,6 +10,7 @@ from diet_planner.services.canonical_lookup import clear_cache
 from diet_planner.tests.factories import make_canonical, make_price, make_store
 from social.facts import NoFacts, build_facts, recipe_photo
 from social.models import SocialPost
+from social.personas import persona_for_week
 
 
 def _public_recipe(goal, name, slug, ingredients, kcal=420, prep=10, cook=20,
@@ -124,7 +125,7 @@ class ShowcaseFactsTests(TestCase):
     def test_showcase_creates_goal_for_qa_user_and_reads_day_one(self):
         with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
             facts = build_facts('showcase', '2026-W37', run_plan=self._fake_run)
-        self.assertEqual(facts['prompt'], 'Rodina se dvěma dětmi, chceme levně a jednoduše, klasická česká kuchyně.')
+        self.assertEqual(facts['prompt'], persona_for_week('2026-W37'))
         self.assertEqual([m['name'] for m in facts['meals']],
                          ['Ovesná kaše', 'Kuřecí rizoto', 'Zeleninová polévka'])
         self.assertEqual(facts['total_kcal'], 1250)
