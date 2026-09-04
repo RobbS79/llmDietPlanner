@@ -117,11 +117,18 @@ publishing more recipes, which is a curation task, not a pipeline bug).
 **showcase** — the pipeline generates a real plan the way a user would: it
 creates a `DietaryGoal` for the QA account (`QA_TEST_USERNAME`) from one of
 three fixed persona prompts in `social/personas.py` (rotating by week),
-runs `process_dietary_goal_task` synchronously (`.apply()`), and waits up to
-10 minutes. Facts: the prompt, day 1's meals (name, kcal, deal badge), the
-day's kcal total, and the count of recipes with credited sources. `NoFacts` if
-generation fails — which doubles as a weekly end-to-end canary of the product.
-The goal is tagged so it never counts in product metrics.
+runs `process_dietary_goal_task` synchronously (`.apply()`; the task's own
+retry and timeout handling bound the wait, there is no separate timer). Facts:
+the prompt, day 1's meals (name, per-portion kcal, deal badge) and the day's
+kcal total. `NoFacts` if generation fails — which doubles as a weekly
+end-to-end canary of the product. The goals belong to the QA account (never a
+real user); the pipeline keeps the newest four of its own goals there and
+deletes older ones, leaving the QA tester's goals alone.
+
+**Nutrition basis.** A corpus-backed recipe's `nutritional_info` covers all
+`servings` portions (the site divides before showing "na porci"); the facts
+layer divides the same way and publishes per-portion kcal only when the basis
+is certain (`curated_recipe_slug` set), otherwise no kcal at all.
 
 Every fact dict also carries `link`: `https://eatalnicek.eu/?utm_source=<channel>
 &utm_medium=social&utm_campaign=auto-<kind>-<week>` (channel filled in at
