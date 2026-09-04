@@ -22,7 +22,7 @@ def _ingredient_slug(ingredient):
     return canonical.slug if canonical else None
 
 
-def _active_deal_index():
+def active_deal_index():
     """canonical slug -> chosen active deal dict.
 
     Active window enforced by .current() (valid_from <= now and not expired);
@@ -61,7 +61,11 @@ def _active_deal_index():
     return index
 
 
-def recipe_deals(ingredients):
+# Historic private name, kept for callers that already import it.
+_active_deal_index = active_deal_index
+
+
+def recipe_deals(ingredients, index=None):
     """Active deals for a recipe's ingredient list.
 
     Returns {matched, total, deals}: `total` counts non-optional ingredients,
@@ -69,9 +73,11 @@ def recipe_deals(ingredients):
     recipe `ingredient` label.
 
     Accepts both the curated dict shape and the plain strings generated meals
-    emit — see `normalize_ingredient_entries`.
+    emit — see `normalize_ingredient_entries`. Pass `index` to reuse one
+    `active_deal_index()` across a batch of recipes instead of re-querying per
+    recipe; omit it and one is built for this call.
     """
-    index = _active_deal_index()
+    index = index if index is not None else active_deal_index()
     deals = []
     seen = set()
     total = 0

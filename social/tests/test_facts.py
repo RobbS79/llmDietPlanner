@@ -6,8 +6,10 @@ from django.test import TestCase
 from django.utils import timezone
 from django.utils.text import slugify
 
-from diet_planner.models import DietaryGoal, DietaryPlan, PriceSourceType, Recipe
+from diet_planner.models import (DietaryGoal, DietaryPlan, PriceRecord, PriceSourceType,
+                                 Recipe)
 from diet_planner.services.canonical_lookup import clear_cache
+from diet_planner.services.recipe_deals import active_deal_index
 from diet_planner.tests.factories import make_canonical, make_price, make_store
 from social.facts import NoFacts, _per_portion_kcal, build_facts, recipe_photo
 from social.models import SocialPost
@@ -36,6 +38,17 @@ def _curated_meal(name, calories, ingredients, servings=2, curated=True):
     if curated:
         meal.update({'source': 'curated', 'curated_recipe_slug': slugify(name)})
     return meal
+
+
+def _seed_deal(name, name_cs, store_code='LIDL', days=6):
+    """One active leaflet deal on a fresh canonical ingredient."""
+    make_store(store_code, name=store_code.title())
+    canonical = make_canonical(name, default_unit='ks', name_cs=name_cs)
+    clear_cache()
+    make_price(store_code=store_code, normalized_name=name_cs, price='9.90',
+               source_type=PriceSourceType.LEAFLET_DISCOUNT, canonical=canonical,
+               source_url='http://x', valid_for_days=days)
+    return canonical
 
 
 class PerPortionKcalTests(TestCase):
@@ -98,6 +111,22 @@ class DealsFactsTests(TestCase):
             build_facts('deals', '2026-W37')
         self.assertIn('2 ingredients', str(ctx.exception))
 
+    def test_deals_are_listed_soonest_expiry_first(self):
+        PriceRecord.objects.all().delete()          # drop setUp's equal-length deals
+        _seed_deal('leek', 'pórek', days=9)
+        _seed_deal('apple', 'jablko', days=2)
+        _seed_deal('butter', 'máslo', days=5)
+        facts = build_facts('deals', '2026-W37')
+        self.assertEqual([d['ingredient'] for d in facts['deals']],
+                         ['jablko', 'máslo', 'pórek'])
+
+    def test_at_most_eight_deals_are_published(self):
+        for i in range(7):
+            _seed_deal(f'extra{i}', f'surovina {i}', days=3 + i)
+        self.assertEqual(len(active_deal_index()), 10)
+        facts = build_facts('deals', '2026-W37')
+        self.assertEqual(len(facts['deals']), 8)
+
 
 class RecipeFactsTests(TestCase):
     def setUp(self):
@@ -131,6 +160,28 @@ class RecipeFactsTests(TestCase):
         with patch('social.facts.has_dish_image', return_value=False):
             with self.assertRaises(NoFacts):
                 build_facts('recipe', '2026-W37')
+
+    def test_recipe_facts_prefer_the_recipe_with_more_active_deals(self):
+        _seed_deal('leek', 'pórek')
+        plain = _public_recipe(self.goal, 'Bez akce', 'bez-akce', [{'name': 'rýže'}])
+        with_deal = _public_recipe(self.goal, 'S akcí', 's-aci',
+                                   [{'name': 'pórek', 'canonical': 'leek'}])
+        self.assertLess(plain.pk, with_deal.pk)     # not just "first row wins"
+        with patch('social.facts.has_dish_image', return_value=True):
+            facts = build_facts('recipe', '2026-W37')
+        self.assertEqual(facts['recipe_id'], with_deal.pk)
+        self.assertEqual(facts['deals_matched'], 1)
+        self.assertEqual(facts['deal_shops'], ['Lidl'])
+
+    def test_a_recipe_posted_over_ninety_days_ago_is_eligible_again(self):
+        old = _public_recipe(self.goal, 'Stará', 'stara', [{'name': 'cibule'}])
+        SocialPost.objects.create(kind='recipe', iso_week='2026-W20',
+                                  scheduled_for='2026-05-13', status='published',
+                                  facts={'recipe_id': old.pk},
+                                  published_at=timezone.now() - timedelta(days=100))
+        with patch('social.facts.has_dish_image', return_value=True):
+            facts = build_facts('recipe', '2026-W37')
+        self.assertEqual(facts['recipe_id'], old.pk)
 
     def test_recipe_photo_uses_injected_fetcher_and_wraps_failure(self):
         facts = {'image_url': 'https://eatalnicek.eu/static/food-images/dishes/x.webp'}
@@ -235,3 +286,13 @@ class ShowcaseFactsTests(TestCase):
             with self.assertRaises(NoFacts) as ctx:
                 build_facts('showcase', '2026-W37', run_plan=thin)
         self.assertIn('fewer than two', str(ctx.exception))
+
+
+class BuildFactsDispatchTests(TestCase):
+    def test_run_plan_is_rejected_for_a_kind_that_generates_no_plan(self):
+        with self.assertRaises(ValueError):
+            build_facts('deals', '2026-W37', run_plan=lambda goal_id: None)
+
+    def test_unknown_kind_is_a_value_error(self):
+        with self.assertRaises(ValueError):
+            build_facts('brunch', '2026-W37')

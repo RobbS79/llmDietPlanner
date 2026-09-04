@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from diet_planner.food_images import dish_image_url, has_dish_image
 from diet_planner.models import DietaryGoal, DietaryPlan, Recipe
-from diet_planner.services.recipe_deals import _active_deal_index, recipe_deals
+from diet_planner.services.recipe_deals import active_deal_index, recipe_deals
 
 from .models import SocialPost
 from .personas import PERSONA_PROMPTS, persona_for_week
@@ -45,13 +45,13 @@ def _link(path: str, kind: str, iso_week: str) -> str:
 
 
 def _public_recipes():
-    return Recipe.objects.filter(is_public=True).exclude(slug='')
+    return Recipe.objects.filter(is_public=True).exclude(slug='').exclude(name='')
 
 
 # ---------------------------------------------------------------- deals
 
 def deals_facts(iso_week: str) -> dict:
-    index = _active_deal_index()
+    index = active_deal_index()
     if len(index) < MIN_DEAL_INGREDIENTS:
         raise NoFacts(f'only {len(index)} ingredients on offer, need {MIN_DEAL_INGREDIENTS}')
     from diet_planner.models import CanonicalIngredient
@@ -66,10 +66,10 @@ def deals_facts(iso_week: str) -> dict:
     } for d in ranked[:MAX_DEAL_INGREDIENTS]]
 
     recipes = []
-    for recipe in _public_recipes().filter(name__gt=''):
+    for recipe in _public_recipes():
         if not recipe.has_substantive_instructions():
             continue
-        hit = recipe_deals(recipe.ingredients)
+        hit = recipe_deals(recipe.ingredients, index)
         if hit['matched']:
             recipes.append({'recipe_id': recipe.pk, 'name': recipe.name,
                             'url': f'{_site()}{recipe.get_absolute_url()}',
@@ -115,13 +115,14 @@ def recipe_facts(iso_week: str) -> dict:
     `servings`; for LLM-authored rows the basis is a guess, so it stays None.
     """
     exclude = _recently_posted_recipe_ids()
+    index = active_deal_index()
     candidates = []
     for recipe in _public_recipes().order_by('pk'):
         if recipe.pk in exclude or not recipe.has_substantive_instructions():
             continue
         if not has_dish_image(recipe.slug):
             continue
-        hit = recipe_deals(recipe.ingredients)
+        hit = recipe_deals(recipe.ingredients, index)
         candidates.append((hit['matched'], recipe, hit))
     if not candidates:
         raise NoFacts('no public recipe with an image left to post '
@@ -151,8 +152,9 @@ def _default_fetch(url: str) -> bytes:
 
 
 def recipe_photo(facts: dict, fetch: Callable[[str], bytes] = _default_fetch) -> bytes:
+    url = facts['image_url']   # missing key = programmer error, not a fetch failure
     try:
-        return fetch(facts['image_url'])
+        return fetch(url)
     except Exception as exc:  # network, HTTP, decode — all mean "no honest card"
         raise NoFacts(f'recipe photo fetch failed: {exc}') from exc
 
@@ -171,7 +173,7 @@ def _qa_user() -> User:
     try:
         return User.objects.get(username=username)
     except User.DoesNotExist:
-        raise NoFacts(f'QA account {username!r} does not exist (run seed_qa_account)')
+        raise NoFacts(f'QA account {username!r} does not exist (run seed_qa_account)') from None
 
 
 def _prune_showcase_goals(user: User) -> None:
@@ -205,13 +207,14 @@ def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run
     if not day:
         raise NoFacts('plan completed but has no day 1')
     meals = []
+    index = active_deal_index()
     for slot in MEAL_SLOTS:
         meal = day.get(slot)
         if not meal or not meal.get('name'):
             continue
         kcal = _per_portion_kcal(meal.get('nutritional_info'), meal.get('servings'),
                                  bool(meal.get('curated_recipe_slug')))
-        hit = recipe_deals(meal.get('ingredients') or [])
+        hit = recipe_deals(meal.get('ingredients') or [], index)
         meals.append({'slot': slot, 'name': meal['name'],
                       'kcal': kcal,
                       'deals_matched': hit['matched']})
@@ -229,6 +232,8 @@ def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run
 
 def build_facts(kind: str, iso_week: str, *,
                 run_plan: Optional[Callable[[int], None]] = None) -> dict:
+    if run_plan is not None and kind != 'showcase':
+        raise ValueError(f'run_plan is only meaningful for showcase, not {kind!r}')
     if kind == 'deals':
         return deals_facts(iso_week)
     if kind == 'recipe':
