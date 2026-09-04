@@ -68,7 +68,7 @@ jobs:
         # Django's runner collects only unittest.TestCase subclasses — so it
         # silently ran 46 fewer tests while still reporting success. pytest
         # collects a verified strict superset (see pytest.ini's python_files).
-        run: python -m pytest diet_planner billing analytics login_app -q
+        run: python -m pytest diet_planner billing analytics login_app social -q
 
   frontend:
     name: frontend (Vite/React)
