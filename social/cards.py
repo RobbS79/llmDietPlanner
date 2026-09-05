@@ -5,10 +5,13 @@ the hex values drift."""
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
 from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+
+logger = logging.getLogger(__name__)
 
 CANVAS = (1080, 1350)
 PALETTE = {
@@ -26,6 +29,10 @@ PALETTE = {
 FONT_DIR = Path(__file__).parent / 'fonts'
 MARGIN = 72
 WORDMARK = 'Vařto'
+FOOTER_BAND = 110        # bottom strip the wordmark and footer line own
+RECIPE_BADGE_BAND = 110  # strip the deals card keeps free for its recipe badge
+
+_axis_warning_logged = False
 
 
 # ------------------------------------------------------------ fonts & text
@@ -45,9 +52,22 @@ def _font(kind: str, size: int, weight: int = 400) -> ImageFont.FreeTypeFont:
             else:
                 values.append(axis['default'])
         font.set_variation_by_axes(values)
-    except Exception:
-        pass   # static FreeType build: default instance is fine
+    except (OSError, AttributeError, ValueError) as exc:
+        # FreeType without variable-font support. Weights are then whatever the
+        # font's default instance is — for Bricolage Grotesque that is wght 800
+        # at opsz 96, i.e. every display line comes out extra-bold, not `weight`.
+        _warn_missing_variation_axes(exc)
     return font
+
+
+def _warn_missing_variation_axes(exc: Exception) -> None:
+    global _axis_warning_logged
+    if not _axis_warning_logged:
+        _axis_warning_logged = True
+        logger.warning(
+            'Pillow cannot set variable font axes (%s); social cards will render every '
+            'weight at the font default instance (Bricolage Grotesque defaults to '
+            'ExtraBold), so they will look heavier than designed.', exc)
 
 
 def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list:
@@ -64,6 +84,16 @@ def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list:
     return lines
 
 
+def _ellipsize(draw, text: str, font, max_width: int) -> str:
+    """Trim a single line to max_width, ending in an ellipsis if it had to give."""
+    if draw.textlength(text, font=font) <= max_width:
+        return text
+    trimmed = text
+    while trimmed and draw.textlength(trimmed + '…', font=font) > max_width:
+        trimmed = trimmed[:-1]
+    return trimmed.rstrip(' ,;') + '…'
+
+
 def _fit_text(draw, text, kind, max_width, max_lines, size, min_size, weight=400):
     """Shrink the font until the text fits in max_lines; return (font, lines)."""
     while True:
@@ -73,18 +103,9 @@ def _fit_text(draw, text, kind, max_width, max_lines, size, min_size, weight=400
             if len(lines) > max_lines:
                 lines = lines[:max_lines]
                 lines[-1] = lines[-1].rstrip('.,;') + '…'
-            return font, lines
+            # A single unbreakable word never wraps, so trim each line to the box.
+            return font, [_ellipsize(draw, line, font, max_width) for line in lines]
         size -= 4
-
-
-def _ellipsize(draw, text: str, font, max_width: int) -> str:
-    """Trim a single line to max_width, ending in an ellipsis if it had to give."""
-    if draw.textlength(text, font=font) <= max_width:
-        return text
-    trimmed = text
-    while trimmed and draw.textlength(trimmed + '…', font=font) > max_width:
-        trimmed = trimmed[:-1]
-    return trimmed.rstrip(' ,;') + '…'
 
 
 def _draw_lines(draw, lines, font, x, y, fill, line_gap=1.15) -> int:
@@ -104,13 +125,15 @@ def _badge(draw, text, x, y, fill, bg, font):
     return int(x + w + 2 * pad_x)
 
 
-def _wordmark(draw, img):
+def _wordmark(draw, footer: str = 'eatalnicek.eu'):
     font = _font('display', 40, 700)
     w = draw.textlength(WORDMARK, font=font)
     draw.text((CANVAS[0] - MARGIN - w, CANVAS[1] - MARGIN - 40), WORDMARK,
               font=font, fill=PALETTE['paprika'])
-    draw.text((MARGIN, CANVAS[1] - MARGIN - 30), 'eatalnicek.eu',
-              font=_font('body', 26, 500), fill=PALETTE['muted'])
+    footer_font = _font('body', 26, 500)
+    line = _ellipsize(draw, footer, footer_font, CANVAS[0] - 2 * MARGIN - w - 40)
+    draw.text((MARGIN, CANVAS[1] - MARGIN - 30), line,
+              font=footer_font, fill=PALETTE['muted'])
 
 
 def _new_canvas():
@@ -156,11 +179,14 @@ def _recipe_card(facts: dict, photo: bytes) -> bytes:
     if facts.get('source_name'):
         draw.text((MARGIN, y), f"Zdroj receptu: {facts['source_name']}",
                   font=_font('body', 26, 400), fill=PALETTE['muted'])
-    _wordmark(draw, img)
+    _wordmark(draw)
     return _to_png(img)
 
 
 # ------------------------------------------------------------ deals card
+
+DEALS_CTA = 'Recepty, které je využijí → eatalnicek.eu'
+
 
 def _deals_card(facts: dict) -> bytes:
     img, draw = _new_canvas()
@@ -175,7 +201,8 @@ def _deals_card(facts: dict) -> bytes:
     rows = facts['deals'][:8]
     # Spread a short list over the free height instead of leaving half the card blank,
     # but never past the footer: `step` is the whole row pitch, divider included.
-    free = (CANVAS[1] - MARGIN - 110) - y - (110 if facts.get('recipes') else 0)
+    free = ((CANVAS[1] - MARGIN - FOOTER_BAND) - y
+            - (RECIPE_BADGE_BAND if facts.get('recipes') else 0))
     step = max(98, min(150, free // max(len(rows), 1)))
     for deal in rows:
         draw.line([(MARGIN, y), (CANVAS[0] - MARGIN, y)], fill=PALETTE['line'], width=2)
@@ -196,12 +223,13 @@ def _deals_card(facts: dict) -> bytes:
         text = _ellipsize(draw, f"Recept: {r['name']} — {r['matched']} z {r['total']} surovin ve slevě",
                           badge_font, CANVAS[0] - 2 * MARGIN - 36)
         _badge(draw, text, MARGIN, y, PALETTE['green'], PALETTE['green_soft'], badge_font)
-    _wordmark(draw, img)
+    _wordmark(draw, DEALS_CTA)
     return _to_png(img)
 
 
 # ------------------------------------------------------------ showcase card
 
+SHOWCASE_CTA = 'Jídelníček na míru zdarma → eatalnicek.eu'
 SLOT_LABELS = {'breakfast': 'Snídaně', 'lunch': 'Oběd', 'dinner': 'Večeře'}
 NUMBERS_COLUMN = 230   # right-hand strip reserved for kcal + deals badge
 MEAL_CARD_H = 164
@@ -242,7 +270,7 @@ def _showcase_card(facts: dict) -> bytes:
     if facts.get('total_kcal'):
         draw.text((MARGIN, y + 10), f"Celkem {facts['total_kcal']} kcal za den",
                   font=_font('body', 30, 500), fill=PALETTE['muted'])
-    _wordmark(draw, img)
+    _wordmark(draw, SHOWCASE_CTA)
     return _to_png(img)
 
 

@@ -1,12 +1,11 @@
 import io
 import os
-import re
 from pathlib import Path
 
 from django.test import SimpleTestCase
-from PIL import Image, ImageChops, ImageStat
+from PIL import Image, ImageChops, ImageColor, ImageStat
 
-from social.cards import CANVAS, PALETTE, render_card
+from social.cards import CANVAS, MARGIN, PALETTE, render_card
 
 GOLDEN = Path(__file__).parent / 'golden'
 WRITE = os.environ.get('SOCIAL_WRITE_GOLDEN') == '1'
@@ -67,10 +66,12 @@ class CardTests(SimpleTestCase):
     def test_palette_matches_tailwind_config(self):
         css = Path(__file__).resolve().parents[2] / 'frontend' / 'tailwind.config.js'
         text = css.read_text()
-        for token, value in [('paper', PALETTE['paper']), ('ink', PALETTE['ink'])]:
-            self.assertRegex(text, rf"{token}:\s*'{value}'", f'{token} drifted from tailwind')
+        for token in ('paper', 'kraft', 'line', 'ink', 'muted'):
+            self.assertRegex(text, rf"{token}:\s*'{PALETTE[token]}'", f'{token} drifted from tailwind')
         self.assertRegex(text, rf"paprika:\s*\{{\s*DEFAULT:\s*'{PALETTE['paprika']}'")
         self.assertRegex(text, rf"green:\s*\{{\s*DEFAULT:\s*'{PALETTE['green']}'")
+        self.assertRegex(text, rf"paprika:\s*\{{[^}}]*soft:\s*'{PALETTE['paprika_soft']}'")
+        self.assertRegex(text, rf"green:\s*\{{[^}}]*soft:\s*'{PALETTE['green_soft']}'")
 
     def test_recipe_card_renders_and_matches_golden(self):
         png = render_card('recipe', RECIPE, photo=_photo())
@@ -89,6 +90,28 @@ class CardTests(SimpleTestCase):
 
     def test_showcase_card_matches_golden(self):
         _assert_matches_golden(self, 'showcase', render_card('showcase', SHOWCASE))
+
+    def test_unbreakable_name_stays_inside_the_canvas(self):
+        """A 59-char single token cannot wrap, so it must be trimmed, not overflow."""
+        name = 'Vepřovásplecínasčesnekusbramborovýmspyréasdušenýmšpenátem'
+        png = render_card('recipe', {**RECIPE, 'name': name}, photo=_photo())
+        img = Image.open(io.BytesIO(png)).convert('RGB')
+        # Everything right of the margin, below the photo, must still be bare paper.
+        strip = img.crop((CANVAS[0] - MARGIN, 800, CANVAS[0], CANVAS[1]))
+        paper = Image.new('RGB', strip.size, ImageColor.getrgb(PALETTE['paper']))
+        self.assertEqual(ImageChops.difference(strip, paper).getbbox(), None,
+                         'text ran into the right margin')
+
+    def test_optional_recipe_fields_change_the_card(self):
+        base = render_card('recipe', RECIPE, photo=_photo())
+        for field, value in (('source_name', ''), ('kcal', None), ('deals_matched', 0)):
+            with self.subTest(field=field):
+                other = render_card('recipe', {**RECIPE, field: value}, photo=_photo())
+                self.assertNotEqual(base, other, f'{field} is not visible on the card')
+
+    def test_deals_card_reflects_the_deals_it_was_given(self):
+        fewer = {**DEALS, 'deals': DEALS['deals'][:-1]}
+        self.assertNotEqual(render_card('deals', DEALS), render_card('deals', fewer))
 
     def test_unknown_kind_raises(self):
         with self.assertRaises(ValueError):
