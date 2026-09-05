@@ -192,16 +192,37 @@ def _prune_showcase_goals(user: User) -> None:
         DietaryGoal.objects.filter(id__in=stale).delete()
 
 
-def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run_plan) -> dict:
+def latest_showcase_goal(user: User) -> Optional[DietaryGoal]:
+    """The newest goal this pipeline generated for `user` that completed, or
+    None. Used by the dry run, which must not spend an LLM call or leave a
+    goal behind. `prompt` is encrypted, so the persona match is in Python."""
+    for goal in (DietaryGoal.objects
+                 .filter(user=user, status=DietaryGoal.StatusChoices.COMPLETED)
+                 .order_by('-id')):
+        if (goal.prompt or '') in PERSONA_PROMPTS:
+            return goal
+    return None
+
+
+def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run_plan,
+                   reuse_latest: bool = False) -> dict:
     user = _qa_user()
     prompt = persona_for_week(iso_week)
-    goal = DietaryGoal.objects.create(user=user, prompt=prompt, country='CZ',
-                                      num_days=1, language_code='cs')
-    run_plan(goal.id)
-    goal.refresh_from_db()
-    _prune_showcase_goals(user)
-    if goal.status != DietaryGoal.StatusChoices.COMPLETED:
-        raise NoFacts(f'plan generation ended {goal.status}: {goal.error_message or "no detail"}')
+    if reuse_latest:
+        # Dry run: read the last real showcase plan instead of generating one,
+        # so a rehearsal costs no LLM call and prunes nothing.
+        goal = latest_showcase_goal(user)
+        if goal is None:
+            raise NoFacts('no completed showcase plan to reuse in dry-run')
+        prompt = goal.prompt or prompt
+    else:
+        goal = DietaryGoal.objects.create(user=user, prompt=prompt, country='CZ',
+                                          num_days=1, language_code='cs')
+        run_plan(goal.id)
+        goal.refresh_from_db()
+        _prune_showcase_goals(user)
+        if goal.status != DietaryGoal.StatusChoices.COMPLETED:
+            raise NoFacts(f'plan generation ended {goal.status}: {goal.error_message or "no detail"}')
     plan = DietaryPlan.objects.filter(dietary_goal=goal).first()
     day = next((d for d in (plan.days if plan else []) if d.get('day_number') == 1), None)
     if not day:
@@ -231,13 +252,18 @@ def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run
 # ---------------------------------------------------------------- dispatch
 
 def build_facts(kind: str, iso_week: str, *,
-                run_plan: Optional[Callable[[int], None]] = None) -> dict:
-    if run_plan is not None and kind != 'showcase':
-        raise ValueError(f'run_plan is only meaningful for showcase, not {kind!r}')
+                run_plan: Optional[Callable[[int], None]] = None,
+                reuse_latest: bool = False) -> dict:
+    if kind != 'showcase':
+        if run_plan is not None:
+            raise ValueError(f'run_plan is only meaningful for showcase, not {kind!r}')
+        if reuse_latest:
+            raise ValueError(f'reuse_latest is only meaningful for showcase, not {kind!r}')
     if kind == 'deals':
         return deals_facts(iso_week)
     if kind == 'recipe':
         return recipe_facts(iso_week)
     if kind == 'showcase':
-        return showcase_facts(iso_week, run_plan=run_plan or _default_run_plan)
+        return showcase_facts(iso_week, run_plan=run_plan or _default_run_plan,
+                              reuse_latest=reuse_latest)
     raise ValueError(f'unknown kind {kind!r}')

@@ -128,4 +128,7 @@ class SlackDrafts:
 
     def reply_channel(self, text: str) -> None:
         """A channel-level note (not in any thread), e.g. 'skipped this week'."""
-        self.client.chat_postMessage(channel=self.channel, text=text)
+        try:
+            self.client.chat_postMessage(channel=self.channel, text=text)
+        except SlackApiError as exc:
+            logger.warning('slack channel note failed: %s', exc)

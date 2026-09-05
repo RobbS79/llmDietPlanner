@@ -5,12 +5,16 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
+from slack_sdk.errors import SlackApiError
 
+from diet_planner.models import DietaryGoal, DietaryPlan
 from social.facts import NoFacts
 from social.models import SocialPost
+from social.personas import PERSONA_PROMPTS
 
 FACTS = {
     'deals': {'kind': 'deals', 'iso_week': '2026-W37', 'deals': [{'ingredient': 'cibule', 'shop': 'Lidl', 'valid_until': '2026-09-13'}],
@@ -23,6 +27,10 @@ FACTS = {
                  'meals': [{'slot': 'lunch', 'name': 'Rizoto', 'kcal': 600, 'deals_matched': 0}],
                  'total_kcal': 600, 'link': 'https://eatalnicek.eu/?utm_source={channel}'},
 }
+
+
+class _ModelError(Exception):
+    """Stands in for a transport error out of the Gemini client."""
 
 
 def _photo():
@@ -153,3 +161,126 @@ class GenerateCommandTests(TestCase):
             self.assertTrue((d / 'deals-2026-W37.txt').exists())
         self.assertEqual(SocialPost.objects.count(), 0)
         seams['slack'].post_draft.assert_not_called()
+
+    def test_one_kinds_failure_does_not_cost_the_other_two(self):
+        def generate(prompt):
+            if '"kind": "deals"' in prompt:
+                raise _ModelError('503 model is overloaded')
+            return _fake_generate(prompt)
+        seams = _seams(generate=generate)
+        out = io.StringIO()
+        with self.assertRaises(CommandError) as ctx:
+            call_command('generate_social_drafts', stdout=out, **seams)
+        self.assertIn('errored', str(ctx.exception))
+        self.assertIn('errored (_ModelError: 503 model is overloaded)', out.getvalue())
+        self.assertEqual(sorted(SocialPost.objects.filter(status='draft')
+                                .values_list('kind', flat=True)), ['recipe', 'showcase'])
+        # Nothing un-retryable was left behind for deals (the row is either
+        # absent or a draft with no Slack message), so the next run recovers it.
+        self.assertFalse(SocialPost.objects.filter(kind='deals').exclude(slack_ts='').exists())
+        call_command('generate_social_drafts', **_seams())
+        deals = SocialPost.objects.get(kind='deals')
+        self.assertEqual((deals.status, deals.caption), ('draft', 'Cibule v Lidlu v akci.'))
+        self.assertTrue(deals.slack_ts)
+        self.assertEqual(SocialPost.objects.count(), 3)
+
+    def test_a_slack_failure_leaves_the_draft_for_the_next_run(self):
+        seams = _seams()
+        seams['slack'].post_draft.side_effect = SlackApiError('ratelimited', MagicMock())
+        with self.assertRaises(CommandError) as ctx:
+            call_command('generate_social_drafts', kind='deals', **seams)
+        self.assertIn('errored', str(ctx.exception))
+        post = SocialPost.objects.get(kind='deals')
+        self.assertEqual((post.status, post.slack_ts), ('draft', ''))
+        recovered = _seams()
+        call_command('generate_social_drafts', kind='deals', **recovered)
+        recovered['slack'].post_draft.assert_called_once()
+        self.assertEqual(SocialPost.objects.count(), 1)
+        self.assertTrue(SocialPost.objects.get(kind='deals').slack_ts)
+
+    def test_a_retry_replaces_the_stale_caption_facts_and_group_variant(self):
+        SocialPost.objects.create(kind='deals', iso_week='2026-W37', scheduled_for='2026-09-07',
+                                  status='draft', slack_ts='', caption='stale',
+                                  facts={'old': 1}, group_variant='old')
+        seams = _seams()
+        call_command('generate_social_drafts', kind='deals', **seams)
+        post = SocialPost.objects.get(kind='deals')
+        self.assertEqual(post.caption, 'Cibule v Lidlu v akci.')
+        self.assertEqual(post.group_variant, 'Stavím appku.')
+        self.assertEqual(post.facts, FACTS['deals'])
+
+    def test_a_rejected_caption_also_clears_a_stale_group_variant(self):
+        SocialPost.objects.create(kind='deals', iso_week='2026-W37', scheduled_for='2026-09-07',
+                                  status='skipped', group_variant='old', caption='stale')
+        seams = _seams(generate=lambda p: json.dumps({'caption': 'Ušetříte 500 Kč!'}))
+        with self.assertRaises(CommandError):
+            call_command('generate_social_drafts', kind='deals', **seams)
+        post = SocialPost.objects.get(kind='deals')
+        self.assertEqual((post.caption, post.group_variant), ('', ''))
+
+    def test_a_malformed_week_is_refused_before_anything_happens(self):
+        seams = _seams()
+        with self.assertRaises(CommandError) as ctx:
+            call_command('generate_social_drafts', week='next week', **seams)
+        self.assertIn('2026-W37', str(ctx.exception))
+        self.assertEqual(SocialPost.objects.count(), 0)
+        seams['slack'].post_draft.assert_not_called()
+
+    def test_unconfigured_slack_is_a_command_error(self):
+        seams = _seams()
+        seams.pop('slack')
+        with override_settings(SOCIAL_SLACK_CHANNEL=''):
+            with self.assertRaises(CommandError) as ctx:
+                call_command('generate_social_drafts', **seams)
+        self.assertIn('SOCIAL_SLACK_CHANNEL', str(ctx.exception))
+        self.assertEqual(SocialPost.objects.count(), 0)
+
+
+@override_settings(SOCIAL_SLACK_CHANNEL='C1', SLACK_BOT_TOKEN='x')
+class DryRunShowcaseTests(TestCase):
+    """The dry run rehearses the real facts layer, so it must not generate a
+    plan: the showcase reads the newest completed one instead."""
+
+    def setUp(self):
+        self.qa = User.objects.create_user('qa_bot', password='x')
+        self.dir = Path(tempfile.mkdtemp())
+
+    def _meal(self, name, calories):
+        return {'name': name, 'servings': 2, 'curated_recipe_slug': 'x',
+                'nutritional_info': {'calories': calories}, 'ingredients': []}
+
+    def _completed_showcase_goal(self):
+        goal = DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[0], country='CZ',
+                                          num_days=1, language_code='cs',
+                                          status=DietaryGoal.StatusChoices.COMPLETED)
+        DietaryPlan.objects.create(dietary_goal=goal, days=[{
+            'day_number': 1,
+            'breakfast': self._meal('Ovesná kaše', 700),
+            'lunch': self._meal('Kuřecí rizoto', 1240),
+            'small_meals': [], 'snacks': [],
+        }])
+        return goal
+
+    def _run(self):
+        seams = dict(generate=_fake_generate, slack=_slack_mock(), today=date(2026, 9, 6))
+        out = io.StringIO()
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            with patch('social.management.commands.generate_social_drafts.DRY_RUN_DIR', self.dir):
+                call_command('generate_social_drafts', dry_run=True, kind='showcase',
+                             stdout=out, **seams)
+        return out.getvalue()
+
+    def test_dry_run_reads_the_last_real_plan_and_generates_none(self):
+        goal = self._completed_showcase_goal()
+        self._run()
+        self.assertEqual(list(DietaryGoal.objects.values_list('id', flat=True)), [goal.id])
+        self.assertTrue((self.dir / 'showcase-2026-W37.png').exists())
+        self.assertTrue((self.dir / 'showcase-2026-W37.txt').exists())
+        self.assertEqual(SocialPost.objects.count(), 0)
+
+    def test_dry_run_reports_skipped_when_there_is_no_plan_to_reuse(self):
+        with self.assertRaises(CommandError) as ctx:
+            self._run()
+        self.assertIn('no completed showcase plan to reuse', str(ctx.exception))
+        self.assertEqual(DietaryGoal.objects.count(), 0)
+        self.assertFalse((self.dir / 'showcase-2026-W37.png').exists())

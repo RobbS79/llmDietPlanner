@@ -3,11 +3,14 @@ in Slack for approval.
 
     python manage.py generate_social_drafts [--week 2026-W37] [--kind deals] [--dry-run]
 
-Exit non-zero when any kind could not be drafted (no facts, or caption failed
-validation) so the DO job shows red; drafts that did succeed stay in Slack.
+Exit non-zero when any kind could not be drafted (no facts, an unexpected
+error, or a caption that failed validation) so the DO job shows red; the kinds
+that did succeed stay in Slack — one kind's failure never costs the others.
 """
 from __future__ import annotations
 
+import logging
+import re
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -19,8 +22,11 @@ from social.models import SocialPost
 from social.slack import SlackDrafts, SlackNotConfigured
 from social.weeks import KIND_OFFSETS, next_iso_week, prague_today, scheduled_date
 
+logger = logging.getLogger(__name__)
+
 DRY_RUN_DIR = Path('social_dry_run')
 KINDS = list(KIND_OFFSETS)
+WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 
 
 class Command(BaseCommand):
@@ -32,7 +38,9 @@ class Command(BaseCommand):
         parser.add_argument('--week', help='ISO week like 2026-W37 (default: next week)')
         parser.add_argument('--kind', choices=KINDS, help='only this post kind')
         parser.add_argument('--dry-run', action='store_true',
-                            help=f'write PNG + caption to ./{DRY_RUN_DIR}/ and touch neither DB nor Slack')
+                            help=f'write PNG + caption to ./{DRY_RUN_DIR}/ and touch neither DB nor '
+                                 'Slack; the showcase reuses the last real plan instead of '
+                                 'generating one')
 
     def handle(self, *args, **options):
         build = options.get('build_facts') or build_facts
@@ -41,6 +49,8 @@ class Command(BaseCommand):
         today = options.get('today') or prague_today()
         dry_run = options['dry_run']
         week = options.get('week') or next_iso_week(today)
+        if not WEEK_RE.match(week):
+            raise CommandError('--week must look like 2026-W37')
         kinds = [options['kind']] if options.get('kind') else KINDS
 
         slack = None
@@ -60,8 +70,12 @@ class Command(BaseCommand):
             if existing and not retryable and not dry_run:
                 self.stdout.write(f'{kind} {week}: already exists ({existing.status}), skipping')
                 continue
-            outcome = self._draft(kind, week, build, fetch, generate, shops, recipes, slack, dry_run,
-                                  existing=None if dry_run else existing)
+            try:
+                outcome = self._draft(kind, week, build, fetch, generate, shops, recipes, slack,
+                                      dry_run, existing=None if dry_run else existing)
+            except Exception as exc:   # one kind's bad day must not cost the other two
+                logger.exception('drafting %s %s failed', kind, week)
+                outcome = f'errored ({exc.__class__.__name__}: {exc})'
             self.stdout.write(f'{kind} {week}: {outcome}')
             if outcome != 'draft':
                 failures.append(f'{kind}: {outcome}')
@@ -77,7 +91,9 @@ class Command(BaseCommand):
         post = existing or SocialPost(kind=kind, iso_week=week, scheduled_for=scheduled_date(week, kind))
         post.status, post.error = SocialPost.Status.DRAFT, ''
         try:
-            facts = build(kind, week)
+            # A dry run must never generate a plan; the showcase reads the last real one.
+            facts = build(kind, week, **({'reuse_latest': True}
+                                         if dry_run and kind == 'showcase' else {}))
             photo = None
             if kind == 'recipe':
                 photo = recipe_photo(facts, **({'fetch': fetch} if fetch else {}))
@@ -95,7 +111,8 @@ class Command(BaseCommand):
                                     **({'generate': generate} if generate else {}))
             post.caption, post.group_variant = written['caption'], written['group_variant']
         except CaptionRejected as exc:
-            post.caption, post.error = '', f'caption failed validation: {exc}'
+            post.caption, post.group_variant = '', ''
+            post.error = f'caption failed validation: {exc}'
 
         if dry_run:
             DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)

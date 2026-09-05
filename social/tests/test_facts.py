@@ -11,9 +11,10 @@ from diet_planner.models import (DietaryGoal, DietaryPlan, PriceRecord, PriceSou
 from diet_planner.services.canonical_lookup import clear_cache
 from diet_planner.services.recipe_deals import active_deal_index
 from diet_planner.tests.factories import make_canonical, make_price, make_store
-from social.facts import NoFacts, _per_portion_kcal, build_facts, recipe_photo
+from social.facts import (NoFacts, _per_portion_kcal, build_facts, latest_showcase_goal,
+                          recipe_photo)
 from social.models import SocialPost
-from social.personas import persona_for_week
+from social.personas import PERSONA_PROMPTS, persona_for_week
 
 
 def _public_recipe(goal, name, slug, ingredients, kcal=840, prep=10, cook=20,
@@ -272,6 +273,40 @@ class ShowcaseFactsTests(TestCase):
                 build_facts('showcase', '2026-W37', run_plan=empty)
         self.assertIn('no day 1', str(ctx.exception))
 
+    def test_dry_run_reuses_the_newest_completed_showcase_plan(self):
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            real = build_facts('showcase', '2026-W37', run_plan=self._fake_run)
+            # No run_plan: reuse must not generate, or this would hit Celery.
+            reused = build_facts('showcase', '2026-W38', reuse_latest=True)
+        self.assertEqual(reused['goal_id'], real['goal_id'])
+        self.assertEqual(reused['iso_week'], '2026-W38')
+        self.assertEqual(reused['prompt'], real['prompt'])
+        self.assertEqual([m['name'] for m in reused['meals']],
+                         [m['name'] for m in real['meals']])
+        self.assertEqual(DietaryGoal.objects.filter(user=self.qa).count(), 1)
+
+    def test_reuse_refuses_when_no_showcase_plan_has_completed(self):
+        DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[0], country='CZ',
+                                   num_days=1)   # still pending
+        with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
+            with self.assertRaises(NoFacts) as ctx:
+                build_facts('showcase', '2026-W37', reuse_latest=True)
+        self.assertIn('no completed showcase plan to reuse', str(ctx.exception))
+
+    def test_latest_showcase_goal_ignores_goals_this_pipeline_did_not_write(self):
+        DietaryGoal.objects.create(user=self.qa, prompt='QA smoke run', country='CZ', num_days=1,
+                                   status=DietaryGoal.StatusChoices.COMPLETED)
+        self.assertIsNone(latest_showcase_goal(self.qa))
+        older = DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[0], country='CZ',
+                                           num_days=1,
+                                           status=DietaryGoal.StatusChoices.COMPLETED)
+        newer = DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[1], country='CZ',
+                                           num_days=1,
+                                           status=DietaryGoal.StatusChoices.COMPLETED)
+        self.assertEqual(latest_showcase_goal(self.qa), newer)
+        newer.delete()
+        self.assertEqual(latest_showcase_goal(self.qa), older)
+
     def test_showcase_raises_when_day_one_has_a_single_meal(self):
         def thin(goal_id):
             goal = DietaryGoal.objects.get(pk=goal_id)
@@ -292,6 +327,10 @@ class BuildFactsDispatchTests(TestCase):
     def test_run_plan_is_rejected_for_a_kind_that_generates_no_plan(self):
         with self.assertRaises(ValueError):
             build_facts('deals', '2026-W37', run_plan=lambda goal_id: None)
+
+    def test_reuse_latest_is_rejected_for_a_kind_that_generates_no_plan(self):
+        with self.assertRaises(ValueError):
+            build_facts('deals', '2026-W37', reuse_latest=True)
 
     def test_unknown_kind_is_a_value_error(self):
         with self.assertRaises(ValueError):
