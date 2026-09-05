@@ -252,6 +252,28 @@ def _parse_json(text: str) -> dict:
     return data
 
 
+
+def shorten(text: str, limit: int) -> str:
+    """Trim an over-long text at a sentence boundary (or a space) so it fits
+    `limit`. Length is not an honesty problem, so it is fixed deterministically
+    instead of costing a Gemini retry; the URL line is kept whole because the
+    link must survive. Text that already fits is returned unchanged."""
+    if len(text) <= limit:
+        return text
+    body, urls = URL_RE.sub('', text).rstrip(), URL_RE.findall(text)
+    tail = ('\n' + '\n'.join(urls)) if urls else ''
+    room = limit - len(tail)
+    if room <= 0:
+        return text[:limit]
+    cut = body[:room]
+    end = max(cut.rfind('.'), cut.rfind('!'), cut.rfind('?'))
+    if end >= int(room * 0.6):
+        cut = cut[:end + 1]
+    else:
+        space = cut.rfind(' ')
+        cut = (cut[:space].rstrip() + '…') if space > 0 else cut
+    return (cut + tail).strip()
+
 def write_caption(facts: dict, *, generate: Callable[[str], str] = default_generate,
                   known_shops: Iterable[str], known_recipes: Iterable[str]) -> dict:
     """Return {'caption': str, 'group_variant': str}; raise CaptionRejected after one retry."""
@@ -263,8 +285,9 @@ def write_caption(facts: dict, *, generate: Callable[[str], str] = default_gener
         text = generate(prompt if attempt == 0 else
                         f'{prompt}\n\nPŘEDCHOZÍ POKUS BYL ZAMÍTNUT, OPRAV TOHLE:\n- ' + '\n- '.join(last_violations))
         data = _parse_json(text)
-        caption = data['caption'].strip()
+        caption = shorten(data['caption'].strip(), MAX_CAPTION_CHARS)
         group = (data.get('group_variant') or '').strip() if kind == 'deals' else ''
+        group = shorten(group, MAX_GROUP_CHARS)
         last_violations = validate_caption(caption, facts, known_shops=known_shops,
                                            known_recipes=known_recipes)
         if group:

@@ -4,6 +4,7 @@ from django.test import SimpleTestCase, TestCase
 
 from diet_planner.tests.factories import make_store
 from social.captions import (
+    shorten,
     CaptionRejected, known_recipe_names, known_shops, validate_caption, write_caption,
 )
 
@@ -226,3 +227,30 @@ class KnownSetsTests(TestCase):
         Recipe.objects.create(meal_identifier='m', dietary_goal=goal, name='Svíčková', is_public=True)
         Recipe.objects.create(meal_identifier='n', dietary_goal=goal, name='Tajná', is_public=False)
         self.assertEqual(known_recipe_names(), {'Svíčková'})
+
+
+class ShortenTests(SimpleTestCase):
+    def test_short_text_is_unchanged(self):
+        self.assertEqual(shorten('Cibule v akci.', 350), 'Cibule v akci.')
+
+    def test_cuts_at_sentence_boundary_and_keeps_the_link(self):
+        body = ('Cibule je tenhle týden v akci. ' * 12).strip()
+        text = body + '\nhttps://eatalnicek.eu/?utm_source={channel}&utm_campaign=auto-deals-2026-W37'
+        out = shorten(text, 350)
+        self.assertLessEqual(len(out), 350)
+        self.assertTrue(out.endswith('utm_campaign=auto-deals-2026-W37'))
+        self.assertTrue(out.split('\n')[0].endswith('.'))
+
+    def test_falls_back_to_a_space_with_ellipsis(self):
+        text = 'cibule ' * 80
+        out = shorten(text.strip(), 100)
+        self.assertLessEqual(len(out), 100)
+        self.assertTrue(out.endswith('…'))
+
+    def test_write_caption_shortens_instead_of_rejecting(self):
+        long_group = ('Stavím appku, cibule je v akci. ' * 15).strip()
+        result = write_caption(DEALS_FACTS, generate=lambda p: json.dumps(
+            {'caption': 'Cibule v Lidlu je tenhle týden v akci.', 'group_variant': long_group}),
+            known_shops=SHOPS, known_recipes=RECIPES)
+        self.assertLessEqual(len(result['group_variant']), 350)
+        self.assertTrue(result['group_variant'].endswith('.'))
