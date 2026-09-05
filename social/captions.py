@@ -230,8 +230,9 @@ KIND_BRIEF = {
     'deals': 'Pondělní přehled: které suroviny jsou tenhle týden v akci a kde, a 1–2 recepty, které je využijí. '
              'Vrať {"caption": "<max 600 znaků pro Facebook>", "group_variant": "<max 350 znaků, v první osobě, '
              '\'stavím appku…\', bez hashtagů, pro vložení do facebookové skupiny>"}.',
-    'recipe': 'Středeční recept: jméno, kcal na porci, čas, kde je zdroj, a kolik surovin je v akci. '
-              'Vrať {"caption": "<max 600 znaků, na konci 3–5 hashtagů>"}.',
+    'recipe': 'Středeční recept: jméno, kcal na porci, čas, kde je zdroj, a kolik surovin je v akci '
+              '(je-li deals_matched 0, o akcích se vůbec nezmiňuj). '
+              'Vrať {"caption": "<max 600 znaků, na konci 3–5 hashtagů, jeden z nich #varto>"}.',
     'showcase': 'Páteční ukázka: co uživatel napsal (pole "prompt") a jaký den mu Vařto sestavilo (pole "meals"). '
                 'Vrať {"caption": "<max 600 znaků>"}.',
 }
