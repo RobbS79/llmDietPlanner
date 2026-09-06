@@ -699,3 +699,80 @@ class SlotDefaultTargetTest(TestCase):
         # 2000/4 = 500 kcal/portion; parsed 600-kcal target → 1 portion.
         self.assertEqual(out['days'][0]['lunch']['servings'], 1)
         self.assertEqual(out['days'][0]['lunch']['nutritional_info']['calories'], 500)
+
+
+class PrilohaOnMealTest(TestCase):
+    """The side is written INTO ingredients + nutrition so every downstream
+    reader (shopping list, deals, public recipe, social facts) sees it."""
+
+    def _leco(self, **kw):
+        defaults = dict(
+            name_cs='Lečo', base_servings=4,
+            base_nutrition={'calories': 2000, 'protein': 80, 'carbs': 100, 'fat': 120},
+            side_options=['chleb', 'brambory'], dish_role=CuratedRecipe.DishRole.SUPPER,
+            meal_types=['dinner'])
+        defaults.update(kw)
+        return make_recipe(**defaults)
+
+    def test_no_side_is_byte_identical_to_before(self):
+        r = self._leco()
+        meal = scale_recipe_to_meal(r, portions=1)
+        self.assertNotIn('side', meal)
+        self.assertEqual([i['name'] for i in meal['ingredients']], ['rýže'])
+        self.assertEqual(meal['nutritional_info']['calories'], 500)
+
+    def test_side_appended_as_role_side_ingredient(self):
+        from diet_planner.services.priloha import SIDES
+        r = self._leco()
+        meal = scale_recipe_to_meal(r, portions=2, side=SIDES['chleb'])
+        last = meal['ingredients'][-1]
+        self.assertEqual(last['role'], 'side')
+        self.assertEqual(last['name'], 'chléb')
+        self.assertEqual(last['quantity'], 160.0)
+        self.assertEqual(last['canonical'], 'bread-loaf')
+        self.assertNotIn('role', meal['ingredients'][0])
+
+    def test_side_counted_in_nutrition(self):
+        from diet_planner.services.priloha import SIDES
+        r = self._leco()
+        meal = scale_recipe_to_meal(r, portions=2, side=SIDES['chleb'])
+        self.assertEqual(meal['nutritional_info']['calories'], 1000 + 400)
+        self.assertEqual(meal['nutritional_info']['carbs'], '126g')  # 50 + 76
+
+    def test_meal_carries_side_meta(self):
+        from diet_planner.services.priloha import SIDES
+        meal = scale_recipe_to_meal(self._leco(), portions=1, side=SIDES['chleb'])
+        self.assertEqual(meal['side'], {
+            'key': 'chleb', 'name_cs': 'chléb', 'with_cs': 's chlebem', 'display': '2 krajíce'})
+
+    def test_portions_for_target_counts_the_side(self):
+        from diet_planner.services.priloha import SIDES
+        from diet_planner.services.recipe_retrieval import portions_for_target
+        r = self._leco()  # 500 kcal/portion; chléb adds 200
+        self.assertEqual(portions_for_target(r, 1400), 3)
+        self.assertEqual(portions_for_target(r, 1400, side=SIDES['chleb']), 2)
+
+    def test_render_curated_meal_attaches_allowed_side(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        meal, gap = render_curated_meal(self._leco(), target_kcal=700, required_tags=set())
+        self.assertEqual(meal['side']['key'], 'chleb')
+        self.assertIsNone(gap)
+
+    def test_render_curated_meal_respects_diet(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        meal, gap = render_curated_meal(self._leco(), target_kcal=700, required_tags={'gluten_free'})
+        self.assertEqual(meal['side']['key'], 'brambory')
+        self.assertIsNone(gap)
+
+    def test_render_curated_meal_reports_unavailable_side(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        r = self._leco(side_options=['chleb', 'knedlik'])
+        meal, gap = render_curated_meal(r, target_kcal=700, required_tags={'gluten_free'})
+        self.assertNotIn('side', meal)
+        self.assertEqual(gap, 'side_unavailable')
+
+    def test_render_curated_meal_no_options_no_gap(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        meal, gap = render_curated_meal(self._leco(side_options=[]), target_kcal=700, required_tags=set())
+        self.assertNotIn('side', meal)
+        self.assertIsNone(gap)

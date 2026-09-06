@@ -45,6 +45,7 @@ from django.db.models import F
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
 from diet_planner.models.catalog import Availability
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
+from diet_planner.services.priloha import Side, pick_side, side_ingredient, side_meta, side_nutrition
 from diet_planner.services.prompt_facets import (
     ENFORCEABLE_DIETARY_TAGS,
     PromptFacets,
@@ -687,15 +688,21 @@ def scale_recipe_to_meal(
     *,
     factor: float = 1.0,
     portions: Optional[int] = None,
+    side: Optional[Side] = None,
 ) -> Dict[str, Any]:
     """Render a CuratedRecipe into a meal object, scaling quantities/nutrition by
     `factor` (default 1.0 = base servings). `portions` overrides factor: serve
     that many of the recipe's base_servings portions (factor = portions/base),
     and the meal's `servings` reports the portions actually served. Ingredients
     keep their canonical / catalog_id so the shopping list stays coherent by
-    construction. Source attribution is attached for the frontend credit line."""
+    construction. Source attribution is attached for the frontend credit line.
+
+    `side` (a příloha row) is written INTO the meal: one more ingredient with
+    `role: 'side'`, its nutrients added to the totals, and a `side` object for
+    the card — so nothing downstream has to know sides exist."""
     if portions is not None:
         factor = portions / max(int(recipe.base_servings or 1), 1)
+    served = portions if portions is not None else recipe.base_servings
     ingredients: List[Dict[str, Any]] = []
     for ing in (recipe.ingredients or []):
         qty = ing.get('quantity')
@@ -715,16 +722,27 @@ def scale_recipe_to_meal(
     ]
 
     base = recipe.base_nutrition or {}
+    totals = {
+        'calories': base.get('calories', 0) * factor if base.get('calories') else None,
+        'protein': base.get('protein', 0) * factor if base.get('protein') is not None else None,
+        'carbs': base.get('carbs', 0) * factor if base.get('carbs') is not None else None,
+        'fat': base.get('fat', 0) * factor if base.get('fat') is not None else None,
+    }
+    if side is not None:
+        side_portions = max(int(served or 1), 1)
+        ingredients.append(side_ingredient(side, portions=side_portions))
+        for key, add in side_nutrition(side, portions=side_portions).items():
+            totals[key] = (totals[key] or 0) + add
     nutritional_info = {
-        'calories': int(round(base.get('calories', 0) * factor)) if base.get('calories') else None,
-        'protein': _fmt_grams(base.get('protein', 0) * factor) if base.get('protein') is not None else None,
-        'carbs': _fmt_grams(base.get('carbs', 0) * factor) if base.get('carbs') is not None else None,
-        'fat': _fmt_grams(base.get('fat', 0) * factor) if base.get('fat') is not None else None,
+        'calories': int(round(totals['calories'])) if totals['calories'] else None,
+        'protein': _fmt_grams(totals['protein']) if totals['protein'] is not None else None,
+        'carbs': _fmt_grams(totals['carbs']) if totals['carbs'] is not None else None,
+        'fat': _fmt_grams(totals['fat']) if totals['fat'] is not None else None,
     }
 
-    return {
+    meal = {
         'name': recipe.name_cs,
-        'servings': portions if portions is not None else recipe.base_servings,
+        'servings': served,
         'description': recipe.description or '',
         'food_category': '',  # stock-image slug; left blank -> generic fallback
         'preparation_time': recipe.total_time or recipe.prep_time or None,
@@ -739,6 +757,9 @@ def scale_recipe_to_meal(
         'source_url': recipe.source_url,
         'source_author': recipe.source_author or '',
     }
+    if side is not None:
+        meal['side'] = side_meta(side)
+    return meal
 
 
 def per_portion_calories(recipe: CuratedRecipe) -> Optional[float]:
@@ -752,17 +773,42 @@ def per_portion_calories(recipe: CuratedRecipe) -> Optional[float]:
     return calories / max(int(recipe.base_servings or 1), 1)
 
 
-def portions_for_target(recipe: CuratedRecipe, target: Optional[float]) -> int:
+def portions_for_target(
+    recipe: CuratedRecipe, target: Optional[float], side: Optional[Side] = None,
+) -> int:
     """How many of the recipe's portions fill the slot's calorie target.
     Without a target (or usable nutrition) serve ONE portion — never the whole
     multi-serving pot (goal 133: 1709 kcal / 6 servings rendered as one
     dinner). Capped at base_servings: we never invent more food than the
-    recipe makes."""
+    recipe makes. A `side` counts toward the per-portion figure, so attaching
+    bread cannot overshoot the slot."""
     base = max(int(recipe.base_servings or 1), 1)
     per_portion = per_portion_calories(recipe)
     if not target or not per_portion:
         return 1
+    if side is not None:
+        per_portion += side.calories
     return max(1, min(base, int(round(target / per_portion))))
+
+
+def render_curated_meal(
+    recipe: CuratedRecipe,
+    *,
+    target_kcal: Optional[float],
+    required_tags: Set[str],
+) -> tuple:
+    """The ONE way a curated recipe becomes a plan meal: pick the příloha the
+    diet allows, size the portions on main+side, render. Used by the overlay,
+    the replace swap, and refine preview/accept, so the card never differs
+    from what accept writes. Returns (meal, gap_reason) where gap_reason is
+    'side_unavailable' when the recipe wants a side and the diet forbids all
+    of them (served bare — a corpus/diet gap worth counting), else None."""
+    side = pick_side(recipe, required_tags)
+    gap = 'side_unavailable' if (side is None and (recipe.side_options or [])) else None
+    meal = scale_recipe_to_meal(
+        recipe, portions=portions_for_target(recipe, target_kcal, side=side), side=side,
+    )
+    return meal, gap
 
 
 _KCAL_IN_TEXT_RE = re.compile(r'(\d+(?:[.,]\d+)?)\s*kcal', re.IGNORECASE)
