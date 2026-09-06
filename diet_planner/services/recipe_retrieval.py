@@ -11,9 +11,11 @@ Design (docs/recipe-grounding-plan.md §5/§6), deliberately simple — SQL filt
   * HARD GATE (a recipe is eligible for a slot iff ALL hold):
       - status == published
       - the slot is in meal_types
-      - dish_role can CARRY the slot (oběd needs a 'main'; sides/dips never
-        fill main slots; untagged '' passes until retag_dish_roles has run),
-        with a select-time relaxation when a slot would otherwise starve
+      - dish_role can CARRY the slot (oběd needs a 'main'; snídaně needs a
+        'breakfast' dish or a 'dessert'; večeře also takes a 'supper' dish or
+        a 'soup'; a 'main' no longer carries snídaně; sides/dips never fill
+        main slots; untagged '' passes until retag_dish_roles has run), with
+        a select-time relaxation when a slot would otherwise starve
       - dietary_tags ⊇ the user's parsed restrictions
       - is_catalog_mapped(): every non-optional ingredient resolves to a
         canonical/catalog id. THIS is the gate that makes worldwide sourcing

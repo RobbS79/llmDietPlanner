@@ -498,6 +498,13 @@ class DishRoleGateTest(TestCase):
         self.assertEqual([r.id for r in eligible_recipes_for_slot('dinner', set())], [om.id])
         self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
 
+    def test_meal_types_still_gates_new_roles(self):
+        make_recipe(
+            name_cs='Lečo bez večeře', meal_types=['lunch'],
+            dish_role=CuratedRecipe.DishRole.SUPPER)
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual(eligible_recipes_for_slot('dinner', set()), [])
+
     def test_lunch_relaxes_when_no_mains_exist(self):
         """'Unless nothing else exists': an all-sides pool still fills the slot
         rather than starving the plan, and the relaxation is recorded as a
