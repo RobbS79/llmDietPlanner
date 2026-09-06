@@ -41,10 +41,14 @@ class CuratedRecipe(models.Model):
 
     class DishRole(models.TextChoices):
         MAIN = 'main', 'Main — can carry an oběd/večeře'
-        LIGHT = 'light', 'Light — breakfast/quick-supper dish'
+        SUPPER = 'supper', 'Supper — quick večeře dish (lečo, topinky); never oběd'
+        BREAKFAST = 'breakfast', 'Breakfast — snídaně dish (kaše, vejce, toasty)'
         SOUP = 'soup', 'Soup — brothy, accompanies rather than carries'
-        SIDE = 'side', 'Side — salad/dip/accompaniment'
+        SIDE = 'side', 'Side — salad/dip/accompaniment/preserving base'
         DESSERT = 'dessert', 'Dessert / sweet'
+        # Legacy: breakfast + quick supper in one bucket. The tag pass rewrites
+        # every row carrying it; remove once prod reports zero.
+        LIGHT = 'light', 'Light (legacy — retag to breakfast/supper)'
 
     # --- Identity / presentation -------------------------------------------
     slug = models.SlugField(max_length=255, unique=True, db_index=True)
@@ -77,6 +81,21 @@ class CuratedRecipe(models.Model):
             "says whether it can be the meal). '' = untagged legacy — passes "
             "every slot until retag_dish_roles has run."
         ),
+    )
+    side_options = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Ordered příloha keys the dish is eaten with (see services/priloha.py: "
+            "chleb, brambory, ryze, knedlik, testoviny). [] = complete dish."
+        ),
+    )
+    dish_family = models.CharField(
+        max_length=60,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text="Dedupe key (leco, gulas, svickova…). '' = untagged, never deduped.",
     )
     difficulty = models.CharField(
         max_length=10,

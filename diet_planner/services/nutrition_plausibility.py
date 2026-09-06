@@ -42,7 +42,9 @@ from typing import Any, Dict, List, Optional
 # Minimum believable calories in one portion, by dish role.
 ROLE_MIN_PORTION_KCAL: Dict[str, float] = {
     'main': 200.0,
-    'light': 150.0,
+    'light': 150.0,      # legacy
+    'breakfast': 150.0,
+    'supper': 150.0,
     'soup': 100.0,
     'dessert': 100.0,
     'side': 40.0,
