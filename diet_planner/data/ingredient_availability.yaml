@@ -134,6 +134,10 @@
   availability: specialty
   confidence: high
   note: asian shop only
+- slug: bread-dumpling
+  availability: common
+  confidence: high
+  note: chilled houskový knedlík in every supermarket
 - slug: bread-loaf
   availability: common
   confidence: high

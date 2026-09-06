@@ -1607,6 +1607,17 @@
     - { alias: "starší žemle", language_code: cs }
     - { alias: "hamburgerová bulka", language_code: cs }
 
+- name: bread dumpling
+  name_cs: houskový knedlík
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "houskové knedlíky", language_code: cs }
+    - { alias: "knedlík", language_code: cs }
+    - { alias: "knedlíky", language_code: cs }
+    - { alias: "kynutý knedlík", language_code: cs }
+    - { alias: "kynuté knedlíky", language_code: cs }
+
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-03 dictionary growth (2026-06-20) — head of the post-batch-02 unmapped
 # report (531 distinct forms / 635 occurrences / 299 recipes blocked, 88%
