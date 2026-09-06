@@ -1,0 +1,17 @@
+# Owner-pinned dish classifications. Applied AFTER the LLM answer by
+# services/dish_classification.apply_overrides, at intake and in
+# `manage.py retag_dish_roles`. by_slug wins over by_family wins over the LLM.
+# Each entry may set any of: dish_role, meal_types, side_options, dish_family.
+# Keep a `note` with the reason and date; this file IS the review trail.
+by_slug:
+  domaci-leco:
+    dish_role: side
+    meal_types: [small_meal]
+    side_options: []
+    note: "2026-09-06 — preserving base (18 servings of lard/onion/pepper/tomato), not a meal"
+by_family:
+  leco:
+    dish_role: supper
+    meal_types: [dinner]
+    side_options: [chleb]
+    note: "2026-09-06 owner — lečo is a quick supper with bread; never oběd, never snídaně"

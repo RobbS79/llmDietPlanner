@@ -1424,6 +1424,20 @@ Only emit a slug from the candidate list. Use null when nothing fits.
             logger.error(f"match_canonical_ingredients_batch failed: {exc}", exc_info=True)
             return []
 
+    def classify_dishes(self, system_prompt: str, user_text: str, model: Optional[str] = None) -> str:
+        """JSON-mode classification call used by services.dish_classification.
+        Returns the raw JSON text; the caller parses and validates."""
+        gemini_model = genai.GenerativeModel(
+            model_name=model or self.default_model,
+            system_instruction=system_prompt,
+        )
+        response = gemini_model.generate_content(
+            user_text,
+            generation_config={"response_mime_type": "application/json", "temperature": 0.0},
+            request_options={"timeout": 300},
+        )
+        return getattr(response, 'text', '') or ''
+
     # ─── Catalog-Constrained Generation (Phase 4) ─────────────────────
 
     def generate_catalog_constrained_plan(
