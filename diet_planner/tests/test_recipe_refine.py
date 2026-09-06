@@ -199,6 +199,25 @@ class PreviewTurnTest(RefineTestBase):
         resp = other.post(self._url(), {'messages': USER_MSG, 'rejected_ids': []}, format='json')
         self.assertEqual(resp.status_code, 404)
 
+    def test_preview_candidate_calories_include_the_side(self):
+        current = make_recipe(name_cs='Kuře s rýží')
+        chicken = make_recipe(
+            name_cs='Kuřecí řízek', side_options=['brambory'],
+            ingredients=[{'name': 'kuřecí prsa', 'quantity': 150, 'unit': 'g', 'canonical': 'chicken-breast'}],
+        )
+        self._plan_with_lunch(current)  # lunch slot carries 500 kcal (make_recipe default)
+
+        facets = PromptFacets(wanted_ingredients={'kuřecí'})
+        with patch('diet_planner.views.refine_conversation',
+                   return_value=(facets, 'Chcete to spíš rychlé?')):
+            resp = self._preview(USER_MSG)
+
+        self.assertEqual(resp.status_code, 200)
+        body = resp.data['data']
+        self.assertEqual(body['candidate']['curated_recipe_id'], chicken.id)
+        # 1 portion of the main (500) + brambory (190): the card must show what accept writes.
+        self.assertEqual(body['candidate']['calories'], 690)
+
 
 class ProfilePreferencesGateTest(RefineTestBase):
     """Profile dietary preferences must constrain refine candidates — the user

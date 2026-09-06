@@ -11,9 +11,11 @@ Design (docs/recipe-grounding-plan.md §5/§6), deliberately simple — SQL filt
   * HARD GATE (a recipe is eligible for a slot iff ALL hold):
       - status == published
       - the slot is in meal_types
-      - dish_role can CARRY the slot (oběd needs a 'main'; sides/dips never
-        fill main slots; untagged '' passes until retag_dish_roles has run),
-        with a select-time relaxation when a slot would otherwise starve
+      - dish_role can CARRY the slot (oběd needs a 'main'; snídaně needs a
+        'breakfast' dish or a 'dessert'; večeře also takes a 'supper' dish or
+        a 'soup'; a 'main' no longer carries snídaně; sides/dips never fill
+        main slots; untagged '' passes until retag_dish_roles has run), with
+        a select-time relaxation when a slot would otherwise starve
       - dietary_tags ⊇ the user's parsed restrictions
       - is_catalog_mapped(): every non-optional ingredient resolves to a
         canonical/catalog id. THIS is the gate that makes worldwide sourcing
@@ -35,7 +37,8 @@ from __future__ import annotations
 import logging
 import random
 import re
-from typing import Any, Dict, List, Optional, Sequence, Set
+from collections import Counter
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Set
 
 from django.conf import settings
 from django.db.models import F
@@ -43,6 +46,7 @@ from django.db.models import F
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
 from diet_planner.models.catalog import Availability
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
+from diet_planner.services.priloha import Side, pick_side, side_ingredient, side_meta, side_nutrition
 from diet_planner.services.prompt_facets import (
     ENFORCEABLE_DIETARY_TAGS,
     PromptFacets,
@@ -78,13 +82,14 @@ _SLOT_TO_MEAL_TYPE = {
 }
 
 # Which dish roles can CARRY each slot (Czech meal culture: oběd is a warm
-# main; večeře may also be light or a soup; sides/dips belong to the small
-# slots). None = no role gate. Untagged ('') always passes — rollout safety
-# until `retag_dish_roles` has tagged the corpus.
+# main; večeře may also be a quick supper dish or a soup; snídaně is its own
+# family of dishes). None = no role gate. Untagged ('') always passes —
+# rollout safety until `retag_dish_roles` has tagged the corpus. 'light' is
+# the legacy breakfast+supper bucket and keeps its old reach until retagged.
 _SLOT_ALLOWED_ROLES = {
-    'breakfast': {'main', 'light', 'dessert'},
+    'breakfast': {'breakfast', 'dessert', 'light'},
     'lunch': {'main'},
-    'dinner': {'main', 'light', 'soup'},
+    'dinner': {'main', 'supper', 'soup', 'light'},
     'small_meal': None,
     'snack': None,
 }
@@ -401,6 +406,7 @@ def eligible_recipes_for_slot(
     facets: Optional[PromptFacets] = None,
     enforce_mapping: bool = True,
     enforce_roles: bool = True,
+    exclude_families: Optional[Set[str]] = None,
 ) -> List[CuratedRecipe]:
     """Recipes that pass the HARD GATE for one slot (incl. prompt facets).
 
@@ -408,14 +414,20 @@ def eligible_recipes_for_slot(
     user's own chat_web drafts (spec 2026-07-27, decision 1).
     `enforce_roles=False` relaxes ONLY the dish-role slot-fit gate — used as
     the select-time fallback when a slot has no role-appropriate candidates.
+    `exclude_families` drops every recipe whose `dish_family` is in the set
+    (same-day dedupe: lečo at lunch means no lečo at dinner). An empty family
+    is never excluded — untagged rows must keep flowing.
     All other gates (slot, dietary, facets) always apply."""
     meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)
     candidates = pool if pool is not None else published_pool(status)
     exclude_ids = exclude_ids or set()
+    exclude_families = {f for f in (exclude_families or set()) if f}
 
     out: List[CuratedRecipe] = []
     for r in candidates:
         if r.id in exclude_ids:
+            continue
+        if r.dish_family and r.dish_family in exclude_families:
             continue
         if meal_type not in (r.meal_types or []):
             continue
@@ -509,6 +521,7 @@ def score_recipe(
     facets: Optional[PromptFacets] = None,
     used_canonicals: Optional[Set[str]] = None,
     recently_served_ids: Optional[Set[int]] = None,
+    used_families: Optional[Mapping[str, int]] = None,
 ) -> float:
     """Soft-ranking score; higher is better."""
     score = 0.0
@@ -523,6 +536,13 @@ def score_recipe(
         score -= 100.0
     if recipe.cuisine and recipe.cuisine in used_cuisines:
         score -= 5.0 * list(used_cuisines).count(recipe.cuisine)
+
+    # Dish family across the plan: a second guláš this week ranks below a
+    # fresh dish, but stays under the wanted-ingredient weight so "chci guláš"
+    # still wins. Same-day repeats are excluded before scoring, not here.
+    if used_families and recipe.dish_family:
+        repeats = used_families.get(recipe.dish_family, 0)
+        score -= min(_RECENT_SERVE_PENALTY * repeats, 2 * _RECENT_SERVE_PENALTY)
 
     # Difficulty: prefer easy (novice-friendly is the whole point).
     if recipe.difficulty == CuratedRecipe.Difficulty.EASY:
@@ -605,6 +625,7 @@ def select_recipes_for_plan(
     used_recipe_ids: Set[int] = set()
     used_cuisines: List[str] = []
     used_canonicals: Set[str] = set()  # ingredient reuse across the whole plan
+    used_families_plan: Counter = Counter()  # dish families served so far
     days: List[Dict[str, Any]] = []
     gaps: List[Dict[str, Any]] = []
     filled = total = 0
@@ -622,9 +643,19 @@ def select_recipes_for_plan(
 
     for day_number in range(1, num_days + 1):
         chosen: Dict[str, Any] = {}
+        used_families_today: Set[str] = set()
         for slot_type, slot_key in slot_plan:
             total += 1
-            candidates = eligible_recipes_for_slot(slot_type, required_tags, pool=pool, facets=facets)
+            candidates = eligible_recipes_for_slot(
+                slot_type, required_tags, pool=pool, facets=facets,
+                exclude_families=used_families_today)
+            if not candidates and used_families_today:
+                # Family dedupe starved the slot: a repeat family beats an
+                # empty plate, but it is a signal worth counting.
+                candidates = eligible_recipes_for_slot(
+                    slot_type, required_tags, pool=pool, facets=facets)
+                if candidates:
+                    record_gap(day_number, slot_key, 'family_relaxed')
             if not candidates:
                 # Role-relaxed fallback: serving a role-mismatched dish beats
                 # starving the slot, but it is recorded as a corpus gap.
@@ -640,6 +671,7 @@ def select_recipes_for_plan(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
                 facets=facets, used_canonicals=used_canonicals,
                 target_calories=target, recently_served_ids=recently_served_ids,
+                used_families=used_families_plan,
             ), r) for r in candidates]
             top = max(s for s, _ in scored)
             window = [r for s, r in scored if s >= top - _SAMPLING_WINDOW]
@@ -658,6 +690,9 @@ def select_recipes_for_plan(
                 record_gap(day_number, slot_key, 'wanted_fit_below_threshold')
                 continue
             chosen[slot_key] = best
+            if best.dish_family:
+                used_families_today.add(best.dish_family)
+                used_families_plan[best.dish_family] += 1
             used_recipe_ids.add(best.id)
             if best.cuisine:
                 used_cuisines.append(best.cuisine)
@@ -684,15 +719,21 @@ def scale_recipe_to_meal(
     *,
     factor: float = 1.0,
     portions: Optional[int] = None,
+    side: Optional[Side] = None,
 ) -> Dict[str, Any]:
     """Render a CuratedRecipe into a meal object, scaling quantities/nutrition by
     `factor` (default 1.0 = base servings). `portions` overrides factor: serve
     that many of the recipe's base_servings portions (factor = portions/base),
     and the meal's `servings` reports the portions actually served. Ingredients
     keep their canonical / catalog_id so the shopping list stays coherent by
-    construction. Source attribution is attached for the frontend credit line."""
+    construction. Source attribution is attached for the frontend credit line.
+
+    `side` (a příloha row) is written INTO the meal: one more ingredient with
+    `role: 'side'`, its nutrients added to the totals, and a `side` object for
+    the card — so nothing downstream has to know sides exist."""
     if portions is not None:
         factor = portions / max(int(recipe.base_servings or 1), 1)
+    served = portions if portions is not None else recipe.base_servings
     ingredients: List[Dict[str, Any]] = []
     for ing in (recipe.ingredients or []):
         qty = ing.get('quantity')
@@ -712,16 +753,27 @@ def scale_recipe_to_meal(
     ]
 
     base = recipe.base_nutrition or {}
+    totals = {
+        'calories': base.get('calories', 0) * factor if base.get('calories') else None,
+        'protein': base.get('protein', 0) * factor if base.get('protein') is not None else None,
+        'carbs': base.get('carbs', 0) * factor if base.get('carbs') is not None else None,
+        'fat': base.get('fat', 0) * factor if base.get('fat') is not None else None,
+    }
+    if side is not None:
+        side_portions = max(int(served or 1), 1)
+        ingredients.append(side_ingredient(side, portions=side_portions))
+        for key, add in side_nutrition(side, portions=side_portions).items():
+            totals[key] = (totals[key] or 0) + add
     nutritional_info = {
-        'calories': int(round(base.get('calories', 0) * factor)) if base.get('calories') else None,
-        'protein': _fmt_grams(base.get('protein', 0) * factor) if base.get('protein') is not None else None,
-        'carbs': _fmt_grams(base.get('carbs', 0) * factor) if base.get('carbs') is not None else None,
-        'fat': _fmt_grams(base.get('fat', 0) * factor) if base.get('fat') is not None else None,
+        'calories': int(round(totals['calories'])) if totals['calories'] else None,
+        'protein': _fmt_grams(totals['protein']) if totals['protein'] is not None else None,
+        'carbs': _fmt_grams(totals['carbs']) if totals['carbs'] is not None else None,
+        'fat': _fmt_grams(totals['fat']) if totals['fat'] is not None else None,
     }
 
-    return {
+    meal = {
         'name': recipe.name_cs,
-        'servings': portions if portions is not None else recipe.base_servings,
+        'servings': served,
         'description': recipe.description or '',
         'food_category': '',  # stock-image slug; left blank -> generic fallback
         'preparation_time': recipe.total_time or recipe.prep_time or None,
@@ -736,6 +788,9 @@ def scale_recipe_to_meal(
         'source_url': recipe.source_url,
         'source_author': recipe.source_author or '',
     }
+    if side is not None:
+        meal['side'] = side_meta(side)
+    return meal
 
 
 def per_portion_calories(recipe: CuratedRecipe) -> Optional[float]:
@@ -749,17 +804,42 @@ def per_portion_calories(recipe: CuratedRecipe) -> Optional[float]:
     return calories / max(int(recipe.base_servings or 1), 1)
 
 
-def portions_for_target(recipe: CuratedRecipe, target: Optional[float]) -> int:
+def portions_for_target(
+    recipe: CuratedRecipe, target: Optional[float], side: Optional[Side] = None,
+) -> int:
     """How many of the recipe's portions fill the slot's calorie target.
     Without a target (or usable nutrition) serve ONE portion — never the whole
     multi-serving pot (goal 133: 1709 kcal / 6 servings rendered as one
     dinner). Capped at base_servings: we never invent more food than the
-    recipe makes."""
+    recipe makes. A `side` counts toward the per-portion figure, so attaching
+    bread cannot overshoot the slot."""
     base = max(int(recipe.base_servings or 1), 1)
     per_portion = per_portion_calories(recipe)
     if not target or not per_portion:
         return 1
+    if side is not None:
+        per_portion += side.calories
     return max(1, min(base, int(round(target / per_portion))))
+
+
+def render_curated_meal(
+    recipe: CuratedRecipe,
+    *,
+    target_kcal: Optional[float],
+    required_tags: Set[str],
+) -> tuple:
+    """The ONE way a curated recipe becomes a plan meal: pick the příloha the
+    diet allows, size the portions on main+side, render. Used by the overlay,
+    the replace swap, and refine preview/accept, so the card never differs
+    from what accept writes. Returns (meal, gap_reason) where gap_reason is
+    'side_unavailable' when the recipe wants a side and the diet forbids all
+    of them (served bare — a corpus/diet gap worth counting), else None."""
+    side = pick_side(recipe, required_tags)
+    gap = 'side_unavailable' if (side is None and (recipe.side_options or [])) else None
+    meal = scale_recipe_to_meal(
+        recipe, portions=portions_for_target(recipe, target_kcal, side=side), side=side,
+    )
+    return meal, gap
 
 
 _KCAL_IN_TEXT_RE = re.compile(r'(\d+(?:[.,]\d+)?)\s*kcal', re.IGNORECASE)
@@ -878,6 +958,8 @@ def overlay_curated_recipes(
         recently_served_ids=recently_served_curated_ids(goal),
     )
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
+    gaps: List[Dict[str, Any]] = list(selection['gaps'])
+    required_tags = required_tags_for_goal(goal)
 
     promoted_ids: Set[int] = set()
     goal_id = getattr(goal, 'id', None) or getattr(goal, 'pk', 0)
@@ -909,7 +991,10 @@ def overlay_curated_recipes(
             if existing and rescue_only:
                 continue
             target = slot_target(calorie_targets, day_number, slot)
-            meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
+            meal, side_gap = render_curated_meal(recipe, target_kcal=target, required_tags=required_tags)
+            if side_gap:
+                gaps.append({'day_number': day_number, 'slot': slot, 'reason': side_gap,
+                             'required_tags': sorted(required_tags), 'unmatched_wanted': []})
             meal['meal_identifier'] = (
                 (existing or {}).get('meal_identifier')
                 or f"{goal_id}:{day_number}:{slot}:0"
@@ -935,7 +1020,10 @@ def overlay_curated_recipes(
                     continue
                 existing = meals[i] if i < len(meals) else None
                 target = slot_target(calorie_targets, day_number, f'{slot_type}:{i}')
-                meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
+                meal, side_gap = render_curated_meal(recipe, target_kcal=target, required_tags=required_tags)
+                if side_gap:
+                    gaps.append({'day_number': day_number, 'slot': f'{slot_type}:{i}', 'reason': side_gap,
+                                 'required_tags': sorted(required_tags), 'unmatched_wanted': []})
                 meal['meal_identifier'] = (
                     (existing.get('meal_identifier') if isinstance(existing, dict) else None)
                     or f"{goal_id}:{day_number}:{slot_type}:{i}"
@@ -972,7 +1060,7 @@ def overlay_curated_recipes(
         'days': transformed_days,
         'coverage': {**selection['coverage'], 'rescued': rescued},
         'facets': facets.to_debug(),
-        'gaps': selection['gaps'],
+        'gaps': gaps,
     }
 
 

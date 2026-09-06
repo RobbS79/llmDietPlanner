@@ -371,3 +371,41 @@ class PortionedSwapTest(ReplaceRecipeTestBase):
         self.assertEqual(meal['servings'], 1)
         self.assertEqual(meal['nutritional_info']['calories'], 500)
         self.assertEqual(meal['ingredients'][0]['quantity'], 100)
+
+
+class PrilohaAndFamilyOnSwapTest(ReplaceRecipeTestBase):
+    def _with_dinner(self, plan, recipe):
+        from diet_planner.services.recipe_retrieval import scale_recipe_to_meal
+        dinner = scale_recipe_to_meal(recipe)
+        dinner['meal_identifier'] = f'{self.goal.id}:1:dinner:0'
+        plan.days[0]['dinner'] = dinner
+        plan.save(update_fields=['days'])
+        return plan
+
+    def test_swap_never_offers_a_family_already_on_that_day(self):
+        current = make_recipe(name_cs='Kuřecí rizoto', dish_family='rizoto')
+        leco_a = make_recipe(name_cs='Lečo s klobásou', dish_family='leco')
+        leco_b = make_recipe(name_cs='Lečo', dish_family='leco')
+        other = make_recipe(name_cs='Guláš', dish_family='gulas')
+        plan = self._with_dinner(self._plan_with_lunch(current), leco_a)
+
+        resp = self.client.post(self._url(), {'hint': ''}, format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data['data']['replaced'])
+        plan.refresh_from_db()
+        self.assertEqual(plan.days[0]['lunch']['curated_recipe_id'], other.id)
+        self.assertNotEqual(plan.days[0]['lunch']['curated_recipe_id'], leco_b.id)
+
+    def test_swap_writes_the_side_into_the_cached_recipe(self):
+        current = make_recipe(name_cs='Kuřecí rizoto')
+        make_recipe(name_cs='Svíčková', side_options=['knedlik'])
+        self._plan_with_lunch(current)
+
+        resp = self.client.post(self._url(), {'hint': ''}, format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data['data']['replaced'])
+        row = Recipe.objects.get(meal_identifier=f'{self.goal.id}:1:lunch:0')
+        self.assertEqual(row.ingredients[-1]['role'], 'side')
+        self.assertEqual(row.ingredients[-1]['canonical'], 'bread-dumpling')

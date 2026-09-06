@@ -382,3 +382,20 @@ class RunRefineTurnTimeBudgetTest(TestCase):
             session_factory=lambda system_prompt: session,
         )
         self.assertIn('Časový limit: žádný', session.first_message)
+
+
+class SearchCorpusFamilyExclusionTest(TestCase):
+    def test_family_already_on_the_day_is_not_offered(self):
+        leco = make_recipe(name_cs='Lečo', dish_family='leco')
+        gulas = make_recipe(name_cs='Guláš', dish_family='gulas')
+        payload = refine_agent._tool_search_corpus(
+            {},
+            meal_type='lunch',
+            required_tags=set(),
+            pool=[leco, gulas],
+            exclude_ids=set(),
+            used_recipe_ids=set(),
+            used_cuisines=[],
+            exclude_families={'leco'},
+        )
+        self.assertEqual([c['id'] for c in payload['candidates']], [gulas.id])

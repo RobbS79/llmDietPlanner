@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useToast } from '@/components/ui/Toast';
+import { MealSideLine } from '@/components/recipe/MealSideLine';
 
 const MEAL_LABELS: Record<string, string> = {
   breakfast: 'Snídaně',
@@ -285,6 +286,7 @@ export const PlanView = () => {
 
                         <div className="cursor-pointer" onClick={() => navigate(`/plan/${id}/recipe/${mealId}`)}>
                           <h3 className={`text-4xl font-black mb-6 tracking-tighter leading-tight uppercase italic group-hover/meal:text-green transition-colors relative z-10 ${isCooked ? 'text-muted line-through' : 'text-ink'}`}>{day[m].name}</h3>
+                          <MealSideLine side={day[m].side} />
                           <p className="text-muted text-lg font-medium leading-relaxed mb-12 max-w-2xl relative z-10 italic">"{day[m].description}"</p>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 pt-8 border-t border-line">

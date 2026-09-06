@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
 from django.conf import settings as django_settings
+from django.utils.text import slugify
 
 from diet_planner.llm_service import GeminiService
 from diet_planner.models import CuratedRecipe
@@ -416,6 +417,22 @@ def curate_from_source(
 
     # A freshly curated recipe must never be left "not yet computed".
     recipe.shopping_difficulty, recipe.shopping_blockers = compute_shopping_difficulty(recipe)
+
+    # Slot-fit tags at intake (spec 2026-09-06): role, when, příloha, family.
+    # Fail-open — an untagged recipe still passes every gate as today; the
+    # backfill command catches it later.
+    try:
+        from diet_planner.services.dish_classification import classify_and_override
+        key = recipe.slug or slugify(recipe.name_cs)
+        tagged = classify_and_override([recipe], generate=gemini.classify_dishes).get(key)
+        if tagged and tagged.dish_role:
+            recipe.dish_role = tagged.dish_role
+            recipe.side_options = tagged.side_options
+            recipe.dish_family = tagged.dish_family
+            if tagged.meal_types:
+                recipe.meal_types = tagged.meal_types
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("recipe_curation: dish classification failed for %s: %s", url, exc)
 
     if run_judge:
         # Judge needs the ingredient/instruction JSON; the in-memory instance

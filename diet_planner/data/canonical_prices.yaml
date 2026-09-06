@@ -225,6 +225,14 @@ prices:
     samples: 6
     verified: true
     source: csu-vdb-2025-12
+  bread-dumpling:
+    name_cs: "houskový knedlík"
+    unit: g
+    price_per_unit: 0.09
+    pack: 500.0
+    samples: 0
+    verified: false
+    source: manual-estimate-2026-09
   breadcrumbs:
     name_cs: "strouhanka"
     unit: g

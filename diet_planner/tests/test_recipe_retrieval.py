@@ -468,6 +468,43 @@ class DishRoleGateTest(TestCase):
         self.assertIn(side.id, [r.id for r in eligible_recipes_for_slot('small_meal', set())])
         self.assertIn(side.id, [r.id for r in eligible_recipes_for_slot('snack', set())])
 
+    def test_supper_allowed_for_dinner_only(self):
+        leco = make_recipe(
+            name_cs='Lečo', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.SUPPER)
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual(eligible_recipes_for_slot('breakfast', set()), [])
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('dinner', set())], [leco.id])
+
+    def test_breakfast_role_allowed_for_breakfast_only(self):
+        kase = make_recipe(
+            name_cs='Ovesná kaše', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.BREAKFAST)
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('breakfast', set())], [kase.id])
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual(eligible_recipes_for_slot('dinner', set()), [])
+
+    def test_main_no_longer_carries_breakfast(self):
+        make_recipe(
+            name_cs='Guláš', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.MAIN)
+        self.assertEqual(eligible_recipes_for_slot('breakfast', set()), [])
+
+    def test_legacy_light_still_passes_breakfast_and_dinner(self):
+        om = make_recipe(
+            name_cs='Omeleta', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.LIGHT)
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('breakfast', set())], [om.id])
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('dinner', set())], [om.id])
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+
+    def test_meal_types_still_gates_new_roles(self):
+        make_recipe(
+            name_cs='Lečo bez večeře', meal_types=['lunch'],
+            dish_role=CuratedRecipe.DishRole.SUPPER)
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual(eligible_recipes_for_slot('dinner', set()), [])
+
     def test_lunch_relaxes_when_no_mains_exist(self):
         """'Unless nothing else exists': an all-sides pool still fills the slot
         rather than starving the plan, and the relaxation is recorded as a
@@ -662,3 +699,142 @@ class SlotDefaultTargetTest(TestCase):
         # 2000/4 = 500 kcal/portion; parsed 600-kcal target → 1 portion.
         self.assertEqual(out['days'][0]['lunch']['servings'], 1)
         self.assertEqual(out['days'][0]['lunch']['nutritional_info']['calories'], 500)
+
+
+class PrilohaOnMealTest(TestCase):
+    """The side is written INTO ingredients + nutrition so every downstream
+    reader (shopping list, deals, public recipe, social facts) sees it."""
+
+    def _leco(self, **kw):
+        defaults = dict(
+            name_cs='Lečo', base_servings=4,
+            base_nutrition={'calories': 2000, 'protein': 80, 'carbs': 100, 'fat': 120},
+            side_options=['chleb', 'brambory'], dish_role=CuratedRecipe.DishRole.SUPPER,
+            meal_types=['dinner'])
+        defaults.update(kw)
+        return make_recipe(**defaults)
+
+    def test_no_side_is_byte_identical_to_before(self):
+        r = self._leco()
+        meal = scale_recipe_to_meal(r, portions=1)
+        self.assertNotIn('side', meal)
+        self.assertEqual([i['name'] for i in meal['ingredients']], ['rýže'])
+        self.assertEqual(meal['nutritional_info']['calories'], 500)
+
+    def test_side_appended_as_role_side_ingredient(self):
+        from diet_planner.services.priloha import SIDES
+        r = self._leco()
+        meal = scale_recipe_to_meal(r, portions=2, side=SIDES['chleb'])
+        last = meal['ingredients'][-1]
+        self.assertEqual(last['role'], 'side')
+        self.assertEqual(last['name'], 'chléb')
+        self.assertEqual(last['quantity'], 160.0)
+        self.assertEqual(last['canonical'], 'bread-loaf')
+        self.assertNotIn('role', meal['ingredients'][0])
+
+    def test_side_counted_in_nutrition(self):
+        from diet_planner.services.priloha import SIDES
+        r = self._leco()
+        meal = scale_recipe_to_meal(r, portions=2, side=SIDES['chleb'])
+        self.assertEqual(meal['nutritional_info']['calories'], 1000 + 400)
+        self.assertEqual(meal['nutritional_info']['carbs'], '126g')  # 50 + 76
+
+    def test_meal_carries_side_meta(self):
+        from diet_planner.services.priloha import SIDES
+        meal = scale_recipe_to_meal(self._leco(), portions=1, side=SIDES['chleb'])
+        self.assertEqual(meal['side'], {
+            'key': 'chleb', 'name_cs': 'chléb', 'with_cs': 's chlebem', 'display': '2 krajíce'})
+
+    def test_portions_for_target_counts_the_side(self):
+        from diet_planner.services.priloha import SIDES
+        from diet_planner.services.recipe_retrieval import portions_for_target
+        r = self._leco()  # 500 kcal/portion; chléb adds 200
+        self.assertEqual(portions_for_target(r, 1400), 3)
+        self.assertEqual(portions_for_target(r, 1400, side=SIDES['chleb']), 2)
+
+    def test_render_curated_meal_attaches_allowed_side(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        meal, gap = render_curated_meal(self._leco(), target_kcal=700, required_tags=set())
+        self.assertEqual(meal['side']['key'], 'chleb')
+        self.assertIsNone(gap)
+
+    def test_render_curated_meal_respects_diet(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        meal, gap = render_curated_meal(self._leco(), target_kcal=700, required_tags={'gluten_free'})
+        self.assertEqual(meal['side']['key'], 'brambory')
+        self.assertIsNone(gap)
+
+    def test_render_curated_meal_reports_unavailable_side(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        r = self._leco(side_options=['chleb', 'knedlik'])
+        meal, gap = render_curated_meal(r, target_kcal=700, required_tags={'gluten_free'})
+        self.assertNotIn('side', meal)
+        self.assertEqual(gap, 'side_unavailable')
+
+    def test_render_curated_meal_no_options_no_gap(self):
+        from diet_planner.services.recipe_retrieval import render_curated_meal
+        meal, gap = render_curated_meal(self._leco(side_options=[]), target_kcal=700, required_tags=set())
+        self.assertNotIn('side', meal)
+        self.assertIsNone(gap)
+
+    def test_overlay_attaches_side_to_dinner(self):
+        r = self._leco()
+        days = [{'day_number': 1, 'dinner': {'name': 'x', 'nutritional_info': {'calories': 700}}}]
+        result = overlay_curated_recipes(days, goal(breakfast=False, lunch=False))
+        meal = result['days'][0]['dinner']
+        self.assertEqual(meal['curated_recipe_id'], r.id)
+        self.assertEqual(meal['side']['key'], 'chleb')
+        self.assertEqual(meal['ingredients'][-1]['role'], 'side')
+
+    def test_overlay_records_side_gap(self):
+        self._leco(side_options=['chleb', 'knedlik'], dietary_tags=['gluten_free'])
+        days = [{'day_number': 1, 'dinner': {'name': 'x', 'nutritional_info': {'calories': 700}}}]
+        result = overlay_curated_recipes(
+            days, goal(breakfast=False, lunch=False, dietary_restrictions='bezlepková'))
+        reasons = [g['reason'] for g in result['gaps']]
+        self.assertIn('side_unavailable', reasons)
+        self.assertNotIn('side', result['days'][0]['dinner'])
+
+
+class DishFamilyDedupeTest(TestCase):
+    """Same family never twice in a day; discouraged across the plan."""
+
+    def _pair(self):
+        a = make_recipe(name_cs='Lečo', dish_family='leco', meal_types=['lunch', 'dinner'])
+        b = make_recipe(name_cs='Lečo s klobásou', dish_family='leco', meal_types=['lunch', 'dinner'])
+        return a, b
+
+    def test_exclude_families_drops_candidates(self):
+        a, b = self._pair()
+        c = make_recipe(name_cs='Guláš', dish_family='gulas')
+        ids = {r.id for r in eligible_recipes_for_slot('lunch', set(), exclude_families={'leco'})}
+        self.assertEqual(ids, {c.id})
+
+    def test_empty_family_is_never_excluded(self):
+        r = make_recipe(name_cs='Bez rodiny', dish_family='')
+        ids = {x.id for x in eligible_recipes_for_slot('lunch', set(), exclude_families={''})}
+        self.assertEqual(ids, {r.id})
+
+    def test_family_repeat_in_plan_is_penalised_below_wanted_weight(self):
+        from collections import Counter
+        a, _ = self._pair()
+        base = score_recipe(a, used_recipe_ids=set(), used_cuisines=[])
+        once = score_recipe(a, used_recipe_ids=set(), used_cuisines=[], used_families=Counter({'leco': 1}))
+        thrice = score_recipe(a, used_recipe_ids=set(), used_cuisines=[], used_families=Counter({'leco': 3}))
+        self.assertEqual(base - once, 8.0)
+        self.assertEqual(base - thrice, 16.0)  # capped
+
+    def test_same_day_never_gets_two_of_a_family(self):
+        a, b = self._pair()
+        make_recipe(name_cs='Guláš', dish_family='gulas')
+        make_recipe(name_cs='Svíčková', dish_family='svickova')
+        for seed in range(1, 8):
+            sel = select_recipes_for_plan(goal(id=seed, breakfast=False))
+            fams = [r.dish_family for r in sel['days'][0]['slots'].values()]
+            self.assertEqual(len(fams), len(set(fams)), fams)
+
+    def test_tiny_pool_relaxes_with_a_gap(self):
+        self._pair()  # only lečo-family recipes exist
+        sel = select_recipes_for_plan(goal(breakfast=False))
+        self.assertEqual(sel['coverage']['filled'], 2)
+        self.assertIn('family_relaxed', [g['reason'] for g in sel['gaps']])
