@@ -776,3 +776,21 @@ class PrilohaOnMealTest(TestCase):
         meal, gap = render_curated_meal(self._leco(side_options=[]), target_kcal=700, required_tags=set())
         self.assertNotIn('side', meal)
         self.assertIsNone(gap)
+
+    def test_overlay_attaches_side_to_dinner(self):
+        r = self._leco()
+        days = [{'day_number': 1, 'dinner': {'name': 'x', 'nutritional_info': {'calories': 700}}}]
+        result = overlay_curated_recipes(days, goal(breakfast=False, lunch=False))
+        meal = result['days'][0]['dinner']
+        self.assertEqual(meal['curated_recipe_id'], r.id)
+        self.assertEqual(meal['side']['key'], 'chleb')
+        self.assertEqual(meal['ingredients'][-1]['role'], 'side')
+
+    def test_overlay_records_side_gap(self):
+        self._leco(side_options=['chleb', 'knedlik'], dietary_tags=['gluten_free'])
+        days = [{'day_number': 1, 'dinner': {'name': 'x', 'nutritional_info': {'calories': 700}}}]
+        result = overlay_curated_recipes(
+            days, goal(breakfast=False, lunch=False, dietary_restrictions='bezlepková'))
+        reasons = [g['reason'] for g in result['gaps']]
+        self.assertIn('side_unavailable', reasons)
+        self.assertNotIn('side', result['days'][0]['dinner'])

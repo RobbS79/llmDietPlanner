@@ -927,6 +927,8 @@ def overlay_curated_recipes(
         recently_served_ids=recently_served_curated_ids(goal),
     )
     sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
+    gaps: List[Dict[str, Any]] = list(selection['gaps'])
+    required_tags = required_tags_for_goal(goal)
 
     promoted_ids: Set[int] = set()
     goal_id = getattr(goal, 'id', None) or getattr(goal, 'pk', 0)
@@ -958,7 +960,10 @@ def overlay_curated_recipes(
             if existing and rescue_only:
                 continue
             target = slot_target(calorie_targets, day_number, slot)
-            meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
+            meal, side_gap = render_curated_meal(recipe, target_kcal=target, required_tags=required_tags)
+            if side_gap:
+                gaps.append({'day_number': day_number, 'slot': slot, 'reason': side_gap,
+                             'required_tags': sorted(required_tags), 'unmatched_wanted': []})
             meal['meal_identifier'] = (
                 (existing or {}).get('meal_identifier')
                 or f"{goal_id}:{day_number}:{slot}:0"
@@ -984,7 +989,10 @@ def overlay_curated_recipes(
                     continue
                 existing = meals[i] if i < len(meals) else None
                 target = slot_target(calorie_targets, day_number, f'{slot_type}:{i}')
-                meal = scale_recipe_to_meal(recipe, portions=portions_for_target(recipe, target))
+                meal, side_gap = render_curated_meal(recipe, target_kcal=target, required_tags=required_tags)
+                if side_gap:
+                    gaps.append({'day_number': day_number, 'slot': f'{slot_type}:{i}', 'reason': side_gap,
+                                 'required_tags': sorted(required_tags), 'unmatched_wanted': []})
                 meal['meal_identifier'] = (
                     (existing.get('meal_identifier') if isinstance(existing, dict) else None)
                     or f"{goal_id}:{day_number}:{slot_type}:{i}"
@@ -1021,7 +1029,7 @@ def overlay_curated_recipes(
         'days': transformed_days,
         'coverage': {**selection['coverage'], 'rescued': rescued},
         'facets': facets.to_debug(),
-        'gaps': selection['gaps'],
+        'gaps': gaps,
     }
 
 
