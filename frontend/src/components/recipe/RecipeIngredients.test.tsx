@@ -205,3 +205,50 @@ describe('RecipeIngredients — optional grouping', () => {
     expect(milkRow.textContent).toContain('~5');
   });
 });
+
+describe('RecipeIngredients — příloha group', () => {
+  it('renders role=side rows under a Příloha heading, scaled with the stepper', () => {
+    render(
+      <RecipeIngredients
+        ingredients={[
+          { name: 'Paprika', quantity: 400, unit: 'g' },
+          { name: 'chléb', quantity: 160, unit: 'g', role: 'side' },
+        ]}
+        baseServings={2}
+      />,
+    );
+    expect(screen.getByText('Příloha')).toBeInTheDocument();
+    expect(screen.getByText('chléb')).toBeInTheDocument();
+    expect(screen.getByText(/^160\s?g$/)).toBeInTheDocument();
+  });
+
+  it('shows no Příloha heading without side rows', () => {
+    render(<RecipeIngredients ingredients={[{ name: 'Paprika', quantity: 400, unit: 'g' }]} baseServings={2} />);
+    expect(screen.queryByText('Příloha')).toBeNull();
+  });
+
+  it('keeps price lines aligned when a side row is present', () => {
+    const shoppingList: ShoppingList = {
+      lines: [
+        { name: 'Paprika', canonical: 'bell-pepper', consumed_cost: 30, priced: true, verified: true },
+        { name: 'chléb', canonical: 'bread-loaf', consumed_cost: 7, priced: true, verified: true },
+      ],
+      total_low: 37, total_high: 46, per_portion_low: 18.5, per_portion_high: 23,
+      priced_count: 2, total_count: 2, verified_count: 2, currency: 'CZK', confident: true,
+    };
+    render(
+      <RecipeIngredients
+        ingredients={[
+          { name: 'Paprika', quantity: 400, unit: 'g' },
+          { name: 'chléb', quantity: 160, unit: 'g', role: 'side' },
+        ]}
+        baseServings={2}
+        shoppingList={shoppingList}
+      />,
+    );
+    const breadRow = screen.getByText('chléb').closest('li')!;
+    expect(breadRow.textContent).toContain('~7');
+    const paprikaRow = screen.getByText('Paprika').closest('li')!;
+    expect(paprikaRow.textContent).toContain('~30');
+  });
+});

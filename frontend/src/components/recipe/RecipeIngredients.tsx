@@ -60,14 +60,23 @@ export const RecipeIngredients = ({
 
   // Optional ingredients render in their own group below the required ones —
   // a "(volitelné)" suffix on every other row drowns the core ingredients on
-  // topping-heavy recipes. Required keeps the original relative order, so the
-  // running price index over non-optional rows still lines up with
-  // shopping_list.lines (price_recipe_lines skips optional ingredients).
+  // topping-heavy recipes. The příloha (role=side) the planner attached gets
+  // its own group too, so the card reads "dish + what it's eaten with".
   const entries = list.map((ing, idx) => ({ ing, idx }));
-  const requiredEntries = entries.filter((e) => typeof e.ing === 'string' || !e.ing.optional);
-  const optionalEntries = entries.filter((e) => typeof e.ing !== 'string' && !!e.ing.optional);
+  const isSide = (e: { ing: IngredientInput | string }) => typeof e.ing !== 'string' && e.ing.role === 'side';
+  const isOptionalEntry = (e: { ing: IngredientInput | string }) => typeof e.ing !== 'string' && !!e.ing.optional;
+  const requiredEntries = entries.filter((e) => !isOptionalEntry(e) && !isSide(e));
+  const sideEntries = entries.filter((e) => !isOptionalEntry(e) && isSide(e));
+  const optionalEntries = entries.filter(isOptionalEntry);
 
-  let priceIdx = -1;
+  // price_recipe_lines skips optional ingredients; map each non-optional row
+  // (in ORIGINAL order) to its shopping-list line so regrouping cannot
+  // misalign prices.
+  const priceIndexByIdx = new Map<number, number>();
+  let running = 0;
+  entries.forEach((e) => {
+    if (!isOptionalEntry(e)) priceIndexByIdx.set(e.idx, running++);
+  });
 
   const renderRow = ({ ing, idx }: { ing: IngredientInput | string; idx: number }) => {
     if (typeof ing === 'string') {
@@ -81,8 +90,8 @@ export const RecipeIngredients = ({
     const isOptional = !!ing.optional;
     let line = undefined as ShoppingList['lines'][number] | undefined;
     if (!isOptional) {
-      priceIdx += 1;
-      line = shoppingList?.lines[priceIdx];
+      const pi = priceIndexByIdx.get(idx);
+      line = pi === undefined ? undefined : shoppingList?.lines[pi];
     }
     const scaled = formatScaledIngredient(
       { ...ing, quantity: coerceQuantity(ing.quantity) },
@@ -129,6 +138,15 @@ export const RecipeIngredients = ({
       <ul className="space-y-2.5">
         {requiredEntries.map(renderRow)}
       </ul>
+
+      {sideEntries.length > 0 && (
+        <>
+          <h3 className={`${eyebrowCls} block mt-6 mb-3`}>Příloha</h3>
+          <ul className="space-y-2.5">
+            {sideEntries.map(renderRow)}
+          </ul>
+        </>
+      )}
 
       {optionalEntries.length > 0 && (
         <>

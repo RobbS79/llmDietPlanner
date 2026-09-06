@@ -24,6 +24,8 @@ export interface IngredientInput {
   quantity: number | string | null;
   unit?: string | null;
   optional?: boolean;
+  /** 'side' = the příloha the planner attached (rendered in its own group). */
+  role?: 'side' | null;
 }
 
 export interface ScaledIngredient {
