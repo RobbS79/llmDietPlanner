@@ -794,3 +794,47 @@ class PrilohaOnMealTest(TestCase):
         reasons = [g['reason'] for g in result['gaps']]
         self.assertIn('side_unavailable', reasons)
         self.assertNotIn('side', result['days'][0]['dinner'])
+
+
+class DishFamilyDedupeTest(TestCase):
+    """Same family never twice in a day; discouraged across the plan."""
+
+    def _pair(self):
+        a = make_recipe(name_cs='Lečo', dish_family='leco', meal_types=['lunch', 'dinner'])
+        b = make_recipe(name_cs='Lečo s klobásou', dish_family='leco', meal_types=['lunch', 'dinner'])
+        return a, b
+
+    def test_exclude_families_drops_candidates(self):
+        a, b = self._pair()
+        c = make_recipe(name_cs='Guláš', dish_family='gulas')
+        ids = {r.id for r in eligible_recipes_for_slot('lunch', set(), exclude_families={'leco'})}
+        self.assertEqual(ids, {c.id})
+
+    def test_empty_family_is_never_excluded(self):
+        r = make_recipe(name_cs='Bez rodiny', dish_family='')
+        ids = {x.id for x in eligible_recipes_for_slot('lunch', set(), exclude_families={''})}
+        self.assertEqual(ids, {r.id})
+
+    def test_family_repeat_in_plan_is_penalised_below_wanted_weight(self):
+        from collections import Counter
+        a, _ = self._pair()
+        base = score_recipe(a, used_recipe_ids=set(), used_cuisines=[])
+        once = score_recipe(a, used_recipe_ids=set(), used_cuisines=[], used_families=Counter({'leco': 1}))
+        thrice = score_recipe(a, used_recipe_ids=set(), used_cuisines=[], used_families=Counter({'leco': 3}))
+        self.assertEqual(base - once, 8.0)
+        self.assertEqual(base - thrice, 16.0)  # capped
+
+    def test_same_day_never_gets_two_of_a_family(self):
+        a, b = self._pair()
+        make_recipe(name_cs='Guláš', dish_family='gulas')
+        make_recipe(name_cs='Svíčková', dish_family='svickova')
+        for seed in range(1, 8):
+            sel = select_recipes_for_plan(goal(id=seed, breakfast=False))
+            fams = [r.dish_family for r in sel['days'][0]['slots'].values()]
+            self.assertEqual(len(fams), len(set(fams)), fams)
+
+    def test_tiny_pool_relaxes_with_a_gap(self):
+        self._pair()  # only lečo-family recipes exist
+        sel = select_recipes_for_plan(goal(breakfast=False))
+        self.assertEqual(sel['coverage']['filled'], 2)
+        self.assertIn('family_relaxed', [g['reason'] for g in sel['gaps']])
