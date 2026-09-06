@@ -78,13 +78,14 @@ _SLOT_TO_MEAL_TYPE = {
 }
 
 # Which dish roles can CARRY each slot (Czech meal culture: oběd is a warm
-# main; večeře may also be light or a soup; sides/dips belong to the small
-# slots). None = no role gate. Untagged ('') always passes — rollout safety
-# until `retag_dish_roles` has tagged the corpus.
+# main; večeře may also be a quick supper dish or a soup; snídaně is its own
+# family of dishes). None = no role gate. Untagged ('') always passes —
+# rollout safety until `retag_dish_roles` has tagged the corpus. 'light' is
+# the legacy breakfast+supper bucket and keeps its old reach until retagged.
 _SLOT_ALLOWED_ROLES = {
-    'breakfast': {'main', 'light', 'dessert'},
+    'breakfast': {'breakfast', 'dessert', 'light'},
     'lunch': {'main'},
-    'dinner': {'main', 'light', 'soup'},
+    'dinner': {'main', 'supper', 'soup', 'light'},
     'small_meal': None,
     'snack': None,
 }

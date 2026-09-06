@@ -468,6 +468,36 @@ class DishRoleGateTest(TestCase):
         self.assertIn(side.id, [r.id for r in eligible_recipes_for_slot('small_meal', set())])
         self.assertIn(side.id, [r.id for r in eligible_recipes_for_slot('snack', set())])
 
+    def test_supper_allowed_for_dinner_only(self):
+        leco = make_recipe(
+            name_cs='Lečo', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.SUPPER)
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual(eligible_recipes_for_slot('breakfast', set()), [])
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('dinner', set())], [leco.id])
+
+    def test_breakfast_role_allowed_for_breakfast_only(self):
+        kase = make_recipe(
+            name_cs='Ovesná kaše', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.BREAKFAST)
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('breakfast', set())], [kase.id])
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+        self.assertEqual(eligible_recipes_for_slot('dinner', set()), [])
+
+    def test_main_no_longer_carries_breakfast(self):
+        make_recipe(
+            name_cs='Guláš', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.MAIN)
+        self.assertEqual(eligible_recipes_for_slot('breakfast', set()), [])
+
+    def test_legacy_light_still_passes_breakfast_and_dinner(self):
+        om = make_recipe(
+            name_cs='Omeleta', meal_types=['breakfast', 'lunch', 'dinner'],
+            dish_role=CuratedRecipe.DishRole.LIGHT)
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('breakfast', set())], [om.id])
+        self.assertEqual([r.id for r in eligible_recipes_for_slot('dinner', set())], [om.id])
+        self.assertEqual(eligible_recipes_for_slot('lunch', set()), [])
+
     def test_lunch_relaxes_when_no_mains_exist(self):
         """'Unless nothing else exists': an all-sides pool still fills the slot
         rather than starving the plan, and the relaxation is recorded as a
