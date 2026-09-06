@@ -200,6 +200,7 @@ def _tool_search_corpus(
     pool: List[CuratedRecipe], exclude_ids: Set[int],
     used_recipe_ids: Set[int], used_cuisines: Sequence[str],
     time_budget: Optional[int] = None,
+    exclude_families: Set[str] = frozenset(),
 ) -> Dict:
     """Execute search_corpus: hard gate in code, model-supplied soft criteria.
 
@@ -226,6 +227,7 @@ def _tool_search_corpus(
     active = None if facets.is_empty() else facets
     candidates = eligible_recipes_for_slot(
         meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active,
+        exclude_families=exclude_families,
     )
     if not candidates and active is not None:
         # Soft criteria too narrow — retry unsteered so the model can say so
@@ -235,6 +237,7 @@ def _tool_search_corpus(
         floor = PromptFacets(max_time_minutes=max_time) if max_time else None
         candidates = eligible_recipes_for_slot(
             meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=floor,
+            exclude_families=exclude_families,
         )
     ranked = sorted(
         candidates,
@@ -337,6 +340,7 @@ def run_refine_turn(
     messages: List[Dict],
     time_budget: Optional[int] = None,
     session_factory: Optional[Callable[[str], object]] = None,
+    exclude_families: Set[str] = frozenset(),
 ) -> AgentTurn:
     """One preview turn of the v2 agent. May raise — the caller falls back to
     the v1 facet path on any exception."""
@@ -363,6 +367,7 @@ def run_refine_turn(
                 args, meal_type=meal_type, required_tags=required_tags, pool=pool,
                 exclude_ids=exclude_ids, used_recipe_ids=used_recipe_ids,
                 used_cuisines=used_cuisines, time_budget=time_budget,
+                exclude_families=exclude_families,
             )
             offered_order = [c['id'] for c in payload['candidates']]
             out = session.send_tool_result(name, payload)

@@ -51,9 +51,8 @@ from .services.recipe_retrieval import (
     published_pool,
     published_cuisine_vocab,
     eligible_recipes_for_slot,
-    portions_for_target,
+    render_curated_meal,
     score_recipe,
-    scale_recipe_to_meal,
     wanted_matcher,
 )
 from .services.prompt_facets import PromptFacets, extract_prompt_facets
@@ -605,26 +604,36 @@ def _locate_plan_slot(user, meal_identifier: str):
     ), None
 
 
-def _plan_swap_state(plan, current_id):
+def _plan_swap_state(plan, current_id, *, day_number=None):
     """Selection context for swapping one slot: (pool, used_recipe_ids,
-    used_cuisines). used_recipe_ids covers every curated recipe elsewhere in
-    the plan (the slot being swapped doesn't count) so a swap never duplicates
-    a dish already on another day/slot."""
+    used_cuisines, used_families_today). used_recipe_ids covers every curated
+    recipe elsewhere in the plan (the slot being swapped doesn't count) so a
+    swap never duplicates a dish already on another day/slot.
+    `used_families_today` is the set of dish families served on `day_number`
+    in OTHER slots, so a swap cannot bring lečo back onto a day that already
+    has it."""
     used_recipe_ids: set = set()
+    used_families_today: set = set()
+    pool = published_pool()
+    family_by_id = {r.id: (r.dish_family or '') for r in pool}
     for d in (plan.days or []):
+        same_day = day_number is not None and d.get('day_number') == day_number
         for slot in ('breakfast', 'lunch', 'dinner'):
             m = d.get(slot)
             if isinstance(m, dict) and m.get('curated_recipe_id'):
                 used_recipe_ids.add(m['curated_recipe_id'])
+                if same_day and m['curated_recipe_id'] != current_id:
+                    fam = family_by_id.get(m['curated_recipe_id'])
+                    if fam:
+                        used_families_today.add(fam)
         for list_key in ('small_meals', 'snacks'):
             for m in (d.get(list_key) or []):
                 if isinstance(m, dict) and m.get('curated_recipe_id'):
                     used_recipe_ids.add(m['curated_recipe_id'])
     used_recipe_ids.discard(current_id)
-    pool = published_pool()
     cuisine_by_id = {r.id: (r.cuisine or '') for r in pool}
     used_cuisines = [cuisine_by_id[i] for i in used_recipe_ids if cuisine_by_id.get(i)]
-    return pool, used_recipe_ids, used_cuisines
+    return pool, used_recipe_ids, used_cuisines, used_families_today
 
 
 def _commit_slot_swap(*, goal, plan, target_day, meal_type, meal_identifier, chosen, user):
@@ -637,7 +646,8 @@ def _commit_slot_swap(*, goal, plan, target_day, meal_type, meal_identifier, cho
         # must not turn a 500-kcal slot into the new recipe's whole pot.
         old = target_day.get(meal_type)
         old_cal = (old.get('nutritional_info') or {}).get('calories') if isinstance(old, dict) else None
-        new_meal = scale_recipe_to_meal(chosen, portions=portions_for_target(chosen, old_cal))
+        new_meal, _ = render_curated_meal(
+            chosen, target_kcal=old_cal, required_tags=required_tags_for_goal(goal))
         new_meal['meal_identifier'] = meal_identifier
         target_day[meal_type] = new_meal
         plan.save(update_fields=['days'])
@@ -675,7 +685,8 @@ class RecipeReplaceView(APIView):
         required_tags = required_tags_for_goal(goal)
         current_id = ctx.current_meal.get('curated_recipe_id')
         exclude_ids = {current_id} if current_id else set()
-        pool, used_recipe_ids, used_cuisines = _plan_swap_state(plan, current_id)
+        pool, used_recipe_ids, used_cuisines, used_families_today = _plan_swap_state(
+            plan, current_id, day_number=ctx.target_day.get('day_number'))
 
         hint = (request.data.get('hint') or '').strip()
         facets = None
@@ -706,6 +717,7 @@ class RecipeReplaceView(APIView):
         def pick(active_facets):
             candidates = eligible_recipes_for_slot(
                 ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
+                exclude_families=used_families_today,
             )
             if not candidates:
                 return None
@@ -819,15 +831,14 @@ def _slot_calories(meal) -> float | None:
     return (meal.get('nutritional_info') or {}).get('calories')
 
 
-def _candidate_payload(recipe, facets, target_calories=None) -> dict:
-    """Card-sized preview of a candidate. Rendered from scale_recipe_to_meal so
+def _candidate_payload(recipe, facets, target_calories=None, *, required_tags=frozenset()) -> dict:
+    """Card-sized preview of a candidate. Rendered from render_curated_meal so
     the fields match exactly what an accepted swap would write — which means
-    portioning to the slot the same way `_commit_slot_swap` does. Without that,
-    the card advertises the whole pot (base_nutrition covers base_servings) and
-    then accepting it commits a different, correctly portioned number."""
-    meal = scale_recipe_to_meal(
-        recipe, portions=portions_for_target(recipe, target_calories),
-    )
+    portioning to the slot (main + příloha) the same way `_commit_slot_swap`
+    does. Without that, the card advertises the whole pot (base_nutrition
+    covers base_servings) and then accepting it commits a different, correctly
+    portioned number."""
+    meal, _ = render_curated_meal(recipe, target_kcal=target_calories, required_tags=required_tags)
     return {
         'curated_recipe_id': recipe.id,
         'name': meal['name'],
@@ -855,12 +866,14 @@ class RecipeRefineView(APIView):
         goal = ctx.goal
         required_tags = required_tags_for_goal(goal)
         current_id = ctx.current_meal.get('curated_recipe_id')
-        pool, used_recipe_ids, used_cuisines = _plan_swap_state(ctx.plan, current_id)
+        pool, used_recipe_ids, used_cuisines, used_families_today = _plan_swap_state(
+            ctx.plan, current_id, day_number=ctx.target_day.get('day_number'))
 
         if request.data.get('accept') is not None:
             return self._accept(
                 request, ctx=ctx, meal_identifier=meal_identifier,
                 required_tags=required_tags, current_id=current_id, pool=pool,
+                used_families_today=used_families_today,
             )
 
         messages = clamp_messages(request.data.get('messages'))
@@ -889,17 +902,19 @@ class RecipeRefineView(APIView):
                     used_cuisines=used_cuisines,
                     messages=messages,
                     time_budget=time_budget,
+                    exclude_families=used_families_today,
                 )
                 return Response({
                     "status": "success",
                     "data": {
                         "reply_text": turn.reply_text,
                         "candidate": (
-                            _candidate_payload(turn.candidate, None, slot_calories)
+                            _candidate_payload(turn.candidate, None, slot_calories,
+                                               required_tags=required_tags)
                             if turn.candidate else None
                         ),
                         "alternatives": [
-                            _candidate_payload(r, None, slot_calories)
+                            _candidate_payload(r, None, slot_calories, required_tags=required_tags)
                             for r in turn.alternatives
                         ],
                         "research_job_id": turn.research_job_id,
@@ -937,6 +952,7 @@ class RecipeRefineView(APIView):
         def pick(active_facets):
             candidates = eligible_recipes_for_slot(
                 ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
+                exclude_families=used_families_today,
             )
             if not candidates:
                 return None
@@ -966,13 +982,15 @@ class RecipeRefineView(APIView):
         return Response({
             "status": "success",
             "data": {
-                "candidate": _candidate_payload(chosen, facets, slot_calories),
+                "candidate": _candidate_payload(chosen, facets, slot_calories,
+                                                required_tags=required_tags),
                 "question": question,
                 "hint_matched": hint_matched,
             },
         }, status=200)
 
-    def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool):
+    def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool,
+                used_families_today=frozenset()):
         try:
             accept_id = int(request.data.get('accept'))
         except (TypeError, ValueError):
@@ -983,6 +1001,7 @@ class RecipeRefineView(APIView):
         exclude_ids = {current_id} if current_id else set()
         candidates = eligible_recipes_for_slot(
             ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=None,
+            exclude_families=used_families_today,
         )
         # Spec 2026-07-27 decision 1: the requester's own chat_web drafts are
         # acceptable without full catalog mapping (their unmapped ingredients
@@ -994,7 +1013,7 @@ class RecipeRefineView(APIView):
         ))
         candidates += eligible_recipes_for_slot(
             ctx.meal_type, required_tags, pool=own_drafts, exclude_ids=exclude_ids,
-            facets=None, enforce_mapping=False,
+            facets=None, enforce_mapping=False, exclude_families=used_families_today,
         )
         chosen = next((r for r in candidates if r.id == accept_id), None)
         if chosen is None:
@@ -1035,6 +1054,7 @@ class RecipeResearchJobView(APIView):
             candidate = _candidate_payload(
                 job.result_recipe, None,
                 _slot_calories(ctx.current_meal) if not err else None,
+                required_tags=required_tags_for_goal(ctx.goal) if not err else frozenset(),
             )
         return Response({
             "status": "success",
