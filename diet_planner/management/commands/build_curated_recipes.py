@@ -24,6 +24,7 @@ import time
 from django.core.management.base import BaseCommand, CommandError
 
 from diet_planner.llm_service import GeminiService
+from diet_planner.services.demand_map import attach_demand_term, load_demand_map, load_overrides
 from diet_planner.services.recipe_curation import curate_from_source
 
 
@@ -52,6 +53,7 @@ class Command(BaseCommand):
         sleep_s = options['sleep']
         run_judge = not options['no_judge']
         enforce_plausibility = not options['no_plausibility']
+        demand_terms, demand_overrides = load_demand_map(), load_overrides()
 
         try:
             with open(index_path, 'r', encoding='utf-8') as f:
@@ -95,6 +97,9 @@ class Command(BaseCommand):
             elif result.ok and result.recipe is not None:
                 curated += 1
                 r = result.recipe
+                # Score the new dish against the demand map before anyone
+                # promotes it (docs/superpowers/specs/2026-09-09-demand-ranking-design.md).
+                attach_demand_term(r, demand_terms, demand_overrides)
                 src = 'json-ld' if result.used_jsonld else 'page-text'
                 mapped = sum(1 for ing in r.ingredients if ing.get('canonical') or ing.get('catalog_id'))
                 judge_note = ''

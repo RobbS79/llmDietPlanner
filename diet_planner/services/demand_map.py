@@ -82,3 +82,16 @@ def match_demand_term(
             if best is None or term.demand > best.demand:
                 best = term
     return best, ('name' if best else '')
+
+
+def attach_demand_term(
+    recipe, terms: Dict[str, DemandTerm], overrides: Dict[str, str],
+) -> Optional[DemandTerm]:
+    """Write the three demand fields for one saved recipe. Used by curation so
+    a newly acquired dish is scored before promotion."""
+    term, _ = match_demand_term(recipe, terms, overrides)
+    recipe.demand_term = term.term if term else ''
+    recipe.demand_score = term.demand if term else None
+    recipe.demand_peak_month = term.peak_month if term else None
+    recipe.save(update_fields=['demand_term', 'demand_score', 'demand_peak_month'])
+    return term

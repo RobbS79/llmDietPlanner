@@ -90,3 +90,13 @@ class AttachDemandTermsTests(TestCase):
         self.assertEqual(self.gulas.owner_rating, 5)
         self.assertIsNone(self.other.owner_rating)
         self.assertIn('ratings=1', out)
+
+
+class AttachSingleRecipeTests(TestCase):
+    def test_attach_demand_term_writes_the_fields_for_one_recipe(self):
+        from diet_planner.services.demand_map import DemandTerm, attach_demand_term
+        r = _recipe('svickova-na-smetane', 'Svíčková na smetaně')
+        terms = {'svíčková': DemandTerm('svíčková', 58.1, 'dish', 'main', peak_month=12)}
+        attach_demand_term(r, terms, {})
+        r.refresh_from_db()
+        self.assertEqual((r.demand_term, r.demand_score, r.demand_peak_month), ('svíčková', 58.1, 12))
