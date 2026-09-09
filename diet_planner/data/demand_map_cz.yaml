@@ -210,6 +210,15 @@ terms:
   kind: category
   slot: main
   aliases: []
+- term: bramboráky
+  demand: 25.5
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases:
+  - bramborové placky
+  - bramborák
+  - zemiakové placky
 - term: vepřová panenka
   demand: 25.1
   peak_month: 3
@@ -286,13 +295,6 @@ terms:
   slot: soup
   aliases:
   - šošovicová polievka
-- term: bramboráky
-  demand: 19.4
-  peak_month: 10
-  kind: dish
-  slot: main
-  aliases:
-  - zemiakové placky
 - term: lečo
   demand: 19.3
   peak_month: 8
@@ -535,8 +537,7 @@ terms:
   peak_month: 12
   kind: dish
   slot: main
-  aliases:
-  - špagety
+  aliases: []
 - term: tuňák
   demand: 8.3
   peak_month: 1
@@ -714,12 +715,6 @@ terms:
 - term: paprikáš
   demand: 6.1
   peak_month: 8
-  kind: dish
-  slot: main
-  aliases: []
-- term: bramborák
-  demand: 6.1
-  peak_month: 7
   kind: dish
   slot: main
   aliases: []

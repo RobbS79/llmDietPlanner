@@ -77,3 +77,41 @@ class MatchDemandTermTests(TestCase):
     def test_no_match_is_blank(self):
         r = _recipe('pad-thai', 'Pad Thai')
         self.assertEqual(match_demand_term(r, self.terms, {}), (None, ''))
+
+
+class MatcherPrecisionTests(TestCase):
+    """Found on the first prod dry-run (2026-09-09): 316 attaches, of which the
+    generic single-word terms and the demand-wins tie rule produced clear
+    mistakes. These pin the corrections."""
+
+    def setUp(self):
+        self.terms = {
+            'bramboráky': DemandTerm('bramboráky', 19.0, 'dish', 'main', aliases=['bramborové placky']),
+            'bramboračka': DemandTerm('bramboračka', 11.4, 'dish', 'soup'),
+            'knedlíky': DemandTerm('knedlíky', 56.0, 'dish', 'side'),
+            'vepřo knedlo zelo': DemandTerm('vepřo knedlo zelo', 2.8, 'dish', 'main'),
+            'steak': DemandTerm('steak', 79.0, 'dish', 'main'),
+            'guláš': DemandTerm('guláš', 100.0, 'dish', 'main'),
+        }
+
+    def test_single_word_term_needs_the_same_word_not_a_shared_stem(self):
+        self.assertIsNone(match_demand_term(_recipe('brambory-hasselback', 'Brambory Hasselback'), self.terms, {})[0])
+        self.assertIsNone(match_demand_term(_recipe('bramborova-kase', 'Dokonalá bramborová kaše'), self.terms, {})[0])
+        self.assertEqual(match_demand_term(_recipe('klasicka-bramboracka', 'Klasická bramboračka'), self.terms, {})[0].term, 'bramboračka')
+        self.assertEqual(match_demand_term(_recipe('krupave-bramboraky', 'Křupavé bramboráky'), self.terms, {})[0].term, 'bramboráky')
+
+    def test_single_word_term_still_tolerates_inflection(self):
+        self.assertEqual(match_demand_term(_recipe('hovezi-gulas', 'Hovězí guláš'), self.terms, {})[0].term, 'guláš')
+        self.assertEqual(match_demand_term(_recipe('gulas-z-krkovice', 'Guláš z krkovice'), self.terms, {})[0].term, 'guláš')
+
+    def test_alias_rescues_the_placky_spelling(self):
+        self.assertEqual(match_demand_term(_recipe('pecene-bramborove-placky', 'Pečené bramborové placky'), self.terms, {})[0].term, 'bramboráky')
+
+    def test_more_specific_term_beats_a_generic_one_with_higher_demand(self):
+        term, _ = match_demand_term(_recipe('vepro-knedlo-zelo', 'Vepřo knedlo zelo'), self.terms, {})
+        self.assertEqual(term.term, 'vepřo knedlo zelo')
+
+    def test_override_can_pin_a_recipe_to_no_term(self):
+        r = _recipe('kvetakovy-steak', 'Květákový steak')
+        self.assertEqual(match_demand_term(r, self.terms, {})[0].term, 'steak')   # by name it would attach
+        self.assertEqual(match_demand_term(r, self.terms, {'kvetakovy-steak': ''}), (None, 'override'))

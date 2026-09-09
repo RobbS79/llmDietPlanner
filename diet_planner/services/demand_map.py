@@ -71,17 +71,43 @@ def match_demand_term(
     rule: ≥ 60% of the term's significant words, inflection-tolerant); when
     several terms match, the higher demand wins.
     """
-    pinned = overrides.get(recipe.slug)
-    if pinned:
-        return terms.get(pinned), 'override'
+    if recipe.slug in overrides:
+        pinned = overrides[recipe.slug]
+        # An empty value pins the recipe to NO term ("Květákový steak" is not
+        # what people searching "steak" want).
+        return (terms.get(pinned) if pinned else None), 'override'
     best: Optional[DemandTerm] = None
     for term in terms.values():
         if term.kind not in ATTACHABLE_KINDS:
             continue
-        if any(_strict_hit(_significant_words(name), recipe) for name in term.names):
+        if any(_name_hits(name, recipe) for name in term.names):
             if best is None or term.demand > best.demand:
                 best = term
     return best, ('name' if best else '')
+
+
+def _name_hits(name: str, recipe) -> bool:
+    """Does the recipe name carry this term?
+
+    Multi-word terms use the query farm's strict rule (≥ 60% of significant
+    words, inflection-tolerant). A single-word term gets a tighter rule: the
+    recipe must contain the same word up to one trailing character, because
+    the farm's stem rule (5 shared characters, 70% coverage) let "bramboráky"
+    claim every potato dish on the first prod dry-run.
+    """
+    words = _significant_words(name)
+    if len(words) != 1:
+        return _strict_hit(words, recipe)
+    needle = next(iter(words))
+    for w in _significant_words(recipe.name_cs):
+        shared = 0
+        for a, b in zip(needle, w):
+            if a != b:
+                break
+            shared += 1
+        if shared >= 5 and shared >= max(len(needle), len(w)) - 1:
+            return True
+    return False
 
 
 def attach_demand_term(
