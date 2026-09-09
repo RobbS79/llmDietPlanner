@@ -35,6 +35,7 @@ corpus and gets stronger as the corpus grows (B2).
 from __future__ import annotations
 
 import logging
+import math
 import random
 import re
 from collections import Counter
@@ -456,6 +457,41 @@ _WANTED_HIT_WEIGHT = 20.0
 # still wins ("kuřecí" beats a fresh cabbage salad even on a repeat).
 _RECENT_SERVE_PENALTY = 8.0
 
+# Demand: what CZ/SK households search for (data/demand_map_cz.yaml, copied
+# onto CuratedRecipe by attach_demand_terms). Log-scaled so guláš (100),
+# svíčková (58) and lečo (20) all read as "wanted"; capped at the anchor.
+# Sits BELOW _WANTED_HIT_WEIGHT (what the user asked for still wins) and
+# ABOVE the ingredient-reuse cap (6.0): a wanted dish beats a cheap overlap,
+# which reverses the mechanism that served lečo twice a day.
+_DEMAND_WEIGHT = 8.0
+# Peak month ±1: kapr in December, lečo in August.
+_SEASON_BONUS = 2.0
+# Owner's 1–5 rating, centred on 3: ±1 at most, i.e. inside _SAMPLING_WINDOW,
+# so it only ever decides between near-tied recipes of the same dish.
+_OWNER_RATING_STEP = 0.5
+
+
+def _current_month() -> int:
+    from django.utils import timezone
+    return timezone.localdate().month
+
+
+def _demand_terms(recipe: CuratedRecipe) -> float:
+    """Demand + season + owner tiebreak; 0.0 for a recipe with no demand term."""
+    score = 0.0
+    demand = getattr(recipe, 'demand_score', None)
+    if demand:
+        score += _DEMAND_WEIGHT * math.log1p(min(demand, 100.0)) / math.log1p(100.0)
+        peak = getattr(recipe, 'demand_peak_month', None)
+        if peak:
+            month = _current_month()
+            if min(abs(month - peak), 12 - abs(month - peak)) <= 1:
+                score += _SEASON_BONUS
+    rating = getattr(recipe, 'owner_rating', None)
+    if rating:
+        score += _OWNER_RATING_STEP * (rating - 3)
+    return score
+
 # Shopping friction. At 1.0 per blocker a single blocker is exactly enough to
 # push a findable recipe out of the _SAMPLING_WINDOW against an equally-scoring
 # common one — it loses ties, which is the intent. Against _WANTED_HIT_WEIGHT
@@ -466,8 +502,8 @@ _SHOPPING_PENALTY_CAP = 3.0
 # Near-tied candidates (within this score distance of the top) are sampled,
 # not argmax'd, so equally-good dishes rotate across plans instead of one
 # fixed winner serving forever. Sized so deliberate orderings stay strict:
-# wanted hits (20), cuisine variety (5), same-dish reuse (100), difficulty
-# (2), strong ingredient reuse (up to 6) — and crucially the calorie
+# wanted hits (20), cuisine variety (5), same-dish reuse (100), demand (up
+# to 8, log), difficulty (2), strong ingredient reuse (up to 6) — and crucially the calorie
 # size-sanity spread, now per-portion (a 307-kcal/portion side vs a
 # 680-kcal/portion main at a 700 target differs by ~1.6, which must stay a
 # deterministic win for the main).
@@ -575,6 +611,9 @@ def score_recipe(
         score += 1.0 * len(facets.emphases & tags)
         if 'quick' in facets.styles and recipe.total_time and recipe.total_time <= 20:
             score += 1.0
+
+    # Demand, season and the owner's tiebreak — see _DEMAND_WEIGHT.
+    score += _demand_terms(recipe)
 
     # Ingredient reuse: prefer recipes that share canonical ingredients with
     # those already chosen for the plan, so the shopping list stays short. Mild
