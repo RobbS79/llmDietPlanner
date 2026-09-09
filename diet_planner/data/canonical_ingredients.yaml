@@ -152,6 +152,9 @@
   category: canned
   default_unit: g
   typical_package_sizes: [120, 160, 185]
+  aliases:
+    - { alias: "tuňák ve vlastní šťávě", language_code: cs }  # batch-07
+    - { alias: "tuňák v oleji", language_code: cs }
 
 - name: eggs
   name_cs: vejce
@@ -253,6 +256,10 @@
   aliases:
     - { alias: "toustový chléb", language_code: cs }
     - { alias: "toustový chleba", language_code: cs }
+    - { alias: "toastový chléb", language_code: cs }  # batch-07: a-spelling
+    - { alias: "toastový chleba", language_code: cs }
+    - { alias: "bílá bageta", language_code: cs }
+    - { alias: "bageta", language_code: cs }
     - { alias: "veka", language_code: cs }
     - { alias: "veky", language_code: cs }
     - { alias: "plátky veky", language_code: cs }
@@ -334,6 +341,9 @@
     - { alias: "brambora", language_code: cs }
     - { alias: "žluté brambory", language_code: cs }
     - { alias: "malé brambory", language_code: cs }
+    - { alias: "brambory vařené ve slupce", language_code: cs }  # batch-07
+    - { alias: "brambory uvařené ve slupce", language_code: cs }
+    - { alias: "vařené brambory", language_code: cs }
 
 - name: onion
   name_cs: cibule
@@ -448,6 +458,9 @@
   default_unit: g
   aliases:
     - { alias: "parmezán", language_code: cs }
+    - { alias: "sýr typu parmezán", language_code: cs }  # batch-07
+    - { alias: "parmazán v bloku", language_code: cs }
+    - { alias: "parmazán v celku", language_code: cs }
     - { alias: "tvrdý sýr", language_code: cs }
     - { alias: "strouhaný sýr", language_code: cs }
     - { alias: "parmazán sýr", language_code: cs }
@@ -460,6 +473,9 @@
     - { alias: "eidam", language_code: cs }
     - { alias: "gouda", language_code: cs }
     - { alias: "plátkový sýr", language_code: cs }
+    - { alias: "polotvrdý sýr", language_code: cs }  # batch-07
+    - { alias: "polotvrdý sýr v celku", language_code: cs }
+    - { alias: "eidam v celku", language_code: cs }
     - { alias: "sýr gouda", language_code: cs }
     - { alias: "sýr čedar", language_code: cs }
     - { alias: "čedar", language_code: cs }
@@ -522,6 +538,8 @@
     - { alias: "hovězí steak", language_code: cs }
     - { alias: "sirloin steak", language_code: cs }
     - { alias: "hovězí vysoký roštěnec", language_code: cs }
+    - { alias: "hovězí maso s kostí", language_code: cs }  # batch-07
+    - { alias: "hovězí s kostí", language_code: cs }
     - { alias: "hovězí roštěnec", language_code: cs }
     - { alias: "hovězí roštěná", language_code: cs }
     - { alias: "newyorský steak", language_code: cs }
@@ -542,6 +560,8 @@
     - { alias: "vepřové plecko", language_code: cs }
     - { alias: "vepřový bůček", language_code: cs }
     - { alias: "vepřová krkovice v celku", language_code: cs }
+    - { alias: "vepřová krkovice s kostí vcelku", language_code: cs }  # batch-07
+    - { alias: "vepřová krkovice s kostí", language_code: cs }
     - { alias: "vepřové kotlety", language_code: cs }
     - { alias: "vepřová kotleta", language_code: cs }
 
@@ -562,6 +582,8 @@
   aliases:
     - { alias: "dušená šunka", language_code: cs }
     - { alias: "kanadská slanina", language_code: cs }
+    - { alias: "dušená šunka v celku", language_code: cs }  # batch-07
+    - { alias: "šunka v celku", language_code: cs }
     - { alias: "plátky šunky", language_code: cs }
 
 - name: lard
@@ -647,6 +669,8 @@
     - { alias: "ledový salát", language_code: cs }
     - { alias: "listy ledového salátu", language_code: cs }
     - { alias: "římský salát", language_code: cs }
+    - { alias: "listový salát", language_code: cs }  # batch-07
+    - { alias: "salátové listy", language_code: cs }
 
 - name: arugula
   name_cs: rukola
@@ -746,6 +770,8 @@
   aliases:
     - { alias: "kukuřice sladká", language_code: cs }
     - { alias: "kukuřice z konzervy", language_code: cs }
+    - { alias: "konzervovaná kukuřice", language_code: cs }  # batch-07
+    - { alias: "sterilovaná kukuřice", language_code: cs }
 
 - name: pickles
   name_cs: nakládané okurky
@@ -843,6 +869,7 @@
     - { alias: "polévkové nudle", language_code: cs }
     - { alias: "soba nudle", language_code: cs }
     - { alias: "vaječné nudle", language_code: cs }
+    - { alias: "barevné těstoviny", language_code: cs }  # batch-07
 
 - name: tortilla
   name_cs: tortilly
@@ -905,6 +932,10 @@
   aliases:
     - { alias: "bílé fazole", language_code: cs }
     - { alias: "černé fazole", language_code: cs }
+    - { alias: "konzervované červené fazole", language_code: cs }  # batch-07
+    - { alias: "červené fazole v konzervě", language_code: cs }
+    - { alias: "fazole v konzervě", language_code: cs }
+    - { alias: "sterilované fazole", language_code: cs }
     - { alias: "červené fazole", language_code: cs }
     - { alias: "fazole refried", language_code: cs }
     - { alias: "máslové fazole", language_code: cs }
@@ -1534,6 +1565,8 @@
   aliases:
     - { alias: "uzená klobása", language_code: cs }
     - { alias: "snídaňová klobása", language_code: cs }
+    - { alias: "pikantní klobása", language_code: cs }  # batch-07
+    - { alias: "ostrá klobása", language_code: cs }
     - { alias: "párek", language_code: cs }
     - { alias: "párky", language_code: cs }
 
@@ -1854,6 +1887,8 @@
   aliases:
     - { alias: "naklíčená semínka", language_code: cs }
     - { alias: "fazolové klíčky", language_code: cs }
+    - { alias: "sójové klíčky", language_code: cs }  # batch-07
+    - { alias: "klíčky mungo", language_code: cs }
 
 - name: mixed vegetables
   name_cs: zeleninová směs
@@ -2314,6 +2349,7 @@
   default_unit: g
   aliases:
     - { alias: "rýžové fettuccine", language_code: cs }
+    - { alias: "široké rýžové nudle", language_code: cs }  # batch-07
 
 - name: rice paper
   name_cs: rýžový papír
@@ -2604,3 +2640,208 @@
   # the tapioca-starch -> potato-starch availability swap target, which splices
   # name_cs into an ingredient line mid-sentence; lowercased so it reads as a
   # common noun. Mirrors the rapeseed-oil correction in #70.
+
+# --- Batch 07 (2026-09-09): demand-driven Czech classics. Every item below is
+# ordinary supermarket stock in CZ/SK; the first run of batch 07 rejected 31 of
+# 48 recipes only because these lines had no canonical to resolve to. Priced
+# variants stay DISTINCT canonicals (pecorino is not parmesan, bryndza is not
+# feta); inflected/canned forms are explicit aliases so tier 2 catches them.
+- name: pancetta
+  name_cs: pancetta
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "italská slanina pancetta", language_code: cs }
+
+- name: pecorino
+  name_cs: pecorino
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "sýr pecorino", language_code: cs }
+    - { alias: "pecorino romano", language_code: cs }
+
+- name: carp
+  name_cs: kapr
+  category: fish
+  default_unit: g
+  aliases:
+    - { alias: "kapří filet", language_code: cs }
+    - { alias: "kapří filety", language_code: cs }
+    - { alias: "kapří podkovy", language_code: cs }
+    - { alias: "kapor", language_code: sk }
+
+- name: chinese noodles
+  name_cs: čínské nudle
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "instantní nudle", language_code: cs }
+    - { alias: "čínské instantní nudle", language_code: cs }
+
+- name: lasagne sheets
+  name_cs: pláty na lasagne
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "lasagne pláty", language_code: cs }
+    - { alias: "těstoviny na lasagne", language_code: cs }
+    - { alias: "lasagne", language_code: cs }
+
+- name: star anise
+  name_cs: badyán
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  aliases:
+    - { alias: "celý badyán", language_code: cs }
+    - { alias: "hvězdičky badyánu", language_code: cs }
+
+- name: beef marrow bones
+  name_cs: hovězí morkové kosti
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "morkové kosti", language_code: cs }
+    - { alias: "hovězí kosti", language_code: cs }
+
+- name: smoked meat
+  name_cs: uzené maso
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "uzené", language_code: cs }
+    - { alias: "moravské uzené maso", language_code: cs }
+    - { alias: "moravské uzené", language_code: cs }
+    - { alias: "uzené ramínko", language_code: cs }
+    - { alias: "uzená krkovice", language_code: cs }
+    - { alias: "uzený bok", language_code: cs }
+    - { alias: "uzené mäso", language_code: sk }
+
+- name: burger buns
+  name_cs: burgerové bulky
+  category: grains
+  default_unit: ks
+  aliases:
+    - { alias: "bulky na burger", language_code: cs }
+    - { alias: "hamburgerové housky", language_code: cs }
+    - { alias: "housky na hamburger", language_code: cs }
+
+- name: potato seasoning
+  name_cs: koření na americké brambory
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  aliases:
+    - { alias: "koření na brambory", language_code: cs }
+
+- name: bryndza
+  name_cs: bryndza
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "ovčí bryndza", language_code: cs }
+    - { alias: "slovenská bryndza", language_code: cs }
+
+- name: couscous
+  name_cs: kuskus
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "celozrnný kuskus", language_code: cs }
+    - { alias: "couscous", language_code: cs }
+
+- name: gyros seasoning
+  name_cs: koření na gyros
+  category: spices
+  default_unit: g
+  is_pantry_staple: true
+  aliases:
+    - { alias: "gyros koření", language_code: cs }
+
+- name: bulgur
+  name_cs: bulgur
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "bulgur pšeničný", language_code: cs }
+
+- name: beer
+  name_cs: pivo
+  category: beverages
+  default_unit: ml
+  aliases:
+    - { alias: "světlé pivo", language_code: cs }
+    - { alias: "tmavé pivo", language_code: cs }
+    - { alias: "polotmavé pivo", language_code: cs }
+    - { alias: "ležák", language_code: cs }
+
+- name: dried peas
+  name_cs: sušený hrách
+  category: legumes
+  default_unit: g
+  aliases:
+    - { alias: "hrách", language_code: cs }
+    - { alias: "žlutý loupaný hrách", language_code: cs }
+    - { alias: "loupaný hrách", language_code: cs }
+    - { alias: "půlený hrách", language_code: cs }
+
+- name: pork knuckle
+  name_cs: vepřové koleno
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "vepřové koleno přední", language_code: cs }
+    - { alias: "vepřové koleno zadní", language_code: cs }
+    - { alias: "vepřové kolínko", language_code: cs }
+    - { alias: "bravčové koleno", language_code: sk }
+
+- name: tripe
+  name_cs: hovězí dršťky
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "dršťky", language_code: cs }
+    - { alias: "syrové hovězí dršťky", language_code: cs }
+    - { alias: "předvařené dršťky", language_code: cs }
+
+- name: parsley root
+  name_cs: kořen petržele
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "kořenová petržel", language_code: cs }
+    - { alias: "petržel kořenová", language_code: cs }
+    - { alias: "petrželový kořen", language_code: cs }
+
+- name: pork liver
+  name_cs: vepřová játra
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "vepřové játra", language_code: cs }
+
+- name: chicken liver
+  name_cs: kuřecí játra
+  category: meat
+  default_unit: g
+  aliases:
+    - { alias: "drůbeží játra", language_code: cs }
+    - { alias: "játra", language_code: cs }
+    - { alias: "krůtí játra", language_code: cs }
+
+- name: anchovies
+  name_cs: sardelové filety
+  category: canned
+  default_unit: g
+  aliases:
+    - { alias: "sardele", language_code: cs }
+    - { alias: "ančovičky", language_code: cs }
+    - { alias: "sardelová pasta", language_code: cs }
+
+- name: spread butter
+  name_cs: pomazánkové máslo
+  category: dairy
+  default_unit: g
+  aliases:
+    - { alias: "pomazánkové", language_code: cs }

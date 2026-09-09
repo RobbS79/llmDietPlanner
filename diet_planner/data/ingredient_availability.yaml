@@ -25,6 +25,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: anchovies
+  availability: findable
+  confidence: high
+  note: 'batch-07: bigger stores; can be skipped in caesar'
 - slug: apple-cider-vinegar
   availability: common
   confidence: high
@@ -98,6 +102,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: beef-marrow-bones
+  availability: findable
+  confidence: high
+  note: 'batch-07: butcher counter; not every small shop'
 - slug: beef-mince
   availability: common
   confidence: high
@@ -110,6 +118,10 @@
   availability: findable
   confidence: low
   note: hovezi svickova - butcher counter, not every store
+- slug: beer
+  availability: common
+  confidence: high
+  note: batch-07
 - slug: beetroot
   availability: common
   confidence: high
@@ -166,6 +178,18 @@
   availability: common
   confidence: high
   note: ''
+- slug: bryndza
+  availability: findable
+  confidence: high
+  note: 'batch-07: common in SK; bigger CZ stores'
+- slug: bulgur
+  availability: common
+  confidence: high
+  note: 'batch-07: rice aisle'
+- slug: burger-buns
+  availability: common
+  confidence: high
+  note: 'batch-07: bakery aisle'
 - slug: butter
   availability: common
   confidence: high
@@ -194,6 +218,10 @@
   availability: findable
   confidence: low
   note: bigger stores
+- slug: carp
+  availability: common
+  confidence: high
+  note: 'batch-07: every supermarket in December; frozen filet year-round'
 - slug: carrots
   availability: common
   confidence: high
@@ -238,6 +266,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: chicken-liver
+  availability: common
+  confidence: high
+  note: 'batch-07: chilled poultry'
 - slug: chicken-stock
   availability: common
   confidence: high
@@ -268,6 +300,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: chinese-noodles
+  availability: common
+  confidence: high
+  note: 'batch-07: instant noodles aisle'
 - slug: chives
   availability: common
   confidence: high
@@ -340,6 +376,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: couscous
+  availability: common
+  confidence: high
+  note: 'batch-07: rice aisle'
 - slug: cranberries
   availability: common
   confidence: high
@@ -388,6 +428,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: dried-peas
+  availability: common
+  confidence: high
+  note: 'batch-07: legumes aisle'
 - slug: dry-yeast
   availability: common
   confidence: high
@@ -499,6 +543,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: gyros-seasoning
+  availability: common
+  confidence: high
+  note: 'batch-07: spice rack'
 - slug: ham
   availability: common
   confidence: high
@@ -570,6 +618,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: lasagne-sheets
+  availability: common
+  confidence: high
+  note: 'batch-07: pasta aisle'
 - slug: leek
   availability: common
   confidence: high
@@ -692,6 +744,10 @@
   availability: specialty
   confidence: low
   note: asian shelf in Kaufland?
+- slug: pancetta
+  availability: findable
+  confidence: high
+  note: 'batch-07: Albert/Kaufland deli; anglická slanina is the swap'
 - slug: panko-breadcrumbs
   availability: findable
   confidence: low
@@ -708,6 +764,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: parsley-root
+  availability: common
+  confidence: high
+  note: 'batch-07: soup vegetables everywhere'
 - slug: parsnip
   availability: findable
   confidence: low
@@ -744,6 +804,10 @@
   availability: findable
   confidence: low
   note: pekanove orechy - bigger stores
+- slug: pecorino
+  availability: findable
+  confidence: high
+  note: 'batch-07: bigger stores; parmazán is the swap'
 - slug: pesto
   availability: common
   confidence: high
@@ -789,6 +853,14 @@
   availability: common
   confidence: high
   note: ''
+- slug: pork-knuckle
+  availability: common
+  confidence: high
+  note: 'batch-07: meat counter'
+- slug: pork-liver
+  availability: common
+  confidence: high
+  note: 'batch-07: meat counter'
 - slug: pork-loin
   availability: common
   confidence: high
@@ -797,6 +869,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: potato-seasoning
+  availability: common
+  confidence: high
+  note: 'batch-07: spice rack (Vitana/Kotányi)'
 - slug: potato-starch
   availability: common
   confidence: high
@@ -959,6 +1035,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: smoked-meat
+  availability: common
+  confidence: high
+  note: 'batch-07: deli counter everywhere'
 - slug: smoked-paprika
   availability: common
   confidence: owner
@@ -991,6 +1071,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: spread-butter
+  availability: common
+  confidence: high
+  note: 'batch-07: dairy aisle'
 - slug: spring-onion
   availability: common
   confidence: high
@@ -1007,6 +1091,10 @@
   availability: common
   confidence: low
   note: duplicate of sriracha - consider merging
+- slug: star-anise
+  availability: common
+  confidence: high
+  note: 'batch-07: spice rack'
 - slug: stock
   availability: common
   confidence: high
@@ -1103,6 +1191,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: tripe
+  availability: findable
+  confidence: high
+  note: 'batch-07: butcher counter; usually pre-cooked'
 - slug: trout
   availability: findable
   confidence: low
