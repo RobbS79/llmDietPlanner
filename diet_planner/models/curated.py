@@ -167,6 +167,25 @@ class CuratedRecipe(models.Model):
         blank=True,
         help_text="clarity / cultural-fit / coherence judge output",
     )
+
+    # --- Demand (see docs/superpowers/specs/2026-09-09-demand-ranking-design.md) --
+    # Denormalised from data/demand_map_cz.yaml by `attach_demand_terms`; ranking
+    # reads these per slot and must not join the YAML at request time.
+    demand_term = models.CharField(
+        max_length=120, blank=True, default='', db_index=True,
+        help_text="Demand-map term this recipe serves ('' = no measurable demand)",
+    )
+    demand_score = models.FloatField(
+        null=True, blank=True,
+        help_text="Search demand relative to guláš = 100, copied at attach time",
+    )
+    demand_peak_month = models.SmallIntegerField(
+        null=True, blank=True, help_text="Month (1-12) the dish is searched most",
+    )
+    owner_rating = models.SmallIntegerField(
+        null=True, blank=True,
+        help_text="Owner's 1-5 appeal rating; breaks ties between recipes of the same dish",
+    )
     shopping_difficulty = models.CharField(
         max_length=10,
         choices=Availability.choices,
