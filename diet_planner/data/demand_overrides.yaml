@@ -1,0 +1,5 @@
+# Owner pins: CuratedRecipe slug -> demand term. Wins over the name matcher.
+# Add a line whenever `attach_demand_terms --dry-run` attaches the wrong term.
+leco: lečo
+leco-s-klobasou-a-vejci: lečo
+domaci-leco: lečo

@@ -1,0 +1,1846 @@
+# Demand map: what CZ/SK households search for, relative to guláš = 100.
+# Produced 2026-09-09 from Google Trends (see docs/superpowers/specs/2026-09-09-demand-ranking-design.md).
+# kind: dish | category | restaurant | intent — only `dish` rows attach to recipes.
+generated: '2026-09-09'
+anchor: guláš
+source: Google Trends, geo CZ + SK, timeframe today 12-m; demand = (cz + 0.5*sk) rescaled so the anchor = 100
+terms:
+- term: pizza
+  demand: 433.1
+  peak_month: 12
+  kind: restaurant
+  slot: main
+  aliases: []
+- term: salát
+  demand: 195.5
+  peak_month: 12
+  kind: category
+  slot: light
+  aliases:
+  - šalát
+- term: sushi
+  demand: 153.3
+  peak_month: 2
+  kind: restaurant
+  slot: main
+  aliases: []
+- term: těstoviny
+  demand: 146.3
+  peak_month: 1
+  kind: category
+  slot: main
+  aliases:
+  - cestoviny
+- term: burger
+  demand: 145.8
+  peak_month: 5
+  kind: restaurant
+  slot: main
+  aliases: []
+- term: kebab
+  demand: 125.1
+  peak_month: 12
+  kind: restaurant
+  slot: main
+  aliases: []
+- term: zelí
+  demand: 122.8
+  peak_month: 10
+  kind: category
+  slot: side
+  aliases:
+  - kapusta
+- term: palačinky
+  demand: 116.5
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases:
+  - palacinky
+- term: guláš
+  demand: 100.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: pomazánka
+  demand: 96.8
+  peak_month: 12
+  kind: category
+  slot: light
+  aliases:
+  - nátierka
+- term: steak
+  demand: 78.9
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases:
+  - hovězí steak
+- term: rizoto
+  demand: 75.5
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuřecí prsa
+  demand: 68.5
+  peak_month: 1
+  kind: category
+  slot: main
+  aliases:
+  - kuracie prsia
+- term: losos
+  demand: 66.6
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: kapr
+  demand: 63.7
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases:
+  - kapor
+- term: knedlíky
+  demand: 56.0
+  peak_month: 6
+  kind: dish
+  slot: side
+  aliases:
+  - knedľa
+- term: řízek
+  demand: 51.7
+  peak_month: 6
+  kind: dish
+  slot: main
+  aliases:
+  - rezeň
+  - vyprážaný rezeň
+- term: kari
+  demand: 47.9
+  peak_month: 10
+  kind: category
+  slot: main
+  aliases: []
+- term: rýže
+  demand: 43.5
+  peak_month: 1
+  kind: category
+  slot: side
+  aliases: []
+- term: ramen
+  demand: 39.7
+  peak_month: 2
+  kind: dish
+  slot: soup
+  aliases: []
+- term: tvaroh
+  demand: 39.1
+  peak_month: 3
+  kind: category
+  slot: breakfast
+  aliases: []
+- term: svíčková
+  demand: 38.8
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases:
+  - sviečková
+- term: lasagne
+  demand: 37.8
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: čína
+  demand: 34.5
+  peak_month: 4
+  kind: dish
+  slot: main
+  aliases: []
+- term: karbanátky
+  demand: 33.8
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases:
+  - fašírky
+- term: lívance
+  demand: 33.7
+  peak_month: 10
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: pho
+  demand: 32.4
+  peak_month: 2
+  kind: dish
+  slot: soup
+  aliases: []
+- term: halušky
+  demand: 30.3
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: hranolky
+  demand: 29.1
+  peak_month: 12
+  kind: dish
+  slot: side
+  aliases: []
+- term: tofu
+  demand: 27.9
+  peak_month: 2
+  kind: category
+  slot: main
+  aliases: []
+- term: čočka
+  demand: 27.1
+  peak_month: 12
+  kind: category
+  slot: main
+  aliases: []
+- term: dýně
+  demand: 27.1
+  peak_month: 10
+  kind: category
+  slot: main
+  aliases: []
+- term: vepřová panenka
+  demand: 25.1
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases:
+  - bravčová panenka
+- term: kapustnica
+  demand: 24.6
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases: []
+- term: vafle
+  demand: 22.3
+  peak_month: 1
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: krevety
+  demand: 21.7
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: cuketa
+  demand: 21.6
+  peak_month: 7
+  kind: category
+  slot: main
+  aliases: []
+- term: bramborový salát
+  demand: 21.3
+  peak_month: 12
+  kind: dish
+  slot: side
+  aliases:
+  - zemiakový šalát
+- term: pstruh
+  demand: 21.0
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: francouzské brambory
+  demand: 21.0
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases:
+  - francúzske zemiaky
+- term: tortilla
+  demand: 20.5
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: sekaná
+  demand: 20.1
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases: []
+- term: květák
+  demand: 19.8
+  peak_month: 2
+  kind: category
+  slot: main
+  aliases: []
+- term: čočková polévka
+  demand: 19.8
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases:
+  - šošovicová polievka
+- term: bramboráky
+  demand: 19.4
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases:
+  - zemiakové placky
+- term: lečo
+  demand: 19.3
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuře na paprice
+  demand: 18.8
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases:
+  - kurča na paprike
+- term: plněné papriky
+  demand: 17.9
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases:
+  - plnená paprika
+- term: chlebíčky
+  demand: 17.3
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: kuřecí stehna
+  demand: 16.9
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases:
+  - kuracie stehná
+- term: brokolice
+  demand: 16.7
+  peak_month: 1
+  kind: category
+  slot: side
+  aliases: []
+- term: kulajda
+  demand: 16.3
+  peak_month: 9
+  kind: dish
+  slot: soup
+  aliases: []
+- term: rajská omáčka
+  demand: 16.1
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: špenát
+  demand: 15.0
+  peak_month: 3
+  kind: category
+  slot: main
+  aliases: []
+- term: toast
+  demand: 14.7
+  peak_month: 2
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: zapečené brambory
+  demand: 14.6
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases:
+  - zapekané zemiaky
+- term: segedínský guláš
+  demand: 14.6
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases:
+  - segedínsky guláš
+- term: pirohy
+  demand: 14.1
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: tacos
+  demand: 13.9
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: mleté maso
+  demand: 13.7
+  peak_month: 7
+  kind: category
+  slot: main
+  aliases:
+  - mleté mäso
+- term: granola
+  demand: 13.3
+  peak_month: 2
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: kuskus
+  demand: 12.6
+  peak_month: 9
+  kind: dish
+  slot: side
+  aliases: []
+- term: chilli con carne
+  demand: 12.5
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: quinoa
+  demand: 12.3
+  peak_month: 2
+  kind: category
+  slot: side
+  aliases: []
+- term: gyros
+  demand: 12.1
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: bulgur
+  demand: 11.7
+  peak_month: 2
+  kind: dish
+  slot: side
+  aliases: []
+- term: holandský řízek
+  demand: 11.4
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: omeleta
+  demand: 11.2
+  peak_month: 1
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: vajíčková pomazánka
+  demand: 10.9
+  peak_month: 4
+  kind: dish
+  slot: light
+  aliases:
+  - vajíčková nátierka
+- term: koprová omáčka
+  demand: 10.8
+  peak_month: 5
+  kind: dish
+  slot: main
+  aliases: []
+- term: česnečka
+  demand: 10.7
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases:
+  - cesnaková polievka
+- term: těstovinový salát
+  demand: 10.6
+  peak_month: 6
+  kind: dish
+  slot: light
+  aliases: []
+- term: tvarohové knedlíky
+  demand: 10.5
+  peak_month: 6
+  kind: dish
+  slot: main
+  aliases: []
+- term: teriyaki
+  demand: 10.5
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: treska
+  demand: 10.0
+  peak_month: 5
+  kind: dish
+  slot: main
+  aliases: []
+- term: butter chicken
+  demand: 9.9
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: fazolová polévka
+  demand: 9.9
+  peak_month: 1
+  kind: dish
+  slot: soup
+  aliases:
+  - fazuľová polievka
+- term: zapečené těstoviny
+  demand: 9.9
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: zelňačka
+  demand: 9.7
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases: []
+- term: klobása
+  demand: 9.5
+  peak_month: 12
+  kind: category
+  slot: main
+  aliases: []
+- term: burrito
+  demand: 9.3
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: ratatouille
+  demand: 9.2
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: frankfurtská polévka
+  demand: 8.5
+  peak_month: 1
+  kind: dish
+  slot: soup
+  aliases: []
+- term: špagety carbonara
+  demand: 8.5
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases:
+  - špagety
+- term: tuňák
+  demand: 8.3
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: fazolky
+  demand: 8.3
+  peak_month: 7
+  kind: category
+  slot: side
+  aliases: []
+- term: hovězí guláš
+  demand: 8.0
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: pad thai
+  demand: 8.0
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: trhané maso
+  demand: 7.9
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases:
+  - trhané vepřové
+- term: dýňová polévka
+  demand: 7.9
+  peak_month: 10
+  kind: dish
+  slot: soup
+  aliases: []
+- term: utopenci
+  demand: 7.9
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: ovesné vločky
+  demand: 7.9
+  peak_month: 4
+  kind: category
+  slot: breakfast
+  aliases: []
+- term: quesadilla
+  demand: 7.7
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: gulášová polévka
+  demand: 7.7
+  peak_month: 1
+  kind: dish
+  slot: soup
+  aliases: []
+- term: houskový knedlík
+  demand: 7.7
+  peak_month: 12
+  kind: dish
+  slot: side
+  aliases: []
+- term: bramboračka
+  demand: 7.6
+  peak_month: 9
+  kind: dish
+  slot: soup
+  aliases: []
+- term: pečené kuře
+  demand: 7.3
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases:
+  - pečené kurča
+- term: z trouby
+  demand: 7.3
+  peak_month: 8
+  kind: intent
+  slot: main
+  aliases: []
+- term: boloňské špagety
+  demand: 7.1
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases:
+  - boloňská omáčka
+- term: kung pao
+  demand: 7.1
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: roštěná
+  demand: 6.9
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: hrachová polévka
+  demand: 6.7
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases:
+  - hrachová polievka
+- term: boršč
+  demand: 6.6
+  peak_month: 1
+  kind: dish
+  slot: soup
+  aliases: []
+- term: čočka na kyselo
+  demand: 6.5
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: okurkový salát
+  demand: 6.5
+  peak_month: 7
+  kind: dish
+  slot: side
+  aliases: []
+- term: lokše
+  demand: 6.5
+  peak_month: 12
+  kind: dish
+  slot: side
+  aliases: []
+- term: párky
+  demand: 6.4
+  peak_month: 10
+  kind: category
+  slot: light
+  aliases: []
+- term: vepřový guláš
+  demand: 6.4
+  peak_month: 11
+  kind: dish
+  slot: main
+  aliases: []
+- term: bramborový knedlík
+  demand: 6.3
+  peak_month: 11
+  kind: dish
+  slot: side
+  aliases: []
+- term: hummus
+  demand: 6.3
+  peak_month: 2
+  kind: dish
+  slot: light
+  aliases: []
+- term: dršťková polévka
+  demand: 6.2
+  peak_month: 10
+  kind: dish
+  slot: soup
+  aliases:
+  - držková polievka
+- term: kuřecí vývar
+  demand: 6.1
+  peak_month: 11
+  kind: dish
+  slot: soup
+  aliases:
+  - slepačia polievka
+- term: paprikáš
+  demand: 6.1
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: bramborák
+  demand: 6.1
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases: []
+- term: hovězí vývar
+  demand: 6.1
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases:
+  - hovädzí vývar
+- term: tikka masala
+  demand: 6.0
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: brokolicová polévka
+  demand: 5.8
+  peak_month: 1
+  kind: dish
+  slot: soup
+  aliases: []
+- term: ovesná kaše
+  demand: 5.7
+  peak_month: 3
+  kind: dish
+  slot: breakfast
+  aliases:
+  - ovsená kaša
+- term: falafel
+  demand: 5.7
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: buřty
+  demand: 5.6
+  peak_month: 4
+  kind: category
+  slot: main
+  aliases: []
+- term: ovocné knedlíky
+  demand: 5.4
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases: []
+- term: květáková polévka
+  demand: 5.4
+  peak_month: 10
+  kind: dish
+  slot: soup
+  aliases: []
+- term: houbová omáčka
+  demand: 5.2
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: pečené brambory
+  demand: 5.2
+  peak_month: 9
+  kind: dish
+  slot: side
+  aliases: []
+- term: tlačenka
+  demand: 5.1
+  peak_month: 3
+  kind: category
+  slot: light
+  aliases: []
+- term: dušená mrkev
+  demand: 5.1
+  peak_month: 10
+  kind: dish
+  slot: side
+  aliases: []
+- term: rajská polévka
+  demand: 5.0
+  peak_month: 9
+  kind: dish
+  slot: soup
+  aliases: []
+- term: masové kuličky
+  demand: 4.7
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: minestrone
+  demand: 4.7
+  peak_month: 2
+  kind: dish
+  slot: soup
+  aliases: []
+- term: musaka
+  demand: 4.6
+  peak_month: 4
+  kind: dish
+  slot: main
+  aliases: []
+- term: játra na cibulce
+  demand: 4.6
+  peak_month: 11
+  kind: dish
+  slot: main
+  aliases: []
+- term: jitrnice
+  demand: 4.5
+  peak_month: 11
+  kind: category
+  slot: main
+  aliases: []
+- term: bramborová kaše
+  demand: 4.5
+  peak_month: 12
+  kind: dish
+  slot: side
+  aliases:
+  - zemiaková kaša
+- term: hrachová kaše
+  demand: 4.4
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: caesar salát
+  demand: 4.3
+  peak_month: 1
+  kind: dish
+  slot: light
+  aliases: []
+- term: cibulačka
+  demand: 4.2
+  peak_month: 10
+  kind: dish
+  slot: soup
+  aliases: []
+- term: kuřecí játra
+  demand: 4.2
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: česneková pomazánka
+  demand: 4.2
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: vepřová krkovice
+  demand: 4.1
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: vepřové koleno
+  demand: 4.1
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases:
+  - bravčové koleno
+  - pečené koleno
+- term: polévka z červené čočky
+  demand: 4.1
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases: []
+- term: kuřecí nudličky
+  demand: 4.0
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: krémová polévka
+  demand: 4.0
+  peak_month: 12
+  kind: category
+  slot: soup
+  aliases: []
+- term: tuňáková pomazánka
+  demand: 4.0
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: pórková polévka
+  demand: 3.9
+  peak_month: 4
+  kind: dish
+  slot: soup
+  aliases: []
+- term: kuřecí kari
+  demand: 3.9
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: americké brambory
+  demand: 3.9
+  peak_month: 12
+  kind: dish
+  slot: side
+  aliases: []
+- term: vejce benedikt
+  demand: 3.9
+  peak_month: 9
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: španělský ptáček
+  demand: 3.8
+  peak_month: 11
+  kind: dish
+  slot: main
+  aliases: []
+- term: nakládaný hermelín
+  demand: 3.8
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: zelný salát
+  demand: 3.8
+  peak_month: 11
+  kind: dish
+  slot: side
+  aliases: []
+- term: tempeh
+  demand: 3.8
+  peak_month: 3
+  kind: category
+  slot: main
+  aliases: []
+- term: pečená kachna
+  demand: 3.8
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases:
+  - pečená kačica
+- term: znojemská omáčka
+  demand: 3.7
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: šopský salát
+  demand: 3.7
+  peak_month: 8
+  kind: dish
+  slot: light
+  aliases: []
+- term: škvarková pomazánka
+  demand: 3.7
+  peak_month: 11
+  kind: dish
+  slot: light
+  aliases: []
+- term: rychlý oběd
+  demand: 3.6
+  peak_month: 12
+  kind: intent
+  slot: main
+  aliases: []
+- term: dušené zelí
+  demand: 3.5
+  peak_month: 11
+  kind: dish
+  slot: side
+  aliases:
+  - dusená kapusta
+- term: zeleninová polévka
+  demand: 3.5
+  peak_month: 11
+  kind: dish
+  slot: soup
+  aliases: []
+- term: smažený sýr
+  demand: 3.5
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases:
+  - vyprážaný syr
+- term: tvarohová pomazánka
+  demand: 3.5
+  peak_month: 9
+  kind: dish
+  slot: light
+  aliases: []
+- term: avokádová pomazánka
+  demand: 3.4
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: smash burger
+  demand: 3.4
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases:
+  - hamburger
+- term: bramborový guláš
+  demand: 3.3
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases:
+  - zemiakový guláš
+- term: rajčatový salát
+  demand: 3.2
+  peak_month: 8
+  kind: dish
+  slot: side
+  aliases: []
+- term: křenová omáčka
+  demand: 3.2
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: šťouchané brambory
+  demand: 2.9
+  peak_month: 11
+  kind: dish
+  slot: side
+  aliases: []
+- term: uzené maso
+  demand: 2.9
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: salát s kuřecím masem
+  demand: 2.9
+  peak_month: 6
+  kind: dish
+  slot: light
+  aliases: []
+- term: zapečený květák
+  demand: 2.8
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuřecí řízek
+  demand: 2.7
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases:
+  - kurací rezeň
+- term: overnight oats
+  demand: 2.7
+  peak_month: 2
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: pečené vepřové
+  demand: 2.7
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases:
+  - bravčové pečené
+- term: rybí polévka
+  demand: 2.7
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases: []
+- term: uzená polévka
+  demand: 2.5
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases: []
+- term: bryndzové halušky
+  demand: 2.5
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: hermelínová pomazánka
+  demand: 2.3
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: švestkové knedlíky
+  demand: 2.1
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuřecí čína
+  demand: 2.1
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: hrášková polévka
+  demand: 2.1
+  peak_month: 12
+  kind: dish
+  slot: soup
+  aliases: []
+- term: celerová pomazánka
+  demand: 2.1
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: kuře na kari
+  demand: 2.1
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: rychlá večeře
+  demand: 2.1
+  peak_month: 10
+  kind: intent
+  slot: main
+  aliases:
+  - rýchla večera
+- term: hokaido polévka
+  demand: 2.1
+  peak_month: 10
+  kind: dish
+  slot: soup
+  aliases: []
+- term: cuketová polévka
+  demand: 2.0
+  peak_month: 7
+  kind: dish
+  slot: soup
+  aliases: []
+- term: salát s tuňákem
+  demand: 1.9
+  peak_month: 6
+  kind: dish
+  slot: light
+  aliases:
+  - těstovinový salát s tuňákem
+- term: seitan
+  demand: 1.9
+  peak_month: 5
+  kind: category
+  slot: main
+  aliases: []
+- term: vepřo knedlo zelo
+  demand: 1.9
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: hovězí líčka
+  demand: 1.9
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: špenátová polévka
+  demand: 1.8
+  peak_month: 3
+  kind: dish
+  slot: soup
+  aliases: []
+- term: domácí pizza
+  demand: 1.7
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: míchaná vejce
+  demand: 1.7
+  peak_month: 8
+  kind: dish
+  slot: breakfast
+  aliases:
+  - praženica
+- term: ovar
+  demand: 1.6
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: cuketové placky
+  demand: 1.6
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases: []
+- term: mrkvová pomazánka
+  demand: 1.3
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: smažený květák
+  demand: 1.1
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: řecký salát
+  demand: 1.1
+  peak_month: 7
+  kind: dish
+  slot: light
+  aliases: []
+- term: fazolový guláš
+  demand: 1.1
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: kapustové karbanátky
+  demand: 1.1
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: zabijačka
+  demand: 1.1
+  peak_month: 1
+  kind: category
+  slot: main
+  aliases: []
+- term: houbová polévka
+  demand: 1.0
+  peak_month: 9
+  kind: dish
+  slot: soup
+  aliases: []
+- term: hovězí na houbách
+  demand: 1.0
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: holubky
+  demand: 0.9
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: zapečená cuketa
+  demand: 0.9
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases: []
+- term: falešná svíčková
+  demand: 0.9
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: játrová omáčka
+  demand: 0.9
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases: []
+- term: strapačky
+  demand: 0.9
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: volské oko
+  demand: 0.9
+  peak_month: 6
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: vepřový řízek
+  demand: 0.9
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases:
+  - bravčový rezeň
+- term: budapešťská pomazánka
+  demand: 0.9
+  peak_month: 11
+  kind: dish
+  slot: light
+  aliases: []
+- term: kuře s rýží
+  demand: 0.8
+  peak_month: 11
+  kind: dish
+  slot: main
+  aliases: []
+- term: smažené nudle
+  demand: 0.8
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: rybí pomazánka
+  demand: 0.8
+  peak_month: 9
+  kind: dish
+  slot: light
+  aliases: []
+- term: sýrová pomazánka
+  demand: 0.8
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: králík na smetaně
+  demand: 0.7
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: pařížský salát
+  demand: 0.7
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: tvarůžková pomazánka
+  demand: 0.7
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: horkovzdušná fritéza recepty
+  demand: 0.7
+  peak_month: 12
+  kind: intent
+  slot: main
+  aliases: []
+- term: rybičková pomazánka
+  demand: 0.7
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: drožďová pomazánka
+  demand: 0.7
+  peak_month: 9
+  kind: dish
+  slot: light
+  aliases: []
+- term: kuřecí rizoto
+  demand: 0.6
+  peak_month: 3
+  kind: dish
+  slot: main
+  aliases: []
+- term: čočkový salát
+  demand: 0.5
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: pečená dýně
+  demand: 0.5
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: fitness recepty
+  demand: 0.5
+  peak_month: 1
+  kind: intent
+  slot: main
+  aliases: []
+- term: cuketové karbanátky
+  demand: 0.5
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: buchtičky s krémem
+  demand: 0.4
+  peak_month: 7
+  kind: dish
+  slot: main
+  aliases: []
+- term: houbové rizoto
+  demand: 0.4
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: houbový guláš
+  demand: 0.4
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: maďarský guláš
+  demand: 0.4
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: pečená zelenina
+  demand: 0.4
+  peak_month: 9
+  kind: dish
+  slot: side
+  aliases: []
+- term: pochoutkový salát
+  demand: 0.4
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: parené buchty
+  demand: 0.4
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: rybí prsty
+  demand: 0.3
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: grilovaná zelenina
+  demand: 0.3
+  peak_month: 4
+  kind: dish
+  slot: side
+  aliases: []
+- term: zelené fazolky
+  demand: 0.3
+  peak_month: 7
+  kind: dish
+  slot: side
+  aliases: []
+- term: mleté kuřecí maso
+  demand: 0.3
+  peak_month: 1
+  kind: category
+  slot: main
+  aliases: []
+- term: šúľance
+  demand: 0.3
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: vaječná omeleta
+  demand: 0.3
+  peak_month: 11
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: uzený losos
+  demand: 0.3
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: šípková omáčka
+  demand: 0.3
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: pečený losos
+  demand: 0.2
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: z pomalého hrnce
+  demand: 0.2
+  peak_month: 11
+  kind: intent
+  slot: main
+  aliases: []
+- term: vrstvený salát
+  demand: 0.2
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: kachna se zelím
+  demand: 0.1
+  peak_month: 11
+  kind: dish
+  slot: main
+  aliases: []
+- term: fazolový salát
+  demand: 0.1
+  peak_month: 12
+  kind: dish
+  slot: light
+  aliases: []
+- term: bezlepkové recepty
+  demand: 0.1
+  peak_month: 12
+  kind: intent
+  slot: main
+  aliases: []
+- term: kuřecí karbanátky
+  demand: 0.1
+  peak_month: 10
+  kind: dish
+  slot: main
+  aliases: []
+- term: květákové karbanátky
+  demand: 0.1
+  peak_month: 11
+  kind: dish
+  slot: main
+  aliases: []
+- term: kvašená zelenina
+  demand: 0.1
+  peak_month: 10
+  kind: dish
+  slot: side
+  aliases: []
+- term: nivová omáčka
+  demand: 0.1
+  peak_month: 11
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuřecí křidýlka
+  demand: 0.1
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuře na smetaně
+  demand: 0.1
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuře na medu
+  demand: 0.1
+  peak_month: 1
+  kind: dish
+  slot: main
+  aliases: []
+- term: uzené s bramborovou kaší
+  demand: 0.1
+  peak_month: 6
+  kind: dish
+  slot: main
+  aliases: []
+- term: plněná paprika
+  demand: 0.1
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: zeleninové kari
+  demand: 0.1
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: plněná cuketa
+  demand: 0.1
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: jogurt s ovocem
+  demand: 0.1
+  peak_month: 3
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: vegan recepty
+  demand: 0.1
+  peak_month: 12
+  kind: intent
+  slot: main
+  aliases: []
+- term: vegetariánské recepty
+  demand: 0.1
+  peak_month: 11
+  kind: intent
+  slot: main
+  aliases: []
+- term: levné recepty
+  demand: 0.1
+  peak_month: 6
+  kind: intent
+  slot: main
+  aliases: []
+- term: šakšuka
+  demand: 0.1
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: mrkev s hráškem
+  demand: 0.1
+  peak_month: 6
+  kind: dish
+  slot: side
+  aliases: []
+- term: kuřecí paprikáš
+  demand: 0.1
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases:
+  - kurací paprikáš
+- term: mletý řízek
+  demand: 0.1
+  peak_month: 5
+  kind: dish
+  slot: main
+  aliases: []
+- term: sekaný řízek
+  demand: 0.1
+  peak_month: 2
+  kind: dish
+  slot: main
+  aliases: []
+- term: vepřová svíčková
+  demand: 0.1
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: rybí karbanátky
+  demand: 0.1
+  peak_month: 9
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuřecí sekaná
+  demand: 0.1
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: rychlá večeře pro děti
+  demand: 0.1
+  peak_month: 9
+  kind: intent
+  slot: main
+  aliases: []
+- term: krůtí mleté maso
+  demand: 0.1
+  peak_month: 3
+  kind: category
+  slot: main
+  aliases: []
+- term: losos na másle
+  demand: 0.1
+  peak_month: 12
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuřecí stir fry
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuře po indicku
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: kuře po čínsku
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: holubci
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: zelné závitky
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: dolmas
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: lasagne se zeleninou
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: zapečená zelenina
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: zeleninový nákyp
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: špenát s vejcem
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: ztracená vejce
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: palačinky s tvarohem
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: avokádový toast
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: breakfast
+  aliases: []
+- term: low carb recepty
+  demand: 0.0
+  peak_month: null
+  kind: intent
+  slot: main
+  aliases: []
+- term: keto recepty
+  demand: 0.0
+  peak_month: null
+  kind: intent
+  slot: main
+  aliases: []
+- term: proteinové recepty
+  demand: 0.0
+  peak_month: null
+  kind: intent
+  slot: main
+  aliases: []
+- term: recepty z jednoho hrnce
+  demand: 0.0
+  peak_month: null
+  kind: intent
+  slot: main
+  aliases: []
+- term: recepty z jedné pánve
+  demand: 0.0
+  peak_month: null
+  kind: intent
+  slot: main
+  aliases: []
+- term: airfryer recepty
+  demand: 0.0
+  peak_month: null
+  kind: intent
+  slot: main
+  aliases: []
+- term: guláš z mletého masa
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: soukenický řízek
+  demand: 0.0
+  peak_month: 8
+  kind: dish
+  slot: main
+  aliases: []
+- term: krůtí karbanátky
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: brokolicové karbanátky
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: čočkové karbanátky
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: plněná sekaná
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: main
+  aliases: []
+- term: vaječný salát
+  demand: 0.0
+  peak_month: null
+  kind: dish
+  slot: light
+  aliases: []
