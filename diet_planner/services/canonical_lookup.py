@@ -194,23 +194,28 @@ def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
     if not needle:
         return None
 
-    # 1 + 2: exact match on canonical names, then aliases (fast path).
-    ci = CanonicalIngredient.objects.filter(
-        Q(name__iexact=needle)
-        | Q(name_cs__iexact=needle)
-        | Q(name_sk__iexact=needle)
-    ).first()
-    if ci is not None:
-        return ci
+    # 1 + 2: exact match on canonical names, then aliases (fast path). Tried
+    # twice when the line carries a parenthetical: "uzené maso (např. uzené
+    # ramínko nebo krkovice)" must reach the "uzené maso" alias, and tier 3
+    # cannot rescue it because both words are stripped as modifiers there.
+    bare = re.sub(r"\s+", " ", re.sub(r"\(.*?\)", " ", needle)).strip()
+    for candidate in ([needle, bare] if bare and bare != needle else [needle]):
+        ci = CanonicalIngredient.objects.filter(
+            Q(name__iexact=candidate)
+            | Q(name_cs__iexact=candidate)
+            | Q(name_sk__iexact=candidate)
+        ).first()
+        if ci is not None:
+            return ci
 
-    alias = (
-        IngredientAlias.objects
-        .select_related('canonical_ingredient')
-        .filter(alias__iexact=needle)
-        .first()
-    )
-    if alias is not None:
-        return alias.canonical_ingredient
+        alias = (
+            IngredientAlias.objects
+            .select_related('canonical_ingredient')
+            .filter(alias__iexact=candidate)
+            .first()
+        )
+        if alias is not None:
+            return alias.canonical_ingredient
 
     # 3: normalized fallback — strip prep/quality descriptors and match on the
     # base key against the cached normalized index.
