@@ -12,3 +12,8 @@ italsky-sekany-salat: ''
 cuketove-spagety-bolognese: ''
 spagety-aglio-e-olio: ''
 spagety-aglio-olio-e-peperoncino: ''
+# The dish name carries "knedlíky" too, and the generic term out-demands the
+# specific one; pin the classic to its own term.
+vepro-knedlo-zelo: vepřo knedlo zelo
+jednoduche-vepro-knedlo-zelo: vepřo knedlo zelo
+knedlo-vepro-zelo-v-pomalem-hrnci: vepřo knedlo zelo
