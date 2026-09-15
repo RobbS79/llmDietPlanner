@@ -617,6 +617,7 @@
   aliases:
     - { alias: "jarní cibule", language_code: cs }
     - { alias: "mladá cibulka", language_code: cs }
+    - { alias: "červená jarní cibulka", language_code: cs }  # batch-09b
 
 - name: zucchini
   name_cs: cuketa
@@ -672,6 +673,8 @@
     - { alias: "petržel kudrnka", language_code: cs }
     - { alias: "petržel kadeřavá", language_code: cs }
     - { alias: "bylinky", language_code: cs }
+    - { alias: "čerstvá hladkolistá petržel", language_code: cs }  # batch-09b
+    - { alias: "hladkolistá petržel", language_code: cs }  # batch-09b
 
 - name: lettuce
   name_cs: hlávkový salát
@@ -801,6 +804,9 @@
     - { alias: "sterilované okurky", language_code: cs }
     - { alias: "okurky v nálevu", language_code: cs }
     - { alias: "kvašené okurky", language_code: cs }
+    - { alias: "sladkokyselé okurky", language_code: cs }  # batch-09b
+    - { alias: "sladkokyselé nakládané okurky", language_code: cs }  # batch-09b
+    - { alias: "okurky sladkokyselé", language_code: cs }  # batch-09b
 
 - name: olives
   name_cs: olivy
@@ -2307,6 +2313,8 @@
     - { alias: "gothaj", language_code: cs }  # batch-09
     - { alias: "gothajský salám", language_code: cs }  # batch-09
     - { alias: "pařížský salám", language_code: cs }  # batch-09
+    - { alias: "pražský salám v celku", language_code: cs }  # batch-09b
+    - { alias: "pražský salám vcelku", language_code: cs }  # batch-09b
 
 # --- Fats ---
 - name: margarine
@@ -2758,6 +2766,8 @@
     - { alias: "uzená krkovice", language_code: cs }  # batch-09
     - { alias: "uzená krkovice vcelku", language_code: cs }  # batch-09
     - { alias: "uzená krkovice v celku", language_code: cs }  # batch-09
+    - { alias: "uzená žebra s masem", language_code: cs }  # batch-09b
+    - { alias: "uzené žebírko", language_code: cs }  # batch-09b
 
 - name: burger buns
   name_cs: burgerové bulky
@@ -2767,6 +2777,8 @@
     - { alias: "bulky na burger", language_code: cs }
     - { alias: "hamburgerové housky", language_code: cs }
     - { alias: "housky na hamburger", language_code: cs }
+    - { alias: "burgerové housky", language_code: cs }  # batch-09b
+    - { alias: "housky na burger", language_code: cs }  # batch-09b
 
 - name: potato seasoning
   name_cs: koření na americké brambory

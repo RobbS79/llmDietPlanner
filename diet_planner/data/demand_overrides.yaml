@@ -17,3 +17,5 @@ spagety-aglio-olio-e-peperoncino: ''
 vepro-knedlo-zelo: vepřo knedlo zelo
 jednoduche-vepro-knedlo-zelo: vepřo knedlo zelo
 knedlo-vepro-zelo-v-pomalem-hrnci: vepřo knedlo zelo
+# 2026-09-15: the name matcher read "s kuřecím masem" as the salad term.
+cinske-smazene-nudle-s-kurecim-masem: smažené nudle
