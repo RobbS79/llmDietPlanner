@@ -117,6 +117,11 @@ _BRAND_WORDS = {
 # Prepositional / descriptor tails: everything from these markers onward is a
 # preparation note, not part of the ingredient identity.
 #   "olej na smažení" -> "olej",  "smetana ke šlehání" -> "smetana"
+# Canned / tinned markers, wherever they sit in the line: "z konzervy",
+# "v plechovce", "konzervovaná", "(z plechovky)". Folded into one token.
+CANNED_TOKEN = "konzerva"
+_CANNED_MARK = re.compile(r"konzerv\w*|plechov\w*")
+
 _TAIL_MARKERS = re.compile(
     r"\s+(?:na\s|ke\s|ku\s|k\s|z\s+konzervy|z\s+plechovky"
     r"|v\s+konzervě|v\s+plechovce|v\s+nálevu|do\s)",
@@ -132,6 +137,11 @@ def _strip_descriptors(raw: str) -> str:
     words, not a phrase. This makes the match robust to word order.
     """
     s = raw.lower().strip()
+    # Canned/tinned is part of the identity (konzervovaná rajčata are not
+    # rajčata), but the marker sits in a tail or after a comma that the steps
+    # below discard. Remember it now, re-attach it as one token at the end;
+    # resolve_canonical retries without it when no canned variant exists.
+    canned = bool(_CANNED_MARK.search(s))
     s = re.sub(r"\(.*?\)", " ", s)            # drop parentheticals
     s = s.split(",")[0]                        # drop post-comma descriptor
     parts = re.split(r"\bnebo\b|\bor\b|/", s)  # "x nebo y" -> first option
@@ -152,7 +162,10 @@ def _strip_descriptors(raw: str) -> str:
     tokens = [
         t for t in re.split(r"[\s]+", s.strip())
         if t and t not in _MODIFIER_WORDS and t not in _BRAND_WORDS
+        and not _CANNED_MARK.match(t)
     ]
+    if canned and tokens:
+        tokens.append(CANNED_TOKEN)
     return " ".join(sorted(tokens)).strip()
 
 
@@ -170,26 +183,38 @@ def _normalized_index() -> Dict[str, int]:
     """Map normalized-key -> CanonicalIngredient id, over all names + aliases.
 
     Built once per process; call `clear_cache()` after seeding new rows in the
-    same process. More-specific names are inserted first so a shorter alias
-    cannot clobber a better key (dict keeps the first writer via setdefault).
+    same process. Lossless keys (the text IS the key) are inserted before keys
+    that stripping produced, so "sušená rajčata" can never own the bare
+    "rajčata" key; within a pass the dict keeps the first writer (setdefault).
     Each key is also registered ASCII-folded so accent-free input resolves;
     setdefault keeps exact keys authoritative over folded ones.
     """
     index: Dict[str, int] = {}
 
-    def add(text: str, ci_id: int) -> None:
+    def add(text: str, ci_id: int, *, exact_only: bool) -> None:
         key = _strip_descriptors(text or "")
-        if key:
-            index.setdefault(key, ci_id)
-            folded = fold_diacritics(key)
-            if folded != key:
-                index.setdefault(folded, ci_id)
+        if not key:
+            return
+        # A key that lost no words is the entry's own name ("rajčata" ->
+        # "rajčata"); a key produced by stripping ("sušená rajčata" ->
+        # "rajčata") must never outrank it, whatever the insertion order.
+        # Pass 1 registers only lossless keys, pass 2 fills the gaps.
+        lossless = len(key.split()) == len(re.findall(r"\w+", (text or "").lower()))
+        if exact_only and not lossless:
+            return
+        index.setdefault(key, ci_id)
+        folded = fold_diacritics(key)
+        if folded != key:
+            index.setdefault(folded, ci_id)
 
-    for ci in CanonicalIngredient.objects.all().values("id", "name", "name_cs", "name_sk"):
-        for field in ("name_cs", "name", "name_sk"):
-            add(ci[field], ci["id"])
-    for al in IngredientAlias.objects.all().values("canonical_ingredient_id", "alias"):
-        add(al["alias"], al["canonical_ingredient_id"])
+    rows = list(CanonicalIngredient.objects.all().values("id", "name", "name_cs", "name_sk"))
+    aliases = list(IngredientAlias.objects.all().values("canonical_ingredient_id", "alias"))
+    for exact_only in (True, False):
+        for ci in rows:
+            for field in ("name_cs", "name", "name_sk"):
+                add(ci[field], ci["id"], exact_only=exact_only)
+        for al in aliases:
+            add(al["alias"], al["canonical_ingredient_id"], exact_only=exact_only)
     return index
 
 
@@ -233,11 +258,18 @@ def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
     key = _strip_descriptors(needle)
     if not key:
         return None
-    ci_id = _normalized_index().get(key)
-    if ci_id is None:
-        ci_id = _normalized_index().get(fold_diacritics(key))
-    if ci_id is not None:
-        return CanonicalIngredient.objects.filter(pk=ci_id).first()
+    keys = [key]
+    tokens = key.split()
+    if CANNED_TOKEN in tokens and len(tokens) > 1:
+        # No canned variant in the dictionary -> fall back to the base product
+        # ("cizrna z konzervy" -> chickpeas), as before this marker existed.
+        keys.append(" ".join(t for t in tokens if t != CANNED_TOKEN))
+    for k in keys:
+        ci_id = _normalized_index().get(k)
+        if ci_id is None:
+            ci_id = _normalized_index().get(fold_diacritics(k))
+        if ci_id is not None:
+            return CanonicalIngredient.objects.filter(pk=ci_id).first()
     return None
 
 

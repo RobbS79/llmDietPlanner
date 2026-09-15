@@ -116,9 +116,13 @@ class StripDescriptorsTest(TestCase):
                          'arašídové máslo')
 
     def test_strips_in_can_tail(self):
-        # "v konzervě" / "v plechovce" are prep/packaging tails like "z konzervy".
+        # "v konzervě" / "v plechovce" are packaging tails like "z konzervy":
+        # the words go, but canned-ness survives as the single "konzerva"
+        # token (2026-09-15: konzervovaná rajčata are not rajčata). The
+        # resolver drops that token again when no canned variant exists.
         self.assertEqual(_strip_descriptors('krájená rajčata v konzervě'),
-                         'rajčata')
+                         'konzerva rajčata')
+        self.assertEqual(_strip_descriptors('krájená rajčata'), 'rajčata')
 
     def test_disjunction_keeps_shared_trailing_head_noun(self):
         # "kokosový nebo olivový olej" = coconut OR olive *oil*; the head noun

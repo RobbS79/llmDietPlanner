@@ -847,6 +847,19 @@
     - { alias: "rajčata v konzervě", language_code: cs }
     - { alias: "krájená rajčata v konzervě", language_code: cs }
     - { alias: "krájená rajčata", language_code: cs }
+    - { alias: "drcená rajčata v plechovce", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "drcená rajčata z konzervy", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "drcená rajčata v konzervě", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "krájená rajčata z konzervy", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "krájená rajčata v plechovce", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "rajčata krájená v plechovce", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "rajčata krájená z konzervy", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "rajčata krájená z plechovky", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "rajčata krájená konzervovaná", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "krájená rajčata pečená na ohni", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "pečená rajčata v plechovce", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "rajčata v plechovce", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "konzervovaná krájená rajčata", language_code: cs }  # 2026-09-15 tomato routing
 
 # --- Fruits ---
 - name: lime
