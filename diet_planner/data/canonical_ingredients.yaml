@@ -283,8 +283,6 @@
     - { alias: "cherry rajčata", language_code: cs }
     - { alias: "cherry rajčátka", language_code: cs }
     - { alias: "rajčata krájená", language_code: cs }
-    - { alias: "drcená rajčata", language_code: cs }
-    - { alias: "loupaná rajčata", language_code: cs }
     - { alias: "rajče roma", language_code: cs }
     - { alias: "rajčata roma", language_code: cs }
     - { alias: "koktejlová rajčata", language_code: cs }
@@ -820,6 +818,9 @@
     - { alias: "vypeckované olivy", language_code: cs }
     - { alias: "černé olivy", language_code: cs }
     - { alias: "zelené olivy", language_code: cs }
+    - { alias: "nálev z oliv", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "olivy v nálevu", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "olivy bez pecky", language_code: cs }  # 2026-09-15 remap audit
 
 - name: sauerkraut
   name_cs: kysané zelí
@@ -860,6 +861,14 @@
     - { alias: "pečená rajčata v plechovce", language_code: cs }  # 2026-09-15 tomato routing
     - { alias: "rajčata v plechovce", language_code: cs }  # 2026-09-15 tomato routing
     - { alias: "konzervovaná krájená rajčata", language_code: cs }  # 2026-09-15 tomato routing
+    - { alias: "loupaná rajčata", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "drcená rajčata", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "loupaná rajčata z konzervy", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "loupaná rajčata v konzervě", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "loupaná rajčata v plechovce", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "rajčata loupaná celá v plechovce", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "celá loupaná rajčata", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "drcená nebo celá loupaná rajčata z konzervy", language_code: cs }  # 2026-09-15 remap audit
 
 # --- Fruits ---
 - name: lime
@@ -1154,6 +1163,11 @@
   is_pantry_staple: true
   estimated_price_czk: 25.0
   estimated_price_eur: 1.00
+  aliases:
+    - { alias: "hřebíčky", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "celé hřebíčky", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "celý hřebíček", language_code: cs }  # 2026-09-15 remap audit
+    - { alias: "mletý hřebíček", language_code: cs }  # 2026-09-15 remap audit
 
 - name: chives
   name_cs: pažitka

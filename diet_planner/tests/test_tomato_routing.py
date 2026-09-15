@@ -79,6 +79,14 @@ class CannedTomatoRoutingTests(TestCase):
         ('cizrna z konzervy', 'chickpeas-canned'),
         ('kukuřice z konzervy', 'corn'),
         ('tuňák v konzervě', 'tuna-canned'),
+        # peeled / crushed tomatoes are a can, not produce (remap audit 2026-09-15)
+        ('loupaná rajčata z konzervy', 'chopped-tomatoes-canned'),
+        ('rajčata loupaná celá v plechovce', 'chopped-tomatoes-canned'),
+        ('loupaná rajčata', 'chopped-tomatoes-canned'),
+        ('drcená rajčata', 'chopped-tomatoes-canned'),
+        # two published recipes lost these lines in the 2026-09-15 remap
+        ('hřebíčky', 'cloves'),
+        ('nálev z oliv', 'olives'),
     ]
 
     def test_every_line_routes_as_expected(self):
