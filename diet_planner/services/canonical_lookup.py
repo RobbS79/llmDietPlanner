@@ -78,6 +78,15 @@ _MODIFIER_WORDS = {
     "kuchyňský", "kuchyňská", "kuchyňské",  # culinary (yellow cooking onion) — same onion
     "baby",  # "baby špenát" — still spinach
     "selský", "selská", "selské",  # farmhouse-style — same dairy product
+    # batch-09 (2026-09-15): size / age / softened / retail-grade descriptors
+    "menší", "větší",  # smaller / larger — a size, like malý/velký
+    "mladý", "mladá", "mladé",  # young (zucchini, potatoes, spinach) — same vegetable
+    "změklý", "změklá", "změklé", "změkčený", "změkčená", "změkčené",  # softened butter is butter
+    "lahůdkový", "lahůdková", "lahůdkové",  # deli-grade — same onion / cucumber
+    "hlávkový", "hlávková", "hlávkové",  # head (cabbage/lettuce/savoy) — same vegetable
+    "netučný", "netučná", "netučné", "nízkotučný", "nízkotučná", "nízkotučné",  # fat grade of tvaroh/jogurt
+    "tučný", "tučná", "tučné",
+    "vcelku",  # "in one piece" (ham/cheese) — a cut, not a product
     # generic head-nouns that don't change identity
     "maso", "koření",
     # bare connectors that survive a list ("rýže vařená a vychlazená")

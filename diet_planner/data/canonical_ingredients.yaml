@@ -155,6 +155,7 @@
   aliases:
     - { alias: "tuňák ve vlastní šťávě", language_code: cs }  # batch-07
     - { alias: "tuňák v oleji", language_code: cs }
+    - { alias: "tuňák v rostlinném oleji", language_code: cs }  # batch-09
 
 - name: eggs
   name_cs: vejce
@@ -208,6 +209,9 @@
     - { alias: "cottage sýr", language_code: cs }
     - { alias: "tvaroh 2% tuku", language_code: cs }
     - { alias: "tvaroh 2%", language_code: cs }
+    - { alias: "netučný tvaroh", language_code: cs }  # batch-09
+    - { alias: "nízkotučný tvaroh", language_code: cs }  # batch-09
+    - { alias: "tučný tvaroh", language_code: cs }  # batch-09
 
 - name: rice basmati
   name_cs: rýže basmati
@@ -357,6 +361,8 @@
     - { alias: "bílá cibule", language_code: cs }
     - { alias: "červená cibule", language_code: cs }
     - { alias: "kuchyňská cibule", language_code: cs }
+    - { alias: "lahůdková cibulka", language_code: cs }  # batch-09
+    - { alias: "červená lahůdková cibulka", language_code: cs }  # batch-09
 
 - name: garlic
   name_cs: česnek
@@ -493,6 +499,8 @@
     - { alias: "plátky sýra", language_code: cs }
     - { alias: "bílý čedar", language_code: cs }
     - { alias: "sýr gruyère", language_code: cs }
+    - { alias: "tvrdý sýr vcelku", language_code: cs }  # batch-09
+    - { alias: "tvrdý sýr v celku", language_code: cs }  # batch-09
 
 - name: feta cheese
   name_cs: sýr feta
@@ -543,6 +551,8 @@
     - { alias: "hovězí roštěnec", language_code: cs }
     - { alias: "hovězí roštěná", language_code: cs }
     - { alias: "newyorský steak", language_code: cs }
+    - { alias: "hovězí falešná svíčková", language_code: cs }  # batch-09
+    - { alias: "falešná svíčková", language_code: cs }  # batch-09
 
 - name: pork
   name_cs: vepřové maso
@@ -564,6 +574,7 @@
     - { alias: "vepřová krkovice s kostí", language_code: cs }
     - { alias: "vepřové kotlety", language_code: cs }
     - { alias: "vepřová kotleta", language_code: cs }
+    - { alias: "vepřová krkovice s kostí v celku", language_code: cs }  # batch-09
 
 - name: bacon
   name_cs: slanina
@@ -585,6 +596,8 @@
     - { alias: "dušená šunka v celku", language_code: cs }  # batch-07
     - { alias: "šunka v celku", language_code: cs }
     - { alias: "plátky šunky", language_code: cs }
+    - { alias: "šunka vcelku", language_code: cs }  # batch-09
+    - { alias: "šunka v celku", language_code: cs }  # batch-09
 
 - name: lard
   name_cs: sádlo
@@ -671,6 +684,9 @@
     - { alias: "římský salát", language_code: cs }
     - { alias: "listový salát", language_code: cs }  # batch-07
     - { alias: "salátové listy", language_code: cs }
+    - { alias: "listy salátu", language_code: cs }  # batch-09
+    - { alias: "salátové listy", language_code: cs }  # batch-09
+    - { alias: "list salátu", language_code: cs }  # batch-09
 
 - name: arugula
   name_cs: rukola
@@ -685,6 +701,8 @@
     - { alias: "bílé zelí", language_code: cs }
     - { alias: "hlávkové zelí", language_code: cs }
     - { alias: "červené zelí", language_code: cs }
+    - { alias: "hlávkové bílé zelí", language_code: cs }  # batch-09
+    - { alias: "bílé hlávkové zelí", language_code: cs }  # batch-09
 
 - name: kale
   # name_cs is deliberately "kadeřávek", NOT "kapusta": bare "kapusta" is savoy
@@ -1091,6 +1109,7 @@
   default_unit: ml
   aliases:
     - { alias: "hovězí bujón", language_code: cs }
+    - { alias: "masový vývar", language_code: cs }  # batch-09
 
 # --- Spices & seasonings (pantry staples) ---
 - name: allspice
@@ -1828,6 +1847,8 @@
     - { alias: "krémový sýr", language_code: cs }
     - { alias: "philadelphia", language_code: cs }
     - { alias: "šlehaný krémový sýr", language_code: cs }
+    - { alias: "gervais", language_code: cs }  # batch-09
+    - { alias: "sýr gervais", language_code: cs }  # batch-09
 
 # --- Meat (premium cut, distinct price from base beef) ---
 - name: beef tenderloin
@@ -1889,6 +1910,9 @@
     - { alias: "fazolové klíčky", language_code: cs }
     - { alias: "sójové klíčky", language_code: cs }  # batch-07
     - { alias: "klíčky mungo", language_code: cs }
+    - { alias: "sójové výhonky", language_code: cs }  # batch-09
+    - { alias: "fazolové výhonky", language_code: cs }  # batch-09
+    - { alias: "výhonky", language_code: cs }  # batch-09
 
 - name: mixed vegetables
   name_cs: zeleninová směs
@@ -2276,6 +2300,13 @@
     - { alias: "salám herkules", language_code: cs }
     - { alias: "šunkový salám", language_code: cs }
     - { alias: "uzenina", language_code: cs }
+    - { alias: "pražský salám", language_code: cs }  # batch-09
+    - { alias: "měkký salám", language_code: cs }  # batch-09
+    - { alias: "suchý salám", language_code: cs }  # batch-09
+    - { alias: "trvanlivý salám", language_code: cs }  # batch-09
+    - { alias: "gothaj", language_code: cs }  # batch-09
+    - { alias: "gothajský salám", language_code: cs }  # batch-09
+    - { alias: "pařížský salám", language_code: cs }  # batch-09
 
 # --- Fats ---
 - name: margarine
@@ -2301,6 +2332,10 @@
   aliases:
     - { alias: "dětská krupice", language_code: cs }
     - { alias: "pšeničná krupice", language_code: cs }
+    - { alias: "hrubá krupice", language_code: cs }  # batch-09
+    - { alias: "dětská krupička", language_code: cs }  # batch-09
+    - { alias: "krupička", language_code: cs }  # batch-09
+    - { alias: "pšeničná krupice", language_code: cs }  # batch-09
 
 - name: cornmeal
   name_cs: kukuřičná mouka
@@ -2435,6 +2470,9 @@
   typical_package_sizes: [1200, 1500]
   aliases:
     - { alias: "celé kuře na pečení", language_code: cs }
+    - { alias: "kuřecí maso s kostí", language_code: cs }  # batch-09
+    - { alias: "kuře s kostí", language_code: cs }  # batch-09
+    - { alias: "kuřecí maso na vývar", language_code: cs }  # batch-09
 
 - name: chicken drumsticks
   name_cs: kuřecí paličky
@@ -2717,6 +2755,9 @@
     - { alias: "uzená krkovice", language_code: cs }
     - { alias: "uzený bok", language_code: cs }
     - { alias: "uzené mäso", language_code: sk }
+    - { alias: "uzená krkovice", language_code: cs }  # batch-09
+    - { alias: "uzená krkovice vcelku", language_code: cs }  # batch-09
+    - { alias: "uzená krkovice v celku", language_code: cs }  # batch-09
 
 - name: burger buns
   name_cs: burgerové bulky
@@ -2845,3 +2886,125 @@
   default_unit: g
   aliases:
     - { alias: "pomazánkové", language_code: cs }
+
+
+# --- batch-09 (2026-09-15): ordinary Czech items that rejected batches 07+08 at intake ---
+
+- name: duck
+  name_cs: kachna
+  name_sk: kačica
+  category: meat
+  default_unit: g
+  estimated_price_czk: 250.0
+  estimated_price_eur: 10.00
+  aliases:
+    - { alias: "celá kachna", language_code: cs }
+    - { alias: "kachna celá", language_code: cs }
+    - { alias: "kachní maso", language_code: cs }
+    - { alias: "kačica", language_code: sk }
+    - { alias: "celá kačica", language_code: sk }
+
+- name: pork cracklings
+  name_cs: škvarky
+  name_sk: oškvarky
+  category: meat
+  default_unit: g
+  estimated_price_czk: 60.0
+  estimated_price_eur: 2.40
+  aliases:
+    - { alias: "vepřové škvarky", language_code: cs }
+    - { alias: "domácí škvarky", language_code: cs }
+    - { alias: "oškvarky", language_code: sk }
+    - { alias: "bravčové oškvarky", language_code: sk }
+
+- name: processed cheese
+  name_cs: tavený sýr
+  name_sk: tavený syr
+  category: dairy
+  default_unit: g
+  estimated_price_czk: 30.0
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "tavený sýr v kelímku", language_code: cs }
+    - { alias: "tavený smetanový sýr", language_code: cs }
+    - { alias: "tavený sýr trojúhelníčky", language_code: cs }
+    - { alias: "tavený syr", language_code: sk }
+
+- name: beef cheeks
+  name_cs: hovězí líčka
+  name_sk: hovädzie líčka
+  category: meat
+  default_unit: g
+  estimated_price_czk: 120.0
+  estimated_price_eur: 4.80
+  aliases:
+    - { alias: "hovězí líčko", language_code: cs }
+    - { alias: "líčka", language_code: cs }
+    - { alias: "hovädzie líčka", language_code: sk }
+
+- name: savoy cabbage
+  name_cs: kapusta
+  name_sk: kel
+  category: vegetables
+  default_unit: g
+  estimated_price_czk: 35.0
+  estimated_price_eur: 1.40
+  aliases:
+    - { alias: "hlávková kapusta", language_code: cs }
+    - { alias: "kapusta hlávková", language_code: cs }
+    - { alias: "kel", language_code: sk }
+    - { alias: "hlávkový kel", language_code: sk }
+
+- name: pickled peppers
+  name_cs: nakládaná kapie
+  name_sk: nakladaná kápia
+  category: canned
+  default_unit: g
+  estimated_price_czk: 40.0
+  estimated_price_eur: 1.60
+  aliases:
+    - { alias: "sterilovaná kapie", language_code: cs }
+    - { alias: "kapie v nálevu", language_code: cs }
+    - { alias: "sterilované papriky", language_code: cs }
+    - { alias: "nakladaná kápia", language_code: sk }
+
+- name: sardines canned
+  name_cs: sardinky
+  name_sk: sardinky
+  category: canned
+  default_unit: g
+  estimated_price_czk: 35.0
+  estimated_price_eur: 1.40
+  aliases:
+    - { alias: "sardinky v konzervě", language_code: cs }
+    - { alias: "sardinky v oleji", language_code: cs }
+    - { alias: "sardinky v rostlinném oleji", language_code: cs }
+    - { alias: "sardinky v rajčatové omáčce", language_code: cs }
+    - { alias: "sardinky v tomatě", language_code: cs }
+    - { alias: "rybičky v oleji", language_code: cs }
+    - { alias: "sardinky v oleji", language_code: sk }
+
+- name: bamboo shoots
+  name_cs: bambusové výhonky
+  name_sk: bambusové výhonky
+  category: canned
+  default_unit: g
+  estimated_price_czk: 45.0
+  estimated_price_eur: 1.80
+  aliases:
+    - { alias: "bambus", language_code: cs }
+    - { alias: "bambusové výhonky v konzervě", language_code: cs }
+    - { alias: "bambusové výhonky", language_code: sk }
+
+- name: olomouc cheese
+  name_cs: olomoucké tvarůžky
+  name_sk: olomoucké syrečky
+  category: dairy
+  default_unit: g
+  estimated_price_czk: 45.0
+  estimated_price_eur: 1.80
+  aliases:
+    - { alias: "tvarůžky", language_code: cs }
+    - { alias: "syrečky", language_code: cs }
+    - { alias: "olomoucké syrečky", language_code: cs }
+    - { alias: "olomoucké syrečky", language_code: sk }
