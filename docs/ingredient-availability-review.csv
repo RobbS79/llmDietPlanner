@@ -321,3 +321,13 @@ SETTLED,7,mint,máta,vegetables,findable,owner,OWNER: fresh mint bigger stores/R
 ,0,chicken-liver,kuřecí játra,meat,common,high,batch-07: chilled poultry,,
 ,0,anchovies,sardelové filety,canned,findable,high,batch-07: bigger stores; can be skipped in caesar,,
 ,0,spread-butter,pomazánkové máslo,dairy,common,high,batch-07: dairy aisle,,
+
+,0,duck,kachna,meat,common,high,batch-09: chilled/frozen in every supermarket; seasonal peak,,
+,0,pork-cracklings,škvarky,meat,common,high,batch-09: deli counter and jars everywhere,,
+,0,processed-cheese,tavený sýr,dairy,common,high,batch-09: dairy aisle everywhere,,
+,0,beef-cheeks,hovězí líčka,meat,findable,high,batch-09: butcher counter / Rohlík / Makro; Kaufland sometimes,,
+,0,savoy-cabbage,kapusta,vegetables,common,high,batch-09: produce everywhere,,
+,0,pickled-peppers,nakládaná kapie,canned,common,high,batch-09: jars next to pickles everywhere,,
+,0,sardines-canned,sardinky,canned,common,high,batch-09: canned fish shelf everywhere,,
+,0,bamboo-shoots,bambusové výhonky,canned,findable,high,batch-09: Asian shelf in bigger stores,,
+,0,olomouc-cheese,olomoucké tvarůžky,dairy,common,high,batch-09: dairy aisle everywhere,,

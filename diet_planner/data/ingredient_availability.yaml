@@ -78,6 +78,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: bamboo-shoots
+  availability: findable
+  confidence: high
+  note: 'batch-09: Asian shelf in bigger stores'
 - slug: bananas
   availability: common
   confidence: high
@@ -102,6 +106,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: beef-cheeks
+  availability: findable
+  confidence: high
+  note: 'batch-09: butcher counter / Rohlík / Makro; Kaufland sometimes'
 - slug: beef-marrow-bones
   availability: findable
   confidence: high
@@ -436,6 +444,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: duck
+  availability: common
+  confidence: high
+  note: 'batch-09: chilled/frozen in every supermarket; seasonal peak'
 - slug: edamame
   availability: specialty
   confidence: low
@@ -728,6 +740,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: olomouc-cheese
+  availability: common
+  confidence: high
+  note: 'batch-09: dairy aisle everywhere'
 - slug: onion
   availability: common
   confidence: high
@@ -812,6 +828,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: pickled-peppers
+  availability: common
+  confidence: high
+  note: 'batch-09: jars next to pickles everywhere'
 - slug: pickles
   availability: common
   confidence: high
@@ -853,6 +873,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: pork-cracklings
+  availability: common
+  confidence: high
+  note: 'batch-09: deli counter and jars everywhere'
 - slug: pork-knuckle
   availability: common
   confidence: high
@@ -885,6 +909,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: processed-cheese
+  availability: common
+  confidence: high
+  note: 'batch-09: dairy aisle everywhere'
 - slug: protein-powder
   availability: findable
   confidence: low
@@ -995,6 +1023,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: sardines-canned
+  availability: common
+  confidence: high
+  note: 'batch-09: canned fish shelf everywhere'
 - slug: sauerkraut
   availability: common
   confidence: high
@@ -1003,6 +1035,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: savoy-cabbage
+  availability: common
+  confidence: high
+  note: 'batch-09: produce everywhere'
 - slug: sea-salt
   availability: common
   confidence: high
