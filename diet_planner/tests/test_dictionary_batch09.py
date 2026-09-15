@@ -80,6 +80,14 @@ BATCH09_BLOCKED = [
     ('sójové výhonky', 'sprouts'),
     ('olomoucké tvarůžky', 'olomouc-cheese'),
     ('tvarůžky', 'olomouc-cheese'),
+    # 09b: lines that still rejected on the 2026-09-15 re-run (other twin of the same source got in)
+    ('burgerové housky', 'burger-buns'),
+    ('sladkokyselé okurky', 'pickles'),
+    ('pravý řecký jogurt', 'greek-yogurt'),
+    ('čerstvá hladkolistá petržel', 'parsley'),
+    ('uzená žebra s masem', 'smoked-meat'),
+    ('pražský salám v celku', 'salami'),
+    ('červená jarní cibulka', 'spring-onion'),
 ]
 
 # Existing routes that the new modifier words / aliases must not disturb.

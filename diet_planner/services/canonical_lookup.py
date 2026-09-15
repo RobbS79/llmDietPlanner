@@ -87,6 +87,8 @@ _MODIFIER_WORDS = {
     "netučný", "netučná", "netučné", "nízkotučný", "nízkotučná", "nízkotučné",  # fat grade of tvaroh/jogurt
     "tučný", "tučná", "tučné",
     "vcelku",  # "in one piece" (ham/cheese) — a cut, not a product
+    "pravý", "pravá", "pravé",  # "genuine" Greek yoghurt is Greek yoghurt
+    "hladkolistý", "hladkolistá", "hladkolisté",  # flat-leaf parsley is parsley
     # generic head-nouns that don't change identity
     "maso", "koření",
     # bare connectors that survive a list ("rýže vařená a vychlazená")
