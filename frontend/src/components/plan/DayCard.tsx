@@ -84,7 +84,7 @@ export const DayCard = ({ day, goalId, cookedSet, onOpen, onToggleCooked }: DayC
           <img src={getFoodImageUrl(meal.food_category, meal.name)} alt="" loading="lazy" className="w-12 h-12 rounded-lg object-cover bg-kraft shrink-0" onError={hideImg} />
           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-green w-16 shrink-0">{label}</span>
           <span className={`flex-1 font-bold text-sm ${isCooked ? 'text-muted line-through' : 'text-ink'}`}>{meal.name}</span>
-          <span className="text-[10px] font-black text-ink tabular-nums">{kcalOf(meal)} kcal</span>
+          {kcalOf(meal) > 0 && <span className="text-[10px] font-black text-ink tabular-nums">{kcalOf(meal)} kcal</span>}
           <span className="hidden sm:flex items-center gap-1 text-[10px] font-black text-muted uppercase tracking-widest w-16 justify-end"><Timer size={11} className="text-green" /> {meal.preparation_time || 20} min</span>
           <ChevronRight size={14} className="text-muted shrink-0" />
         </button>
@@ -115,7 +115,7 @@ export const DayCard = ({ day, goalId, cookedSet, onOpen, onToggleCooked }: DayC
               key={key} type="button" data-testid={`snack-${mealId}`} onClick={() => onOpen(mealId, false)}
               className="px-3 py-1.5 rounded-full border border-line bg-paper text-xs font-bold text-ink hover:border-green/40 hover:text-green transition-colors"
             >
-              {meal.name} <span className="text-muted font-black tabular-nums">· {kcalOf(meal)} kcal</span>
+              {meal.name}{kcalOf(meal) > 0 && <span className="text-muted font-black tabular-nums"> · {kcalOf(meal)} kcal</span>}
             </button>
           ))}
         </div>
