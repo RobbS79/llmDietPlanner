@@ -67,6 +67,14 @@ describe('DayCard', () => {
     expect(chip).toHaveTextContent('80 kcal');
   });
 
+  it('omits the kcal on a snack chip when the generator gave none', () => {
+    const noKcal = { ...day, snacks: [{ name: 'Bílý jogurt', meal_identifier: '150:2:snack:0' }] };
+    renderDay({ day: noKcal });
+    const chip = screen.getByTestId('snack-150:2:snack:0');
+    expect(chip).toHaveTextContent('Bílý jogurt');
+    expect(chip).not.toHaveTextContent('kcal');
+  });
+
   it('opens a meal when its row is clicked and passes the identifier', async () => {
     const { onOpen } = renderDay();
     await userEvent.click(screen.getByText('Bramborové klínky'));
