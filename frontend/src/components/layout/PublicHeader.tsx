@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
   { to: '/recepty', label: 'Recepty' },
+  { to: '/jak-to-funguje', label: 'Jak to funguje' },
   { to: '/pricing', label: 'Ceník' },
 ];
 

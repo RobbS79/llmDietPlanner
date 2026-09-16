@@ -181,6 +181,12 @@ export const Landing = () => {
               </div>
             ))}
           </div>
+
+          <div className="text-center mt-12">
+            <a href="/jak-to-funguje" className="inline-flex items-center gap-2 text-sm font-bold text-green hover:text-green-mid transition-colors">
+              Průvodce: jak napsat zadání, ze kterého vznikne dobrý jídelníček →
+            </a>
+          </div>
         </div>
       </section>
 
@@ -329,6 +335,7 @@ export const Landing = () => {
               <div className="flex flex-wrap items-center justify-center gap-6">
                 <a href="/recepty" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Recepty</a>
                 <a href="/pricing" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Ceník</a>
+                <a href="/jak-to-funguje" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Jak to funguje</a>
                 <a href="/o-nas" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">O nás</a>
                 <a href="/privacy" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Zásady ochrany soukromí</a>
                 <a href="/terms" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Obchodní podmínky</a>

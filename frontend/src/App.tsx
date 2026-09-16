@@ -16,6 +16,7 @@ import { Terms } from '@/pages/Terms';
 import { Pricing } from '@/pages/Pricing';
 import { BillingSuccess } from '@/pages/BillingSuccess';
 import { About } from '@/pages/About';
+import { HowToPrompt } from '@/pages/HowToPrompt';
 import { RecipeIndexPage } from '@/pages/RecipeIndexPage';
 import { PublicRecipePage } from '@/pages/PublicRecipePage';
 import { Onboarding } from '@/pages/Onboarding';
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/billing/success" element={<ProtectedRoute><BillingSuccess /></ProtectedRoute>} />
           <Route path="/o-nas" element={<About />} />
+          <Route path="/jak-to-funguje" element={<HowToPrompt />} />
           <Route path="/recepty" element={<RecipeIndexPage />} />
           <Route path="/recepty/:id/:slug" element={<PublicRecipePage />} />
           <Route path="/" element={<HomeRoute />} />

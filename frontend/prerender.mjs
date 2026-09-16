@@ -46,6 +46,13 @@ const routes = [
     canonical: '/o-nas',
   },
   {
+    path: '/jak-to-funguje',
+    outFile: 'jak-to-funguje/index.html',
+    title: 'Jak napsat zadání pro jídelníček — Vařto',
+    description: 'Průvodce pro nové uživatele: co se stane s vaším zadáním, vzorec dobrého zadání a hotové příklady podle toho, co lidé v Česku opravdu hledají — co uvařit z kuřecích prsou, hubnutí doma, keto, rodina.',
+    canonical: '/jak-to-funguje',
+  },
+  {
     path: '/privacy',
     outFile: 'privacy/index.html',
     title: 'Zásady ochrany soukromí — Vařto',
