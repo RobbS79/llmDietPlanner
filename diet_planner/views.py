@@ -402,15 +402,46 @@ class ShopsListView(APIView):
 
 
 def _parse_meal_identifier(meal_identifier: str):
-    """(goal_id, day_number, meal_type) from 'goal_id:day_number:meal_type:index'.
+    """(goal_id, day_number, meal_type, index) from 'goal_id:day_number:meal_type:index'.
 
     Raises ValueError when malformed. Shared by the recipe-detail GET and the
-    replace swap so the identifier contract cannot drift between them.
+    replace swap so the identifier contract cannot drift between them. The
+    index only matters for list slots (small_meal / snack); dict slots
+    (breakfast / lunch / dinner) always carry 0.
     """
     parts = meal_identifier.split(':')
     if len(parts) < 3:
         raise ValueError('meal identifier needs at least goal:day:type')
-    return int(parts[0]), int(parts[1]), parts[2]
+    index = int(parts[3]) if len(parts) > 3 and parts[3] != '' else 0
+    return int(parts[0]), int(parts[1]), parts[2], index
+
+
+# Day-dict keys for the list slots, keyed by the identifier's meal_type.
+_LIST_SLOT_KEYS = {'small_meal': 'small_meals', 'snack': 'snacks'}
+
+
+def _get_slot_meal(day, meal_type: str, index: int = 0):
+    """The meal dict at a slot, or None. Dict slots ignore the index."""
+    if not isinstance(day, dict):
+        return None
+    list_key = _LIST_SLOT_KEYS.get(meal_type)
+    if list_key is None:
+        meal = day.get(meal_type)
+        return meal if isinstance(meal, dict) else None
+    items = day.get(list_key) or []
+    if not isinstance(items, list) or index < 0 or index >= len(items):
+        return None
+    meal = items[index]
+    return meal if isinstance(meal, dict) else None
+
+
+def _set_slot_meal(day, meal_type: str, index: int, meal) -> None:
+    """Write a meal dict into a slot (list slots by index)."""
+    list_key = _LIST_SLOT_KEYS.get(meal_type)
+    if list_key is None:
+        day[meal_type] = meal
+    else:
+        day[list_key][index] = meal
 
 
 def _recipe_cache_fields(meal: Dict[str, Any], instructions) -> Dict[str, Any]:
@@ -481,7 +512,7 @@ class RecipeDetailView(APIView):
 
         # Generate on-demand: parse meal_identifier (format: goal_id:day_number:meal_type:index)
         try:
-            goal_id, day_number, meal_type = _parse_meal_identifier(meal_identifier)
+            goal_id, day_number, meal_type, slot_index = _parse_meal_identifier(meal_identifier)
         except (ValueError, IndexError):
             return Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
 
@@ -495,11 +526,11 @@ class RecipeDetailView(APIView):
         except DietaryPlan.DoesNotExist:
             return Response({"status": "error", "error": "Plan not found"}, status=404)
 
-        # Find the meal in plan days
+        # Find the meal in plan days (list slots resolve by index)
         meal = None
         for day in (plan.days or []):
             if day.get('day_number') == day_number:
-                meal = day.get(meal_type)
+                meal = _get_slot_meal(day, meal_type, slot_index)
                 break
         if not meal:
             return Response({"status": "error", "error": "Meal not found in plan"}, status=404)
@@ -576,12 +607,12 @@ def _locate_plan_slot(user, meal_identifier: str):
     """Resolve a meal identifier to its plan slot for `user`.
 
     Returns (ctx, None) on success where ctx has .goal, .plan, .target_day,
-    .meal_type, .current_meal — or (None, error Response) on any failure.
-    Shared by RecipeReplaceView and RecipeRefineView so both address slots
-    identically."""
+    .meal_type, .slot_index, .current_meal — or (None, error Response) on any
+    failure. Shared by RecipeReplaceView and RecipeRefineView so both address
+    slots identically."""
     from types import SimpleNamespace
     try:
-        goal_id, day_number, meal_type = _parse_meal_identifier(meal_identifier)
+        goal_id, day_number, meal_type, slot_index = _parse_meal_identifier(meal_identifier)
     except (ValueError, IndexError):
         return None, Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
     try:
@@ -595,12 +626,12 @@ def _locate_plan_slot(user, meal_identifier: str):
     target_day = next(
         (d for d in (plan.days or []) if d.get('day_number') == day_number), None,
     )
-    current_meal = target_day.get(meal_type) if isinstance(target_day, dict) else None
+    current_meal = _get_slot_meal(target_day, meal_type, slot_index)
     if not isinstance(current_meal, dict):
         return None, Response({"status": "error", "error": "Meal not found in plan"}, status=404)
     return SimpleNamespace(
         goal=goal, plan=plan, target_day=target_day,
-        meal_type=meal_type, current_meal=current_meal,
+        meal_type=meal_type, slot_index=slot_index, current_meal=current_meal,
     ), None
 
 
@@ -636,20 +667,21 @@ def _plan_swap_state(plan, current_id, *, day_number=None):
     return pool, used_recipe_ids, used_cuisines, used_families_today
 
 
-def _commit_slot_swap(*, goal, plan, target_day, meal_type, meal_identifier, chosen, user):
+def _commit_slot_swap(*, goal, plan, target_day, meal_type, meal_identifier, chosen, user, slot_index=0):
     """Atomically write `chosen` (a CuratedRecipe) into the slot: rewrite
     plan.days, bump usage_count, refresh the cached Recipe row IN PLACE (same
     pk — a substantive row is auto-published at /recepty/<pk>/, recreating
-    would orphan that live URL), and reset cooked state. Returns the Recipe."""
+    would orphan that live URL), and reset cooked state. Returns the Recipe.
+    `slot_index` addresses list slots (small_meal / snack)."""
     with transaction.atomic():
         # Portion the incoming recipe to the outgoing meal's calories — a swap
         # must not turn a 500-kcal slot into the new recipe's whole pot.
-        old = target_day.get(meal_type)
+        old = _get_slot_meal(target_day, meal_type, slot_index)
         old_cal = (old.get('nutritional_info') or {}).get('calories') if isinstance(old, dict) else None
         new_meal, _ = render_curated_meal(
             chosen, target_kcal=old_cal, required_tags=required_tags_for_goal(goal))
         new_meal['meal_identifier'] = meal_identifier
-        target_day[meal_type] = new_meal
+        _set_slot_meal(target_day, meal_type, slot_index, new_meal)
         plan.save(update_fields=['days'])
         CuratedRecipe.objects.filter(pk=chosen.id).update(usage_count=F('usage_count') + 1)
         recipe, _ = Recipe.objects.update_or_create(
@@ -747,6 +779,7 @@ class RecipeReplaceView(APIView):
 
         recipe = _commit_slot_swap(
             goal=goal, plan=plan, target_day=ctx.target_day, meal_type=ctx.meal_type,
+            slot_index=ctx.slot_index,
             meal_identifier=meal_identifier, chosen=chosen, user=request.user,
         )
         return Response({
@@ -1028,6 +1061,7 @@ class RecipeRefineView(APIView):
         } if current_id else None
         recipe = _commit_slot_swap(
             goal=ctx.goal, plan=ctx.plan, target_day=ctx.target_day, meal_type=ctx.meal_type,
+            slot_index=ctx.slot_index,
             meal_identifier=meal_identifier, chosen=chosen, user=request.user,
         )
         return Response({

@@ -252,6 +252,11 @@ def transform_days_to_new_format(days_data: List[Dict[str, Any]], goal: DietaryG
             'small_meals': [m for m in day.get('small_meals', []) if _has_name(m)],
             'snacks': [m for m in day.get('snacks', []) if _has_name(m)],
         }
+        # List slots get an indexed identifier so the plan view can open them
+        # and the recipe endpoint can find them: <goal>:<day>:small_meal:<i>.
+        for list_key, slot_type in (('small_meals', 'small_meal'), ('snacks', 'snack')):
+            for i, meal in enumerate(transformed_day[list_key]):
+                meal['meal_identifier'] = f"{goal.id}:{day_number}:{slot_type}:{i}"
 
         if 'breakfast' in day or 'lunch' in day or 'dinner' in day:
             if wants_breakfast and _has_name(day.get('breakfast')):

@@ -9,12 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useToast } from '@/components/ui/Toast';
 import { MealSideLine } from '@/components/recipe/MealSideLine';
-
-const MEAL_LABELS: Record<string, string> = {
-  breakfast: 'Snídaně',
-  lunch: 'Oběd',
-  dinner: 'Večeře',
-};
+import { dayMealEntries } from '@/lib/planMeals';
 
 function exportPlanAsText(goalDetail: any, plan: any) {
   const lines: string[] = [];
@@ -24,11 +19,10 @@ function exportPlanAsText(goalDetail: any, plan: any) {
 
   plan.days?.forEach((day: any) => {
     lines.push(`═══ DAY ${day.day_number} ═══`);
-    ['breakfast', 'lunch', 'dinner'].forEach(m => {
-      if (!day[m]) return;
-      lines.push(`  ${m.toUpperCase()}: ${day[m].name}`);
-      lines.push(`    ${day[m].description}`);
-      const ni = day[m].nutritional_info;
+    dayMealEntries(day, goalDetail.id).forEach(({ label, meal }) => {
+      lines.push(`  ${label.toUpperCase()}: ${meal.name}`);
+      lines.push(`    ${meal.description}`);
+      const ni = meal.nutritional_info;
       if (ni) lines.push(`    ${Object.entries(ni).map(([k, v]) => `${k}: ${v}`).join(' | ')}`);
     });
     lines.push('');
@@ -179,13 +173,12 @@ export const PlanView = () => {
 
         {/* Nutritional Summary */}
         {plan.days?.length > 0 && (() => {
-          const dailyTotals = plan.days.map((day: any) => {
-            const meals = ['breakfast', 'lunch', 'dinner'].filter(m => day[m]);
-            return meals.reduce((acc: any, m: string) => {
-              const n = parseNutrition(day[m].nutritional_info);
+          const dailyTotals = plan.days.map((day: any) =>
+            dayMealEntries(day, id!).reduce((acc: any, { meal }) => {
+              const n = parseNutrition(meal.nutritional_info);
               return { kcal: acc.kcal + n.kcal, protein: acc.protein + n.protein, carbs: acc.carbs + n.carbs, fat: acc.fat + n.fat };
-            }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
-          });
+            }, { kcal: 0, protein: 0, carbs: 0, fat: 0 })
+          );
           const avg = {
             kcal: Math.round(dailyTotals.reduce((s: number, d: any) => s + d.kcal, 0) / dailyTotals.length),
             protein: Math.round(dailyTotals.reduce((s: number, d: any) => s + d.protein, 0) / dailyTotals.length),
@@ -193,10 +186,10 @@ export const PlanView = () => {
             fat: Math.round(dailyTotals.reduce((s: number, d: any) => s + d.fat, 0) / dailyTotals.length),
           };
           const cookedCount = plan.days.reduce((total: number, day: any) =>
-            total + ['breakfast', 'lunch', 'dinner'].filter(m => day[m] && cookedSet.has(day[m].meal_identifier || `${id}:${day.day_number}:${m}:0`)).length, 0
+            total + dayMealEntries(day, id!).filter(e => cookedSet.has(e.mealId)).length, 0
           );
           const totalMeals = plan.days.reduce((total: number, day: any) =>
-            total + ['breakfast', 'lunch', 'dinner'].filter(m => day[m]).length, 0
+            total + dayMealEntries(day, id!).length, 0
           );
           return (
             <div className="mb-16 grid grid-cols-2 sm:grid-cols-5 gap-4 text-left">
@@ -226,13 +219,13 @@ export const PlanView = () => {
                 </div>
 
                 <div className="grid gap-10">
-                  {['breakfast', 'lunch', 'dinner'].map(m => day[m] && (() => {
-                    const mealId = day[m].meal_identifier || `${id}:${day.day_number}:${m}:0`;
+                  {dayMealEntries(day, id!).map(entry => (() => {
+                    const { mealId, meal, label } = entry;
                     const isCooked = cookedSet.has(mealId);
-                    const imgUrl = getFoodImageUrl(day[m].food_category, day[m].name);
+                    const imgUrl = getFoodImageUrl(meal.food_category, meal.name);
                     return (
                       <Card
-                        key={m}
+                        key={entry.key}
                         className={`p-0 hover:bg-kraft hover:border-green/40 group/meal relative overflow-hidden text-left ${isCooked ? 'border-green/40 bg-green-soft' : ''}`}
                       >
                         {imgUrl ? (
@@ -242,7 +235,7 @@ export const PlanView = () => {
                                 against. Dropping it yanked the whole action row
                                 up behind the day heading, where the day heading
                                 swallowed every click on it. */}
-                            <img src={imgUrl} alt={day[m].name} className="w-full h-full object-cover" loading="lazy"
+                            <img src={imgUrl} alt={meal.name} className="w-full h-full object-cover" loading="lazy"
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-paper via-paper/60 to-transparent" />
@@ -258,12 +251,12 @@ export const PlanView = () => {
                         <div className={`px-10 pb-10 relative z-10 ${imgUrl ? '-mt-16' : 'pt-10'}`}>
                         <div className="flex justify-between items-center mb-10 relative z-10">
                           <div className="flex items-center gap-3">
-                            <span className="px-5 py-1.5 bg-green text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{MEAL_LABELS[m] || m}</span>
+                            <span className="px-5 py-1.5 bg-green text-white rounded-lg text-[9px] font-black uppercase tracking-[0.3em] italic shadow-xl">{label}</span>
                             {isCooked && <span className="px-3 py-1 bg-green-soft text-green rounded-lg text-[9px] font-black uppercase tracking-widest border border-green/40">Uvařeno</span>}
                           </div>
                           <div className="flex items-center gap-3">
                             <button
-                              onClick={(e) => { e.stopPropagation(); toggleCooked.mutate({ mealId, isCooked: !isCooked, mealName: day[m].name }); }}
+                              onClick={(e) => { e.stopPropagation(); toggleCooked.mutate({ mealId, isCooked: !isCooked, mealName: meal.name }); }}
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${isCooked ? 'bg-green-soft border-green/40 text-green hover:bg-paprika-soft hover:border-paprika/30 hover:text-paprika-strong' : 'bg-paper border-line text-muted hover:border-green/40 hover:text-green-mid'}`}
                             >
                               <ChefHat size={14} /> {isCooked ? 'Zrušit' : 'Označit jako uvařené'}
@@ -279,18 +272,18 @@ export const PlanView = () => {
                               <MessageCircle size={14} /> Nesedí?
                             </button>
                             <div className="flex items-center gap-2 bg-paper px-3 py-1.5 rounded-lg text-[9px] font-black text-muted border border-line uppercase tracking-widest italic">
-                              <Timer size={14} className="text-green" /> {day[m].preparation_time || 20} min
+                              <Timer size={14} className="text-green" /> {meal.preparation_time || 20} min
                             </div>
                           </div>
                         </div>
 
                         <div className="cursor-pointer" onClick={() => navigate(`/plan/${id}/recipe/${mealId}`)}>
-                          <h3 className={`text-4xl font-black mb-6 tracking-tighter leading-tight uppercase italic group-hover/meal:text-green transition-colors relative z-10 ${isCooked ? 'text-muted line-through' : 'text-ink'}`}>{day[m].name}</h3>
-                          <MealSideLine side={day[m].side} />
-                          <p className="text-muted text-lg font-medium leading-relaxed mb-12 max-w-2xl relative z-10 italic">"{day[m].description}"</p>
+                          <h3 className={`text-4xl font-black mb-6 tracking-tighter leading-tight uppercase italic group-hover/meal:text-green transition-colors relative z-10 ${isCooked ? 'text-muted line-through' : 'text-ink'}`}>{meal.name}</h3>
+                          <MealSideLine side={meal.side} />
+                          <p className="text-muted text-lg font-medium leading-relaxed mb-12 max-w-2xl relative z-10 italic">"{meal.description}"</p>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 pt-8 border-t border-line">
-                            {Object.entries(day[m].nutritional_info || {}).map(([k, v]: any) => (
+                            {Object.entries(meal.nutritional_info || {}).map(([k, v]: any) => (
                               <div key={k} className="space-y-1.5">
                                 <p className="text-[9px] font-black text-muted uppercase tracking-widest italic leading-none">{k}</p>
                                 <p className="text-xl font-black text-ink italic tracking-tighter leading-none">{v}</p>

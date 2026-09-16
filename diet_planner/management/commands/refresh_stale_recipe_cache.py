@@ -44,6 +44,7 @@ from diet_planner.services.recipe_retrieval import (
 TOLERANCE = 0.02
 
 _LIST_SLOTS = {'small_meals': 'small_meal', 'snacks': 'snack'}
+_LIST_KEY_FOR_TYPE = {v: k for k, v in _LIST_SLOTS.items()}
 
 
 def expected_calories(curated: CuratedRecipe, servings) -> Optional[float]:
@@ -85,13 +86,16 @@ def _write_plan_slot(plan: DietaryPlan, day_number: int, meal_type: str, meal) -
     day = next((d for d in (plan.days or []) if d.get('day_number') == day_number), None)
     if not isinstance(day, dict):
         return False
-    if meal_type in _LIST_SLOTS:
-        entries = day.get(meal_type) or []
+    # Identifiers name the slot type ('small_meal'); the day keys the list by
+    # its plural ('small_meals'). Accept either spelling.
+    list_key = meal_type if meal_type in _LIST_SLOTS else _LIST_KEY_FOR_TYPE.get(meal_type)
+    if list_key:
+        entries = day.get(list_key) or []
         for i, existing in enumerate(entries):
             if isinstance(existing, dict) and \
                     existing.get('meal_identifier') == meal['meal_identifier']:
                 entries[i] = meal
-                day[meal_type] = entries
+                day[list_key] = entries
                 return True
         return False
     if not isinstance(day.get(meal_type), dict):
@@ -138,7 +142,7 @@ class Command(BaseCommand):
 
             stale += 1
             try:
-                _, day_number, meal_type = _parse_meal_identifier(row.meal_identifier)
+                _, day_number, meal_type, _index = _parse_meal_identifier(row.meal_identifier)
             except (ValueError, IndexError):
                 unparseable += 1
                 self.stdout.write(self.style.WARNING(
