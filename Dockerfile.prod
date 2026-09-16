@@ -8,7 +8,9 @@
     # DigitalOcean passes "Build and Run Time" env vars as build arguments
     ARG VITE_GOOGLE_CLIENT_ID
     ARG VITE_FB_PIXEL_ID
-    
+    # Ad rail switch — unset/empty until an ad contract exists (components/ads/AdRail.tsx)
+    ARG VITE_ADS_ENABLED
+
     # Copy package files first to optimize layer caching
     COPY frontend/package*.json ./
     RUN npm install --legacy-peer-deps
@@ -20,6 +22,7 @@
     # We ensure it's available in the environment for the build command.
     RUN VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
         VITE_FB_PIXEL_ID=$VITE_FB_PIXEL_ID \
+        VITE_ADS_ENABLED=$VITE_ADS_ENABLED \
         npm run build:prod
     
     # --- STAGE 2: Python / Django ---

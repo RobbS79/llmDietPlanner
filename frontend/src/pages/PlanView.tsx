@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import { dayMealEntries, dayTotals } from '@/lib/planMeals';
 import { DayCard } from '@/components/plan/DayCard';
 import { WeekStrip } from '@/components/plan/WeekStrip';
+import { AdRail } from '@/components/ads/AdRail';
 
 function exportPlanAsText(goalDetail: any, plan: any) {
   const lines: string[] = [];
@@ -114,7 +115,8 @@ export const PlanView = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-[1400px] mx-auto px-6 py-12 w-full">
+      <div className="max-w-[1320px] mx-auto px-6 py-12 w-full flex gap-10 justify-center items-start">
+      <div className="w-full max-w-[960px] min-w-0">
         <header className="mb-24 flex flex-col lg:flex-row lg:items-end justify-between gap-12 text-left">
           <div className="space-y-6">
             <Badge variant="emerald">Plán připraven</Badge>
@@ -206,6 +208,8 @@ export const PlanView = () => {
             />
           ))}
         </div>
+      </div>
+      <AdRail slot="plan-right" />
       </div>
     </MainLayout>
   );
