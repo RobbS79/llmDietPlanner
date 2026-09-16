@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = resolve(__dirname, 'dist');
-const SITE_URL = process.env.SITE_URL || 'https://squid-app-6avsy.ondigitalocean.app';
+// Canonical/og:url host. Must be the public domain, never the DO default
+// hostname — search engines otherwise index squid-app-*.ondigitalocean.app.
+const SITE_URL = (process.env.SITE_URL || 'https://eatalnicek.eu').replace(/\/$/, '');
 
 // Shim browser globals before importing the SSR bundle
 globalThis.localStorage = {
