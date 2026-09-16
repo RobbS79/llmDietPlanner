@@ -14,6 +14,27 @@
  *   <goal>:<day>:snack:<index>
  */
 
+/** A meal as stored in DietaryPlan.days (LLM output, so every field is optional). */
+export interface PlanMeal {
+  name: string;
+  meal_identifier?: string;
+  description?: string;
+  food_category?: string;
+  preparation_time?: number | null;
+  nutritional_info?: Record<string, unknown> | null;
+  side?: { key: string; name_cs: string; with_cs: string; display: string } | null;
+  [extra: string]: unknown;
+}
+
+export interface PlanDay {
+  day_number: number;
+  breakfast?: PlanMeal | null;
+  lunch?: PlanMeal | null;
+  dinner?: PlanMeal | null;
+  small_meals?: PlanMeal[] | null;
+  snacks?: PlanMeal[] | null;
+}
+
 export const MEAL_SLOT_LABELS: Record<string, string> = {
   breakfast: 'Snídaně',
   lunch: 'Oběd',
@@ -37,11 +58,34 @@ export interface DayMealEntry {
   label: string;
   /** Whether this is one of the three main courses. */
   isMain: boolean;
-  meal: any;
+  meal: PlanMeal;
   mealId: string;
 }
 
-export function dayMealEntries(day: any, goalId: string | number): DayMealEntry[] {
+export interface Nutrition { kcal: number; protein: number; carbs: number; fat: number }
+
+/** Tolerant reader for the LLM's nutritional_info shapes ("46g", "742 kcal", 742). */
+export function parseNutrition(raw: unknown): Nutrition {
+  if (!raw || typeof raw !== 'object') return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  const ni = raw as Record<string, unknown>;
+  const parse = (v: unknown) => parseInt(String(v).replace(/[^\d]/g, '')) || 0;
+  return {
+    kcal: parse(ni.calories || ni.kcal || ni.Calories || ni.energy || 0),
+    protein: parse(ni.protein || ni.Protein || 0),
+    carbs: parse(ni.carbs || ni.carbohydrates || ni.Carbs || 0),
+    fat: parse(ni.fat || ni.Fat || ni.fats || 0),
+  };
+}
+
+/** Whole-day totals over every slot, mains and small dishes alike. */
+export function dayTotals(day: PlanDay | null | undefined, goalId: string | number = ''): Nutrition {
+  return dayMealEntries(day, goalId).reduce((acc, { meal }) => {
+    const n = parseNutrition(meal.nutritional_info);
+    return { kcal: acc.kcal + n.kcal, protein: acc.protein + n.protein, carbs: acc.carbs + n.carbs, fat: acc.fat + n.fat };
+  }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+}
+
+export function dayMealEntries(day: PlanDay | null | undefined, goalId: string | number): DayMealEntry[] {
   if (!day) return [];
   const out: DayMealEntry[] = [];
   for (const slot of MAIN_SLOTS) {
@@ -53,8 +97,9 @@ export function dayMealEntries(day: any, goalId: string | number): DayMealEntry[
     });
   }
   for (const { key, slot } of LIST_SLOTS) {
-    const items = Array.isArray(day[key]) ? day[key] : [];
-    items.forEach((meal: any, i: number) => {
+    const raw = day[key as 'small_meals' | 'snacks'];
+    const items: PlanMeal[] = Array.isArray(raw) ? raw : [];
+    items.forEach((meal, i) => {
       if (!meal) return;
       out.push({
         slot, key: `${slot}:${i}`, label: MEAL_SLOT_LABELS[slot], isMain: false, meal,
