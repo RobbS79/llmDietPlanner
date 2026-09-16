@@ -41,13 +41,13 @@ class PricingSitemap(Sitemap):
 
 
 class AboutSitemap(Sitemap):
-    """About / founder page."""
+    """About / founder page and the how-to-prompt guide."""
     protocol = "https"
     changefreq = "monthly"
     priority = 0.6
 
     def items(self):
-        return ["/o-nas"]
+        return ["/o-nas", "/jak-to-funguje"]
 
     def location(self, item):
         return item
