@@ -99,6 +99,16 @@ class RecipeDetailResolvesListSlotsTest(ListSlotBase):
         self.assertEqual(res.status_code, 404)
 
 
+class RefreshCommandWritesListSlotTest(ListSlotBase):
+    def test_write_plan_slot_replaces_the_small_meal_by_identifier(self):
+        from diet_planner.management.commands.refresh_stale_recipe_cache import _write_plan_slot
+        ident = f'{self.goal.id}:1:small_meal:1'
+        new = {**_curated_meal('Nové klínky', 250), 'meal_identifier': ident}
+        self.assertTrue(_write_plan_slot(self.plan, 1, 'small_meal', new))
+        names = [m['name'] for m in self.plan.days[0]['small_meals']]
+        self.assertEqual(names, ['Cuketová polévka', 'Nové klínky'])
+
+
 class LocateAndSwapListSlotTest(ListSlotBase):
     def test_locate_returns_the_indexed_small_meal(self):
         ctx, err = _locate_plan_slot(self.user, f'{self.goal.id}:1:small_meal:1')
