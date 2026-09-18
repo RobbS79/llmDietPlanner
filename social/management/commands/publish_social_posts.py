@@ -30,6 +30,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--date', help='treat this YYYY-MM-DD as today')
+        parser.add_argument('--only', type=int, metavar='ID',
+                            help='handle just this SocialPost id (social_e2e uses it)')
 
     def handle(self, *args, **options):
         today = (date.fromisoformat(options['date']) if options.get('date')
@@ -45,6 +47,8 @@ class Command(BaseCommand):
             scheduled_for__lte=today,
             status__in=[SocialPost.Status.DRAFT, SocialPost.Status.APPROVED, SocialPost.Status.FAILED],
         ).exclude(slack_ts='').order_by('scheduled_for')
+        if options.get('only'):
+            due = due.filter(pk=options['only'])
 
         problems = []
         for post in due:
