@@ -87,3 +87,22 @@ produce a caption the validator would accept, so none was posted. In that
 case, reply `caption: …` in the thread with your own wording — your override
 goes through the same validator, so it still can't claim a shop or number
 that isn't in the facts.
+
+## 7. End-to-end test (real Slack, real Page)
+
+```bash
+python manage.py social_e2e            # waits 15 min for ✅; --timeout / --poll to change
+```
+
+Run it in the DO console of the web component. It drafts a genuine recipe post
+(facts → caption → honesty gate → card), sends it to the drafts channel with a
+🧪 note, and polls for your reaction. ✅ publishes it to Facebook **immediately**
+through `publish_social_posts --only <id>`, then reads the post back from the
+Graph API and prints the permalink (also replied in the Slack thread). ❌ or no
+reaction in time rejects the draft and nothing is published.
+
+The post is real and stays on the Page — delete it there if you do not want it.
+Its row stays `published`, so that recipe is skipped by the Wednesday job for
+the usual repost window. Pinterest is not exercised. The row's `iso_week` is an
+`E<day><hour><minute>` tag rather than a week, so it cannot collide with a
+weekly draft and its UTM campaign is `auto-recipe-E…`.

@@ -6,6 +6,7 @@ from django.test import SimpleTestCase, override_settings
 
 from social.publishers import PublishError, get_publisher
 from social.publishers.facebook import publish as publish_facebook
+from social.publishers.facebook import read_post as read_facebook_post
 from social.publishers.pinterest import publish as publish_pinterest
 
 
@@ -101,6 +102,31 @@ class FacebookErrorWithoutMessageTests(SimpleTestCase):
             publish_facebook(caption='x', link='https://e', image=b'PNG', post_fn=post)
         self.assertIn('OAuthException', str(ctx.exception))
         self.assertNotIn('None', str(ctx.exception))
+
+
+@override_settings(FB_PAGE_ID='111', FB_PAGE_ACCESS_TOKEN='EAAtoken')
+class FacebookReadPostTests(SimpleTestCase):
+    def test_reads_message_and_permalink(self):
+        get = MagicMock(return_value=_response(200, {'id': '111_999', 'message': 'Cibule.',
+                                                     'permalink_url': 'https://facebook.com/111/posts/999'}))
+        result = read_facebook_post('111_999', get_fn=get)
+        self.assertEqual(result['permalink_url'], 'https://facebook.com/111/posts/999')
+        self.assertEqual(get.call_args.args[0], 'https://graph.facebook.com/v24.0/111_999')
+        params = get.call_args.kwargs['params']
+        self.assertEqual(params['access_token'], 'EAAtoken')
+        self.assertIn('message', params['fields'])
+        self.assertIn('permalink_url', params['fields'])
+
+    def test_error_raises_publish_error(self):
+        get = MagicMock(return_value=_response(404, {'error': {'message': 'Unsupported get request'}}))
+        with self.assertRaises(PublishError) as ctx:
+            read_facebook_post('111_999', get_fn=get)
+        self.assertIn('Unsupported get request', str(ctx.exception))
+
+    def test_request_exception_raises_publish_error(self):
+        get = MagicMock(side_effect=requests.ConnectionError('boom'))
+        with self.assertRaises(PublishError):
+            read_facebook_post('111_999', get_fn=get)
 
 
 @override_settings(PINTEREST_ACCESS_TOKEN='pina', PINTEREST_BOARD_ID='123456789')

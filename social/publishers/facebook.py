@@ -35,3 +35,23 @@ def publish(*, caption: str, link: str, image: bytes, title: str = '',
     if not external_id:
         raise PublishError(f'facebook {response.status_code}: no post id in response ({response.text[:200]})')
     return external_id
+
+
+def read_post(post_id: str, *, get_fn=requests.get) -> dict:
+    """Read a published post back from the Page (social_e2e's proof that it is
+    really there). Returns the Graph payload: message, permalink_url, created_time."""
+    token = settings.FB_PAGE_ACCESS_TOKEN
+    if not token:
+        raise PublishError('FB_PAGE_ACCESS_TOKEN not configured')
+    try:
+        response = get_fn(f'{GRAPH}/{post_id}',
+                          params={'fields': 'message,permalink_url,created_time', 'access_token': token},
+                          timeout=30)
+    except requests.RequestException as exc:
+        raise PublishError(f'facebook request failed: {exc}') from exc
+    payload = safe_json(response)
+    if response.status_code >= 400 or 'error' in payload:
+        err = payload.get('error')
+        detail = err.get('message') if isinstance(err, dict) else err
+        raise PublishError(f'facebook {response.status_code}: {detail or response.text[:300]}')
+    return payload
