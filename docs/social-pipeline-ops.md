@@ -73,12 +73,8 @@ it as an outage if the reason in the thread doesn't explain itself.
   following week instead of the one you meant to fix.
 - Monday 09:00: the deals post goes to the Page. Copy the "Pro skupiny" reply
   from its thread and paste it into the groups by hand.
-- Ticked too late (after Monday 09:00)? The next scheduled run would drop a
-  deals post whose offers have mostly ended. To publish it anyway, run in the
-  DO console of the web component:
-  `python manage.py publish_social_posts --force` — it skips the stale and
-  expired-offers gates but still requires the ✅ on the Slack message. Add
-  `--only <id>` to touch a single post.
+- Ticked too late (after Monday 09:00)? See §8 — the scheduled run would
+  drop a deals post whose offers have mostly ended.
 - Check attribution after two weeks: signups with utm_source facebook /
   pinterest and utm_campaign `auto-<kind>-<week>` in the analytics
   MarketingAttribution table.
@@ -112,3 +108,34 @@ Its row stays `published`, so that recipe is skipped by the Wednesday job for
 the usual repost window. Pinterest is not exercised. The row's `iso_week` is an
 `E<day><hour><minute>` tag rather than a week, so it cannot collide with a
 weekly draft and its UTM campaign is `auto-recipe-E…`.
+
+## 8. Late ✅ — publish a due post by hand
+
+The publish job reads Slack reactions only when it runs (Mon/Wed/Fri 09:00
+Prague). A ✅ given after the run sits until the next run, and a deals post
+whose offers have mostly ended by then is rejected for good by the expiry
+gate. To publish it anyway:
+
+1. Make sure the ✅ reaction is on the draft message in `#varto-social`
+   (the parent message, not a reply). Without it nothing is published.
+2. cloud.digitalocean.com → Apps → the app → component **llmdietplanner**
+   (web) → **Console** tab.
+3. Run:
+
+       python manage.py publish_social_posts --force
+
+   `--force` skips only the stale-draft and expired-offers gates. It still
+   requires the ✅, still validates any `caption:` override, and only touches
+   posts whose scheduled day is today or earlier. Add `--only <id>` to limit
+   it to one SocialPost id (admin → Social posts).
+4. Expected output: `deals 2026-Wnn: published`, and the bot replies
+   `✅ published — facebook: <page>_<post>` in the Slack thread. The post is
+   on the Page immediately.
+5. If you see `unrecognized arguments: --force`, the deploy carrying the flag
+   is not live yet — wait and retry. If it prints `pending`, the ✅ is
+   missing or on the wrong message. `rejected in Slack` means a ❌ is also
+   on the message; remove it and rerun.
+
+The caption keeps its original dates ("do 21. září"), so readers see it as a
+late post. Rewrite it first with a `caption: …` reply in the thread if that
+matters; the override goes through the honesty validator like any caption.
