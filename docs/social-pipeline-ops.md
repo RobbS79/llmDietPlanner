@@ -73,6 +73,12 @@ it as an outage if the reason in the thread doesn't explain itself.
   following week instead of the one you meant to fix.
 - Monday 09:00: the deals post goes to the Page. Copy the "Pro skupiny" reply
   from its thread and paste it into the groups by hand.
+- Ticked too late (after Monday 09:00)? The next scheduled run would drop a
+  deals post whose offers have mostly ended. To publish it anyway, run in the
+  DO console of the web component:
+  `python manage.py publish_social_posts --force` — it skips the stale and
+  expired-offers gates but still requires the ✅ on the Slack message. Add
+  `--only <id>` to touch a single post.
 - Check attribution after two weeks: signups with utm_source facebook /
   pinterest and utm_campaign `auto-<kind>-<week>` in the analytics
   MarketingAttribution table.

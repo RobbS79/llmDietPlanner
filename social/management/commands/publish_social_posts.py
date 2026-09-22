@@ -1,9 +1,11 @@
 """Mon/Wed/Fri job: read the Slack decision for every due draft and publish
 the approved ones.
 
-    python manage.py publish_social_posts [--date 2026-09-09]
+    python manage.py publish_social_posts [--date 2026-09-09] [--only ID] [--force]
 
-Nothing is published without a ✅ read in this run. Exit non-zero if any
+Nothing is published without a ✅ read in this run. ``--force`` is for a
+manual run after the owner ✅'d too late: it skips the stale and expired-deals
+gates, never the ✅ itself. Exit non-zero if any
 post failed or could not be published, so the DO job shows red.
 """
 from __future__ import annotations
@@ -32,6 +34,8 @@ class Command(BaseCommand):
         parser.add_argument('--date', help='treat this YYYY-MM-DD as today')
         parser.add_argument('--only', type=int, metavar='ID',
                             help='handle just this SocialPost id (social_e2e uses it)')
+        parser.add_argument('--force', action='store_true',
+                            help='skip the stale and expired-deals gates (still needs the ✅)')
 
     def handle(self, *args, **options):
         today = (date.fromisoformat(options['date']) if options.get('date')
@@ -50,9 +54,10 @@ class Command(BaseCommand):
         if options.get('only'):
             due = due.filter(pk=options['only'])
 
+        force = bool(options.get('force'))
         problems = []
         for post in due:
-            outcome = self._handle_post(post, today, slack, publishers, shops, recipes)
+            outcome = self._handle_post(post, today, slack, publishers, shops, recipes, force=force)
             self.stdout.write(f'{post.kind} {post.iso_week}: {outcome}')
             if outcome.startswith(('failed', 'cannot')):
                 problems.append(f'{post.kind} {post.iso_week}: {outcome}')
@@ -61,8 +66,9 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------
 
-    def _handle_post(self, post, today, slack, publishers, shops, recipes) -> str:
-        if post.status == SocialPost.Status.DRAFT and (today - post.scheduled_for).days > STALE_AFTER_DAYS:
+    def _handle_post(self, post, today, slack, publishers, shops, recipes, force=False) -> str:
+        if (not force and post.status == SocialPost.Status.DRAFT
+                and (today - post.scheduled_for).days > STALE_AFTER_DAYS):
             return self._reject(post, slack, f'stale: unapproved for more than {STALE_AFTER_DAYS} days')
 
         decision = slack.read_decision(post)
@@ -86,7 +92,7 @@ class Command(BaseCommand):
             slack.reply(post, '⚠️ approved but there is no valid caption — reply `caption: …` and I will retry')
             return 'cannot publish: no caption'
 
-        expired = self._expired_deals_reason(post, today)
+        expired = '' if force else self._expired_deals_reason(post, today)
         if expired:
             return self._reject(post, slack, expired)
 
