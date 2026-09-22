@@ -6,6 +6,9 @@ import { openBillingPortal, type BillingMe } from '@/lib/billing';
 
 const TIER_LABEL: Record<string, string> = { standard: 'Standard', premium: 'Premium' };
 
+const formatCz = (iso: string) =>
+  new Date(iso).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' });
+
 export function SubscriptionSection({ billing }: { billing: BillingMe | undefined }) {
   const [portalLoading, setPortalLoading] = useState(false);
   const sub = billing?.subscription;
@@ -31,20 +34,30 @@ export function SubscriptionSection({ billing }: { billing: BillingMe | undefine
         <div className="space-y-4">
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1.5">Aktuální tarif</label>
-            <span className="text-lg font-black text-ink">{TIER_LABEL[sub.tier] ?? sub.tier}</span>
+            <span className="text-lg font-black text-ink">
+              {TIER_LABEL[sub.tier] ?? sub.tier}
+              {sub.source === 'promo' && <span className="ml-2 text-xs font-bold text-green">přes promo kód</span>}
+            </span>
           </div>
+          {sub.source === 'promo' && (
+            <p className="text-sm text-muted font-bold">
+              {sub.grant_expires_at ? `Platí do ${formatCz(sub.grant_expires_at)}` : 'Platí navždy'}
+            </p>
+          )}
           <p className="text-sm text-muted font-bold">
             Využito {sub.plans_used_this_period} z {sub.plans_used_this_period + sub.remaining_quota} tento měsíc
           </p>
-          <button
-            type="button"
-            onClick={handlePortal}
-            disabled={portalLoading}
-            className="flex items-center gap-3 px-8 h-12 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {portalLoading && <Loader2 size={14} className="animate-spin" />}
-            Spravovat předplatné
-          </button>
+          {sub.source !== 'promo' && (
+            <button
+              type="button"
+              onClick={handlePortal}
+              disabled={portalLoading}
+              className="flex items-center gap-3 px-8 h-12 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {portalLoading && <Loader2 size={14} className="animate-spin" />}
+              Spravovat předplatné
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
