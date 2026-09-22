@@ -7,11 +7,13 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from . import services
 from .models import (
     PromoCode, PromoRedemption, Subscription, SubscriptionPlan, Tier,
 )
@@ -91,6 +93,26 @@ class PromoCodeModelTests(TestCase):
         with self.assertRaises(IntegrityError):
             PromoRedemption.objects.create(promo_code=p, user=self.user, tier=Tier.PREMIUM)
 
+    def test_clean_requires_duration_months_for_months_kind(self):
+        p = PromoCode(code='D1', percent_off=50, duration_kind=PromoCode.Duration.MONTHS)
+        with self.assertRaises(ValidationError):
+            p.clean()
+
+    def test_clean_rejects_unknown_tier(self):
+        p = PromoCode(code='D2', percent_off=50, tiers=['gold'])
+        with self.assertRaises(ValidationError):
+            p.clean()
+
+    def test_clean_catches_case_differing_duplicate_code(self):
+        _code(code='LETO2026')
+        dup = PromoCode(code='leto2026', percent_off=100)
+        with self.assertRaises(ValidationError):
+            dup.full_clean()
+
+    def test_zero_percent_off_rejected_by_db_constraint(self):
+        with self.assertRaises(IntegrityError):
+            PromoCode.objects.create(code='ZERO', percent_off=0)
+
 
 class PromoSubscriptionRowTests(TestCase):
     def setUp(self):
@@ -144,3 +166,58 @@ class PromoSubscriptionRowTests(TestCase):
         other = User.objects.create_user('bob', 'b@x.com', 'pw')
         self._promo_sub(user=other)  # unique on stripe_subscription_id ignores NULLs
         self.assertEqual(Subscription.objects.filter(stripe_subscription_id=None).count(), 2)
+
+    def test_promo_quota_window_rolls_multiple_windows(self):
+        sub = self._promo_sub(
+            current_period_end=timezone.now() - timedelta(days=65),
+            plans_used_this_period=30,
+        )
+        self.assertTrue(sub.within_monthly_quota())
+        sub.refresh_from_db()
+        self.assertEqual(sub.plans_used_this_period, 0)
+        self.assertGreater(sub.current_period_end, timezone.now() + timedelta(days=24))
+        self.assertLess(sub.current_period_end, timezone.now() + timedelta(days=26))
+
+    def test_promo_quota_window_rolls_from_null_and_persists(self):
+        sub = self._promo_sub(current_period_end=None, plans_used_this_period=5)
+        self.assertTrue(sub.within_monthly_quota())
+        sub.refresh_from_db()
+        self.assertIsNotNone(sub.current_period_end)
+        self.assertGreater(sub.current_period_end, timezone.now())
+        self.assertEqual(sub.plans_used_this_period, 0)
+
+    def test_remaining_quota_also_rolls(self):
+        sub = self._promo_sub(
+            current_period_end=timezone.now() - timedelta(days=5),
+            plans_used_this_period=30,
+        )
+        self.assertEqual(sub.remaining_quota(), 30)
+
+    def test_canceled_promo_with_no_grant_expiry_not_entitled(self):
+        sub = self._promo_sub(status=Subscription.Status.CANCELED, grant_expires_at=None)
+        self.assertFalse(sub.is_entitled())
+
+
+class NullableSubIdGuardTests(TestCase):
+    """stripe_subscription_id is nullable now; webhook lookups must not treat a
+    missing Stripe id as a match for `IS NULL` promo rows."""
+
+    def setUp(self):
+        _plans()
+        self.user = User.objects.create_user('ann', 'a@x.com', 'pw')
+        self.promo_sub = Subscription.objects.create(
+            user=self.user, tier=Tier.PREMIUM, status=Subscription.Status.ACTIVE,
+            source=Subscription.Source.PROMO, stripe_customer_id='',
+            stripe_subscription_id=None,
+            current_period_end=timezone.now() + timedelta(days=30),
+        )
+
+    def test_handle_payment_failed_ignores_missing_subscription_id(self):
+        services.handle_payment_failed({'data': {'object': {'subscription': None}}})
+        self.promo_sub.refresh_from_db()
+        self.assertEqual(self.promo_sub.status, Subscription.Status.ACTIVE)
+
+    def test_handle_subscription_deleted_ignores_missing_id(self):
+        services.handle_subscription_deleted({'data': {'object': {'id': None}}})
+        self.promo_sub.refresh_from_db()
+        self.assertEqual(self.promo_sub.status, Subscription.Status.ACTIVE)

@@ -136,18 +136,41 @@ class Subscription(models.Model):
         return self.current_period_end > timezone.now()
 
     def _roll_quota_window_if_due(self) -> None:
-        """Promo rows have no invoice.paid to reset usage; roll a 30-day window lazily."""
+        """Promo rows have no invoice.paid to reset usage; roll a 30-day window lazily.
+
+        Rolls via a conditional UPDATE keyed on the previously-read
+        current_period_end, so two concurrent readers hitting the same stale
+        window can't each independently reset the counter (last write wins
+        silently). Whichever writer the DB accepts wins; both then refresh
+        from the DB so the caller sees the winner's state.
+        """
         if self.source != self.Source.PROMO:
             return
         now = timezone.now()
-        if self.current_period_end is None:
-            self.current_period_end = now + PROMO_QUOTA_WINDOW
-        if self.current_period_end > now:
+        old_end = self.current_period_end
+        if old_end is None:
+            Subscription.objects.filter(
+                pk=self.pk, current_period_end__isnull=True,
+            ).update(
+                current_period_end=now + PROMO_QUOTA_WINDOW,
+                plans_used_this_period=0,
+                updated_at=timezone.now(),
+            )
+            self.refresh_from_db(fields=['current_period_end', 'plans_used_this_period'])
             return
-        while self.current_period_end <= now:
-            self.current_period_end += PROMO_QUOTA_WINDOW
-        self.plans_used_this_period = 0
-        self.save(update_fields=['current_period_end', 'plans_used_this_period', 'updated_at'])
+        if old_end > now:
+            return
+        new_end = old_end
+        while new_end <= now:
+            new_end += PROMO_QUOTA_WINDOW
+        Subscription.objects.filter(
+            pk=self.pk, current_period_end=old_end,
+        ).update(
+            current_period_end=new_end,
+            plans_used_this_period=0,
+            updated_at=timezone.now(),
+        )
+        self.refresh_from_db(fields=['current_period_end', 'plans_used_this_period'])
 
     def within_monthly_quota(self) -> bool:
         """True if the user still has plan generations left this period."""
@@ -252,6 +275,12 @@ class PromoCode(models.Model):
     class Meta:
         verbose_name = 'Promo kód'
         verbose_name_plural = 'Promo kódy'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(percent_off__gte=1, percent_off__lte=100),
+                name='promocode_percent_off_1_100',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.code} ({self.percent_off} %)"
@@ -266,6 +295,7 @@ class PromoCode(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+        self.code = self.normalise(self.code)
         if self.duration_kind == self.Duration.MONTHS and not self.duration_months:
             raise ValidationError({'duration_months': 'Zadejte počet měsíců.'})
         bad = [t for t in (self.tiers or []) if t not in Tier.values]

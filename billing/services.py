@@ -259,6 +259,8 @@ def handle_invoice_paid(event) -> None:
 def handle_payment_failed(event) -> None:
     invoice = event['data']['object']
     sub_id = invoice.get('subscription')
+    if not sub_id:
+        return
     sub = Subscription.objects.filter(stripe_subscription_id=sub_id).first()
     if not sub:
         return
@@ -281,9 +283,13 @@ def handle_subscription_updated(event) -> None:
 
 def _provision_from_subscription_event(event, label: str) -> None:
     sub_obj = event['data']['object']
+    sub_id = sub_obj.get('id')
+    if not sub_id:
+        logger.warning('%s: event payload missing subscription id', label)
+        return
     customer_id = sub_obj.get('customer')
     existing = Subscription.objects.filter(
-        stripe_subscription_id=sub_obj.get('id')
+        stripe_subscription_id=sub_id
     ).first()
     user = existing.user if existing else _resolve_user(sub_obj, customer_id)
     if user is None:
@@ -295,8 +301,12 @@ def _provision_from_subscription_event(event, label: str) -> None:
 
 def handle_subscription_deleted(event) -> None:
     sub_obj = event['data']['object']
+    sub_id = sub_obj.get('id')
+    if not sub_id:
+        logger.warning('customer.subscription.deleted: event payload missing subscription id')
+        return
     sub = Subscription.objects.filter(
-        stripe_subscription_id=sub_obj.get('id')
+        stripe_subscription_id=sub_id
     ).first()
     if not sub:
         return
