@@ -17,7 +17,9 @@ from django.contrib.auth.models import User
 from analytics.events import track_paid
 
 from .stripe_client import stripe, is_configured
-from .models import Subscription, SubscriptionPlan, StripeCustomer, Tier
+from .models import (
+    Subscription, SubscriptionPlan, StripeCustomer, Tier, PromoCode, PromoRedemption,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,41 @@ def get_or_create_customer(user: User) -> str:
         user=user, defaults={'stripe_customer_id': customer['id']},
     )
     return customer['id']
+
+
+# --- promo coupons -------------------------------------------------------------
+
+def ensure_stripe_coupon(promo: PromoCode) -> str | None:
+    """
+    Mirror a 1–99 % promo code to a Stripe Coupon and store its id.
+
+    No-op for 100 % codes (they never touch Stripe), when billing is not
+    configured, or when the code already has a coupon. Coupons are immutable
+    in Stripe; the admin clears `stripe_coupon_id` when the terms change so a
+    fresh one is minted here.
+    """
+    if promo.percent_off >= 100:
+        return None
+    if promo.stripe_coupon_id:
+        return promo.stripe_coupon_id
+    if not is_configured():
+        return None
+    params = {
+        'percent_off': promo.percent_off,
+        'name': promo.code,
+        'metadata': {'promo_code_id': str(promo.id)},
+    }
+    if promo.duration_kind == PromoCode.Duration.LIFETIME:
+        params['duration'] = 'forever'
+    elif promo.duration_kind == PromoCode.Duration.MONTHS:
+        params['duration'] = 'repeating'
+        params['duration_in_months'] = promo.duration_months or 1
+    else:
+        params['duration'] = 'once'
+    coupon = as_dict(stripe.Coupon.create(**params))
+    promo.stripe_coupon_id = coupon['id']
+    promo.save(update_fields=['stripe_coupon_id', 'updated_at'])
+    return promo.stripe_coupon_id
 
 
 # --- shape helpers (API-version tolerant) -------------------------------------

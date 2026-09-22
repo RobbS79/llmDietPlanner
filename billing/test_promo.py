@@ -221,3 +221,52 @@ class NullableSubIdGuardTests(TestCase):
         services.handle_subscription_deleted({'data': {'object': {'id': None}}})
         self.promo_sub.refresh_from_db()
         self.assertEqual(self.promo_sub.status, Subscription.Status.ACTIVE)
+
+
+class EnsureStripeCouponTests(TestCase):
+    def test_noop_for_100_percent(self):
+        p = _code(percent_off=100)
+        with patch('billing.services.stripe.Coupon.create') as create:
+            self.assertIsNone(services.ensure_stripe_coupon(p))
+        create.assert_not_called()
+        self.assertEqual(p.stripe_coupon_id, '')
+
+    @patch('billing.services.is_configured', return_value=False)
+    def test_noop_when_unconfigured(self, _cfg):
+        p = _code(percent_off=50)
+        with patch('billing.services.stripe.Coupon.create') as create:
+            self.assertIsNone(services.ensure_stripe_coupon(p))
+        create.assert_not_called()
+
+    @patch('billing.services.is_configured', return_value=True)
+    def test_creates_forever_coupon(self, _cfg):
+        p = _code(percent_off=50, duration_kind=PromoCode.Duration.LIFETIME)
+        with patch('billing.services.stripe.Coupon.create', return_value={'id': 'cpn_1'}) as create:
+            self.assertEqual(services.ensure_stripe_coupon(p), 'cpn_1')
+        kw = create.call_args.kwargs
+        self.assertEqual(kw['percent_off'], 50)
+        self.assertEqual(kw['duration'], 'forever')
+        self.assertEqual(kw['name'], 'LETO2026')
+        self.assertEqual(kw['metadata'], {'promo_code_id': str(p.id)})
+        p.refresh_from_db()
+        self.assertEqual(p.stripe_coupon_id, 'cpn_1')
+
+    @patch('billing.services.is_configured', return_value=True)
+    def test_repeating_and_once(self, _cfg):
+        p = _code(percent_off=20, duration_kind=PromoCode.Duration.MONTHS, duration_months=3)
+        with patch('billing.services.stripe.Coupon.create', return_value={'id': 'cpn_r'}) as create:
+            services.ensure_stripe_coupon(p)
+        self.assertEqual(create.call_args.kwargs['duration'], 'repeating')
+        self.assertEqual(create.call_args.kwargs['duration_in_months'], 3)
+        q = _code(code='ONCE', percent_off=20, duration_kind=PromoCode.Duration.FIRST_INVOICE)
+        with patch('billing.services.stripe.Coupon.create', return_value={'id': 'cpn_o'}) as create:
+            services.ensure_stripe_coupon(q)
+        self.assertEqual(create.call_args.kwargs['duration'], 'once')
+        self.assertNotIn('duration_in_months', create.call_args.kwargs)
+
+    @patch('billing.services.is_configured', return_value=True)
+    def test_existing_id_is_kept(self, _cfg):
+        p = _code(percent_off=50, stripe_coupon_id='cpn_keep')
+        with patch('billing.services.stripe.Coupon.create') as create:
+            self.assertEqual(services.ensure_stripe_coupon(p), 'cpn_keep')
+        create.assert_not_called()
