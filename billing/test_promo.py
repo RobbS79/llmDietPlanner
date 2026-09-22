@@ -745,3 +745,39 @@ class PromoApiTests(TestCase):
         r = self.client.post('/api/billing/promo/redeem/', {'code': 'LETO2026', 'tier': 'standard'})
         self.assertEqual(r.status_code, 400)
         self.assertEqual(r.json()['reason'], 'stripe_error')
+
+
+class PromoAdminTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser('root', 'r@x.com', 'pw')
+        self.client = APIClient()
+        self.client.force_login(self.admin)
+
+    @patch('billing.admin.ensure_stripe_coupon', return_value='cpn_new')
+    def test_save_model_syncs_coupon_and_resets_on_terms_change(self, ensure):
+        from django.contrib.admin.sites import site
+        from billing.admin import PromoCodeAdmin
+        from django.test import RequestFactory
+        ma = PromoCodeAdmin(PromoCode, site)
+        req = RequestFactory().post('/')
+        req.user = self.admin
+        p = PromoCode(code='HALF', percent_off=50)
+        ma.save_model(req, p, form=None, change=False)
+        ensure.assert_called_once_with(p)
+
+        p.stripe_coupon_id = 'cpn_old'
+        p.save()
+        ensure.reset_mock()
+        p.percent_off = 40
+        ma.save_model(req, p, form=None, change=True)
+        p.refresh_from_db()
+        ensure.assert_called_once()
+        # id was cleared before ensure ran, so a new coupon is minted
+        self.assertEqual(ensure.call_args.args[0].stripe_coupon_id, '')
+
+    def test_admin_changelist_renders(self):
+        from django.conf import settings
+        _code(max_redemptions=20)
+        prefix = getattr(settings, 'ADMIN_URL_PATH', 'admin').strip('/')
+        r = self.client.get(f'/{prefix}/billing/promocode/')
+        self.assertIn(r.status_code, (200, 302))  # 302 when admin MFA is enforced
