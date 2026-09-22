@@ -7,6 +7,10 @@ attached; their redemption row is recorded by the checkout webhook.
 """
 from __future__ import annotations
 
+import logging
+from decimal import ROUND_HALF_UP, Decimal
+
+import stripe as stripe_lib
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
@@ -37,8 +41,29 @@ class RedeemError(Exception):
         self.message = REASON_MESSAGES.get(reason, reason)
 
 
+logger = logging.getLogger(__name__)
+
+
 def discounted_price(original: int, percent_off: int) -> int:
-    return round(original * (100 - percent_off) / 100)
+    """Half-up rounding (197 at 50 % -> 99), not Python's banker's round()."""
+    exact = Decimal(original) * (100 - percent_off) / 100
+    return int(exact.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+
+
+def _blocks_redemption(user: User) -> bool:
+    """
+    True when the user already holds a subscription a promo must not clobber:
+    anything currently entitled (Stripe or promo), or a live Stripe object
+    (active / past due) whose row would otherwise be overwritten.
+    """
+    if active_subscription(user) is not None:
+        return True
+    sub = Subscription.objects.filter(user=user).first()
+    return bool(
+        sub
+        and sub.source == Subscription.Source.STRIPE
+        and sub.status in (Subscription.Status.ACTIVE, Subscription.Status.PAST_DUE)
+    )
 
 
 def validate_payload(raw_code: str) -> dict:
@@ -57,6 +82,8 @@ def validate_payload(raw_code: str) -> dict:
                 'original': plan.price_czk,
                 'discounted': discounted_price(plan.price_czk, promo.percent_off),
             }
+    if not prices:
+        return {'valid': False, 'reason': 'tier_not_allowed'}
     return {
         'valid': True,
         'code': promo.code,
@@ -93,7 +120,7 @@ def redeem(user: User, raw_code: str, tier: str) -> dict:
             raise RedeemError('tier_not_allowed')
         if PromoRedemption.objects.filter(promo_code=promo, user=user).exists():
             raise RedeemError('already_redeemed')
-        if active_subscription(user) is not None:
+        if _blocks_redemption(user):
             raise RedeemError('already_subscribed')
 
         if promo.percent_off >= 100:
@@ -118,7 +145,11 @@ def redeem(user: User, raw_code: str, tier: str) -> dict:
     # Percent path: outside the lock — Stripe round-trip must not hold the row.
     if not services.is_configured():
         raise RedeemError('stripe_error')
-    url = services.create_checkout_session(user, tier, promo=promo)
+    try:
+        url = services.create_checkout_session(user, tier, promo=promo)
+    except (services.PriceNotConfigured, stripe_lib.error.StripeError):
+        logger.exception('promo checkout failed: code=%s tier=%s user=%s', code, tier, user.pk)
+        raise RedeemError('stripe_error')
     return {'granted': False, 'url': url}
 
 

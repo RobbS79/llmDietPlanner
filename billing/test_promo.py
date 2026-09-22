@@ -400,6 +400,28 @@ class ValidatePayloadTests(TestCase):
         _code(code='T', percent_off=33, tiers=['standard'])
         self.assertEqual(promo_svc.validate_payload('T')['prices']['standard']['discounted'], 66)
 
+    def test_half_up_rounding_values(self):
+        self.assertEqual(promo_svc.discounted_price(197, 50), 99)
+        self.assertEqual(promo_svc.discounted_price(99, 1), 98)
+        self.assertEqual(promo_svc.discounted_price(99, 99), 1)
+        self.assertEqual(promo_svc.discounted_price(199, 100), 0)
+
+    def test_inactive_reason(self):
+        _code(is_active=False)
+        self.assertEqual(promo_svc.validate_payload('LETO2026')['reason'], 'inactive')
+
+    def test_exhausted_reason(self):
+        p = _code(max_redemptions=1)
+        user = User.objects.create_user('bob', 'b@x.com', 'pw')
+        PromoRedemption.objects.create(promo_code=p, user=user, tier='premium')
+        self.assertEqual(promo_svc.validate_payload('LETO2026')['reason'], 'exhausted')
+
+    def test_no_priced_tier_is_tier_not_allowed(self):
+        SubscriptionPlan.objects.filter(tier='premium').update(is_active=False)
+        _code(code='NOPLAN', tiers=['premium'])
+        self.assertEqual(promo_svc.validate_payload('NOPLAN'),
+                          {'valid': False, 'reason': 'tier_not_allowed'})
+
 
 @override_settings(STRIPE_PRICE_STANDARD='price_std', STRIPE_PRICE_PREMIUM='price_prem',
                    FRONTEND_URL='https://app.test')
@@ -466,6 +488,30 @@ class RedeemTests(TestCase):
             promo_svc.redeem(self.user, 'LETO2026', 'premium')
         self.assertEqual(cm.exception.reason, 'already_subscribed')
 
+    def test_already_subscribed_stripe_past_due(self):
+        _code()
+        Subscription.objects.create(
+            user=self.user, tier='standard', status=Subscription.Status.PAST_DUE,
+            stripe_customer_id='cus_1', stripe_subscription_id='sub_pd',
+            current_period_end=timezone.now() - timedelta(days=1),
+        )
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'already_subscribed')
+
+    def test_expired_stripe_row_is_replaced(self):
+        _code()
+        Subscription.objects.create(
+            user=self.user, tier='standard', status=Subscription.Status.EXPIRED,
+            stripe_customer_id='cus_1', stripe_subscription_id='sub_dead',
+            current_period_end=timezone.now() - timedelta(days=1),
+        )
+        out = promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertTrue(out['granted'])
+        sub = Subscription.objects.get(user=self.user)
+        self.assertIsNone(sub.stripe_subscription_id)
+        self.assertEqual(sub.source, Subscription.Source.PROMO)
+
     def test_already_subscribed_promo(self):
         _code()
         _code(code='OTHER')
@@ -517,6 +563,41 @@ class RedeemTests(TestCase):
         with self.assertRaises(promo_svc.RedeemError) as cm:
             promo_svc.redeem(self.user, 'LETO2026', 'premium')
         self.assertEqual(cm.exception.reason, 'stripe_error')
+
+    @patch('billing.services.is_configured', return_value=True)
+    @patch('billing.services.create_checkout_session',
+           side_effect=services.PriceNotConfigured('x'))
+    def test_percent_price_not_configured_is_stripe_error(self, _create, _cfg):
+        _code(percent_off=50, stripe_coupon_id='cpn_1')
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'stripe_error')
+
+    @patch('billing.services.is_configured', return_value=True)
+    @patch('billing.services.create_checkout_session',
+           side_effect=stripe_lib.error.StripeError('boom'))
+    def test_percent_stripe_error_is_stripe_error(self, _create, _cfg):
+        _code(percent_off=50, stripe_coupon_id='cpn_1')
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'stripe_error')
+
+    def test_rollback_on_redemption_write_failure(self):
+        _code()
+        with patch.object(PromoRedemption.objects, 'create', side_effect=IntegrityError('x')):
+            with self.assertRaises(IntegrityError):
+                promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertFalse(Subscription.objects.filter(user=self.user).exists())
+
+    def test_tier_locked_code_grants_allowed_tier(self):
+        _code(tiers=['premium'])
+        out = promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(out, {'granted': True, 'tier': 'premium'})
+
+    def test_code_with_surrounding_whitespace_grants(self):
+        _code()
+        out = promo_svc.redeem(self.user, '  leto2026 ', 'premium')
+        self.assertEqual(out, {'granted': True, 'tier': 'premium'})
 
 
 class RecordCheckoutRedemptionTests(TestCase):
