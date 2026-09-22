@@ -128,6 +128,59 @@ def ensure_stripe_coupon(promo: PromoCode) -> str | None:
     return promo.stripe_coupon_id
 
 
+# --- checkout ------------------------------------------------------------------
+
+class PriceNotConfigured(Exception):
+    """No Stripe Price id for the requested tier in this environment."""
+
+
+def _frontend_url(path: str) -> str:
+    base = (settings.FRONTEND_URL or '').rstrip('/')
+    return f"{base}{path}"
+
+
+def create_checkout_session(user: User, tier: str, *, promo: PromoCode | None = None) -> str:
+    """
+    Create a subscription Checkout Session and return its hosted URL.
+
+    With `promo`, the code's Stripe coupon is attached server-side (Stripe
+    forbids combining `discounts` with `allow_promotion_codes`) and the code id
+    travels in metadata so the webhook can record the redemption.
+    Raises PriceNotConfigured or stripe.error.StripeError.
+    """
+    price_id = price_id_for_tier(tier)
+    if not price_id:
+        raise PriceNotConfigured(tier)
+    customer_id = get_or_create_customer(user)
+    metadata = {'user_id': str(user.id), 'tier': tier}
+    params = dict(
+        mode='subscription',
+        customer=customer_id,
+        # Force card explicitly instead of relying on dashboard-configured
+        # dynamic payment methods — a fresh account has none enabled for
+        # CZK, which fails with "No valid payment method types".
+        payment_method_types=['card'],
+        line_items=[{'price': price_id, 'quantity': 1}],
+        client_reference_id=str(user.id),
+        # Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder
+        # on redirect so the success page can look up / log the session.
+        success_url=_frontend_url('/billing/success?session_id={CHECKOUT_SESSION_ID}'),
+        cancel_url=_frontend_url('/pricing?sub=cancelled'),
+        # Default is browser-language autodetect, which renders English
+        # for most CZ users; the rest of the funnel is Czech.
+        locale='cs',
+    )
+    if promo is not None:
+        metadata['promo_code_id'] = str(promo.id)
+        params['discounts'] = [{'coupon': ensure_stripe_coupon(promo)}]
+    else:
+        params['allow_promotion_codes'] = True
+    params['metadata'] = metadata
+    params['subscription_data'] = {'metadata': dict(metadata)}
+    session = as_dict(stripe.checkout.Session.create(**params))
+    return session['url']
+
+
 # --- shape helpers (API-version tolerant) -------------------------------------
 
 def as_dict(obj) -> dict:

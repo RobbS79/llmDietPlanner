@@ -270,3 +270,39 @@ class EnsureStripeCouponTests(TestCase):
         with patch('billing.services.stripe.Coupon.create') as create:
             self.assertEqual(services.ensure_stripe_coupon(p), 'cpn_keep')
         create.assert_not_called()
+
+
+@override_settings(STRIPE_PRICE_STANDARD='price_std', STRIPE_PRICE_PREMIUM='price_prem',
+                   FRONTEND_URL='https://app.test')
+class CreateCheckoutSessionTests(TestCase):
+    def setUp(self):
+        _plans()
+        self.user = User.objects.create_user('ann', 'a@x.com', 'pw')
+
+    @patch('billing.services.get_or_create_customer', return_value='cus_1')
+    @patch('billing.services.stripe.checkout.Session.create', return_value={'url': 'https://stripe/x'})
+    def test_plain_checkout_allows_promotion_codes(self, create, _cust):
+        url = services.create_checkout_session(self.user, 'standard')
+        self.assertEqual(url, 'https://stripe/x')
+        kw = create.call_args.kwargs
+        self.assertTrue(kw['allow_promotion_codes'])
+        self.assertNotIn('discounts', kw)
+        self.assertEqual(kw['line_items'], [{'price': 'price_std', 'quantity': 1}])
+        self.assertEqual(kw['metadata'], {'user_id': str(self.user.id), 'tier': 'standard'})
+
+    @patch('billing.services.get_or_create_customer', return_value='cus_1')
+    @patch('billing.services.stripe.checkout.Session.create', return_value={'url': 'https://stripe/y'})
+    def test_promo_checkout_attaches_coupon(self, create, _cust):
+        p = _code(percent_off=50, stripe_coupon_id='cpn_1')
+        services.create_checkout_session(self.user, 'premium', promo=p)
+        kw = create.call_args.kwargs
+        self.assertEqual(kw['discounts'], [{'coupon': 'cpn_1'}])
+        self.assertNotIn('allow_promotion_codes', kw)
+        self.assertEqual(kw['metadata']['promo_code_id'], str(p.id))
+        self.assertEqual(kw['subscription_data']['metadata']['promo_code_id'], str(p.id))
+
+    def test_missing_price_raises(self):
+        with override_settings(STRIPE_PRICE_STANDARD=''):
+            SubscriptionPlan.objects.filter(tier='standard').update(stripe_price_id='')
+            with self.assertRaises(services.PriceNotConfigured):
+                services.create_checkout_session(self.user, 'standard')

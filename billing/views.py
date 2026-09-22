@@ -25,11 +25,6 @@ from . import services
 logger = logging.getLogger(__name__)
 
 
-def _frontend_url(path: str) -> str:
-    base = (settings.FRONTEND_URL or '').rstrip('/')
-    return f"{base}{path}"
-
-
 class PlansView(APIView):
     """Public — serve active tiers from the DB."""
     permission_classes = [AllowAny]
@@ -56,38 +51,13 @@ class CheckoutView(APIView):
                 {'status': 'error', 'error': "tier must be 'standard' or 'premium'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        price_id = services.price_id_for_tier(tier)
-        if not price_id:
+        try:
+            url = services.create_checkout_session(request.user, tier)
+        except services.PriceNotConfigured:
             logger.error('No Stripe price configured for tier %s', tier)
             return Response(
                 {'status': 'error', 'error': 'This plan is not available yet.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        try:
-            customer_id = services.get_or_create_customer(request.user)
-            session = stripe.checkout.Session.create(
-                mode='subscription',
-                customer=customer_id,
-                # Force card explicitly instead of relying on dashboard-configured
-                # dynamic payment methods — a fresh account has none enabled for
-                # CZK, which fails with "No valid payment method types".
-                payment_method_types=['card'],
-                line_items=[{'price': price_id, 'quantity': 1}],
-                client_reference_id=str(request.user.id),
-                metadata={'user_id': str(request.user.id), 'tier': tier},
-                subscription_data={
-                    'metadata': {'user_id': str(request.user.id), 'tier': tier},
-                },
-                # Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder
-                # on redirect so the success page can look up / log the session.
-                success_url=_frontend_url(
-                    '/billing/success?session_id={CHECKOUT_SESSION_ID}'
-                ),
-                cancel_url=_frontend_url('/pricing?sub=cancelled'),
-                allow_promotion_codes=True,
-                # Default is browser-language autodetect, which renders English
-                # for most CZ users; the rest of the funnel is Czech.
-                locale='cs',
             )
         except stripe.error.StripeError as exc:
             logger.exception('Stripe checkout creation failed')
@@ -100,7 +70,7 @@ class CheckoutView(APIView):
                  'detail': str(getattr(exc, 'user_message', '') or '')},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response({'url': session['url']})
+        return Response({'url': url})
 
 
 class PortalView(APIView):
@@ -126,7 +96,7 @@ class PortalView(APIView):
         try:
             session = stripe.billing_portal.Session.create(
                 customer=customer_id,
-                return_url=_frontend_url('/'),
+                return_url=services._frontend_url('/'),
                 locale='cs',
             )
         except stripe.error.StripeError:
