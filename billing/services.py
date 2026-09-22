@@ -18,7 +18,7 @@ from analytics.events import track_paid
 
 from .stripe_client import stripe, is_configured
 from .models import (
-    Subscription, SubscriptionPlan, StripeCustomer, Tier, PromoCode, PromoRedemption,
+    Subscription, SubscriptionPlan, StripeCustomer, Tier, PromoCode,
 )
 
 logger = logging.getLogger(__name__)
@@ -122,6 +122,7 @@ def ensure_stripe_coupon(promo: PromoCode) -> str | None:
         params['duration_in_months'] = promo.duration_months or 1
     else:
         params['duration'] = 'once'
+    # Admin-only caller; a concurrent double-save just orphans one coupon in Stripe (harmless).
     coupon = as_dict(stripe.Coupon.create(**params))
     promo.stripe_coupon_id = coupon['id']
     promo.save(update_fields=['stripe_coupon_id', 'updated_at'])
@@ -134,7 +135,7 @@ class PriceNotConfigured(Exception):
     """No Stripe Price id for the requested tier in this environment."""
 
 
-def _frontend_url(path: str) -> str:
+def frontend_url(path: str) -> str:
     base = (settings.FRONTEND_URL or '').rstrip('/')
     return f"{base}{path}"
 
@@ -164,21 +165,27 @@ def create_checkout_session(user: User, tier: str, *, promo: PromoCode | None = 
         client_reference_id=str(user.id),
         # Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder
         # on redirect so the success page can look up / log the session.
-        success_url=_frontend_url('/billing/success?session_id={CHECKOUT_SESSION_ID}'),
-        cancel_url=_frontend_url('/pricing?sub=cancelled'),
+        success_url=frontend_url('/billing/success?session_id={CHECKOUT_SESSION_ID}'),
+        cancel_url=frontend_url('/pricing?sub=cancelled'),
         # Default is browser-language autodetect, which renders English
         # for most CZ users; the rest of the funnel is Czech.
         locale='cs',
     )
     if promo is not None:
+        coupon = ensure_stripe_coupon(promo)
+        if not coupon:
+            raise PriceNotConfigured(f'promo {promo.code} has no Stripe coupon')
         metadata['promo_code_id'] = str(promo.id)
-        params['discounts'] = [{'coupon': ensure_stripe_coupon(promo)}]
+        params['discounts'] = [{'coupon': coupon}]
     else:
         params['allow_promotion_codes'] = True
     params['metadata'] = metadata
     params['subscription_data'] = {'metadata': dict(metadata)}
     session = as_dict(stripe.checkout.Session.create(**params))
-    return session['url']
+    url = session.get('url')
+    if not url:
+        raise stripe.error.StripeError('Checkout session has no url')
+    return url
 
 
 # --- shape helpers (API-version tolerant) -------------------------------------

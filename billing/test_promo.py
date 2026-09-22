@@ -6,6 +6,7 @@ Stripe network calls are mocked throughout.
 from datetime import timedelta
 from unittest.mock import patch
 
+import stripe as stripe_lib
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
@@ -289,6 +290,8 @@ class CreateCheckoutSessionTests(TestCase):
         self.assertNotIn('discounts', kw)
         self.assertEqual(kw['line_items'], [{'price': 'price_std', 'quantity': 1}])
         self.assertEqual(kw['metadata'], {'user_id': str(self.user.id), 'tier': 'standard'})
+        self.assertEqual(kw['success_url'], 'https://app.test/billing/success?session_id={CHECKOUT_SESSION_ID}')
+        self.assertEqual(kw['cancel_url'], 'https://app.test/pricing?sub=cancelled')
 
     @patch('billing.services.get_or_create_customer', return_value='cus_1')
     @patch('billing.services.stripe.checkout.Session.create', return_value={'url': 'https://stripe/y'})
@@ -306,3 +309,54 @@ class CreateCheckoutSessionTests(TestCase):
             SubscriptionPlan.objects.filter(tier='standard').update(stripe_price_id='')
             with self.assertRaises(services.PriceNotConfigured):
                 services.create_checkout_session(self.user, 'standard')
+
+    @patch('billing.services.get_or_create_customer', return_value='cus_1')
+    @patch('billing.services.stripe.checkout.Session.create')
+    def test_full_off_promo_without_coupon_raises(self, create, _cust):
+        p = _code(percent_off=100)
+        with self.assertRaises(services.PriceNotConfigured):
+            services.create_checkout_session(self.user, 'premium', promo=p)
+        create.assert_not_called()
+
+    @patch('billing.services.is_configured', return_value=True)
+    @patch('billing.services.get_or_create_customer', return_value='cus_1')
+    @patch('billing.services.stripe.Coupon.create', return_value={'id': 'cpn_new'})
+    @patch('billing.services.stripe.checkout.Session.create', return_value={'url': 'https://stripe/z'})
+    def test_blank_coupon_is_minted_on_the_fly(self, sess, coupon, _cust, _cfg):
+        p = _code(percent_off=50, stripe_coupon_id='')
+        services.create_checkout_session(self.user, 'premium', promo=p)
+        coupon.assert_called_once()
+        self.assertEqual(sess.call_args.kwargs['discounts'], [{'coupon': 'cpn_new'}])
+        p.refresh_from_db()
+        self.assertEqual(p.stripe_coupon_id, 'cpn_new')
+
+
+@override_settings(FRONTEND_URL='https://app.test')
+class CheckoutViewTests(TestCase):
+    def setUp(self):
+        _plans()
+        self.user = User.objects.create_user('ann', 'a@x.com', 'pw')
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    @patch('billing.views.services.create_checkout_session',
+           side_effect=services.PriceNotConfigured('standard'))
+    @patch('billing.views.is_configured', return_value=True)
+    def test_price_not_configured_returns_503(self, _cfg, _create):
+        resp = self.client.post('/api/billing/checkout/', {'tier': 'standard'})
+        self.assertEqual(resp.status_code, 503)
+
+    @patch('billing.views.services.create_checkout_session',
+           side_effect=stripe_lib.error.StripeError('boom'))
+    @patch('billing.views.is_configured', return_value=True)
+    def test_stripe_error_returns_400(self, _cfg, _create):
+        resp = self.client.post('/api/billing/checkout/', {'tier': 'standard'})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.data['error'], 'Could not start checkout.')
+
+    @patch('billing.views.services.create_checkout_session', return_value='https://stripe/ok')
+    @patch('billing.views.is_configured', return_value=True)
+    def test_success_returns_url(self, _cfg, _create):
+        resp = self.client.post('/api/billing/checkout/', {'tier': 'standard'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data, {'url': 'https://stripe/ok'})

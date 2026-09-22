@@ -96,7 +96,7 @@ class PortalView(APIView):
         try:
             session = stripe.billing_portal.Session.create(
                 customer=customer_id,
-                return_url=services._frontend_url('/'),
+                return_url=services.frontend_url('/'),
                 locale='cs',
             )
         except stripe.error.StripeError:
