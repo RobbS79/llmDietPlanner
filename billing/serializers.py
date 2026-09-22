@@ -20,8 +20,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
         fields = (
-            'tier', 'status', 'current_period_end', 'cancel_at_period_end',
-            'plans_used_this_period', 'entitled', 'remaining_quota',
+            'tier', 'status', 'source', 'current_period_end', 'grant_expires_at',
+            'cancel_at_period_end', 'plans_used_this_period', 'entitled', 'remaining_quota',
         )
 
     def get_entitled(self, obj) -> bool:

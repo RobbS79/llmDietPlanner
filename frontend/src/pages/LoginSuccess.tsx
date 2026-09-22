@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { syncConsentToServer } from '@/lib/analytics';
+import { getPendingPromo } from '@/lib/promo';
 
 export const LoginSuccess = () => {
   const [params] = useSearchParams();
@@ -14,7 +15,7 @@ export const LoginSuccess = () => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       syncConsentToServer();
-      navigate('/', { replace: true });
+      navigate(getPendingPromo() ? '/pricing' : '/', { replace: true });
     } else {
       navigate('/login?error=auth_failed');
     }

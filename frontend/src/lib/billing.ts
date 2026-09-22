@@ -5,7 +5,9 @@ export type BillingTier = 'standard' | 'premium';
 export interface SubscriptionInfo {
   tier: BillingTier;
   status: string;
+  source: 'stripe' | 'promo';
   current_period_end: string | null;
+  grant_expires_at: string | null;
   cancel_at_period_end: boolean;
   plans_used_this_period: number;
   entitled: boolean;

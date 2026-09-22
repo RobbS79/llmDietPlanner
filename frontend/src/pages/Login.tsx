@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound, Tag } from 'lucide-react';
 import axios from 'axios';
 import { getStoredAttribution, getConsent, syncConsentToServer, CONSENT_VERSION, readCookie, type UtmParams } from '@/lib/analytics';
+import { getPendingPromo, clearPendingPromo } from '@/lib/promo';
 
 type Attribution = UtmParams & {
   fbp: string;
@@ -28,6 +29,7 @@ export const Login = () => {
   const [form, setForm] = useState({ username: '', email: '', password: '', passwordConfirm: '' });
 
   const urlError = searchParams.get('error');
+  const [pendingPromo, setPendingPromo] = useState<string | null>(() => getPendingPromo());
 
   const loginMutation = useMutation({
     mutationFn: (data: { username: string; password: string }) => axios.post('/api/auth/login/', data),
@@ -36,7 +38,7 @@ export const Login = () => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       syncConsentToServer();
-      navigate('/', { replace: true });
+      navigate(getPendingPromo() ? '/pricing' : '/', { replace: true });
     },
     onError: (err: any) => {
       const msg = err.response?.data?.error;
@@ -108,6 +110,17 @@ export const Login = () => {
             <span>{error || urlError?.replace(/_/g, ' ')}</span>
           </div>
         )}
+        {pendingPromo && (
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-green/30 bg-green-soft px-4 py-3 text-sm">
+            <span className="inline-flex items-center gap-2 text-ink">
+              <Tag size={14} className="text-green" />
+              Kód <strong>{pendingPromo}</strong> se uplatní po přihlášení.
+            </span>
+            <button type="button" onClick={() => { clearPendingPromo(); setPendingPromo(null); }}
+              className="text-xs font-bold text-muted hover:text-ink">zrušit</button>
+          </div>
+        )}
+
         {success && (
           <div role="status" className="flex items-center gap-3 bg-green-soft border border-green/20 text-green rounded-xl p-4 mb-6 text-xs font-bold">
             <CheckCircle2 size={16} className="shrink-0" />

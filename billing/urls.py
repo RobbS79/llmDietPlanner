@@ -11,4 +11,6 @@ urlpatterns = [
     path('portal/', views.PortalView.as_view(), name='portal'),
     path('me/', views.MeView.as_view(), name='me'),
     path('webhook/', views.WebhookView.as_view(), name='webhook'),
+    path('promo/validate/', views.PromoValidateView.as_view(), name='promo_validate'),
+    path('promo/redeem/', views.PromoRedeemView.as_view(), name='promo_redeem'),
 ]

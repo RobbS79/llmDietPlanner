@@ -17,7 +17,9 @@ from django.contrib.auth.models import User
 from analytics.events import track_paid
 
 from .stripe_client import stripe, is_configured
-from .models import Subscription, SubscriptionPlan, StripeCustomer, Tier
+from .models import (
+    Subscription, SubscriptionPlan, StripeCustomer, Tier, PromoCode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,101 @@ def get_or_create_customer(user: User) -> str:
         user=user, defaults={'stripe_customer_id': customer['id']},
     )
     return customer['id']
+
+
+# --- promo coupons -------------------------------------------------------------
+
+def ensure_stripe_coupon(promo: PromoCode) -> str | None:
+    """
+    Mirror a 1–99 % promo code to a Stripe Coupon and store its id.
+
+    No-op for 100 % codes (they never touch Stripe), when billing is not
+    configured, or when the code already has a coupon. Coupons are immutable
+    in Stripe; the admin clears `stripe_coupon_id` when the terms change so a
+    fresh one is minted here.
+    """
+    if promo.percent_off >= 100:
+        return None
+    if promo.stripe_coupon_id:
+        return promo.stripe_coupon_id
+    if not is_configured():
+        return None
+    params = {
+        'percent_off': promo.percent_off,
+        'name': promo.code,
+        'metadata': {'promo_code_id': str(promo.id)},
+    }
+    if promo.duration_kind == PromoCode.Duration.LIFETIME:
+        params['duration'] = 'forever'
+    elif promo.duration_kind == PromoCode.Duration.MONTHS:
+        params['duration'] = 'repeating'
+        params['duration_in_months'] = promo.duration_months or 1
+    else:
+        params['duration'] = 'once'
+    # Admin-only caller; a concurrent double-save just orphans one coupon in Stripe (harmless).
+    coupon = as_dict(stripe.Coupon.create(**params))
+    promo.stripe_coupon_id = coupon['id']
+    promo.save(update_fields=['stripe_coupon_id', 'updated_at'])
+    return promo.stripe_coupon_id
+
+
+# --- checkout ------------------------------------------------------------------
+
+class PriceNotConfigured(Exception):
+    """No Stripe Price id for the requested tier in this environment."""
+
+
+def frontend_url(path: str) -> str:
+    base = (settings.FRONTEND_URL or '').rstrip('/')
+    return f"{base}{path}"
+
+
+def create_checkout_session(user: User, tier: str, *, promo: PromoCode | None = None) -> str:
+    """
+    Create a subscription Checkout Session and return its hosted URL.
+
+    With `promo`, the code's Stripe coupon is attached server-side (Stripe
+    forbids combining `discounts` with `allow_promotion_codes`) and the code id
+    travels in metadata so the webhook can record the redemption.
+    Raises PriceNotConfigured or stripe.error.StripeError.
+    """
+    price_id = price_id_for_tier(tier)
+    if not price_id:
+        raise PriceNotConfigured(tier)
+    customer_id = get_or_create_customer(user)
+    metadata = {'user_id': str(user.id), 'tier': tier}
+    params = dict(
+        mode='subscription',
+        customer=customer_id,
+        # Force card explicitly instead of relying on dashboard-configured
+        # dynamic payment methods — a fresh account has none enabled for
+        # CZK, which fails with "No valid payment method types".
+        payment_method_types=['card'],
+        line_items=[{'price': price_id, 'quantity': 1}],
+        client_reference_id=str(user.id),
+        # Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder
+        # on redirect so the success page can look up / log the session.
+        success_url=frontend_url('/billing/success?session_id={CHECKOUT_SESSION_ID}'),
+        cancel_url=frontend_url('/pricing?sub=cancelled'),
+        # Default is browser-language autodetect, which renders English
+        # for most CZ users; the rest of the funnel is Czech.
+        locale='cs',
+    )
+    if promo is not None:
+        coupon = ensure_stripe_coupon(promo)
+        if not coupon:
+            raise PriceNotConfigured(f'promo {promo.code} has no Stripe coupon')
+        metadata['promo_code_id'] = str(promo.id)
+        params['discounts'] = [{'coupon': coupon}]
+    else:
+        params['allow_promotion_codes'] = True
+    params['metadata'] = metadata
+    params['subscription_data'] = {'metadata': dict(metadata)}
+    session = as_dict(stripe.checkout.Session.create(**params))
+    url = session.get('url')
+    if not url:
+        raise stripe.error.StripeError('Checkout session has no url')
+    return url
 
 
 # --- shape helpers (API-version tolerant) -------------------------------------
@@ -189,6 +286,8 @@ def upsert_subscription(user: User, sub_obj: dict, customer_id: str, *,
         defaults={
             'tier': tier,
             'status': _STATUS_MAP.get(sub_obj.get('status'), Subscription.Status.ACTIVE),
+            'source': Subscription.Source.STRIPE,
+            'grant_expires_at': None,
             'stripe_customer_id': customer_id,
             'stripe_subscription_id': sub_obj.get('id'),
             'current_period_end': _period_end(sub_obj),
@@ -222,6 +321,8 @@ def handle_checkout_completed(event) -> None:
     if upsert_subscription(user, sub_obj, customer_id, tier=tier) is None:
         return
     logger.info('Provisioned %s subscription for user %s', tier, user.id)
+    from .promo import record_checkout_redemption  # local import: promo imports services
+    record_checkout_redemption(session)
     _send_welcome_email(user, tier)
 
     # Fire server-side Purchase CAPI event (best-effort; never break the webhook).
@@ -259,6 +360,8 @@ def handle_invoice_paid(event) -> None:
 def handle_payment_failed(event) -> None:
     invoice = event['data']['object']
     sub_id = invoice.get('subscription')
+    if not sub_id:
+        return
     sub = Subscription.objects.filter(stripe_subscription_id=sub_id).first()
     if not sub:
         return
@@ -281,9 +384,13 @@ def handle_subscription_updated(event) -> None:
 
 def _provision_from_subscription_event(event, label: str) -> None:
     sub_obj = event['data']['object']
+    sub_id = sub_obj.get('id')
+    if not sub_id:
+        logger.warning('%s: event payload missing subscription id', label)
+        return
     customer_id = sub_obj.get('customer')
     existing = Subscription.objects.filter(
-        stripe_subscription_id=sub_obj.get('id')
+        stripe_subscription_id=sub_id
     ).first()
     user = existing.user if existing else _resolve_user(sub_obj, customer_id)
     if user is None:
@@ -295,8 +402,12 @@ def _provision_from_subscription_event(event, label: str) -> None:
 
 def handle_subscription_deleted(event) -> None:
     sub_obj = event['data']['object']
+    sub_id = sub_obj.get('id')
+    if not sub_id:
+        logger.warning('customer.subscription.deleted: event payload missing subscription id')
+        return
     sub = Subscription.objects.filter(
-        stripe_subscription_id=sub_obj.get('id')
+        stripe_subscription_id=sub_id
     ).first()
     if not sub:
         return
@@ -323,7 +434,7 @@ def cancel_subscription_for_user(user) -> None:
     Raises on a genuine (non-idempotent) StripeError so the caller can abort deletion.
     """
     sub = Subscription.objects.filter(user=user).first()
-    if not sub or not sub.stripe_subscription_id:
+    if not sub or sub.source == Subscription.Source.PROMO or not sub.stripe_subscription_id:
         return
     if not is_configured():
         raise RuntimeError(

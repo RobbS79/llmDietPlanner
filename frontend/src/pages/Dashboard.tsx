@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Wallet, Trash2, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -7,12 +7,26 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { CardSkeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const toast = useToast();
+
+  // Pricing lands here with ?promo=granted after a 100 % code activated a tier.
+  useEffect(() => {
+    if (searchParams.get('promo') === 'granted') {
+      toast.success('Váš tarif je aktivní přes promo kód. Dobrou chuť!');
+      const next = new URLSearchParams(searchParams);
+      next.delete('promo');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: goals, isLoading } = useQuery({
     queryKey: ['goals'],
