@@ -288,7 +288,9 @@ Backend (`billing/tests.py`, run in CI):
   true; lifetime has null expiry; `me/` reports `source=promo`.
 - Redeem refusals: tier_not_allowed, already_redeemed, already_subscribed
   (Stripe and promo), exhausted at exactly `max_redemptions`.
-- Concurrency: two threads redeem the last slot, exactly one succeeds.
+- Max-uses boundary: the N+1-th redemption is refused with `exhausted` and
+  writes nothing. The row lock is Postgres-only (CI runs SQLite, where
+  `select_for_update` is a no-op), so it is code-reviewed, not thread-tested.
 - Timed grant: entitled before `grant_expires_at`, not after.
 - Quota window: promo row past `current_period_end` rolls forward and
   resets usage on read; Stripe row does not.
