@@ -1,10 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
+import axios from 'axios';
 import { startCheckout, type BillingTier } from '@/lib/billing';
 import { isAccessTokenValid } from '@/lib/auth';
 import { PublicHeader } from '@/components/layout/PublicHeader';
+import { PromoCodeBox } from '@/components/pricing/PromoCodeBox';
 import { trackCheckoutStarted } from '@/lib/analytics';
+import {
+  validatePromo, redeemPromo, getPendingPromo, setPendingPromo, clearPendingPromo,
+  PROMO_REASON_TEXT, TERMINAL_REASONS, type PromoValidation, type PromoReason,
+} from '@/lib/promo';
 
 const PLANS = [
   {
@@ -85,8 +91,51 @@ export const Pricing = () => {
   const [checkoutTier, setCheckoutTier] = useState<BillingTier | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
-  // CTA: free tier -> signup; paid tier -> Stripe Checkout if logged in,
-  // otherwise login first and bounce back here to buy.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [promoInput, setPromoInput] = useState(
+    () => searchParams.get('promo')?.toUpperCase() || getPendingPromo() || '',
+  );
+  const [promo, setPromo] = useState<PromoValidation | null>(null);
+  const [promoChecking, setPromoChecking] = useState(false);
+
+  const applyPromo = useCallback(async (raw: string) => {
+    const code = raw.trim().toUpperCase();
+    if (!code) return;
+    setPromoChecking(true);
+    try {
+      const v = await validatePromo(code);
+      setPromo(v);
+      if (v.valid) setPendingPromo(v.code);
+      else if (getPendingPromo() === code) clearPendingPromo();
+    } catch {
+      setPromo({ valid: false, reason: 'stripe_error' });
+    } finally {
+      setPromoChecking(false);
+    }
+  }, []);
+
+  // Auto-validate a code arriving via ?promo= or remembered from a previous visit.
+  useEffect(() => {
+    if (promoInput) applyPromo(promoInput);
+    if (searchParams.has('promo')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('promo');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const clearPromo = () => {
+    clearPendingPromo();
+    setPromo(null);
+    setPromoInput('');
+  };
+
+  const activePromo = promo?.valid ? promo : null;
+
+  // CTA: free tier -> signup; paid tier -> promo redeem (grant or discounted
+  // Checkout) or plain Stripe Checkout if logged in, otherwise login first
+  // and bounce back here to buy.
   const handleSelectPlan = async (tier?: BillingTier) => {
     if (!tier) {
       navigate('/login');
@@ -98,11 +147,33 @@ export const Pricing = () => {
     }
     setCheckoutError(null);
     setCheckoutTier(tier);
+    const promoForTier = activePromo && activePromo.prices[tier] ? activePromo : null;
     try {
+      if (promoForTier) {
+        const result = await redeemPromo(promoForTier.code, tier);
+        if (result.granted) {
+          clearPendingPromo();
+          navigate('/?promo=granted', { replace: true });
+          return;
+        }
+        trackCheckoutStarted();
+        window.location.href = result.url;
+        return;
+      }
       trackCheckoutStarted(); // fire InitiateCheckout right before Stripe redirect
       await startCheckout(tier); // redirects to Stripe on success
-    } catch {
-      setCheckoutError('Platbu se nepodařilo zahájit. Zkuste to prosím znovu.');
+    } catch (err) {
+      const reason: PromoReason | undefined = axios.isAxiosError(err)
+        ? err.response?.data?.reason : undefined;
+      if (reason && PROMO_REASON_TEXT[reason]) {
+        setCheckoutError(PROMO_REASON_TEXT[reason]);
+        if (TERMINAL_REASONS.includes(reason)) {
+          clearPendingPromo();
+          setPromo({ valid: false, reason });
+        }
+      } else {
+        setCheckoutError('Platbu se nepodařilo zahájit. Zkuste to prosím znovu.');
+      }
       setCheckoutTier(null);
     }
   };
@@ -175,15 +246,35 @@ export const Pricing = () => {
                 <p className="text-muted text-sm mb-6">{plan.description}</p>
 
                 <div className="mb-2">
-                  {plan.price === 0 ? (
-                    <p className="font-price text-5xl font-bold text-ink">
-                      0 <span className="text-muted text-lg font-normal">Kč</span>
-                    </p>
-                  ) : (
-                    <p className="font-price text-5xl font-bold text-ink">
-                      {plan.price} <span className="text-muted text-lg font-normal">Kč/měsíc</span>
-                    </p>
-                  )}
+                  {(() => {
+                    const tier = (plan as { tier?: BillingTier }).tier;
+                    const deal = tier && activePromo ? activePromo.prices[tier] : undefined;
+                    if (plan.price === 0) {
+                      return (
+                        <p className="font-price text-5xl font-bold text-ink">
+                          0 <span className="text-muted text-lg font-normal">Kč</span>
+                        </p>
+                      );
+                    }
+                    if (deal) {
+                      return (
+                        <div>
+                          <p className="font-price text-5xl font-bold text-ink">
+                            {deal.discounted} <span className="text-muted text-lg font-normal">Kč/měsíc</span>
+                          </p>
+                          <p className="text-sm text-muted">
+                            <s>{deal.original} Kč</s>
+                            {deal.discounted === 0 && <span className="ml-2 font-bold text-green">bez platební karty</span>}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="font-price text-5xl font-bold text-ink">
+                        {plan.price} <span className="text-muted text-lg font-normal">Kč/měsíc</span>
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -200,7 +291,10 @@ export const Pricing = () => {
                 >
                   {checkoutTier === (plan as { tier?: BillingTier }).tier
                     ? 'Přesměrování…'
-                    : plan.cta}{' '}
+                    : (() => {
+                        const t = (plan as { tier?: BillingTier }).tier;
+                        return t && activePromo?.prices[t]?.discounted === 0 ? 'Aktivovat zdarma' : plan.cta;
+                      })()}{' '}
                   <ArrowRight size={16} />
                 </button>
 
@@ -220,6 +314,15 @@ export const Pricing = () => {
             </div>
           ))}
         </div>
+
+        <PromoCodeBox
+          code={promoInput}
+          onCodeChange={setPromoInput}
+          validation={promo}
+          checking={promoChecking}
+          onApply={() => applyPromo(promoInput)}
+          onClear={clearPromo}
+        />
 
         <div className="text-center mb-16">
           <p className="text-muted text-sm">
