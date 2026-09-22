@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import type { BillingTier } from '@/lib/billing';
+import { TIER_LABELS, type BillingTier } from '@/lib/billing';
 
 export const PENDING_PROMO_KEY = 'pending_promo';
 
@@ -84,4 +84,17 @@ export function clearPendingPromo(): void {
   try {
     localStorage.removeItem(PENDING_PROMO_KEY);
   } catch { /* ignore */ }
+}
+
+/**
+ * Message under the promo box once a code validates. Entering the code only
+ * previews it — the user still has to click the tier CTA — so say so.
+ */
+export function validPromoMessage(v: PromoValidation & { valid: true }): string {
+  const dur = durationText(v.duration_kind, v.duration_months);
+  const head = `Kód ${v.code}: sleva ${v.percent_off} % ${dur}${dur.endsWith('.') ? '' : '.'}`;
+  const freeTiers = (Object.keys(v.prices) as BillingTier[]).filter((t) => v.prices[t]?.discounted === 0);
+  if (freeTiers.length === 0) return `${head} Sleva se uplatní při platbě.`;
+  const names = freeTiers.map((t) => TIER_LABELS[t]).join(' nebo ');
+  return `${head} Klikněte na „Aktivovat zdarma“ u tarifu ${names}.`;
 }
