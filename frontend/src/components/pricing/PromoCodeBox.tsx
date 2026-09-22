@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Loader2, Tag, X } from 'lucide-react';
-import { PROMO_REASON_TEXT, durationText, type PromoValidation } from '@/lib/promo';
+import { PROMO_REASON_TEXT, validPromoMessage, type PromoValidation } from '@/lib/promo';
 
 interface Props {
   code: string;
@@ -59,7 +59,7 @@ export function PromoCodeBox({ code, onCodeChange, validation, checking, onApply
       {validation && (
         <p className={`mt-3 text-center text-sm font-bold ${validation.valid ? 'text-green' : 'text-paprika-strong'}`}>
           {validation.valid
-            ? `Kód ${validation.code}: sleva ${validation.percent_off} % ${durationText(validation.duration_kind, validation.duration_months)}.`
+            ? validPromoMessage(validation)
             : PROMO_REASON_TEXT[validation.reason]}
         </p>
       )}

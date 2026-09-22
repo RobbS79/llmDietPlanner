@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Wallet, Trash2, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
+import { fetchBillingMe, quotaHeadline, type BillingMe } from '@/lib/billing';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -36,6 +37,9 @@ export const Dashboard = () => {
     queryKey: ['profile'],
     queryFn: () => api.get('/auth/profile/').then(res => res.data.data),
   });
+  // Subscribers (Stripe or promo) get their tier + monthly quota in the header
+  // instead of the free counter, which no longer applies to them.
+  const { data: billing } = useQuery<BillingMe>({ queryKey: ['billing-me'], queryFn: fetchBillingMe });
 
   const completedGoalIds = (goals || [])
     .filter((g: any) => g.status === 'completed')
@@ -119,7 +123,7 @@ export const Dashboard = () => {
               <div className="flex items-center gap-2 pt-2">
                 <Sparkles size={14} className="text-green" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted">
-                  {profile.free_generations_remaining} plánů zdarma zbývá
+                  {quotaHeadline(billing, profile.free_generations_remaining)}
                 </span>
               </div>
             )}

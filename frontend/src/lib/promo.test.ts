@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   validatePromo, redeemPromo, discountedPrice,
-  getPendingPromo, setPendingPromo, clearPendingPromo, PENDING_PROMO_KEY,
+  getPendingPromo, setPendingPromo, clearPendingPromo, PENDING_PROMO_KEY, validPromoMessage,
 } from './promo';
 import { api } from './api';
 
@@ -48,5 +48,21 @@ describe('API wrappers', () => {
     const out = await redeemPromo('abc', 'premium');
     expect(api.post).toHaveBeenCalledWith('/billing/promo/redeem/', { code: 'abc', tier: 'premium' });
     expect(out).toEqual({ granted: true, tier: 'premium' });
+  });
+});
+
+describe('validPromoMessage', () => {
+  const base = { valid: true as const, code: 'TEST100', percent_off: 100, duration_kind: 'lifetime' as const, duration_months: null, tiers: ['premium'] };
+  it('tells a 100 % user to click "Aktivovat zdarma" on the free tier', () => {
+    const msg = validPromoMessage({ ...base, prices: { premium: { original: 199, discounted: 0 } } });
+    expect(msg).toBe('Kód TEST100: sleva 100 % navždy. Klikněte na „Aktivovat zdarma“ u tarifu Premium.');
+  });
+  it('names every tier the 100 % code applies to', () => {
+    const msg = validPromoMessage({ ...base, tiers: [], prices: { standard: { original: 99, discounted: 0 }, premium: { original: 199, discounted: 0 } } });
+    expect(msg).toContain('u tarifu Standard nebo Premium.');
+  });
+  it('tells a partial-discount user the discount applies at checkout', () => {
+    const msg = validPromoMessage({ ...base, percent_off: 50, duration_kind: 'months', duration_months: 3, prices: { premium: { original: 199, discounted: 100 } } });
+    expect(msg).toBe('Kód TEST100: sleva 50 % na 3 měs. Sleva se uplatní při platbě.');
   });
 });

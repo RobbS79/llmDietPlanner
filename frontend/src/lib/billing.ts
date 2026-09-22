@@ -44,3 +44,18 @@ export async function fetchBillingMe(): Promise<BillingMe> {
   const { data } = await api.get('/billing/me/');
   return data;
 }
+
+export const TIER_LABELS: Record<BillingTier, string> = { standard: 'Standard', premium: 'Premium' };
+
+/**
+ * One-line quota status for the dashboard header. Subscribers (Stripe or
+ * promo) see their tier + monthly usage; everyone else the free counter.
+ */
+export function quotaHeadline(billing: BillingMe | undefined, freeRemaining: number): string {
+  const sub = billing?.subscription;
+  if (sub?.entitled) {
+    const total = sub.plans_used_this_period + sub.remaining_quota;
+    return `${TIER_LABELS[sub.tier]} · ${sub.plans_used_this_period} z ${total} jídelníčků tento měsíc`;
+  }
+  return `${freeRemaining} plánů zdarma zbývá`;
+}
