@@ -7,6 +7,10 @@ Architecture (see docs/stripe-billing-plan.md §2):
   is what the generation gate checks. Django never runs a billing clock; it only
   reacts to Stripe webhooks and flips this row.
 """
+import calendar
+from datetime import timedelta
+
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -15,6 +19,9 @@ from django.utils import timezone
 class Tier(models.TextChoices):
     STANDARD = 'standard', 'Standard'
     PREMIUM = 'premium', 'Premium'
+
+
+PROMO_QUOTA_WINDOW = timedelta(days=30)
 
 
 class SubscriptionPlan(models.Model):
@@ -68,6 +75,10 @@ class Subscription(models.Model):
         CANCELED = 'canceled', 'Canceled'
         EXPIRED = 'expired', 'Expired'
 
+    class Source(models.TextChoices):
+        STRIPE = 'stripe', 'Stripe'
+        PROMO = 'promo', 'Promo kód'
+
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name='subscription',
     )
@@ -75,19 +86,30 @@ class Subscription(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True,
     )
-    stripe_customer_id = models.CharField(max_length=255, db_index=True)
+    source = models.CharField(
+        max_length=10, choices=Source.choices, default=Source.STRIPE, db_index=True,
+        help_text="promo rows have no Stripe ids and expire via grant_expires_at.",
+    )
+    stripe_customer_id = models.CharField(max_length=255, db_index=True, blank=True)
     stripe_subscription_id = models.CharField(
-        max_length=255, unique=True, db_index=True,
-        help_text="Stripe Subscription ID (sub_…). Webhook idempotency anchor.",
+        max_length=255, unique=True, null=True, blank=True, db_index=True,
+        help_text="Stripe Subscription ID (sub_…). Webhook idempotency anchor. NULL for promo grants.",
     )
     current_period_end = models.DateTimeField(
-        null=True, blank=True, help_text="From Stripe; the entitlement expiry.",
+        null=True, blank=True,
+        help_text="Stripe rows: entitlement expiry from Stripe. Promo rows: rolling 30-day quota window.",
     )
     cancel_at_period_end = models.BooleanField(
         default=False, help_text="Set when the user cancels via the Customer Portal.",
     )
     plans_used_this_period = models.PositiveIntegerField(
         default=0, help_text="Reset to 0 on each renewal (invoice.paid).",
+    )
+    grant_expires_at = models.DateTimeField(
+        null=True, blank=True, help_text="Promo rows only. NULL = lifetime.",
+    )
+    promo_code = models.ForeignKey(
+        'PromoCode', null=True, blank=True, on_delete=models.SET_NULL, related_name='subscriptions',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -104,24 +126,42 @@ class Subscription(models.Model):
         return SubscriptionPlan.objects.filter(tier=self.tier).first()
 
     def is_entitled(self) -> bool:
-        """Active status AND not past the paid period."""
+        """Active status AND not past the paid period (Stripe) / grant expiry (promo)."""
         if self.status != self.Status.ACTIVE:
             return False
+        if self.source == self.Source.PROMO:
+            return self.grant_expires_at is None or self.grant_expires_at > timezone.now()
         if self.current_period_end is None:
             return False
         return self.current_period_end > timezone.now()
+
+    def _roll_quota_window_if_due(self) -> None:
+        """Promo rows have no invoice.paid to reset usage; roll a 30-day window lazily."""
+        if self.source != self.Source.PROMO:
+            return
+        now = timezone.now()
+        if self.current_period_end is None:
+            self.current_period_end = now + PROMO_QUOTA_WINDOW
+        if self.current_period_end > now:
+            return
+        while self.current_period_end <= now:
+            self.current_period_end += PROMO_QUOTA_WINDOW
+        self.plans_used_this_period = 0
+        self.save(update_fields=['current_period_end', 'plans_used_this_period', 'updated_at'])
 
     def within_monthly_quota(self) -> bool:
         """True if the user still has plan generations left this period."""
         plan = self.plan
         if plan is None:
             return False
+        self._roll_quota_window_if_due()
         return self.plans_used_this_period < plan.monthly_plan_quota
 
     def remaining_quota(self) -> int:
         plan = self.plan
         if plan is None:
             return 0
+        self._roll_quota_window_if_due()
         return max(0, plan.monthly_plan_quota - self.plans_used_this_period)
 
 
@@ -161,3 +201,115 @@ class ProcessedWebhookEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_type} ({self.stripe_event_id})"
+
+
+def _add_months(dt, months: int):
+    """Calendar month addition, clamping the day (Jan 31 + 1 → Feb 28)."""
+    month_index = dt.month - 1 + months
+    year = dt.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    return dt.replace(year=year, month=month, day=day)
+
+
+class PromoCode(models.Model):
+    """
+    Admin-defined discount code. 100 % codes grant a Subscription row directly
+    (no Stripe, no card); 1–99 % codes are mirrored to a Stripe Coupon that is
+    attached to Checkout. Expiry and max uses are enforced here, never in Stripe.
+    """
+    class Duration(models.TextChoices):
+        LIFETIME = 'lifetime', 'Navždy'
+        MONTHS = 'months', 'N měsíců'
+        FIRST_INVOICE = 'first_invoice', 'Jen první platba / 1 měsíc'
+
+    code = models.CharField(max_length=40, unique=True, help_text="Ukládá se velkými písmeny.")
+    percent_off = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text="1–100. 100 = zdarma bez karty.",
+    )
+    duration_kind = models.CharField(max_length=20, choices=Duration.choices, default=Duration.LIFETIME)
+    duration_months = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Jen pro 'N měsíců'.",
+    )
+    tiers = models.JSONField(
+        default=list, blank=True,
+        help_text='Seznam povolených tarifů, např. ["premium"]. Prázdné = libovolný.',
+    )
+    max_redemptions = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Prázdné = neomezeně.",
+    )
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Prázdné = nikdy.")
+    is_active = models.BooleanField(default=True)
+    note = models.TextField(blank=True, help_text="Interní poznámka (komu, kampaň).")
+    stripe_coupon_id = models.CharField(
+        max_length=255, blank=True,
+        help_text="Vyplní se automaticky pro kódy pod 100 %.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Promo kód'
+        verbose_name_plural = 'Promo kódy'
+
+    def __str__(self):
+        return f"{self.code} ({self.percent_off} %)"
+
+    @staticmethod
+    def normalise(raw: str) -> str:
+        return (raw or '').strip().upper()
+
+    def save(self, *args, **kwargs):
+        self.code = self.normalise(self.code)
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.duration_kind == self.Duration.MONTHS and not self.duration_months:
+            raise ValidationError({'duration_months': 'Zadejte počet měsíců.'})
+        bad = [t for t in (self.tiers or []) if t not in Tier.values]
+        if bad:
+            raise ValidationError({'tiers': f'Neznámé tarify: {bad}'})
+
+    def redemption_count(self) -> int:
+        return self.redemptions.count()
+
+    def allows_tier(self, tier: str) -> bool:
+        return not self.tiers or tier in self.tiers
+
+    def check_redeemable(self, now=None) -> str | None:
+        """None if redeemable, else 'inactive' | 'expired' | 'exhausted'."""
+        now = now or timezone.now()
+        if not self.is_active:
+            return 'inactive'
+        if self.expires_at is not None and self.expires_at <= now:
+            return 'expired'
+        if self.max_redemptions is not None and self.redemption_count() >= self.max_redemptions:
+            return 'exhausted'
+        return None
+
+    def grant_expiry(self, now):
+        """When a 100 % grant made now stops entitling; None = lifetime."""
+        if self.duration_kind == self.Duration.LIFETIME:
+            return None
+        if self.duration_kind == self.Duration.MONTHS:
+            return _add_months(now, self.duration_months or 1)
+        return _add_months(now, 1)
+
+
+class PromoRedemption(models.Model):
+    """One row per (code, user). This table IS the max_redemptions counter."""
+    promo_code = models.ForeignKey(PromoCode, on_delete=models.CASCADE, related_name='redemptions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='promo_redemptions')
+    tier = models.CharField(max_length=20, choices=Tier.choices)
+    redeemed_at = models.DateTimeField(auto_now_add=True)
+    stripe_checkout_session_id = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        unique_together = (('promo_code', 'user'),)
+        verbose_name = 'Uplatnění promo kódu'
+        verbose_name_plural = 'Uplatnění promo kódů'
+
+    def __str__(self):
+        return f"{self.promo_code.code} → {self.user.username}"
