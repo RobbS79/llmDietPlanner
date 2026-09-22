@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, AlertCircle, ArrowRight, Receipt } from 'lucide-react';
 import { fetchBillingMe, openBillingPortal, type BillingMe } from '@/lib/billing';
 import { isAccessTokenValid } from '@/lib/auth';
+import { clearPendingPromo } from '@/lib/promo';
 
 const TIER_LABEL: Record<string, string> = {
   standard: 'Standard',
@@ -25,6 +26,9 @@ export const BillingSuccess = () => {
   const sessionId = params.get('session_id');
   const [timedOut, setTimedOut] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+
+  // A paid checkout consumed the code (webhook records the redemption).
+  useEffect(() => { clearPendingPromo(); }, []);
 
   // Bounce to login if the session expired during checkout.
   useEffect(() => {
