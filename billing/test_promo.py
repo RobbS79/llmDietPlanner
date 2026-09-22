@@ -15,6 +15,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from . import services
+from . import promo as promo_svc
 from .models import (
     PromoCode, PromoRedemption, Subscription, SubscriptionPlan, Tier,
 )
@@ -360,3 +361,180 @@ class CheckoutViewTests(TestCase):
         resp = self.client.post('/api/billing/checkout/', {'tier': 'standard'})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data, {'url': 'https://stripe/ok'})
+
+
+class ValidatePayloadTests(TestCase):
+    def setUp(self):
+        _plans()
+
+    def test_unknown_code(self):
+        self.assertEqual(promo_svc.validate_payload('nope'), {'valid': False, 'reason': 'not_found'})
+
+    def test_blank_code(self):
+        self.assertEqual(promo_svc.validate_payload('  '), {'valid': False, 'reason': 'not_found'})
+
+    def test_expired_reason(self):
+        _code(expires_at=timezone.now() - timedelta(days=1))
+        self.assertEqual(promo_svc.validate_payload('leto2026')['reason'], 'expired')
+
+    def test_valid_100_any_tier(self):
+        _code()
+        out = promo_svc.validate_payload('leto2026')
+        self.assertTrue(out['valid'])
+        self.assertEqual(out['code'], 'LETO2026')
+        self.assertEqual(out['percent_off'], 100)
+        self.assertEqual(out['duration_kind'], 'lifetime')
+        self.assertIsNone(out['duration_months'])
+        self.assertEqual(out['tiers'], [])
+        self.assertEqual(out['prices'], {
+            'standard': {'original': 99, 'discounted': 0},
+            'premium': {'original': 199, 'discounted': 0},
+        })
+
+    def test_valid_half_premium_only(self):
+        _code(code='HALF', percent_off=50, tiers=['premium'])
+        out = promo_svc.validate_payload('HALF')
+        self.assertEqual(out['prices'], {'premium': {'original': 199, 'discounted': 100}})
+
+    def test_rounding(self):
+        _code(code='T', percent_off=33, tiers=['standard'])
+        self.assertEqual(promo_svc.validate_payload('T')['prices']['standard']['discounted'], 66)
+
+
+@override_settings(STRIPE_PRICE_STANDARD='price_std', STRIPE_PRICE_PREMIUM='price_prem',
+                   FRONTEND_URL='https://app.test')
+class RedeemTests(TestCase):
+    def setUp(self):
+        _plans()
+        self.user = User.objects.create_user('ann', 'a@x.com', 'pw')
+
+    def test_100_grants_lifetime_premium(self):
+        p = _code()
+        out = promo_svc.redeem(self.user, 'leto2026', 'premium')
+        self.assertEqual(out, {'granted': True, 'tier': 'premium'})
+        sub = Subscription.objects.get(user=self.user)
+        self.assertEqual(sub.source, Subscription.Source.PROMO)
+        self.assertEqual(sub.tier, 'premium')
+        self.assertIsNone(sub.stripe_subscription_id)
+        self.assertEqual(sub.stripe_customer_id, '')
+        self.assertIsNone(sub.grant_expires_at)
+        self.assertEqual(sub.promo_code, p)
+        self.assertEqual(sub.plans_used_this_period, 0)
+        self.assertTrue(sub.is_entitled())
+        self.assertEqual(PromoRedemption.objects.filter(promo_code=p, user=self.user, tier='premium').count(), 1)
+
+    def test_100_timed_sets_grant_expiry(self):
+        _code(duration_kind=PromoCode.Duration.MONTHS, duration_months=2)
+        promo_svc.redeem(self.user, 'LETO2026', 'standard')
+        sub = Subscription.objects.get(user=self.user)
+        self.assertIsNotNone(sub.grant_expires_at)
+        self.assertGreater(sub.grant_expires_at, timezone.now() + timedelta(days=55))
+
+    def test_not_found(self):
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'X', 'premium')
+        self.assertEqual(cm.exception.reason, 'not_found')
+
+    def test_tier_not_allowed(self):
+        _code(tiers=['premium'])
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'standard')
+        self.assertEqual(cm.exception.reason, 'tier_not_allowed')
+
+    def test_bad_tier_value(self):
+        _code()
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'gold')
+        self.assertEqual(cm.exception.reason, 'tier_not_allowed')
+
+    def test_already_redeemed(self):
+        _code()
+        promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        Subscription.objects.filter(user=self.user).update(status=Subscription.Status.EXPIRED)
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'already_redeemed')
+
+    def test_already_subscribed_stripe(self):
+        _code()
+        Subscription.objects.create(
+            user=self.user, tier='standard', status=Subscription.Status.ACTIVE,
+            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+            current_period_end=timezone.now() + timedelta(days=10),
+        )
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'already_subscribed')
+
+    def test_already_subscribed_promo(self):
+        _code()
+        _code(code='OTHER')
+        promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'OTHER', 'premium')
+        self.assertEqual(cm.exception.reason, 'already_subscribed')
+
+    def test_expired_promo_row_is_replaced(self):
+        _code()
+        _code(code='OTHER')
+        promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        Subscription.objects.filter(user=self.user).update(
+            grant_expires_at=timezone.now() - timedelta(days=1))
+        out = promo_svc.redeem(self.user, 'OTHER', 'standard')
+        self.assertTrue(out['granted'])
+        sub = Subscription.objects.get(user=self.user)
+        self.assertEqual(sub.tier, 'standard')
+        self.assertTrue(sub.is_entitled())
+
+    def test_exhausted_at_max(self):
+        _code(max_redemptions=1)
+        other = User.objects.create_user('bob', 'b@x.com', 'pw')
+        promo_svc.redeem(other, 'LETO2026', 'premium')
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'exhausted')
+        self.assertFalse(Subscription.objects.filter(user=self.user).exists())
+
+    def test_inactive_reason(self):
+        _code(is_active=False)
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'inactive')
+
+    @patch('billing.services.is_configured', return_value=True)
+    @patch('billing.services.create_checkout_session', return_value='https://stripe/z')
+    def test_percent_returns_checkout_url_without_redemption(self, create, _cfg):
+        p = _code(percent_off=50, stripe_coupon_id='cpn_1')
+        out = promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(out, {'granted': False, 'url': 'https://stripe/z'})
+        create.assert_called_once_with(self.user, 'premium', promo=p)
+        self.assertFalse(PromoRedemption.objects.exists())
+        self.assertFalse(Subscription.objects.filter(user=self.user).exists())
+
+    @patch('billing.services.is_configured', return_value=False)
+    def test_percent_unconfigured_stripe_is_stripe_error(self, _cfg):
+        _code(percent_off=50, stripe_coupon_id='cpn_1')
+        with self.assertRaises(promo_svc.RedeemError) as cm:
+            promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        self.assertEqual(cm.exception.reason, 'stripe_error')
+
+
+class RecordCheckoutRedemptionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('ann', 'a@x.com', 'pw')
+
+    def test_records_once(self):
+        p = _code(percent_off=50)
+        session = {'id': 'cs_9', 'metadata': {'user_id': str(self.user.id), 'tier': 'standard',
+                                              'promo_code_id': str(p.id)}}
+        promo_svc.record_checkout_redemption(session)
+        promo_svc.record_checkout_redemption(session)
+        reds = PromoRedemption.objects.filter(promo_code=p, user=self.user)
+        self.assertEqual(reds.count(), 1)
+        self.assertEqual(reds[0].tier, 'standard')
+        self.assertEqual(reds[0].stripe_checkout_session_id, 'cs_9')
+
+    def test_ignores_sessions_without_promo(self):
+        promo_svc.record_checkout_redemption({'id': 'cs_1', 'metadata': {'user_id': str(self.user.id)}})
+        promo_svc.record_checkout_redemption({'id': 'cs_2', 'metadata': {'promo_code_id': '999999', 'user_id': str(self.user.id)}})
+        self.assertFalse(PromoRedemption.objects.exists())
