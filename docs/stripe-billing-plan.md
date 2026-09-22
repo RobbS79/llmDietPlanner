@@ -162,3 +162,11 @@ Frontend `ProtectedRoute`/API layer maps 402 → redirect to `/pricing`.
 - **Proration / tier switching** (Standard ↔ Premium) — Stripe handles proration; decide UX (immediate vs period-end). Defer past P0.
 - **Free→paid migration** of existing users — they keep `free_generations_remaining`; no action needed until they subscribe.
 - **`shopifyin/`** — leave mounted-or-not as-is; it is orthogonal now. Do not invest further in it for billing.
+
+## Promo codes (2026-09-22)
+
+Codes are Django-owned (`billing.PromoCode`). 100 % codes grant a
+`Subscription(source='promo')` row directly — no Stripe customer, no card.
+1–99 % codes mirror to a Stripe Coupon attached to Checkout. Design:
+`docs/superpowers/specs/2026-09-22-promo-codes-design.md`.
+Create codes in admin → Billing → Promo kódy; share as `/pricing?promo=KOD`.
