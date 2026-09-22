@@ -619,3 +619,65 @@ class RecordCheckoutRedemptionTests(TestCase):
         promo_svc.record_checkout_redemption({'id': 'cs_1', 'metadata': {'user_id': str(self.user.id)}})
         promo_svc.record_checkout_redemption({'id': 'cs_2', 'metadata': {'promo_code_id': '999999', 'user_id': str(self.user.id)}})
         self.assertFalse(PromoRedemption.objects.exists())
+
+
+class PrecedenceAndWebhookTests(TestCase):
+    def setUp(self):
+        _plans()
+        self.user = User.objects.create_user('ann', 'a@x.com', 'pw')
+
+    def _stripe_sub_obj(self, sub_id='sub_1'):
+        return {
+            'id': sub_id, 'status': 'active', 'customer': 'cus_1',
+            'current_period_end': int((timezone.now() + timedelta(days=30)).timestamp()),
+            'cancel_at_period_end': False,
+            'items': {'data': [{'price': {'id': 'price_std'}}]},
+            'metadata': {'user_id': str(self.user.id), 'tier': 'standard'},
+        }
+
+    def test_paid_subscription_overwrites_promo_row(self):
+        p = _code()
+        promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        services.upsert_subscription(self.user, self._stripe_sub_obj(), 'cus_1', tier='standard')
+        sub = Subscription.objects.get(user=self.user)
+        self.assertEqual(sub.source, Subscription.Source.STRIPE)
+        self.assertIsNone(sub.grant_expires_at)
+        self.assertEqual(sub.stripe_subscription_id, 'sub_1')
+        self.assertEqual(sub.tier, 'standard')
+        self.assertEqual(sub.promo_code, p)  # audit link kept
+
+    @patch('billing.services.stripe.Subscription.retrieve')
+    def test_checkout_completed_records_promo_redemption_once(self, retrieve):
+        p = _code(percent_off=50, stripe_coupon_id='cpn_1')
+        retrieve.return_value = self._stripe_sub_obj()
+        event = {'data': {'object': {
+            'id': 'cs_9', 'mode': 'subscription', 'customer': 'cus_1', 'subscription': 'sub_1',
+            'metadata': {'user_id': str(self.user.id), 'tier': 'standard', 'promo_code_id': str(p.id)},
+        }}}
+        with patch('billing.services.track_paid'):
+            services.handle_checkout_completed(event)
+            services.handle_checkout_completed(event)
+        reds = PromoRedemption.objects.filter(promo_code=p, user=self.user)
+        self.assertEqual(reds.count(), 1)
+        self.assertEqual(reds[0].stripe_checkout_session_id, 'cs_9')
+        self.assertEqual(reds[0].tier, 'standard')
+        self.assertEqual(Subscription.objects.get(user=self.user).source, Subscription.Source.STRIPE)
+
+    @patch('billing.services.stripe.Subscription.retrieve')
+    def test_checkout_completed_without_promo_records_nothing(self, retrieve):
+        retrieve.return_value = self._stripe_sub_obj()
+        event = {'data': {'object': {
+            'id': 'cs_1', 'mode': 'subscription', 'customer': 'cus_1', 'subscription': 'sub_1',
+            'metadata': {'user_id': str(self.user.id), 'tier': 'standard'},
+        }}}
+        with patch('billing.services.track_paid'):
+            services.handle_checkout_completed(event)
+        self.assertFalse(PromoRedemption.objects.exists())
+
+    @patch('billing.services.is_configured', return_value=False)
+    def test_cancel_skips_stripe_for_promo_rows(self, _cfg):
+        _code()
+        promo_svc.redeem(self.user, 'LETO2026', 'premium')
+        with patch('billing.services.stripe.Subscription.cancel') as cancel:
+            services.cancel_subscription_for_user(self.user)  # must not raise
+        cancel.assert_not_called()

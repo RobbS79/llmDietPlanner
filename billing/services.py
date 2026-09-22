@@ -286,6 +286,8 @@ def upsert_subscription(user: User, sub_obj: dict, customer_id: str, *,
         defaults={
             'tier': tier,
             'status': _STATUS_MAP.get(sub_obj.get('status'), Subscription.Status.ACTIVE),
+            'source': Subscription.Source.STRIPE,
+            'grant_expires_at': None,
             'stripe_customer_id': customer_id,
             'stripe_subscription_id': sub_obj.get('id'),
             'current_period_end': _period_end(sub_obj),
@@ -319,6 +321,8 @@ def handle_checkout_completed(event) -> None:
     if upsert_subscription(user, sub_obj, customer_id, tier=tier) is None:
         return
     logger.info('Provisioned %s subscription for user %s', tier, user.id)
+    from .promo import record_checkout_redemption  # local import: promo imports services
+    record_checkout_redemption(session)
     _send_welcome_email(user, tier)
 
     # Fire server-side Purchase CAPI event (best-effort; never break the webhook).
@@ -430,7 +434,7 @@ def cancel_subscription_for_user(user) -> None:
     Raises on a genuine (non-idempotent) StripeError so the caller can abort deletion.
     """
     sub = Subscription.objects.filter(user=user).first()
-    if not sub or not sub.stripe_subscription_id:
+    if not sub or sub.source == Subscription.Source.PROMO or not sub.stripe_subscription_id:
         return
     if not is_configured():
         raise RuntimeError(
