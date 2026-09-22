@@ -138,6 +138,29 @@ class PublishCommandTests(TestCase):
         self.assertIn('expired', post.error)
         seams['publishers']['facebook'].assert_not_called()
 
+    def test_force_publishes_deals_past_the_expiry_gate_but_still_needs_the_tick(self):
+        expired = {'kind': 'deals', 'link': 'https://e/?utm_source={channel}',
+                   'deals': [{'ingredient': 'a', 'shop': 'Lidl', 'valid_until': '2026-09-01'},
+                             {'ingredient': 'b', 'shop': 'Lidl', 'valid_until': '2026-09-02'},
+                             {'ingredient': 'c', 'shop': 'Lidl', 'valid_until': '2026-09-20'}]}
+        _post(facts=expired)
+        seams = _seams(decision=Decision('pending'), today=date(2026, 9, 7))
+        call_command('publish_social_posts', force=True, **seams)
+        self.assertEqual(SocialPost.objects.get().status, 'draft')
+        seams['publishers']['facebook'].assert_not_called()
+
+        seams = _seams(today=date(2026, 9, 7))
+        call_command('publish_social_posts', force=True, **seams)
+        post = SocialPost.objects.get()
+        self.assertEqual(post.status, 'published')
+        self.assertEqual(post.facebook_post_id, '111_999')
+
+    def test_force_also_skips_the_stale_gate(self):
+        _post(scheduled='2026-08-24')
+        seams = _seams(today=date(2026, 9, 7))
+        call_command('publish_social_posts', force=True, **seams)
+        self.assertEqual(SocialPost.objects.get().status, 'published')
+
     def test_date_option_overrides_today(self):
         _post(scheduled='2026-09-09')
         seams = _seams(today=date(2026, 9, 7))
