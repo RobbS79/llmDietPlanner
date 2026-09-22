@@ -6,6 +6,8 @@ Billing API views — /api/billing/.
   POST portal/    user      create Customer Portal session
   POST webhook/   stripe    lifecycle events (signature-verified, idempotent)
   GET  me/        user      current entitlement + remaining quota
+  GET  promo/validate/  public   describe a promo code (?code=) — always 200
+  POST promo/redeem/    user     grant (100 %) or Checkout URL (1–99 %)
 """
 import logging
 
@@ -21,6 +23,7 @@ from .models import SubscriptionPlan, Subscription, ProcessedWebhookEvent, Tier
 from .serializers import SubscriptionPlanSerializer, SubscriptionSerializer
 from .stripe_client import stripe, is_configured
 from . import services
+from . import promo as promo_svc
 
 logger = logging.getLogger(__name__)
 
@@ -177,3 +180,33 @@ class WebhookView(APIView):
             logger.exception('Webhook handler failed for %s', event_type)
             return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(status=status.HTTP_200_OK)
+
+
+class PromoValidateView(APIView):
+    """Public — describe a code for the pricing page. Never leaks via status code."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        return Response(promo_svc.validate_payload(request.query_params.get('code', '')))
+
+
+class PromoRedeemView(APIView):
+    """Redeem a code for the current user on the chosen tier.
+
+    The domain layer already folds Stripe failures (missing price, API error)
+    into RedeemError('stripe_error'), so one except branch covers every refusal.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        code = request.data.get('code') or ''
+        tier = (request.data.get('tier') or '').lower()
+        try:
+            result = promo_svc.redeem(request.user, code, tier)
+        except promo_svc.RedeemError as exc:
+            return Response(
+                {'status': 'error', 'reason': exc.reason, 'error': exc.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(result)

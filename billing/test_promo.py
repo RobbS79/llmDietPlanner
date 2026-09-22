@@ -681,3 +681,67 @@ class PrecedenceAndWebhookTests(TestCase):
         with patch('billing.services.stripe.Subscription.cancel') as cancel:
             services.cancel_subscription_for_user(self.user)  # must not raise
         cancel.assert_not_called()
+
+
+@override_settings(STRIPE_PRICE_STANDARD='price_std', STRIPE_PRICE_PREMIUM='price_prem',
+                   FRONTEND_URL='https://app.test', ALLOWED_HOSTS=['testserver'])
+class PromoApiTests(TestCase):
+    def setUp(self):
+        _plans()
+        self.user = User.objects.create_user('ann', 'a@x.com', 'pw')
+        self.client = APIClient()
+
+    def test_validate_is_public_and_always_200(self):
+        r = self.client.get('/api/billing/promo/validate/', {'code': 'nope'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {'valid': False, 'reason': 'not_found'})
+
+    def test_validate_valid(self):
+        _code()
+        r = self.client.get('/api/billing/promo/validate/', {'code': 'leto2026'})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()['valid'])
+        self.assertEqual(r.json()['prices']['premium']['discounted'], 0)
+
+    def test_redeem_requires_auth(self):
+        r = self.client.post('/api/billing/promo/redeem/', {'code': 'X', 'tier': 'premium'})
+        self.assertEqual(r.status_code, 401)
+
+    def test_redeem_grant(self):
+        _code()
+        self.client.force_authenticate(self.user)
+        r = self.client.post('/api/billing/promo/redeem/', {'code': 'leto2026', 'tier': 'premium'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {'granted': True, 'tier': 'premium'})
+        me = self.client.get('/api/billing/me/').json()
+        self.assertEqual(me['subscription']['source'], 'promo')
+        self.assertIsNone(me['subscription']['grant_expires_at'])
+        self.assertTrue(me['subscription']['entitled'])
+
+    def test_redeem_error_shape(self):
+        _code(tiers=['premium'])
+        self.client.force_authenticate(self.user)
+        r = self.client.post('/api/billing/promo/redeem/', {'code': 'LETO2026', 'tier': 'standard'})
+        self.assertEqual(r.status_code, 400)
+        body = r.json()
+        self.assertEqual(body['status'], 'error')
+        self.assertEqual(body['reason'], 'tier_not_allowed')
+        self.assertIn('tarif', body['error'])
+
+    @patch('billing.promo.services.is_configured', return_value=True)
+    @patch('billing.promo.services.create_checkout_session', return_value='https://stripe/q')
+    def test_redeem_percent_returns_url(self, _create, _cfg):
+        _code(percent_off=30, stripe_coupon_id='cpn_1')
+        self.client.force_authenticate(self.user)
+        r = self.client.post('/api/billing/promo/redeem/', {'code': 'LETO2026', 'tier': 'standard'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {'granted': False, 'url': 'https://stripe/q'})
+
+    @patch('billing.promo.services.is_configured', return_value=True)
+    @patch('billing.promo.services.create_checkout_session', side_effect=stripe_lib.error.StripeError('x'))
+    def test_redeem_percent_stripe_failure_is_400(self, _create, _cfg):
+        _code(percent_off=30, stripe_coupon_id='cpn_1')
+        self.client.force_authenticate(self.user)
+        r = self.client.post('/api/billing/promo/redeem/', {'code': 'LETO2026', 'tier': 'standard'})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['reason'], 'stripe_error')
