@@ -3,14 +3,14 @@ workspace and the real Facebook Page:
 
     python manage.py social_e2e [--timeout 900] [--poll 10]
 
-Drafts a genuine recipe post, sends it to Slack, waits for a human ✅, then
-publishes it through publish_social_posts and reads the post back from the
-Graph API. THE POST IS REAL AND STAYS ON THE PAGE — delete it there by hand if
+Drafts a genuine recipe post, sends it to Slack as a card, waits for the
+owner to click Schválit, then publishes it through publish_social_posts and
+reads the post back from the Graph API. THE POST IS REAL AND STAYS ON THE PAGE — delete it there by hand if
 it is unwanted. The row stays `published` too, so the weekly job will not
 re-post the same recipe inside RECIPE_REPOST_DAYS. Pinterest is left out.
 
 Exit non-zero when anything short of a verified post happens. A run that gets
-no ✅ in time rejects its own draft, so the scheduled job never posts it later.
+no click in time rejects its own draft, so the scheduled job never posts it later.
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ from social.slack import SlackDrafts, SlackNotConfigured
 from social.weeks import PRAGUE, prague_today
 
 KIND = 'recipe'
-E2E_NOTE = ('🧪 *E2E test run* — ✅ publishes this to the real Facebook Page *right now* '
-            '(not on a scheduled day); ❌ cancels the test.')
+E2E_NOTE = ('🧪 *E2E test run* — Schválit publishes this to the real Facebook Page *right now* '
+            '(not on a scheduled day); Zamítnout cancels the test.')
 
 
 class Command(BaseCommand):
@@ -41,7 +41,7 @@ class Command(BaseCommand):
                        'read_post', 'today', 'sleep')
 
     def add_arguments(self, parser):
-        parser.add_argument('--timeout', type=int, default=900, help='seconds to wait for ✅ (default 900)')
+        parser.add_argument('--timeout', type=int, default=900, help='seconds to wait for the click (default 900)')
         parser.add_argument('--poll', type=int, default=10, help='seconds between Slack checks (default 10)')
 
     def handle(self, *args, **options):
@@ -57,16 +57,18 @@ class Command(BaseCommand):
             raise CommandError(str(exc))
 
         post = self._draft(build, fetch, generate, today)
-        slack.post_draft(post)
+        slack.post_draft(post, today)
         slack.reply(post, E2E_NOTE)
-        self.stdout.write(f'draft {post.iso_week} (id {post.pk}) is in Slack — react ✅ on it; '
+        self.stdout.write(f'draft {post.iso_week} (id {post.pk}) is in Slack — click Schválit on it; '
                           f'waiting up to {options["timeout"]}s')
 
-        if not self._wait_for_decision(post, slack, sleep, options['timeout'], options['poll']):
-            post.status, post.error = SocialPost.Status.REJECTED, 'e2e: no ✅ before the timeout'
+        if not self._wait_for_decision(post, sleep, options['timeout'], options['poll']):
+            post.status, post.error = SocialPost.Status.REJECTED, 'e2e: no click before the timeout'
             post.save(update_fields=['status', 'error'])
-            slack.reply(post, f'🚫 E2E test gave up — no ✅ within {options["timeout"]}s. Nothing was published.')
-            raise CommandError(f'no ✅ within {options["timeout"]}s — draft rejected, nothing published')
+            slack.update_card(post, today)
+            raise CommandError(f'no Schválit within {options["timeout"]}s — draft rejected, nothing published')
+        if post.status == SocialPost.Status.REJECTED:
+            raise CommandError('rejected in Slack — nothing published')
 
         # The real publish path, narrowed to this one row.
         call_command('publish_social_posts', only=post.pk, slack=slack, today=today,
@@ -107,11 +109,13 @@ class Command(BaseCommand):
             facts=facts, caption=written['caption'], image=render_card(KIND, facts, photo=photo))
 
     @staticmethod
-    def _wait_for_decision(post, slack, sleep, timeout, poll) -> bool:
-        """True once Slack shows ✅ or ❌; False when the time runs out."""
+    def _wait_for_decision(post, sleep, timeout, poll) -> bool:
+        """True once a button click has changed the row; False when the time
+        runs out. The click lands via social.interact, so the row is polled."""
         for attempt in range(max(timeout // max(poll, 1), 1)):
             if attempt:
                 sleep(poll)
-            if slack.read_decision(post).status != 'pending':
+            post.refresh_from_db(fields=['status', 'approved_by'])
+            if post.status != SocialPost.Status.DRAFT:
                 return True
         return False
