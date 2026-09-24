@@ -121,6 +121,20 @@ class DealsFactsTests(TestCase):
         self.assertEqual([d['ingredient'] for d in facts['deals']],
                          ['jablko', 'máslo', 'pórek'])
 
+    def test_offers_ending_before_publish_day_are_dropped(self):
+        PriceRecord.objects.all().delete()
+        _seed_deal('leek', 'pórek', days=9)
+        _seed_deal('apple', 'jablko', days=2)
+        _seed_deal('butter', 'máslo', days=5)
+        _seed_deal('egg', 'vejce', days=6)
+        publish_day = timezone.now().date() + timedelta(days=3)
+        facts = build_facts('deals', '2026-W37', publish_day=publish_day)
+        self.assertEqual([d['ingredient'] for d in facts['deals']], ['máslo', 'vejce', 'pórek'])
+
+    def test_publish_day_filter_can_leave_too_few_offers(self):
+        with self.assertRaises(NoFacts):
+            build_facts('deals', '2026-W37', publish_day=timezone.now().date() + timedelta(days=30))
+
     def test_at_most_eight_deals_are_published(self):
         for i in range(7):
             _seed_deal(f'extra{i}', f'surovina {i}', days=3 + i)
