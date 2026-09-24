@@ -33,7 +33,7 @@ def _build_facts(kind, week):
 def _slack(decisions):
     slack = MagicMock()
 
-    def post_draft(post):
+    def post_draft(post, today=None):
         post.slack_channel, post.slack_ts = 'C1', '1.0'
         post.save(update_fields=['slack_channel', 'slack_ts'])
         return '1.0'
