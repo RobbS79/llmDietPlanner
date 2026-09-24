@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/auth/", include("login_app.urls")),
     path("api/shopify/", include("shopifyin.urls")),
     path("api/billing/", include("billing.urls")),
+    path("api/social/", include("social.urls")),
     path("api/analytics/", include("analytics.urls")),
     path("api/", include("diet_planner.urls")),
 

@@ -4,11 +4,14 @@ site's Market Paper theme (frontend/tailwind.config.js); a test fails if
 the hex values drift."""
 from __future__ import annotations
 
+import hmac
 import io
 import logging
+from hashlib import sha256
 from pathlib import Path
 from typing import Optional
 
+from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 logger = logging.getLogger(__name__)
@@ -286,3 +289,17 @@ def render_card(kind: str, facts: dict, photo: Optional[bytes] = None) -> bytes:
     if kind == 'showcase':
         return _showcase_card(facts)
     raise ValueError(f'unknown card kind {kind!r}')
+
+
+# ---------------------------------------------------------------- Slack-facing URL
+
+def card_signature(post_id: int) -> str:
+    """Unguessable path segment: Slack can fetch a card, nobody can enumerate them."""
+    return hmac.new(settings.SECRET_KEY.encode(), f'social-card:{post_id}'.encode(),
+                    sha256).hexdigest()[:32]
+
+
+def card_url(post) -> str:
+    """Public URL of the card PNG (served by social.views.card_png)."""
+    return (f'{settings.SOCIAL_SITE_URL.rstrip("/")}/api/social/card/'
+            f'{post.pk}/{card_signature(post.pk)}.png')

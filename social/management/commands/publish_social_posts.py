@@ -1,12 +1,13 @@
-"""Mon/Wed/Fri job: read the Slack decision for every due draft and publish
-the approved ones.
+"""Mon/Wed/Fri job: publish every due post whose card was approved.
 
     python manage.py publish_social_posts [--date 2026-09-09] [--only ID] [--force]
 
-Nothing is published without a ✅ read in this run. ``--force`` is for a
-manual run after the owner ✅'d too late: it skips the stale and expired-deals
-gates, never the ✅ itself. Exit non-zero if any
-post failed or could not be published, so the DO job shows red.
+Nothing is published unless the row is `approved` — a Schválit click on the
+card (social.interact). A due draft nobody decided on is told so on its card
+and retried next run; after STALE_AFTER_DAYS it is rejected. ``--force`` is
+for a manual run after a late click: it skips the stale and expired-deals
+gates, never the approval itself. Exit non-zero if any post failed or could
+not be published, so the DO job shows red.
 """
 from __future__ import annotations
 
@@ -18,11 +19,10 @@ from django.utils import timezone
 from social.captions import known_recipe_names, known_shops, validate_caption
 from social.models import SocialPost
 from social.publishers import PublishError, get_publisher
-from social.slack import SlackDrafts, SlackNotConfigured
+from social.slack import MISSED_NOTE, SlackDrafts, SlackNotConfigured
 from social.weeks import prague_today
 
 STALE_AFTER_DAYS = 7
-WAITING_NOTE = '⏳ still waiting for ✅ — will retry next run'
 
 
 class Command(BaseCommand):
@@ -35,7 +35,7 @@ class Command(BaseCommand):
         parser.add_argument('--only', type=int, metavar='ID',
                             help='handle just this SocialPost id (social_e2e uses it)')
         parser.add_argument('--force', action='store_true',
-                            help='skip the stale and expired-deals gates (still needs the ✅)')
+                            help='skip the stale and expired-deals gates (still needs Schválit)')
 
     def handle(self, *args, **options):
         today = (date.fromisoformat(options['date']) if options.get('date')
@@ -47,16 +47,17 @@ class Command(BaseCommand):
             raise CommandError(str(exc))
         shops, recipes = known_shops(), known_recipe_names()
 
-        due = SocialPost.objects.filter(
-            scheduled_for__lte=today,
-            status__in=[SocialPost.Status.DRAFT, SocialPost.Status.APPROVED, SocialPost.Status.FAILED],
-        ).exclude(slack_ts='').order_by('scheduled_for')
+        due = (SocialPost.objects.filter(scheduled_for__lte=today)
+               .exclude(slack_ts='').order_by('scheduled_for'))
         if options.get('only'):
             due = due.filter(pk=options['only'])
-
         force = bool(options.get('force'))
+
+        for post in due.filter(status=SocialPost.Status.DRAFT):
+            self.stdout.write(f'{post.kind} {post.iso_week}: {self._handle_draft(post, today, slack, force)}')
+
         problems = []
-        for post in due:
+        for post in due.filter(status__in=[SocialPost.Status.APPROVED, SocialPost.Status.FAILED]):
             outcome = self._handle_post(post, today, slack, publishers, shops, recipes, force=force)
             self.stdout.write(f'{post.kind} {post.iso_week}: {outcome}')
             if outcome.startswith(('failed', 'cannot')):
@@ -66,38 +67,31 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------
 
+    def _handle_draft(self, post, today, slack, force) -> str:
+        if not force and (today - post.scheduled_for).days > STALE_AFTER_DAYS:
+            return self._reject(post, slack, today, f'stale: unapproved for more than {STALE_AFTER_DAYS} days')
+        if post.error != MISSED_NOTE:
+            post.error = MISSED_NOTE
+            post.save(update_fields=['error'])
+            slack.update_card(post, today)
+        return 'pending'
+
     def _handle_post(self, post, today, slack, publishers, shops, recipes, force=False) -> str:
-        if (not force and post.status == SocialPost.Status.DRAFT
-                and (today - post.scheduled_for).days > STALE_AFTER_DAYS):
-            return self._reject(post, slack, f'stale: unapproved for more than {STALE_AFTER_DAYS} days')
-
-        decision = slack.read_decision(post)
-        if decision.status == 'rejected':
-            return self._reject(post, slack, 'rejected in Slack')
-        if decision.status == 'pending':
-            if WAITING_NOTE not in post.error:
-                post.error = WAITING_NOTE
-                post.save(update_fields=['error'])
-                slack.reply(post, WAITING_NOTE)
-            return 'pending'
-
-        if decision.caption_override:
-            violations = validate_caption(decision.caption_override, post.facts,
-                                          known_shops=shops, known_recipes=recipes)
+        override = slack.caption_override(post)
+        if override:
+            violations = validate_caption(override, post.facts, known_shops=shops, known_recipes=recipes)
             if violations:
                 slack.reply(post, '⚠️ caption override rejected — ' + '; '.join(violations))
             else:
-                post.caption = decision.caption_override
+                post.caption = override
+                post.save(update_fields=['caption'])
         if not post.caption:
-            slack.reply(post, '⚠️ approved but there is no valid caption — reply `caption: …` and I will retry')
+            slack.update_card(post, today)
             return 'cannot publish: no caption'
 
         expired = '' if force else self._expired_deals_reason(post, today)
         if expired:
-            return self._reject(post, slack, expired)
-
-        post.status, post.approved_by = SocialPost.Status.APPROVED, decision.approved_by
-        post.save(update_fields=['status', 'approved_by', 'caption'])
+            return self._reject(post, slack, today, expired)
 
         errors, links = [], []
         for channel in post.pending_channels():
@@ -116,18 +110,18 @@ class Command(BaseCommand):
         if errors:
             post.status, post.error = SocialPost.Status.FAILED, '; '.join(errors)
             post.save(update_fields=['status', 'error'])
-            slack.reply(post, '❌ publish failed — ' + post.error + ('\n✅ ' + ', '.join(links) if links else ''))
+            slack.update_card(post, today)
             return f'failed ({post.error})'
 
         post.status, post.error, post.published_at = SocialPost.Status.PUBLISHED, '', timezone.now()
         post.save(update_fields=['status', 'error', 'published_at'])
-        slack.reply(post, '✅ published — ' + ', '.join(links))
+        slack.update_card(post, today)
         return 'published'
 
-    def _reject(self, post, slack, reason) -> str:
+    def _reject(self, post, slack, today, reason) -> str:
         post.status, post.error = SocialPost.Status.REJECTED, reason
         post.save(update_fields=['status', 'error'])
-        slack.reply(post, f'🚫 not published — {reason}')
+        slack.update_card(post, today)
         return f'rejected ({reason})'
 
     @staticmethod

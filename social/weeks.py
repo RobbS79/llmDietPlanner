@@ -1,9 +1,10 @@
-"""ISO-week helpers. A post batch is keyed by the ISO week it publishes in;
-the generator runs on Sunday and prepares the *following* week."""
+"""ISO-week helpers. A post is keyed by the ISO week it publishes in; the
+generator runs the evening before each publish day and drafts that one post."""
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 KIND_OFFSETS = {'deals': 0, 'recipe': 2, 'showcase': 4}   # Mon, Wed, Fri
+WEEKDAYS_CS = ('pondělí', 'úterý', 'středa', 'čtvrtek', 'pátek', 'sobota', 'neděle')
 
 PRAGUE = ZoneInfo('Europe/Prague')
 
@@ -19,10 +20,20 @@ def week_start(iso: str) -> date:
     return date.fromisocalendar(int(year), int(week), 1)
 
 
-def next_iso_week(today: date) -> str:
-    """Returns the ISO week after the one containing `today`; a run that
-    slips past Monday targets a different week (pass --week to recover)."""
-    return iso_week(today + timedelta(days=7))
+def due_tomorrow(today: date):
+    """(kind, iso_week) whose publish day is tomorrow, or None. The generator
+    runs the evening before each publish day and drafts exactly that post."""
+    tomorrow = today + timedelta(days=1)
+    week = iso_week(tomorrow)
+    for kind in KIND_OFFSETS:
+        if scheduled_date(week, kind) == tomorrow:
+            return kind, week
+    return None
+
+
+def cs_day(d: date) -> str:
+    """Czech weekday + day.month, e.g. 'středa 23. 9.' — how the card names a day."""
+    return f'{WEEKDAYS_CS[d.weekday()]} {d.day}. {d.month}.'
 
 
 def scheduled_date(iso: str, kind: str) -> date:
