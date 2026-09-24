@@ -15,7 +15,9 @@ def _post(**kw):
     defaults = dict(kind='recipe', iso_week='2026-W39', scheduled_for='2026-09-23',
                     caption='Tofu kari.', image=b'\x89PNG', slack_channel='C1', slack_ts='1.0')
     defaults.update(kw)
-    return SocialPost.objects.create(**defaults)
+    post = SocialPost.objects.create(**defaults)
+    post.refresh_from_db()   # dates as the jobs see them, not the strings above
+    return post
 
 
 class CardUrlTests(TestCase):
