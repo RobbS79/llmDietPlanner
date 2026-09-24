@@ -375,6 +375,11 @@ LLM_HEALTH_SLACK_WEBHOOK_URL = config('LLM_HEALTH_SLACK_WEBHOOK_URL', default=''
 # site, even from dev.
 SOCIAL_SITE_URL = config('SOCIAL_SITE_URL', default='https://eatalnicek.eu')
 SOCIAL_SLACK_CHANNEL = config('SOCIAL_SLACK_CHANNEL', default='')
+# Slack app → Basic Information → Signing Secret; verifies button clicks sent to
+# /api/social/slack/interact/. Unset = the endpoint answers 503.
+SLACK_SIGNING_SECRET = config('SLACK_SIGNING_SECRET', default='')
+# Owner's Slack user id, @mentioned on every card that waits for a decision.
+SOCIAL_SLACK_MENTION = config('SOCIAL_SLACK_MENTION', default='')
 # The Page token (posts to the Facebook Page) is distinct from FB_CAPI_ACCESS_TOKEN
 # above (server-side Conversions API events) — same app, different tokens/scopes.
 FB_PAGE_ID = config('FB_PAGE_ID', default='')

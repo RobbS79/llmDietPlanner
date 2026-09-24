@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from social.personas import PERSONA_PROMPTS, persona_for_week
 from social.weeks import (
-    KIND_OFFSETS, iso_week, next_iso_week, prague_today, scheduled_date,
+    KIND_OFFSETS, cs_day, due_tomorrow, iso_week, prague_today, scheduled_date,
     week_start,
 )
 
@@ -18,9 +18,20 @@ def test_week_start_is_monday():
     assert week_start('2026-W37').weekday() == 0
 
 
-def test_next_iso_week_from_sunday_is_the_coming_week():
-    assert next_iso_week(date(2026, 9, 6)) == '2026-W37'   # Sunday
-    assert next_iso_week(date(2026, 9, 9)) == '2026-W38'   # Wednesday
+def test_due_tomorrow_picks_the_kind_whose_day_is_tomorrow():
+    assert due_tomorrow(date(2026, 9, 6)) == ('deals', '2026-W37')      # Sunday → Monday deals
+    assert due_tomorrow(date(2026, 9, 8)) == ('recipe', '2026-W37')     # Tuesday → Wednesday
+    assert due_tomorrow(date(2026, 9, 10)) == ('showcase', '2026-W37')  # Thursday → Friday
+    assert due_tomorrow(date(2026, 9, 7)) is None                       # Monday → Tuesday: nothing
+
+
+def test_due_tomorrow_crosses_iso_year():
+    assert due_tomorrow(date(2026, 12, 27)) == ('deals', '2026-W53')
+
+
+def test_cs_day_is_czech_weekday_and_day_month():
+    assert cs_day(date(2026, 9, 23)) == 'středa 23. 9.'
+    assert cs_day(date(2026, 9, 21)) == 'pondělí 21. 9.'
 
 
 def test_scheduled_dates_land_on_mon_wed_fri():
@@ -34,7 +45,6 @@ def test_iso_year_can_differ_from_calendar_year():
     assert iso_week(date(2021, 1, 1)) == '2020-W53'
     assert iso_week(date(2024, 12, 30)) == '2025-W01'
     assert week_start('2026-W53') == date(2026, 12, 28)
-    assert next_iso_week(date(2026, 12, 27)) == '2026-W53'
     assert scheduled_date('2026-W53', 'showcase') == date(2027, 1, 1)
 
 
