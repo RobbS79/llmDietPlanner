@@ -61,7 +61,7 @@ def _slack_mock():
     once the whole thread is up, which is what makes a rerun idempotent."""
     slack = MagicMock()
 
-    def post_draft(post):
+    def post_draft(post, today=None):
         post.slack_channel, post.slack_ts = 'C1', '1700000000.000100'
         post.save(update_fields=['slack_channel', 'slack_ts'])
         return post.slack_ts
@@ -84,10 +84,10 @@ def _seams(**overrides):
 
 @override_settings(SOCIAL_SLACK_CHANNEL='C1', SLACK_BOT_TOKEN='x')
 class GenerateCommandTests(TestCase):
-    def test_creates_three_drafts_for_next_week_and_posts_them(self):
+    def test_creates_three_drafts_for_a_given_week_and_posts_them(self):
         seams = _seams()
         out = io.StringIO()
-        call_command('generate_social_drafts', stdout=out, **seams)
+        call_command('generate_social_drafts', week='2026-W37', stdout=out, **seams)
         posts = SocialPost.objects.order_by('scheduled_for')
         self.assertEqual([p.kind for p in posts], ['deals', 'recipe', 'showcase'])
         self.assertEqual([str(p.scheduled_for) for p in posts], ['2026-09-07', '2026-09-09', '2026-09-11'])
@@ -97,6 +97,48 @@ class GenerateCommandTests(TestCase):
         self.assertEqual(posts[0].group_variant, 'Stavím appku.')
         self.assertEqual(seams['slack'].post_draft.call_count, 3)
         self.assertIn('deals 2026-W37: draft', out.getvalue())
+
+    def test_default_run_drafts_only_the_kind_due_tomorrow(self):
+        for today, kind in [(date(2026, 9, 6), 'deals'), (date(2026, 9, 8), 'recipe'),
+                            (date(2026, 9, 10), 'showcase')]:
+            SocialPost.objects.all().delete()
+            call_command('generate_social_drafts', **_seams(today=today))
+            self.assertEqual(list(SocialPost.objects.values_list('kind', 'iso_week')), [(kind, '2026-W37')])
+
+    def test_nothing_due_tomorrow_is_a_quiet_success(self):
+        out = io.StringIO()
+        seams = _seams(today=date(2026, 9, 7))
+        call_command('generate_social_drafts', stdout=out, **seams)
+        self.assertIn('nothing due tomorrow', out.getvalue())
+        self.assertEqual(SocialPost.objects.count(), 0)
+        seams['slack'].post_draft.assert_not_called()
+
+    def test_kind_alone_targets_the_week_of_tomorrow(self):
+        call_command('generate_social_drafts', kind='showcase', **_seams(today=date(2026, 9, 6)))
+        self.assertEqual(SocialPost.objects.get().iso_week, '2026-W37')
+
+    @override_settings(SOCIAL_SLACK_MENTION='UOWNER')
+    def test_every_non_draft_outcome_is_announced_in_the_channel(self):
+        def generate(prompt):
+            if '"kind": "deals"' in prompt:
+                raise _ModelError('503 model is overloaded')
+            return _fake_generate(prompt)
+        seams = _seams(generate=generate, today=date(2026, 9, 6))
+        with self.assertRaises(CommandError):
+            call_command('generate_social_drafts', **seams)
+        seams['slack'].reply_channel.assert_called_once()
+        note = seams['slack'].reply_channel.call_args.args[0]
+        for piece in ('Akce', 'pondělí 7. 9.', '503 model is overloaded', '<@UOWNER>'):
+            self.assertIn(piece, note)
+
+    def test_deals_facts_get_the_publish_day(self):
+        seen = {}
+
+        def build(kind, week, **kw):
+            seen[kind] = kw
+            return FACTS[kind]
+        call_command('generate_social_drafts', **_seams(build_facts=build, today=date(2026, 9, 6)))
+        self.assertEqual(seen['deals'], {'publish_day': date(2026, 9, 7)})
 
     def test_skipped_week_is_retried_on_next_run(self):
         SocialPost.objects.create(kind='deals', iso_week='2026-W37', scheduled_for='2026-09-07',
@@ -117,8 +159,8 @@ class GenerateCommandTests(TestCase):
 
     def test_rerun_is_idempotent(self):
         seams = _seams()
-        call_command('generate_social_drafts', **seams)
-        call_command('generate_social_drafts', **seams)
+        call_command('generate_social_drafts', week='2026-W37', **seams)
+        call_command('generate_social_drafts', week='2026-W37', **seams)
         self.assertEqual(SocialPost.objects.count(), 3)
         self.assertEqual(seams['slack'].post_draft.call_count, 3)
 
@@ -129,7 +171,7 @@ class GenerateCommandTests(TestCase):
             return FACTS[kind]
         seams = _seams(build_facts=facts)
         with self.assertRaises(CommandError):
-            call_command('generate_social_drafts', **seams)
+            call_command('generate_social_drafts', week='2026-W37', **seams)
         skipped = SocialPost.objects.get(kind='showcase')
         self.assertEqual(skipped.status, 'skipped')
         self.assertIn('LLM down', skipped.error)
@@ -139,7 +181,7 @@ class GenerateCommandTests(TestCase):
     def test_rejected_caption_still_drafts_with_empty_caption(self):
         seams = _seams(generate=lambda p: json.dumps({'caption': 'Ušetříte 500 Kč!'}))
         with self.assertRaises(CommandError):
-            call_command('generate_social_drafts', **seams)
+            call_command('generate_social_drafts', week='2026-W37', **seams)
         post = SocialPost.objects.get(kind='deals')
         self.assertEqual(post.status, 'draft')
         self.assertEqual(post.caption, '')
@@ -156,7 +198,7 @@ class GenerateCommandTests(TestCase):
         seams = _seams()
         with patch('social.management.commands.generate_social_drafts.DRY_RUN_DIR',
                    Path(tempfile.mkdtemp())) as d:
-            call_command('generate_social_drafts', dry_run=True, **seams)
+            call_command('generate_social_drafts', week='2026-W37', dry_run=True, **seams)
             self.assertTrue((d / 'deals-2026-W37.png').exists())
             self.assertTrue((d / 'deals-2026-W37.txt').exists())
         self.assertEqual(SocialPost.objects.count(), 0)
@@ -170,7 +212,7 @@ class GenerateCommandTests(TestCase):
         seams = _seams(generate=generate)
         out = io.StringIO()
         with self.assertRaises(CommandError) as ctx:
-            call_command('generate_social_drafts', stdout=out, **seams)
+            call_command('generate_social_drafts', week='2026-W37', stdout=out, **seams)
         self.assertIn('errored', str(ctx.exception))
         self.assertIn('errored (_ModelError: 503 model is overloaded)', out.getvalue())
         self.assertEqual(sorted(SocialPost.objects.filter(status='draft')
@@ -178,7 +220,7 @@ class GenerateCommandTests(TestCase):
         # Nothing un-retryable was left behind for deals (the row is either
         # absent or a draft with no Slack message), so the next run recovers it.
         self.assertFalse(SocialPost.objects.filter(kind='deals').exclude(slack_ts='').exists())
-        call_command('generate_social_drafts', **_seams())
+        call_command('generate_social_drafts', week='2026-W37', **_seams())
         deals = SocialPost.objects.get(kind='deals')
         self.assertEqual((deals.status, deals.caption), ('draft', 'Cibule v Lidlu v akci.'))
         self.assertTrue(deals.slack_ts)

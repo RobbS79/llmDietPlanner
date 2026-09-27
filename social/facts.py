@@ -8,7 +8,7 @@ as status=skipped with the reason.
 from __future__ import annotations
 
 import os
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Callable, Optional
 
 import requests
@@ -50,8 +50,13 @@ def _public_recipes():
 
 # ---------------------------------------------------------------- deals
 
-def deals_facts(iso_week: str) -> dict:
+def deals_facts(iso_week: str, publish_day: Optional[date] = None) -> dict:
     index = active_deal_index()
+    if publish_day is not None:
+        # Drafted the evening before: an offer that ends before the post goes
+        # out would be a stale claim by the time anyone reads it.
+        index = {slug: d for slug, d in index.items()
+                 if date.fromisoformat(d['valid_until'][:10]) >= publish_day}
     if len(index) < MIN_DEAL_INGREDIENTS:
         raise NoFacts(f'only {len(index)} ingredients on offer, need {MIN_DEAL_INGREDIENTS}')
     from diet_planner.models import CanonicalIngredient
@@ -252,15 +257,18 @@ def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run
 # ---------------------------------------------------------------- dispatch
 
 def build_facts(kind: str, iso_week: str, *,
+                publish_day: Optional[date] = None,
                 run_plan: Optional[Callable[[int], None]] = None,
                 reuse_latest: bool = False) -> dict:
+    """`publish_day` only matters to deals (offers must still be valid then);
+    the other kinds accept and ignore it so the generator can pass it blindly."""
     if kind != 'showcase':
         if run_plan is not None:
             raise ValueError(f'run_plan is only meaningful for showcase, not {kind!r}')
         if reuse_latest:
             raise ValueError(f'reuse_latest is only meaningful for showcase, not {kind!r}')
     if kind == 'deals':
-        return deals_facts(iso_week)
+        return deals_facts(iso_week, publish_day=publish_day)
     if kind == 'recipe':
         return recipe_facts(iso_week)
     if kind == 'showcase':
