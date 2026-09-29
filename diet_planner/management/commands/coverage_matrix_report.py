@@ -1,7 +1,7 @@
 """
 Report the eligible-published CuratedRecipe count per (meal slot x dietary tag)
 cell. Eligibility mirrors the retrieval hard gate in
-`select_recipes_for_plan`: status=published, slot in meal_types,
+`select_recipes_for_pool`: status=published, slot in meal_types,
 dietary_tags ⊇ {tag}, and is_catalog_mapped().
 
 The intent: verify a balanced corpus before/after each curation batch.
