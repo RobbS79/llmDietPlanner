@@ -30,4 +30,17 @@ describe('MealRow', () => {
     await userEvent.click(screen.getByRole('button'));
     expect(onOpen).toHaveBeenCalledWith('151:dinner:1', false);
   });
+
+  it('main variant when cooked shows Uvařeno and toggles back to not cooked', async () => {
+    const onToggleCooked = vi.fn();
+    render(<MealRow entry={entry} variant="main" isCooked onOpen={vi.fn()} onToggleCooked={onToggleCooked} />);
+    await userEvent.click(screen.getByRole('button', { name: /Uvařeno/ }));
+    expect(onToggleCooked).toHaveBeenCalledWith('151:dinner:1', false, 'Svíčková');
+  });
+
+  it('small variant with zero kcal renders no kcal text', () => {
+    const zero = { ...entry, slot: 'snack', isMain: false, meal: { ...entry.meal, nutritional_info: { calories: 0 } } };
+    render(<ul><MealRow entry={zero} variant="small" isCooked={false} onOpen={vi.fn()} onToggleCooked={vi.fn()} /></ul>);
+    expect(screen.queryByText(/kcal/)).not.toBeInTheDocument();
+  });
 });

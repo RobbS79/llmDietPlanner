@@ -5,7 +5,7 @@ import { MealSideLine } from '@/components/recipe/MealSideLine';
 
 export interface MealRowProps {
   entry: DayMealEntry;
-  /** main = medium card with thumbnail; small = compact row. */
+  /** main = medium card with thumbnail; small = compact row. small renders an `<li>`; the caller must wrap rows in `<ul>`/`<ol>`. */
   variant: 'main' | 'small';
   isCooked: boolean;
   onOpen: (mealId: string, chat: boolean) => void;
