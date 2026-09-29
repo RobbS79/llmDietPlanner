@@ -195,3 +195,19 @@ class BuildMealPoolTest(TestCase):
                 patch('diet_planner.services.meal_pool.store_derived_dietary_tags') as store:
             build_meal_pool(goal, llm=_llm())
         store.assert_called_once_with(goal, {'vegan'})
+
+    def test_gluten_only_sides_under_gluten_free_record_side_unavailable_gap(self):
+        # The only side options (chléb, knedlík) both break gluten_free, so the
+        # main is served bare and the pool counts a side_unavailable gap.
+        make_recipe(name_cs='Guláš', meal_types=['dinner'], dish_role='main',
+                    dietary_tags=['gluten_free'], side_options=['chleb', 'knedlik'])
+        goal = self._goal(dinners=1, dietary_restrictions='bezlepková')
+        result = build_meal_pool(goal, llm=_llm())
+        self.assertEqual(len(result.meals), 1)
+        meal = result.meals[0]
+        self.assertEqual(meal['source'], 'curated')
+        self.assertNotIn('side', meal)
+        side_gaps = [g for g in result.grounding_debug['gaps'] if g['reason'] == 'side_unavailable']
+        self.assertEqual(len(side_gaps), 1)
+        self.assertEqual(side_gaps[0]['slot'], 'dinner')
+        self.assertEqual(side_gaps[0]['required_tags'], ['gluten_free'])

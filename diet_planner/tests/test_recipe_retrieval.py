@@ -66,6 +66,24 @@ class ParseDietaryTagsTest(TestCase):
         self.assertEqual(parse_dietary_tags(''), set())
         self.assertEqual(parse_dietary_tags(None), set())
 
+    def test_spaced_czech_phrasings(self):
+        cases = {
+            'bez lepku': {'gluten_free'},
+            'bez laktózy': {'dairy_free'},
+            'bez masa': {'vegetarian'},
+            'veganka': {'vegan'},
+            'vegetariánka': {'vegetarian'},
+            'bezlepková dieta': {'gluten_free'},
+            'bez mäsa': {'vegetarian'},
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(parse_dietary_tags(text), expected)
+
+    def test_slovak_bez_masla_is_not_vegetarian(self):
+        # "bez masla" = without butter (SK); must not trip the 'bez masa' rule.
+        self.assertNotIn('vegetarian', parse_dietary_tags('bez masla'))
+
 
 class RequiredTagsForGoalTest(TestCase):
     """Profile preferences must be enforced, not just collected: the effective

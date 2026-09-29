@@ -34,8 +34,6 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 import google.generativeai as genai
 
-from .food_categories import CATEGORY_SLUGS
-
 if TYPE_CHECKING:
     from diet_planner.services.restrictions import ResolvedRestrictions
 
@@ -303,7 +301,7 @@ EXAMPLE INGREDIENT FORMAT:
                     try:
                         with open('/tmp/gemini_invalid_response.json', 'w', encoding='utf-8') as f:
                             f.write(content)
-                        logger.error(f"Saved invalid response to /tmp/gemini_invalid_response.json for analysis")
+                        logger.error("Saved invalid response to /tmp/gemini_invalid_response.json for analysis")
                     except Exception:
                         pass
                     
