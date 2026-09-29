@@ -9,7 +9,15 @@ from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, HistoricNutr
 class DietaryGoalSerializer(serializers.ModelSerializer):
     """Serializer for DietaryGoal model."""
     user = serializers.ReadOnlyField(source='user.username')
-    
+    counts = serializers.SerializerMethodField()
+    is_pool = serializers.SerializerMethodField()
+
+    def get_counts(self, obj):
+        return obj.pool_counts()
+
+    def get_is_pool(self, obj):
+        return obj.is_pool
+
     class Meta:
         model = DietaryGoal
         fields = [
@@ -27,6 +35,13 @@ class DietaryGoalSerializer(serializers.ModelSerializer):
             'dinner',
             'small_meals_per_day',
             'snacks_per_day',
+            'breakfasts',
+            'lunches',
+            'dinners',
+            'small_meals',
+            'snacks',
+            'counts',
+            'is_pool',
             'shop',
             'created_at',
             'updated_at',
@@ -75,6 +90,8 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
     """Serializer for DietaryPlan model."""
     # JSONField fields are already Python objects (lists/dicts), return them directly
     days = serializers.SerializerMethodField()
+    meals = serializers.SerializerMethodField()
+    shortfall = serializers.SerializerMethodField()
 
     # LLM usage information
     llm_usage = serializers.SerializerMethodField()
@@ -84,6 +101,8 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'days',
+            'meals',
+            'shortfall',
             'currency',
             'llm_usage',
             'created_at',
@@ -92,6 +111,8 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'days',
+            'meals',
+            'shortfall',
             'currency',
             'llm_usage',
             'created_at',
@@ -105,6 +126,15 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
             # Legacy format - convert meal_ideas to days structure
             return []
         return obj.days if hasattr(obj, 'days') and obj.days else []
+
+    def get_meals(self, obj):
+        """Pool plans: the flat meal list. Legacy plans: None."""
+        return obj.meals if obj.meals is not None else None
+
+    def get_shortfall(self, obj):
+        debug = obj.grounding_debug if isinstance(obj.grounding_debug, dict) else {}
+        short = debug.get('shortfall')
+        return short if isinstance(short, dict) else {}
 
     def get_llm_usage(self, obj):
         """Return LLM usage information including tokens and cost."""
@@ -124,6 +154,14 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer with nested dietary plan."""
     dietary_plan = DietaryPlanSerializer(read_only=True, allow_null=True, required=False)
     user = serializers.ReadOnlyField(source='user.username')
+    counts = serializers.SerializerMethodField()
+    is_pool = serializers.SerializerMethodField()
+
+    def get_counts(self, obj):
+        return obj.pool_counts()
+
+    def get_is_pool(self, obj):
+        return obj.is_pool
 
     class Meta:
         model = DietaryGoal
@@ -143,6 +181,13 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'dinner',
             'small_meals_per_day',
             'snacks_per_day',
+            'breakfasts',
+            'lunches',
+            'dinners',
+            'small_meals',
+            'snacks',
+            'counts',
+            'is_pool',
             'shop',
             'store_mode',
             'created_at',
@@ -169,6 +214,13 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
             'dinner',
             'small_meals_per_day',
             'snacks_per_day',
+            'breakfasts',
+            'lunches',
+            'dinners',
+            'small_meals',
+            'snacks',
+            'counts',
+            'is_pool',
             'shop',
             'store_mode',
             'created_at',

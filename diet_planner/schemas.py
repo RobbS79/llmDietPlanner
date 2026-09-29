@@ -3,7 +3,7 @@ Pydantic schemas for request/response validation.
 Used between LLM and Django for data validation.
 """
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, List, Dict, Any
+from typing import Any, ClassVar, Dict, List, Optional
 from decimal import Decimal
 from datetime import datetime
 from enum import Enum
@@ -76,36 +76,11 @@ class DietaryGoalCreateRequest(BaseModel):
         max_length=5,
         description="Language code (ISO 639-1) for i18n support"
     )
-    num_days: int = Field(
-        default=7,
-        ge=1,
-        le=30,
-        description="Number of days for the meal plan"
-    )
-    breakfast: bool = Field(
-        default=True,
-        description="Include breakfast in the meal plan"
-    )
-    lunch: bool = Field(
-        default=True,
-        description="Include lunch in the meal plan"
-    )
-    dinner: bool = Field(
-        default=True,
-        description="Include dinner in the meal plan"
-    )
-    small_meals_per_day: int = Field(
-        default=2,
-        ge=0,
-        le=5,
-        description="Number of small meals per day"
-    )
-    snacks_per_day: int = Field(
-        default=1,
-        ge=0,
-        le=3,
-        description="Number of snacks per day"
-    )
+    breakfasts: int = Field(default=0, ge=0, le=14, description="Breakfast recipes wanted")
+    lunches: int = Field(default=0, ge=0, le=14, description="Lunch recipes wanted")
+    dinners: int = Field(default=0, ge=0, le=14, description="Dinner recipes wanted")
+    small_meals: int = Field(default=0, ge=0, le=14, description="Small-meal recipes wanted")
+    snacks: int = Field(default=0, ge=0, le=14, description="Snack recipes wanted")
     shop: Optional[ShopEnum] = Field(
         None,
         description="Shop where user wants to source ingredients"
@@ -118,6 +93,23 @@ class DietaryGoalCreateRequest(BaseModel):
         None,
         description="ID of a completed HistoricNutritionPlan to use as protocol"
     )
+
+    _LEGACY_FIELDS: ClassVar[tuple] = ('num_days', 'breakfast', 'lunch', 'dinner', 'small_meals_per_day', 'snacks_per_day')
+
+    @model_validator(mode='before')
+    @classmethod
+    def _reject_legacy_day_fields(cls, data):
+        if isinstance(data, dict):
+            present = [f for f in cls._LEGACY_FIELDS if f in data]
+            if present:
+                raise ValueError(f"Day-grid fields are no longer accepted: {', '.join(present)}")
+        return data
+
+    @model_validator(mode='after')
+    def _at_least_one_meal(self):
+        if self.breakfasts + self.lunches + self.dinners + self.small_meals + self.snacks == 0:
+            raise ValueError("Vyberte alespoň jedno jídlo.")  # EN: pick at least one meal
+        return self
 
     @field_validator('prompt')
     @classmethod
@@ -180,19 +172,9 @@ class ShoppingListItem(BaseModel):
     product_unit: Optional[str] = Field(None, description="Unit from matched product")
 
 
-class DayPlan(BaseModel):
-    """Schema for a single day's meal plan."""
-    day_number: int = Field(..., ge=1, description="Day number (1-based)")
-    breakfast: Optional[MealIdea] = Field(None, description="Breakfast for this day (if requested)")
-    lunch: Optional[MealIdea] = Field(None, description="Lunch for this day (if requested)")
-    dinner: Optional[MealIdea] = Field(None, description="Dinner for this day (if requested)")
-    small_meals: List[MealIdea] = Field(default_factory=list, description="Small meals for this day")
-    snacks: List[MealIdea] = Field(default_factory=list, description="Snacks for this day")
-
-
 class DietaryPlanResponse(BaseModel):
     """Response schema for a dietary plan."""
-    days: List[DayPlan] = Field(..., description="Day-by-day meal plan")
+    meals: List[MealIdea] = Field(..., description="Flat meal pool")
     shopping_list: List[ShoppingListItem] = Field(..., description="Shopping list")
 
 
