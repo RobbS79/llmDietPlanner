@@ -8,16 +8,26 @@
  * totals, cooked counter, export — should iterate this instead of hard-coding
  * the three main keys.
  *
- * Identifier contract (mirrors diet_planner.views._parse_meal_identifier):
+ * Two contracts live here.
+ *
+ * Pool plans (current): `plan.meals` is a flat list, each meal carrying
+ * `slot` and `index`; identifier = <goal>:<slot>:<index>. Use poolEntries /
+ * groupPoolMeals / poolTotals.
+ *
+ * Legacy day plans (plan.days), identifier contract (mirrors
+ * diet_planner.views._parse_meal_identifier):
  *   <goal>:<day>:<breakfast|lunch|dinner>:0
  *   <goal>:<day>:small_meal:<index>
  *   <goal>:<day>:snack:<index>
  */
+import { POOL_SLOT_ORDER, type PoolSlot } from '@/lib/poolCounts';
 
 /** A meal as stored in DietaryPlan.days (LLM output, so every field is optional). */
 export interface PlanMeal {
   name: string;
   meal_identifier?: string;
+  slot?: string;
+  index?: number;
   description?: string;
   food_category?: string;
   preparation_time?: number | null;
@@ -108,4 +118,53 @@ export function dayMealEntries(day: PlanDay | null | undefined, goalId: string |
     });
   }
   return out;
+}
+
+/** Section headings for a pool plan (plural). EN: Breakfasts / Lunches / Dinners / Small meals / Snacks. */
+export const POOL_SECTION_LABELS: Record<PoolSlot, string> = {
+  breakfast: 'Snídaně',
+  lunch: 'Obědy',
+  dinner: 'Večeře',
+  small_meal: 'Svačiny',
+  snack: 'Snacky',
+};
+
+const isPoolSlot = (s: unknown): s is PoolSlot => typeof s === 'string' && (POOL_SLOT_ORDER as string[]).includes(s);
+const isMainSlot = (s: string) => (MAIN_SLOTS as readonly string[]).includes(s);
+
+/** Every pool meal as a DayMealEntry, sorted by slot order then index. */
+export function poolEntries(meals: PlanMeal[] | null | undefined, goalId: string | number): DayMealEntry[] {
+  const list = Array.isArray(meals) ? meals.filter(m => m && isPoolSlot(m.slot)) : [];
+  const order = (m: PlanMeal) => POOL_SLOT_ORDER.indexOf(m.slot as PoolSlot);
+  return [...list]
+    .sort((a, b) => order(a) - order(b) || ((a.index ?? 0) - (b.index ?? 0)))
+    .map(meal => {
+      const slot = meal.slot as PoolSlot;
+      const index = meal.index ?? 0;
+      return {
+        slot, key: `${slot}:${index}`, label: MEAL_SLOT_LABELS[slot],
+        isMain: isMainSlot(slot), meal,
+        mealId: meal.meal_identifier || `${goalId}:${slot}:${index}`,
+      };
+    });
+}
+
+export interface PoolSection { slot: PoolSlot; label: string; isMain: boolean; entries: DayMealEntry[] }
+
+/** Non-empty sections in slot order. */
+export function groupPoolMeals(meals: PlanMeal[] | null | undefined, goalId: string | number): PoolSection[] {
+  const entries = poolEntries(meals, goalId);
+  return POOL_SLOT_ORDER
+    .map(slot => ({ slot, label: POOL_SECTION_LABELS[slot], isMain: isMainSlot(slot), entries: entries.filter(e => e.slot === slot) }))
+    .filter(s => s.entries.length > 0);
+}
+
+export interface PoolTotals { cooked: number; total: number; avgMainKcal: number }
+
+export function poolTotals(meals: PlanMeal[] | null | undefined, goalId: string | number, cookedSet: Set<string>): PoolTotals {
+  const entries = poolEntries(meals, goalId);
+  const mains = entries.filter(e => e.isMain);
+  const kcal = mains.map(e => parseNutrition(e.meal.nutritional_info).kcal);
+  const avg = kcal.length ? Math.round(kcal.reduce((a, b) => a + b, 0) / kcal.length) : 0;
+  return { cooked: entries.filter(e => cookedSet.has(e.mealId)).length, total: entries.length, avgMainKcal: avg };
 }
