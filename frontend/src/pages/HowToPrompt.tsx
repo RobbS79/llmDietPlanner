@@ -25,8 +25,8 @@ const JOURNEY = [
   {
     step: '3',
     title: 'Nastavení jídel',
-    // EN: Step "Meals": how many breakfasts, lunches, dinners and small meals you want (0–14 each). No days; cook them when it suits you.
-    desc: 'Krok „Jídla“: kolik snídaní, obědů, večeří a svačin chcete (0–14 od každého). Žádné dny — uvaříte je, kdy se vám to hodí.',
+    // EN: Step "Meals": how many breakfasts, lunches, dinners and small meals you want (0–14 each). No days; cook the recipes when it suits you.
+    desc: 'Krok „Jídla“: kolik snídaní, obědů, večeří a svačin chcete (0–14 od každého). Žádné dny — recepty uvaříte, kdy se vám to hodí.',
   },
   {
     step: '4',
@@ -77,7 +77,7 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
   },
   {
     title: '„Chci zhubnout, ale vařit si doma“',
-    intro: 'Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu a kolik jídel denně chcete (svačinky zapněte v kroku „Jídla“).',
+    intro: 'Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu a kolik jídel denně chcete (svačiny nastavte v kroku „Jídla“).',
     prompts: [
       'Chci zhubnout 10 kg. 1 500 kcal denně, 5 jídel, jednoduchá domácí jídla jako z krabičkové diety.',
       'Jídelníček na hubnutí pro ženu po padesátce, sedavé zaměstnání, žádné extrémy, obyčejné české suroviny.',

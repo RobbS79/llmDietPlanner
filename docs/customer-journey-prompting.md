@@ -14,8 +14,8 @@ hledají (Google Trends CZ a našeptávače Google + Seznam, září 2026 —
    úroveň vaření. Vařto to bere v potaz u každého plánu, nemusíte to psát znovu.
 2. **Zadání** (krok 1 „Cíle“) — jedno textové pole. Napište vlastními slovy,
    co chcete. Volíte zemi a město (kvůli slevovým letákům).
-3. **Nastavení jídel** (krok 2 „Jídla“) — kolik snídaní, obědů, večeří a svačin chcete (0–14 od každého). Žádné dny — uvaříte je, kdy se vám to hodí.
-   <!-- EN: how many breakfasts, lunches, dinners and small meals (0–14 each). No days; cook them when it suits you. -->
+3. **Nastavení jídel** (krok 2 „Jídla“) — kolik snídaní, obědů, večeří a svačin chcete (0–14 od každého). Žádné dny — recepty uvaříte, kdy se vám to hodí.
+   <!-- EN: how many breakfasts, lunches, dinners and small meals (0–14 each). No days; cook the recipes when it suits you. -->
 4. **Plán** — za pár minut máte recepty: recepty s postupem, kalorie a makra
    na porci, nákupní seznam ke každému receptu a přehled, které suroviny jsou
    tento týden v akci.
@@ -66,7 +66,7 @@ kterém jídle dne je chcete.
 
 ### „Chci zhubnout, ale vařit si doma“
 Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu a kolik
-jídel denně chcete (svačinky zapněte v kroku 2).
+jídel denně chcete (svačiny nastavte v kroku „Jídla“).
 
 > Chci zhubnout 10 kg. 1 500 kcal denně, 5 jídel, jednoduchá domácí jídla jako z krabičkové diety.
 
