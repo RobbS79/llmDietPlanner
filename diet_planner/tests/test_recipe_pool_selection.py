@@ -83,3 +83,42 @@ class SelectForPoolTest(TestCase):
         out = rr.select_recipes_for_pool(_goal(dinners=1, breakfasts=1), facets=facets)
         self.assertEqual([m['slot'] for m in out['meals']], ['breakfast'])
         self.assertIn('wanted_fit_below_threshold', [g['reason'] for g in out['gaps']])
+
+    def test_role_relaxed_fills_and_records_gap(self):
+        CuratedRecipe.objects.all().delete()
+        make_recipe(name_cs='Příloha', meal_types=['dinner'], dish_role='side', dish_family='side')
+        out = rr.select_recipes_for_pool(_goal(dinners=1))
+        self.assertEqual([m['recipe'].name_cs for m in out['meals']], ['Příloha'])
+        self.assertEqual([(g['slot'], g['index'], g['reason']) for g in out['gaps']],
+                         [('dinner', 0, 'role_relaxed')])
+
+    def test_recipe_never_repeats_across_slots(self):
+        CuratedRecipe.objects.all().delete()
+        make_recipe(name_cs='Jediné', meal_types=['lunch', 'dinner'], dish_role='main',
+                    dish_family='jedine')
+        out = rr.select_recipes_for_pool(_goal(lunches=1, dinners=1))
+        self.assertEqual(len(out['meals']), 1)
+        self.assertEqual([g['reason'] for g in out['gaps']], ['no_eligible_recipes'])
+
+    def test_seed_rotates_choice_across_goals(self):
+        chosen = {
+            rr.select_recipes_for_pool(_goal(pk=pk, dinners=1))['meals'][0]['recipe'].id
+            for pk in range(1, 13)
+        }
+        self.assertGreaterEqual(len(chosen), 2)
+
+    def test_interleaving_spreads_cuisine_penalty_across_slots(self):
+        CuratedRecipe.objects.all().delete()
+        for i in range(2):
+            make_recipe(name_cs=f'Czech {i}', meal_types=['lunch', 'dinner'], dish_role='main',
+                        dish_family=f'cz{i}', cuisine='czech')
+            make_recipe(name_cs=f'Italian {i}', meal_types=['lunch', 'dinner'], dish_role='main',
+                        dish_family=f'it{i}', cuisine='italian')
+        out = rr.select_recipes_for_pool(_goal(pk=3, lunches=2, dinners=2))
+        self.assertEqual(len(out['meals']), 4)
+        cuisines = [m['recipe'].cuisine for m in out['meals']]
+        self.assertGreater(len(set(cuisines)), 1)
+        # Index-major fill: lunch 0 and dinner 0 are picked back-to-back, so the
+        # cuisine penalty makes them differ.
+        first_round = {m['slot']: m['recipe'].cuisine for m in out['meals'] if m['index'] == 0}
+        self.assertNotEqual(first_round['lunch'], first_round['dinner'])

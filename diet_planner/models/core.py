@@ -427,10 +427,8 @@ class DietaryGoal(models.Model):
 
     def pool_counts(self) -> dict:
         """{slot: requested count}; 0 for every slot on a legacy goal."""
-        return {
-            slot: int(getattr(self, field) or 0)
-            for slot, field in self.POOL_COUNT_FIELDS.items()
-        }
+        from diet_planner.services.recipe_retrieval import pool_counts  # avoid cycle
+        return pool_counts(self)
     
     # Timestamps (ISO-8601 compliant)
     created_at = models.DateTimeField(

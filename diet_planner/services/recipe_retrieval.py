@@ -44,7 +44,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Set
 from django.conf import settings
 from django.db.models import F
 
-from diet_planner.models import CanonicalIngredient, CuratedRecipe
+from diet_planner.models import CanonicalIngredient, CuratedRecipe, DietaryGoal
 from diet_planner.models.catalog import Availability
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
 from diet_planner.services.priloha import Side, pick_side, side_ingredient, side_meta, side_nutrition
@@ -631,16 +631,15 @@ def score_recipe(
 # Pool selection (2026-09-29): N recipes per slot, no days
 # ---------------------------------------------------------------------------
 
-_POOL_SLOT_ORDER = ('breakfast', 'lunch', 'dinner', 'small_meal', 'snack')
-_POOL_COUNT_ATTRS = {
-    'breakfast': 'breakfasts', 'lunch': 'lunches', 'dinner': 'dinners',
-    'small_meal': 'small_meals', 'snack': 'snacks',
-}
+# One mapping, owned by the model: {slot: DietaryGoal count field}.
+_POOL_COUNT_ATTRS = DietaryGoal.POOL_COUNT_FIELDS
+_POOL_SLOT_ORDER = tuple(DietaryGoal.POOL_COUNT_FIELDS)
 
 
 def pool_counts(goal: Any) -> Dict[str, int]:
     """{slot: requested count} read off a goal (or any namespace); 0 default.
-    Mirrors DietaryGoal.pool_counts() but works for simulation namespaces."""
+    DietaryGoal.pool_counts() delegates here; this also serves simulation
+    namespaces (SimpleNamespace goals)."""
     return {slot: int(getattr(goal, attr, 0) or 0) for slot, attr in _POOL_COUNT_ATTRS.items()}
 
 
@@ -661,6 +660,15 @@ def select_recipes_for_pool(
     `skip_slots` positions are recorded as 'slot_skipped' gaps without
     consulting the corpus (used when facet extraction is suspect).
     Family dedupe is POOL-WIDE: lečo at lunch means no lečo at dinner either.
+
+    Positions are FILLED index-major (breakfast 0, lunch 0, dinner 0, …, then
+    index 1, …) so variety/family/ingredient-reuse penalties spread evenly
+    across slots, and RETURNED slot-major (all breakfasts, then lunches, …),
+    both `meals` and `gaps` sorted by (slot order, index).
+
+    A relaxed pick (`family_relaxed`/`role_relaxed`) is filled AND recorded as
+    a gap, and a position can carry two entries; count distinct (slot, index)
+    per reason, never the raw length.
     """
     required_tags = required_tags_for_goal(goal)
     counts = pool_counts(goal)
@@ -684,12 +692,16 @@ def select_recipes_for_pool(
         gaps.append(gap)
         logger.info("Recipe pool corpus gap: %s", gap)
 
-    for slot in _POOL_SLOT_ORDER:
-        for index in range(counts.get(slot, 0)):
+    for index in range(max(counts.values(), default=0)):
+        for slot in _POOL_SLOT_ORDER:
+            if index >= counts.get(slot, 0):
+                continue
             total += 1
             if slot in skip_slots:
                 record_gap(slot, index, 'slot_skipped')
                 continue
+            # exclude_ids on every call: a recipe never repeats in the pool,
+            # so score_recipe's -100 repeat branch never fires here.
             candidates = eligible_recipes_for_slot(
                 slot, required_tags, pool=pool, facets=facets,
                 exclude_ids=used_recipe_ids, exclude_families=used_families)
@@ -699,6 +711,7 @@ def select_recipes_for_pool(
                 if candidates:
                     record_gap(slot, index, 'family_relaxed')
             if not candidates:
+                # Role-relaxed fallback intentionally drops family dedupe too.
                 candidates = eligible_recipes_for_slot(
                     slot, required_tags, pool=pool, facets=facets,
                     exclude_ids=used_recipe_ids, enforce_roles=False)
@@ -734,6 +747,10 @@ def select_recipes_for_pool(
                 used_cuisines.append(best.cuisine)
             used_canonicals |= _recipe_canonicals(best)
             filled += 1
+
+    order = {slot: n for n, slot in enumerate(_POOL_SLOT_ORDER)}
+    meals.sort(key=lambda m: (order[m['slot']], m['index']))
+    gaps.sort(key=lambda g: (order[g['slot']], g['index']))
 
     return {'meals': meals, 'coverage': {'filled': filled, 'total': total}, 'gaps': gaps}
 
