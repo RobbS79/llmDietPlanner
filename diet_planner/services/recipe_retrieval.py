@@ -60,7 +60,12 @@ logger = logging.getLogger(__name__)
 _DIETARY_KEYWORDS: Dict[str, str] = {
     'vegan': 'vegan', 'vegán': 'vegan', 'rostlinn': 'vegan',
     'vegetari': 'vegetarian', 'bezmas': 'vegetarian',
-    'gluten': 'gluten_free', 'lepek': 'gluten_free', 'bezlepk': 'gluten_free',
+    # Spaced phrasings ("bez masa"; SK "bez mäsa"). Not a bare 'bez mas' prefix:
+    # Slovak "bez masla" (without butter) would wrongly become vegetarian.
+    'bez masa': 'vegetarian', 'bez maso': 'vegetarian', 'bez mäsa': 'vegetarian',
+    # 'lepk' covers "bez lepku", "lepku", "bezlepková"; 'lepok' is Slovak.
+    'gluten': 'gluten_free', 'lepek': 'gluten_free', 'lepk': 'gluten_free',
+    'lepok': 'gluten_free', 'bezlepk': 'gluten_free',
     'celiak': 'gluten_free',
     'lakt': 'dairy_free', 'dairy': 'dairy_free', 'bez mlék': 'dairy_free',
     'mléčn': 'dairy_free',
