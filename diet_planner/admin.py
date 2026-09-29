@@ -73,7 +73,11 @@ class DietaryGoalAdmin(admin.ModelAdmin):
             'fields': ('country', 'city', 'currency', 'language_code'),
         }),
         ('Meal Configuration', {
-            'fields': ('num_days', 'breakfast', 'lunch', 'dinner', 'small_meals_per_day', 'snacks_per_day', 'shop'),
+            'fields': ('breakfasts', 'lunches', 'dinners', 'small_meals', 'snacks', 'shop'),
+        }),
+        ('Legacy day grid', {
+            'classes': ('collapse',),
+            'fields': ('num_days', 'breakfast', 'lunch', 'dinner', 'small_meals_per_day', 'snacks_per_day'),
         }),
         ('Payment', {
             'fields': ('is_free_generation', 'shopify_checkout_id', 'shopify_order_id', 'payment_confirmed_at'),
@@ -96,7 +100,7 @@ class DietaryPlanAdmin(admin.ModelAdmin):
             'fields': ('dietary_goal',)
         }),
         ('LLM Generated Content', {
-            'fields': ('days', 'meal_ideas'),
+            'fields': ('meals', 'days', 'meal_ideas'),
         }),
         ('Price Information', {
             'fields': ('currency',),

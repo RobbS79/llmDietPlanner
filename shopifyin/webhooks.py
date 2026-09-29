@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from diet_planner.models import DietaryGoal
-from diet_planner.tasks import process_dietary_goal_task
+from diet_planner.tasks import generate_meal_pool_task
 from .models import ShopifyStore, ShopifyCheckout
 
 logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ def shopify_order_paid_webhook(request: HttpRequest) -> HttpResponse:
 
         # Trigger Celery task outside the transaction (so the commit is visible to the worker)
         try:
-            task = process_dietary_goal_task.delay(goal.id)
+            task = generate_meal_pool_task.delay(goal.id)
             goal.celery_task_id = task.id
             goal.save(update_fields=['celery_task_id', 'updated_at'])
             logger.info(f"Triggered meal plan generation task {task.id} for goal {goal_id}")

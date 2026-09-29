@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from django.test import TestCase
 
 from diet_planner.models import CuratedRecipe
@@ -61,24 +63,17 @@ class RecipeMatchesFacetsTest(TestCase):
 from diet_planner.services.recipe_retrieval import (
     eligible_recipes_for_slot,
     score_recipe,
-    select_recipes_for_plan,
+    select_recipes_for_pool,
 )
 
 
 class FacetSelectionTest(TestCase):
     def _goal(self, **kw):
-        # Lightweight stand-in: select_recipes_for_plan only reads attributes.
-        class G:
-            pass
-        g = G()
-        g.dietary_restrictions = kw.get('dietary_restrictions')
-        g.num_days = kw.get('num_days', 1)
-        g.small_meals_per_day = 0
-        g.snacks_per_day = 0
-        g.breakfast = False
-        g.lunch = False
-        g.dinner = True
-        return g
+        # Lightweight stand-in: select_recipes_for_pool only reads attributes.
+        return SimpleNamespace(
+            pk=1, dietary_restrictions=kw.get('dietary_restrictions'),
+            breakfasts=0, lunches=0, dinners=1, small_meals=0, snacks=0,
+        )
 
     def test_eligible_excludes_off_cuisine_when_facets_given(self):
         _recipe(slug='ital', cuisine='italian')
@@ -105,72 +100,9 @@ class FacetSelectionTest(TestCase):
     def test_select_leaves_slot_uncovered_when_no_facet_match(self):
         _recipe(slug='only-asian', cuisine='asian')
         goal = self._goal()
-        result = select_recipes_for_plan(goal, facets=PromptFacets(cuisines={'italian'}))
+        result = select_recipes_for_pool(goal, facets=PromptFacets(cuisines={'italian'}))
         self.assertEqual(result['coverage']['filled'], 0)        # nothing italian -> uncovered
-        self.assertEqual(result['days'][0]['slots'], {})
-
-
-from diet_planner.services.recipe_retrieval import overlay_curated_recipes
-
-
-class OverlayFacetsTest(TestCase):
-    def _goal(self, prompt):
-        class G:
-            pass
-        g = G()
-        g.prompt = prompt
-        g.dietary_restrictions = None
-        g.language_code = 'cs'
-        g.num_days = 1
-        g.small_meals_per_day = 0
-        g.snacks_per_day = 0
-        g.breakfast = False
-        g.lunch = False
-        g.dinner = True
-        return g
-
-    def _days(self):
-        return [{'day_number': 1, 'dinner': {'name': 'LLM dinner', 'meal_identifier': 'd1-dinner'}}]
-
-    def test_keeps_generated_meal_when_no_facet_match(self):
-        _recipe(slug='asian-only', cuisine='asian')
-
-        def fake_extract(prompt, *, language, cuisine_vocab, generate=None):
-            return PromptFacets(cuisines={'italian'})
-
-        import diet_planner.services.recipe_retrieval as rr
-        orig = rr.extract_prompt_facets
-        rr.extract_prompt_facets = fake_extract
-        try:
-            result = overlay_curated_recipes(self._days(), self._goal('italské'))
-        finally:
-            rr.extract_prompt_facets = orig
-
-        dinner = result['days'][0]['dinner']
-        self.assertEqual(dinner['name'], 'LLM dinner')          # not swapped
-        self.assertEqual(dinner['source'], 'generated')
-        self.assertEqual(result['coverage']['filled'], 0)
-        self.assertEqual(result['facets']['cuisines'], ['italian'])
-
-    def test_swaps_when_facet_eligible(self):
-        _recipe(slug='ital-dinner', cuisine='italian', name_cs='Těstoviny')
-
-        def fake_extract(prompt, *, language, cuisine_vocab, generate=None):
-            return PromptFacets(cuisines={'italian'})
-
-        import diet_planner.services.recipe_retrieval as rr
-        orig = rr.extract_prompt_facets
-        rr.extract_prompt_facets = fake_extract
-        try:
-            result = overlay_curated_recipes(self._days(), self._goal('italské'))
-        finally:
-            rr.extract_prompt_facets = orig
-
-        dinner = result['days'][0]['dinner']
-        self.assertEqual(dinner['source'], 'curated')
-        self.assertEqual(dinner['name'], 'Těstoviny')
-        self.assertEqual(dinner['meal_identifier'], 'd1-dinner')  # preserved
-        self.assertEqual(result['coverage']['filled'], 1)
+        self.assertEqual(result['meals'], [])
 
 
 from django.contrib.auth.models import User
@@ -198,8 +130,6 @@ class GroundingDebugFieldTest(TestCase):
         plan = DietaryPlan.objects.create(dietary_goal=goal)
         self.assertIsNone(plan.grounding_debug)
 
-
-from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 

@@ -33,7 +33,7 @@ SHOWCASE = {
     'meals': [{'slot': 'breakfast', 'name': 'Ovesná kaše s jablky', 'kcal': 350, 'deals_matched': 1},
               {'slot': 'lunch', 'name': 'Kuřecí rizoto', 'kcal': 620, 'deals_matched': 0},
               {'slot': 'dinner', 'name': 'Zeleninová polévka s krupicovými noky', 'kcal': 280, 'deals_matched': 2}],
-    'total_kcal': 1250, 'link': 'https://eatalnicek.eu/?utm_source={channel}',
+    'link': 'https://eatalnicek.eu/?utm_source={channel}',
 }
 
 

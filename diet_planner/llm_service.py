@@ -6,18 +6,15 @@ This module handles all Google Gemini API interactions for the diet planner appl
 Gemini can browse URLs directly, enabling real-time price fetching from shop websites.
 
 ## Responsibilities:
-- Generate meal plans (days with meals and ingredients)
+- Generate single meals for the meal pool (`generate_slot_meal`) and
+  restriction repairs (`regenerate_meal`)
+- Recipe instructions / curation helpers
 - Extract products from scraped HTML (for price discovery)
 - Estimate prices for products not found in shop data
 
 ## Important Design Decision:
-The LLM generates ONLY the meal plan structure with ingredients per meal.
-The backend (tasks.py) handles:
-- Aggregating ingredients into shopping list
-- Matching ingredients with shop products
-- Calculating prices
-
-This separation prevents confusion and ensures consistent pricing logic.
+The LLM generates ONE meal at a time with ingredients; it never produces a
+shopping list or prices. Shopping/pricing live per-recipe in the backend.
 
 ## Cost Tracking:
 All API calls track token usage and calculate costs in USD.
@@ -330,16 +327,13 @@ EXAMPLE INGREDIENT FORMAT:
         *,
         goal: Any,
         exclusions: "Optional[ResolvedRestrictions]",
-        shop_url: Optional[str] = None,
-        catalog_text: Optional[str] = None,
-        single_meal: bool = False,
+        task_line: Optional[str] = None,
     ) -> str:
-        """Build the system prompt for meal generation.
+        """Build the system prompt for single-meal generation.
 
-        Shared by generate_meal_plan_only (URL browsing), generate_catalog_
-        constrained_plan (catalog text), and regenerate_meal (single-meal
-        repair). The restriction block is injected when exclusions is non-
-        empty; this is the ONE place the rule lives.
+        Shared by regenerate_meal (single-meal repair) and generate_slot_meal
+        (pool gap fill). The restriction block is injected when exclusions is
+        non-empty; this is the ONE place the rule lives.
         """
         language_names = {
             "cs": "Czech", "sk": "Slovak", "pl": "Polish",
@@ -349,66 +343,26 @@ EXAMPLE INGREDIENT FORMAT:
         target_language = language_names.get(
             getattr(goal, "language_code", "en") or "en", "English"
         )
-        num_days = getattr(goal, "num_days", 7)
 
         restriction_block = self._format_restriction_block(exclusions)
 
-        if single_meal:
-            schema_hint = (
-                "OUTPUT: a SINGLE meal JSON object with keys "
-                "name, description, food_category, preparation_time, "
-                "ingredients[], instructions[], nutritional_info."
-            )
-            scope_line = "TASK: produce ONE replacement meal honoring all rules."
-        else:
-            schema_hint = (
-                'OUTPUT: {"days": [{"day_number": 1, "breakfast": {...}, '
-                '"lunch": {...}, "dinner": {...}, "small_meals": [...], '
-                '"snacks": [...]}, ...]}'
-            )
-            scope_line = f"TASK: generate a {num_days}-day meal plan."
-
-        source_line = (
-            f"Browse {shop_url} for context but don't list prices."
-            if shop_url
-            else f"Use ONLY the AVAILABLE PRODUCTS list below.\n\n{catalog_text or ''}"
+        schema_hint = (
+            "OUTPUT: a SINGLE meal JSON object with keys "
+            "name, description, food_category, preparation_time, "
+            "ingredients[], instructions[], nutritional_info."
         )
-
-        # Ingredient efficiency: a meal plan built from many one-off ingredients
-        # produces a long, expensive, hard-to-shop list (some plans hit ~99
-        # distinct ingredients). Steer the model toward a shared core set so the
-        # shopping list stays short and affordable. Only for full plans — a
-        # single-meal repair can't reason about the whole plan's ingredient set.
-        diversity_block = ""
-        if not single_meal:
-            ndays = int(num_days or 7)
-            budget = max(15, ndays * 6)
-            diversity_block = (
-                f"INGREDIENT EFFICIENCY (keep the shopping list short & affordable):\n"
-                f"- Design the WHOLE plan around a small, shared set of core\n"
-                f"  ingredients. Reuse the same proteins, vegetables and grains\n"
-                f"  across several meals and days instead of a new ingredient for\n"
-                f"  every dish (think batch-cooking).\n"
-                f"- Aim for at most ~{budget} DISTINCT main ingredients across the\n"
-                f"  entire {ndays}-day plan (common pantry staples like salt, oil\n"
-                f"  and spices don't count toward this).\n"
-                f"- When two meals fit the goal equally well, pick the one that\n"
-                f"  reuses ingredients already used elsewhere in the plan.\n"
-                f"\n"
-            )
+        scope_line = task_line or "TASK: produce ONE replacement meal honoring all rules."
 
         return (
             f"You are a nutrition expert creating meal plans.\n\n"
             f"RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.\n\n"
             f"{scope_line}\n"
             f"{schema_hint}\n\n"
-            f"{source_line}\n\n"
             f"{restriction_block}"
             f"CRITICAL RULES:\n"
             f"- Keep instructions VERY BRIEF: 3 steps maximum per meal\n"
             f"- Keep descriptions to 1 sentence\n"
             f"\n"
-            f"{diversity_block}"
             f"INGREDIENT CONSISTENCY (production-critical, do not violate):\n"
             f"- ingredients[] MUST list ONLY raw items the user has to buy fresh\n"
             f"  at the store for THIS meal.\n"
@@ -455,32 +409,158 @@ EXAMPLE INGREDIENT FORMAT:
         repair loop when the validator finds a forbidden ingredient.
         """
         model = model or self.default_model
+        slot = original_meal.get('slot') or original_meal.get('food_category') or 'meal'
         system_prompt = self._build_meal_system_prompt(
-            goal=goal, exclusions=exclusions, shop_url=None, single_meal=True,
+            goal=goal, exclusions=exclusions,
         )
         meal_brief = (
-            f"Slot: {original_meal.get('food_category', 'meal')}\n"
+            f"Slot: {slot}\n"
             f"Replace this meal because it violated restrictions:\n"
             f"  name: {original_meal.get('name', '?')}\n"
             f"  ingredients: "
             f"{[i.get('name') for i in (original_meal.get('ingredients') or []) if isinstance(i, dict)]}\n"
             f"Produce a compliant replacement for the same slot."
         )
-        gemini_model = genai.GenerativeModel(
-            model_name=model, system_instruction=system_prompt
+        out = self._single_meal_call(
+            system_prompt=system_prompt, brief=meal_brief, model=model, slot=slot,
         )
-        response = gemini_model.generate_content(
-            meal_brief,
-            generation_config={
-                "response_mime_type": "application/json",
-                "temperature": 0.7,
-                "max_output_tokens": getattr(
-                    settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536
+        return out['meal']
+
+    def generate_slot_meal(
+        self,
+        *,
+        slot: str,
+        user_prompt: str,
+        goal: Any,
+        exclusions: "Optional[ResolvedRestrictions]" = None,
+        avoid_names: List[str],
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """ONE meal for ONE pool slot, written with the user's full prompt.
+        Used to fill positions the curated corpus could not cover. Returns
+        {'meal': dict, input/output/total tokens, cost_usd, model}. Raises on
+        LLM/JSON failure — the caller turns that into a shortfall."""
+        model = model or self.default_model
+        exclusions = self._resolve_exclusions(goal, exclusions)
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal, exclusions=exclusions,
+            task_line="TASK: produce ONE new meal for the given slot honoring all rules.",
+        )
+        avoid = ', '.join(n for n in avoid_names if n) or '(none)'
+        brief = (
+            f"Slot: {slot}\n"
+            f"User request: {user_prompt}\n"
+            f"Dishes already in this plan (do NOT repeat or closely resemble): {avoid}\n"
+            f"Produce ONE meal for this slot that fits the request. "
+            f"Include realistic nutritional_info with numeric calories for ONE portion "
+            f"and set servings to 1."
+        )
+        return self._single_meal_call(
+            system_prompt=system_prompt, brief=brief, model=model, slot=slot,
+        )
+
+    def _single_meal_call(
+        self,
+        *,
+        system_prompt: str,
+        brief: str,
+        model: str,
+        slot: str,
+        temperature: float = 0.7,
+    ) -> Dict[str, Any]:
+        """One Gemini round-trip that must yield ONE meal dict.
+
+        Shared by regenerate_meal and generate_slot_meal. Raises ValueError on
+        a non-STOP finish, unparseable JSON, or a reply without a meal name.
+        """
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model, system_instruction=system_prompt,
+            )
+            response = gemini_model.generate_content(
+                brief,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": temperature,
+                    "max_output_tokens": getattr(
+                        settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536
+                    ),
+                },
+                request_options={"timeout": 120},
+            )
+            candidates = getattr(response, 'candidates', None)
+            finish_name = None
+            if candidates:
+                finish = getattr(candidates[0], 'finish_reason', None)
+                finish_name = getattr(finish, 'name', None) if finish is not None else None
+            # Missing / non-string finish_reason is treated as OK.
+            if not candidates or (isinstance(finish_name, str) and finish_name != 'STOP'):
+                raise ValueError(
+                    f"slot meal {slot}: finish_reason={finish_name}, "
+                    f"prompt_feedback={getattr(response, 'prompt_feedback', None)}"
+                )
+            parsed = self._loads_lenient(response.text)
+            meal = self._unwrap_single_meal(parsed, slot)
+            if not isinstance(meal, dict) or not meal.get('name'):
+                raise ValueError(f"slot meal for {slot!r} came back without a name")
+            usage = response.usage_metadata
+            return {
+                'meal': meal,
+                'input_tokens': usage.prompt_token_count,
+                'output_tokens': usage.candidates_token_count,
+                'total_tokens': usage.total_token_count,
+                'cost_usd': calculate_cost(
+                    usage.prompt_token_count, usage.candidates_token_count, model,
                 ),
-            },
-            request_options={"timeout": 120},
-        )
-        return json.loads(response.text)
+                'model': model,
+            }
+        except Exception as exc:
+            logger.error("Single-meal generation error (%s): %s", slot, exc, exc_info=True)
+            raise
+
+    @staticmethod
+    def _loads_lenient(content: str) -> Any:
+        """json.loads, retrying once after stripping trailing commas."""
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            cleaned = re.sub(r',\s*}', '}', content)
+            cleaned = re.sub(r',\s*]', ']', cleaned)
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError as e2:
+                raise ValueError(f"single-meal reply is not valid JSON: {e2}") from e2
+
+    @staticmethod
+    def _unwrap_single_meal(parsed: Any, slot: str) -> Any:
+        """Gemini sometimes wraps a single meal in the old {"days": [...]}
+        shape or a {"meal": {...}} envelope; unwrap both."""
+        if isinstance(parsed, dict) and 'name' in parsed:
+            return parsed
+        if isinstance(parsed, dict) and isinstance(parsed.get('meal'), dict):
+            return parsed['meal']
+        if isinstance(parsed, dict) and isinstance(parsed.get('days'), list) and parsed['days']:
+            day = parsed['days'][0]
+            if isinstance(day, dict):
+                if isinstance(day.get(slot), dict):
+                    return day[slot]
+                list_keys = ['small_meals', 'snacks']
+                preferred = {'small_meal': 'small_meals', 'snack': 'snacks'}.get(slot)
+                if preferred:
+                    list_keys.remove(preferred)
+                    items = day.get(preferred)
+                    if isinstance(items, list) and items and isinstance(items[0], dict):
+                        return items[0]
+                for key in ('breakfast', 'lunch', 'dinner'):
+                    if isinstance(day.get(key), dict):
+                        return day[key]
+                for key in list_keys:
+                    items = day.get(key)
+                    if isinstance(items, list) and items and isinstance(items[0], dict):
+                        return items[0]
+        if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+            return parsed[0]
+        return parsed
 
     def _resolve_exclusions(self, goal: Any, exclusions):
         """Resolve restrictions from the goal when a caller didn't pass them.
@@ -495,106 +575,6 @@ EXAMPLE INGREDIENT FORMAT:
         from diet_planner.services.restrictions import RestrictionResolver
         return RestrictionResolver().resolve(goal)
 
-    def _enforce_restrictions(self, parsed: Dict[str, Any], goal: Any, exclusions) -> None:
-        """Repair restriction violations in parsed['days'] in place.
-
-        Runs the deterministic-swap + re-prompt loop over every meal. A no-op
-        when there are no exclusion keywords. Propagates RepairBudgetExhausted
-        so the calling task can mark the goal FAILED rather than ship a plan
-        that violates the user's dietary restrictions.
-        """
-        if exclusions is None:
-            return
-        days = parsed.get('days')
-        if not isinstance(days, list) or not days:
-            return
-        from diet_planner.services.restrictions import repair_meals_with_violations
-        outcome = repair_meals_with_violations(
-            days=days, goal=goal, exclusions=exclusions, llm=self,
-        )
-        parsed['days'] = outcome.days
-        if outcome.swaps or outcome.reprompts:
-            logger.info(
-                "restriction-repair: %d swap(s), %d re-prompt(s) applied",
-                outcome.swaps, outcome.reprompts,
-            )
-
-    def generate_meal_plan_only(
-        self,
-        user_prompt: str,
-        shop_url: str,
-        goal: Any,
-        model: Optional[str] = None,
-        exclusions: "Optional[ResolvedRestrictions]" = None,
-    ) -> Dict[str, Any]:
-        """
-        Generate meal plan ONLY (no shopping list) to avoid token limits.
-        This is the first call in a two-step process.
-        """
-        model = model or self.default_model
-        exclusions = self._resolve_exclusions(goal, exclusions)
-
-        system_prompt = self._build_meal_system_prompt(
-            goal=goal,
-            exclusions=exclusions,
-            shop_url=shop_url,
-            single_meal=False,
-        )
-
-        full_prompt = f"""{user_prompt}
-
-Create meal plan with recipes from {shop_url}.
-Keep all text concise - 3 steps max per recipe, 1 sentence descriptions."""
-
-        try:
-            gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
-            max_tokens = getattr(settings, 'GEMINI_MAX_OUTPUT_TOKENS', 65536)
-
-            response = gemini_model.generate_content(
-                full_prompt,
-                generation_config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.7,
-                    "max_output_tokens": max_tokens,
-                },
-                request_options={"timeout": 300}
-            )
-
-            if response.candidates and hasattr(response.candidates[0], 'finish_reason'):
-                finish_reason = response.candidates[0].finish_reason
-                if finish_reason.name == 'MAX_TOKENS':
-                    logger.error(f"Meal plan response truncated at {max_tokens} tokens")
-                    raise ValueError(f"Response truncated: output exceeded {max_tokens} tokens")
-
-            content = response.text
-            usage = response.usage_metadata
-
-            try:
-                parsed_response = json.loads(content)
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse meal plan JSON: {e}")
-                try:
-                    cleaned = re.sub(r',\s*}', '}', content)
-                    cleaned = re.sub(r',\s*]', ']', cleaned)
-                    parsed_response = json.loads(cleaned)
-                except json.JSONDecodeError:
-                    raise ValueError(f"Invalid JSON from meal plan generation: {e}")
-
-            self._enforce_restrictions(parsed_response, goal, exclusions)
-
-            return {
-                'response': parsed_response,
-                'input_tokens': usage.prompt_token_count,
-                'output_tokens': usage.candidates_token_count,
-                'total_tokens': usage.total_token_count,
-                'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
-                'model': model,
-            }
-
-        except Exception as e:
-            logger.error(f"Meal plan generation error: {e}", exc_info=True)
-            raise
-    
     def generate_recipe_instructions(
         self,
         meal_name: str,
@@ -1437,97 +1417,6 @@ Only emit a slug from the candidate list. Use null when nothing fits.
             request_options={"timeout": 300},
         )
         return getattr(response, 'text', '') or ''
-
-    # ─── Catalog-Constrained Generation (Phase 4) ─────────────────────
-
-    def generate_catalog_constrained_plan(
-        self,
-        user_prompt: str,
-        catalog_text: str,
-        goal: Any,
-        model: Optional[str] = None,
-        exclusions: "Optional[ResolvedRestrictions]" = None,
-    ) -> Dict[str, Any]:
-        """
-        Generate a meal plan constrained to a real product catalog.
-
-        Instead of browsing a URL, the LLM receives the actual catalog of
-        available products and MUST use only those (plus pantry staples).
-        This eliminates price hallucination entirely.
-
-        Args:
-            user_prompt: Full user prompt/clinical document
-            catalog_text: Compact text block of available products (from CatalogService)
-            goal: DietaryGoal object
-            model: Optional model override
-
-        Returns:
-            Dict with 'response' (parsed JSON), token counts, cost
-        """
-        model = model or self.default_model
-        exclusions = self._resolve_exclusions(goal, exclusions)
-
-        system_prompt = self._build_meal_system_prompt(
-            goal=goal,
-            exclusions=exclusions,
-            catalog_text=catalog_text,
-            single_meal=False,
-        )
-
-        full_prompt = f"""{user_prompt}
-
-Create a {getattr(goal, 'num_days', 7)}-day meal plan using ONLY the available products listed above.
-Keep all text concise — 3 steps max per recipe, 1 sentence descriptions."""
-
-        try:
-            gemini_model = genai.GenerativeModel(
-                model_name=model, system_instruction=system_prompt
-            )
-            max_tokens = getattr(settings, 'GEMINI_MAX_OUTPUT_TOKENS', 65536)
-
-            response = gemini_model.generate_content(
-                full_prompt,
-                generation_config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.5,
-                    "max_output_tokens": max_tokens,
-                },
-                request_options={"timeout": 300},
-            )
-
-            if response.candidates and hasattr(response.candidates[0], 'finish_reason'):
-                finish_reason = response.candidates[0].finish_reason
-                if finish_reason.name == 'MAX_TOKENS':
-                    logger.error(f"Catalog-constrained plan truncated at {max_tokens} tokens")
-                    raise ValueError(f"Response truncated at {max_tokens} tokens")
-
-            content = response.text
-            usage = response.usage_metadata
-
-            try:
-                parsed = json.loads(content)
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON from catalog-constrained generation: {e}")
-                cleaned = re.sub(r',\s*}', '}', content)
-                cleaned = re.sub(r',\s*]', ']', cleaned)
-                parsed = json.loads(cleaned)
-
-            self._enforce_restrictions(parsed, goal, exclusions)
-
-            return {
-                'response': parsed,
-                'input_tokens': usage.prompt_token_count,
-                'output_tokens': usage.candidates_token_count,
-                'total_tokens': usage.total_token_count,
-                'cost_usd': calculate_cost(
-                    usage.prompt_token_count, usage.candidates_token_count, model
-                ),
-                'model': model,
-            }
-
-        except Exception as e:
-            logger.error(f"Catalog-constrained generation error: {e}", exc_info=True)
-            raise
 
 
 # Temporary alias for backward compatibility during migration

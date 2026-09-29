@@ -6,33 +6,50 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useToast } from '@/components/ui/Toast';
-import { dayMealEntries, dayTotals } from '@/lib/planMeals';
+import { dayMealEntries, dayTotals, groupPoolMeals, poolTotals, type PlanMeal } from '@/lib/planMeals';
 import { DayCard } from '@/components/plan/DayCard';
 import { WeekStrip } from '@/components/plan/WeekStrip';
+import { SlotSection } from '@/components/plan/SlotSection';
+import { SlotStrip } from '@/components/plan/SlotStrip';
+import { mealsLabel, poolSummary, type PoolCounts } from '@/lib/poolCounts';
 import { AdRail } from '@/components/ads/AdRail';
+
+/** "3 večeře · 1 snack"; without usable counts, "N jídel" from the meals themselves. */
+function poolHeading(counts: Partial<PoolCounts> | null | undefined, meals: unknown[]): string {
+  const hasCounts = !!counts && Object.values(counts).some((n) => (n ?? 0) > 0);
+  return hasCounts ? poolSummary(counts) : mealsLabel(meals.length);
+}
 
 function exportPlanAsText(goalDetail: any, plan: any) {
   const lines: string[] = [];
-  lines.push(`MEAL PLAN — ${goalDetail.city}, ${goalDetail.num_days} Days`);
-  lines.push(`Generated: ${new Date().toLocaleDateString()}`);
+  const isPool = Array.isArray(plan.meals);
+  lines.push(`JÍDELNÍČEK — ${goalDetail.city}, ${isPool ? poolHeading(goalDetail.counts, plan.meals) : `${goalDetail.num_days} dní`}`);
+  lines.push(`Vytvořeno: ${new Date().toLocaleDateString('cs-CZ')}`);
   lines.push('');
-
-  plan.days?.forEach((day: any) => {
-    lines.push(`═══ DAY ${day.day_number} ═══`);
-    dayMealEntries(day, goalDetail.id).forEach(({ label, meal }) => {
-      lines.push(`  ${label.toUpperCase()}: ${meal.name}`);
-      lines.push(`    ${meal.description}`);
-      const ni = meal.nutritional_info;
-      if (ni) lines.push(`    ${Object.entries(ni).map(([k, v]) => `${k}: ${v}`).join(' | ')}`);
+  const pushMeal = (label: string, meal: PlanMeal) => {
+    lines.push(`  ${label.toUpperCase()}: ${meal.name}`);
+    if (meal.description) lines.push(`    ${meal.description}`);
+    const ni = meal.nutritional_info;
+    if (ni) lines.push(`    ${Object.entries(ni).map(([k, v]) => `${k}: ${v}`).join(' | ')}`);
+  };
+  if (isPool) {
+    groupPoolMeals(plan.meals, goalDetail.id).forEach((section) => {
+      lines.push(`═══ ${section.label.toUpperCase()} ═══`);
+      section.entries.forEach(({ label, meal }) => pushMeal(label, meal));
+      lines.push('');
     });
-    lines.push('');
-  });
-
+  } else {
+    plan.days?.forEach((day: any) => {
+      lines.push(`═══ DEN ${day.day_number} ═══`);
+      dayMealEntries(day, goalDetail.id).forEach(({ label, meal }) => pushMeal(label, meal));
+      lines.push('');
+    });
+  }
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `meal-plan-${goalDetail.city}-${goalDetail.num_days}d.txt`;
+  a.download = `jidelnicek-${goalDetail.city}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -107,11 +124,17 @@ export const PlanView = () => {
   }
 
   if (statusData?.goal_status !== 'completed') {
-    return <LoadingScreen message="Vytváříme váš jídelníček na míru s recepty a nákupním seznamem..." status={statusData} goalId={id} />;
+    return <LoadingScreen message="Vybíráme recepty a skládáme nákupní seznamy..." status={statusData} goalId={id} />;
   }
 
   const plan = goalDetail?.dietary_plan;
   if (!plan) return <LoadingScreen message="Načítáme detaily plánu..." />;
+
+  const isPool = Array.isArray(plan?.meals);
+  const sections = isPool ? groupPoolMeals(plan.meals, id!) : [];
+  const totals = isPool ? poolTotals(plan.meals, id!, cookedSet) : null;
+  const counts = goalDetail?.counts || {};
+  const hasMains = sections.some((section) => section.isMain && section.entries.length > 0);
 
   return (
     <MainLayout>
@@ -124,7 +147,7 @@ export const PlanView = () => {
             <div className="flex flex-wrap gap-4 pt-6">
               {[
                 { icon: MapPin, text: goalDetail.city },
-                { icon: Timer, text: `${goalDetail.num_days} dní` },
+                { icon: Timer, text: isPool ? poolHeading(counts, plan.meals) : `${goalDetail.num_days} dní` },
                 { icon: Globe, text: (goalDetail.language_code || 'CS').toUpperCase() },
               ].map((meta, i) => (
                 <div key={i} className="flex items-center gap-3 bg-card border border-line px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
@@ -161,8 +184,24 @@ export const PlanView = () => {
           </div>
         )}
 
+        {isPool && totals && (
+          <div className="mb-16 grid grid-cols-2 sm:grid-cols-3 gap-4 text-left">
+            {[
+              // EN: "Meals", "Avg kcal per main", "Cooked"
+              { label: 'Jídel', value: totals.total, icon: null, color: 'text-ink' },
+              { label: 'Prům. kcal na hlavní jídlo', value: hasMains ? totals.avgMainKcal : '—', icon: Flame, color: 'text-orange-600' },
+              { label: 'Uvařeno', value: `${totals.cooked}/${totals.total}`, icon: ChefHat, color: 'text-green' },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-card border border-line rounded-2xl p-5">
+                <p className="text-[9px] font-black text-muted uppercase tracking-widest mb-2">{stat.label}</p>
+                <p className={`text-2xl font-black italic tracking-tighter ${stat.color}`}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Nutritional Summary */}
-        {plan.days?.length > 0 && (() => {
+        {!isPool && plan.days?.length > 0 && (() => {
           const dailyTotals = plan.days.map((day: any) => dayTotals(day, id!));
           const avg = {
             kcal: Math.round(dailyTotals.reduce((s: number, d: any) => s + d.kcal, 0) / dailyTotals.length),
@@ -194,20 +233,39 @@ export const PlanView = () => {
           );
         })()}
 
-        <WeekStrip days={plan.days || []} goalId={id!} />
-
-        <div className="space-y-8">
-          {plan.days?.map((day: any) => (
-            <DayCard
-              key={day.day_number}
-              day={day}
-              goalId={id!}
-              cookedSet={cookedSet}
-              onOpen={(mealId, chat) => navigate(`/plan/${id}/recipe/${mealId}${chat ? '?chat=1' : ''}`)}
-              onToggleCooked={(mealId, isCooked, mealName) => toggleCooked.mutate({ mealId, isCooked, mealName })}
-            />
-          ))}
-        </div>
+        {isPool ? (
+          <>
+            <SlotStrip sections={sections} />
+            <div className="space-y-8">
+              {sections.map((section) => (
+                <SlotSection
+                  key={section.slot}
+                  section={section}
+                  requested={counts[section.slot] ?? section.entries.length}
+                  cookedSet={cookedSet}
+                  onOpen={(mealId, chat) => navigate(`/plan/${id}/recipe/${mealId}${chat ? '?chat=1' : ''}`)}
+                  onToggleCooked={(mealId, isCooked, mealName) => toggleCooked.mutate({ mealId, isCooked, mealName })}
+                />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <WeekStrip days={plan.days || []} goalId={id!} />
+            <div className="space-y-8">
+              {plan.days?.map((day: any) => (
+                <DayCard
+                  key={day.day_number}
+                  day={day}
+                  goalId={id!}
+                  cookedSet={cookedSet}
+                  onOpen={(mealId, chat) => navigate(`/plan/${id}/recipe/${mealId}${chat ? '?chat=1' : ''}`)}
+                  onToggleCooked={(mealId, isCooked, mealName) => toggleCooked.mutate({ mealId, isCooked, mealName })}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
       <AdRail slot="plan-right" />
       </div>

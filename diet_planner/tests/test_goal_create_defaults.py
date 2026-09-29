@@ -28,6 +28,7 @@ class GoalCreateDefaultsTests(TestCase):
             'prompt': 'Týdenní jídelníček pro jednoho, zdravě a levně.',
             'country': 'CZ',
             'city': 'Praha',
+            'dinners': 3,
         }
         base.update(over)
         return base

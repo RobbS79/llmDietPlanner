@@ -5,7 +5,6 @@ LLM calls, no DB writes) and reports concentration metrics. This is the
 before/after harness for serving-distribution changes: run it on two code
 states against the same corpus and compare.
 """
-import inspect
 from collections import Counter
 from types import SimpleNamespace
 
@@ -35,16 +34,16 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--regens', type=int, default=5,
                             help='Plans generated per persona (regeneration count)')
-        parser.add_argument('--days', type=int, default=5)
+        parser.add_argument('--days', type=int, default=5,
+                            help='Recipes per main slot (breakfast/lunch/dinner)')
 
     def handle(self, *args, **options):
         regens, days = options['regens'], options['days']
         pool = CuratedRecipe.objects.filter(status=CuratedRecipe.Status.PUBLISHED)
         pool_count = pool.count()
 
-        select_params = inspect.signature(rr.select_recipes_for_plan).parameters
         serves = Counter()
-        day1_lunch = {}  # persona -> [recipe id per regen]
+        first_lunch = {}  # persona -> [recipe id per regen]
         filled = total = 0
 
         for p_idx, (name, restrictions, facet_kwargs) in enumerate(PERSONAS):
@@ -52,21 +51,18 @@ class Command(BaseCommand):
             seen_ids = set()  # this persona's serve history across regens
             for regen in range(regens):
                 goal = SimpleNamespace(
-                    pk=p_idx * 1000 + regen, num_days=days,
-                    small_meals_per_day=0, snacks_per_day=0,
-                    breakfast=True, lunch=True, dinner=True,
+                    pk=p_idx * 1000 + regen,
+                    breakfasts=days, lunches=days, dinners=days, small_meals=0, snacks=0,
                     dietary_restrictions=restrictions,
                 )
-                kwargs = {'facets': facets}
-                if 'recently_served_ids' in select_params:
-                    kwargs['recently_served_ids'] = set(seen_ids)
-                result = rr.select_recipes_for_plan(goal, **kwargs)
-                for day in result['days']:
-                    for slot_key, recipe in day['slots'].items():
-                        serves[recipe.id] += 1
-                        seen_ids.add(recipe.id)
-                        if day['day_number'] == 1 and slot_key == 'lunch':
-                            day1_lunch.setdefault(name, []).append(recipe.id)
+                result = rr.select_recipes_for_pool(
+                    goal, facets=facets, recently_served_ids=set(seen_ids))
+                for entry in result['meals']:
+                    recipe = entry['recipe']
+                    serves[recipe.id] += 1
+                    seen_ids.add(recipe.id)
+                    if entry['slot'] == 'lunch' and entry['index'] == 0:
+                        first_lunch.setdefault(name, []).append(recipe.id)
                 filled += result['coverage']['filled']
                 total += result['coverage']['total']
 
@@ -78,7 +74,7 @@ class Command(BaseCommand):
         never_pct = (100.0 * never / pool_count) if pool_count else 0.0
 
         repeat_rates = []
-        for ids in day1_lunch.values():
+        for ids in first_lunch.values():
             if len(ids) > 1:
                 repeat_rates.append((len(ids) - len(set(ids))) / (len(ids) - 1))
         repeat = sum(repeat_rates) / len(repeat_rates) if repeat_rates else 0.0
@@ -90,4 +86,4 @@ class Command(BaseCommand):
         w(f'distinct recipes served: {distinct}')
         w(f'never-served: {never} ({never_pct:.1f}% of pool)')
         w(f'top-15 share: {top15_share:.1f}% of serves')
-        w(f'day1-lunch repeat rate: {repeat:.2f} (1.00 = same dish every regeneration)')
+        w(f'first-lunch repeat rate: {repeat:.2f} (1.00 = same dish every regeneration)')

@@ -3,7 +3,7 @@ Recipe-grounding retrieval layer (Direction B, B3).
 
 Turns plan constraints into concrete `CuratedRecipe` selections, then renders
 each into the meal-object shape the rest of the pipeline already speaks (see
-`tasks.transform_days_to_new_format` and `llm_service.generate_meal_plan_only`).
+`services.meal_pool` and `llm_service.generate_slot_meal`).
 
 Design (docs/recipe-grounding-plan.md §5/§6), deliberately simple — SQL filters
 + greedy assembly, no pgvector (premature for a few hundred rows):
@@ -23,14 +23,12 @@ Design (docs/recipe-grounding-plan.md §5/§6), deliberately simple — SQL filt
   * SOFT RANK (higher = better): variety (penalise a cuisine/recipe already
     used in this plan), difficulty (prefer easy), popularity (usage_count),
     and optional calorie proximity to a per-meal target.
-  * ASSEMBLY: greedy per-slot against the day, avoiding repeats until the
-    eligible pool is exhausted.
+  * ASSEMBLY: greedy per position across the pool, avoiding repeats until
+    the eligible pool is exhausted.
 
-Integration is an OVERLAY: the existing LLM path still produces a full plan
-(guaranteed fallback for every slot), and `overlay_curated_recipes` swaps in a
-real, attributed recipe wherever the corpus covers a slot. Uncovered slots keep
-their generated meal, flagged source=generated. This is safe with a sparse
-corpus and gets stronger as the corpus grows (B2).
+Integration (2026-09-29): the corpus is the PRIMARY source.
+`select_recipes_for_pool` picks N recipes per slot; `services.meal_pool` fills
+the remaining positions from the LLM one meal at a time.
 """
 from __future__ import annotations
 
@@ -42,9 +40,8 @@ from collections import Counter
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set
 
 from django.conf import settings
-from django.db.models import F
 
-from diet_planner.models import CanonicalIngredient, CuratedRecipe
+from diet_planner.models import CanonicalIngredient, CuratedRecipe, DietaryGoal
 from diet_planner.models.catalog import Availability
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
 from diet_planner.services.priloha import Side, pick_side, side_ingredient, side_meta, side_nutrition
@@ -52,7 +49,6 @@ from diet_planner.services.prompt_facets import (
     ENFORCEABLE_DIETARY_TAGS,
     PromptFacets,
     _coerce_time_minutes,
-    extract_prompt_facets,
 )
 
 logger = logging.getLogger(__name__)
@@ -416,7 +412,7 @@ def eligible_recipes_for_slot(
     `enforce_roles=False` relaxes ONLY the dish-role slot-fit gate — used as
     the select-time fallback when a slot has no role-appropriate candidates.
     `exclude_families` drops every recipe whose `dish_family` is in the set
-    (same-day dedupe: lečo at lunch means no lečo at dinner). An empty family
+    (plan-wide dedupe: lečo at lunch means no lečo at dinner). An empty family
     is never excluded — untagged rows must keep flowing.
     All other gates (slot, dietary, facets) always apply."""
     meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)
@@ -627,119 +623,132 @@ def score_recipe(
     return score
 
 
-def select_recipes_for_plan(
+# ---------------------------------------------------------------------------
+# Pool selection (2026-09-29): N recipes per slot, no days
+# ---------------------------------------------------------------------------
+
+# One mapping, owned by the model: {slot: DietaryGoal count field}.
+_POOL_COUNT_ATTRS = DietaryGoal.POOL_COUNT_FIELDS
+_POOL_SLOT_ORDER = tuple(DietaryGoal.POOL_COUNT_FIELDS)
+
+
+def pool_counts(goal: Any) -> Dict[str, int]:
+    """{slot: requested count} read off a goal (or any namespace); 0 default.
+    DietaryGoal.pool_counts() delegates here; this also serves simulation
+    namespaces (SimpleNamespace goals)."""
+    return {slot: int(getattr(goal, attr, 0) or 0) for slot, attr in _POOL_COUNT_ATTRS.items()}
+
+
+def select_recipes_for_pool(
     goal: Any,
     *,
     status: str = CuratedRecipe.Status.PUBLISHED,
     facets: Optional[PromptFacets] = None,
-    calorie_targets: Optional[Dict[int, Dict[str, float]]] = None,
     recently_served_ids: Optional[Set[int]] = None,
+    skip_slots: Sequence[str] = (),
 ) -> Dict[str, Any]:
-    """Greedy per-slot selection across the whole plan.
+    """Greedy selection of `count` recipes for every slot in the pool.
 
-    `calorie_targets` is {day_number: {slot_key: kcal}} (the overlay derives it
-    from the generated plan) and feeds the size-sanity term in `score_recipe`
-    so a 400-kcal side can't win a 700-kcal main slot.
+    Returns {'meals': [{'slot', 'index', 'recipe'}], 'coverage': {'filled',
+    'total'}, 'gaps': [{'slot', 'index', 'reason', 'required_tags',
+    'unmatched_wanted'}]}. Positions that could not be filled are absent from
+    `meals` and present in `gaps` (the caller fills them from the LLM).
+    `skip_slots` positions are recorded as 'slot_skipped' gaps without
+    consulting the corpus (used when facet extraction is suspect).
+    Family dedupe is POOL-WIDE: lečo at lunch means no lečo at dinner either.
 
-    Returns {'days': [{'day_number', 'slots': {slot_key: CuratedRecipe}}, ...],
-             'coverage': {'filled': int, 'total': int},
-             'gaps': [{day_number, slot, reason, required_tags,
-                       unmatched_wanted}, ...]} where slot_key is
-    'breakfast'/'lunch'/'dinner' or 'small_meal:N'/'snack:N'. Uncovered slots
-    are simply absent — the caller falls back to the generated meal — and every
-    one is recorded in `gaps` as a corpus-acquisition signal.
+    Positions are FILLED index-major (breakfast 0, lunch 0, dinner 0, …, then
+    index 1, …) so variety/family/ingredient-reuse penalties spread evenly
+    across slots, and RETURNED slot-major (all breakfasts, then lunches, …),
+    both `meals` and `gaps` sorted by (slot order, index).
+
+    A relaxed pick (`family_relaxed`/`role_relaxed`) is filled AND recorded as
+    a gap, and a position can carry two entries; count distinct (slot, index)
+    per reason, never the raw length.
     """
     required_tags = required_tags_for_goal(goal)
-    num_days = int(getattr(goal, 'num_days', 7) or 7)
-    small_n = int(getattr(goal, 'small_meals_per_day', 0) or 0)
-    snack_n = int(getattr(goal, 'snacks_per_day', 0) or 0)
-
-    main_slots = [s for s in ('breakfast', 'lunch', 'dinner') if getattr(goal, s, True)]
-    slot_plan: List[tuple] = [(s, s) for s in main_slots]
-    slot_plan += [('small_meal', f'small_meal:{i}') for i in range(small_n)]
-    slot_plan += [('snack', f'snack:{i}') for i in range(snack_n)]
-
+    counts = pool_counts(goal)
     pool = published_pool(status)
     goal_seed = getattr(goal, 'pk', None) or getattr(goal, 'id', None) or 0
     used_recipe_ids: Set[int] = set()
     used_cuisines: List[str] = []
-    used_canonicals: Set[str] = set()  # ingredient reuse across the whole plan
-    used_families_plan: Counter = Counter()  # dish families served so far
-    days: List[Dict[str, Any]] = []
+    used_canonicals: Set[str] = set()
+    used_families: Set[str] = set()
+    used_families_count: Counter = Counter()
+    meals: List[Dict[str, Any]] = []
     gaps: List[Dict[str, Any]] = []
     filled = total = 0
 
-    def record_gap(day_number: int, slot_key: str, reason: str) -> None:
+    def record_gap(slot: str, index: int, reason: str) -> None:
         gap = {
-            'day_number': day_number,
-            'slot': slot_key,
-            'reason': reason,
+            'slot': slot, 'index': index, 'reason': reason,
             'required_tags': sorted(required_tags),
             'unmatched_wanted': sorted(facets.wanted_ingredients) if facets else [],
         }
         gaps.append(gap)
-        logger.info("Recipe grounding corpus gap: %s", gap)
+        logger.info("Recipe pool corpus gap: %s", gap)
 
-    for day_number in range(1, num_days + 1):
-        chosen: Dict[str, Any] = {}
-        used_families_today: Set[str] = set()
-        for slot_type, slot_key in slot_plan:
+    for index in range(max(counts.values(), default=0)):
+        for slot in _POOL_SLOT_ORDER:
+            if index >= counts.get(slot, 0):
+                continue
             total += 1
+            if slot in skip_slots:
+                record_gap(slot, index, 'slot_skipped')
+                continue
+            # exclude_ids on every call: a recipe never repeats in the pool,
+            # so score_recipe's -100 repeat branch never fires here.
             candidates = eligible_recipes_for_slot(
-                slot_type, required_tags, pool=pool, facets=facets,
-                exclude_families=used_families_today)
-            if not candidates and used_families_today:
-                # Family dedupe starved the slot: a repeat family beats an
-                # empty plate, but it is a signal worth counting.
+                slot, required_tags, pool=pool, facets=facets,
+                exclude_ids=used_recipe_ids, exclude_families=used_families)
+            if not candidates and used_families:
                 candidates = eligible_recipes_for_slot(
-                    slot_type, required_tags, pool=pool, facets=facets)
+                    slot, required_tags, pool=pool, facets=facets, exclude_ids=used_recipe_ids)
                 if candidates:
-                    record_gap(day_number, slot_key, 'family_relaxed')
+                    record_gap(slot, index, 'family_relaxed')
             if not candidates:
-                # Role-relaxed fallback: serving a role-mismatched dish beats
-                # starving the slot, but it is recorded as a corpus gap.
+                # Role-relaxed fallback intentionally drops family dedupe too.
                 candidates = eligible_recipes_for_slot(
-                    slot_type, required_tags, pool=pool, facets=facets, enforce_roles=False)
+                    slot, required_tags, pool=pool, facets=facets,
+                    exclude_ids=used_recipe_ids, enforce_roles=False)
                 if candidates:
-                    record_gap(day_number, slot_key, 'role_relaxed')
+                    record_gap(slot, index, 'role_relaxed')
                 else:
-                    record_gap(day_number, slot_key, 'no_eligible_recipes')
+                    record_gap(slot, index, 'no_eligible_recipes')
                     continue
-            target = slot_target(calorie_targets, day_number, slot_key)
+            target = _SLOT_DEFAULT_KCAL.get(slot)
             scored = [(score_recipe(
                 r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
                 facets=facets, used_canonicals=used_canonicals,
                 target_calories=target, recently_served_ids=recently_served_ids,
-                used_families=used_families_plan,
+                used_families=used_families_count,
             ), r) for r in candidates]
             top = max(s for s, _ in scored)
             window = [r for s, r in scored if s >= top - _SAMPLING_WINDOW]
-            # Seeded per (goal, day, slot): rotation across plans, stable
-            # within one plan (re-running the same goal reproduces it).
-            rng = random.Random(f'{goal_seed}:{day_number}:{slot_key}')
+            rng = random.Random(f'{goal_seed}:{slot}:{index}')
             best = rng.choice(window)
-            # Prompt-fit threshold (main slots only): if even the best curated
-            # candidate matches nothing the user asked for, the generated meal
-            # — written with full prompt context — is the better answer.
             if (
                 facets is not None and facets.wanted_ingredients
-                and slot_type in _WANTED_FIT_SLOTS
+                and slot in _WANTED_FIT_SLOTS
                 and wanted_matcher(facets).hits(best) == 0
             ):
-                record_gap(day_number, slot_key, 'wanted_fit_below_threshold')
+                record_gap(slot, index, 'wanted_fit_below_threshold')
                 continue
-            chosen[slot_key] = best
+            meals.append({'slot': slot, 'index': index, 'recipe': best})
             if best.dish_family:
-                used_families_today.add(best.dish_family)
-                used_families_plan[best.dish_family] += 1
+                used_families.add(best.dish_family)
+                used_families_count[best.dish_family] += 1
             used_recipe_ids.add(best.id)
             if best.cuisine:
                 used_cuisines.append(best.cuisine)
             used_canonicals |= _recipe_canonicals(best)
             filled += 1
-        days.append({'day_number': day_number, 'slots': chosen})
 
-    return {'days': days, 'coverage': {'filled': filled, 'total': total}, 'gaps': gaps}
+    order = {slot: n for n, slot in enumerate(_POOL_SLOT_ORDER)}
+    meals.sort(key=lambda m: (order[m['slot']], m['index']))
+    gaps.sort(key=lambda g: (order[g['slot']], g['index']))
+
+    return {'meals': meals, 'coverage': {'filled': filled, 'total': total}, 'gaps': gaps}
 
 
 # ---------------------------------------------------------------------------
@@ -881,39 +890,6 @@ def render_curated_meal(
     return meal, gap
 
 
-_KCAL_IN_TEXT_RE = re.compile(r'(\d+(?:[.,]\d+)?)\s*kcal', re.IGNORECASE)
-_LEADING_NUMBER_RE = re.compile(r'(\d+(?:[.,]\d+)?)')
-
-
-def _meal_calories(meal: Any) -> Optional[float]:
-    """Calories of a generated meal, tolerating every nutritional_info shape
-    Gemini actually emits: a dict with numeric calories, a dict with string
-    calories ("450" / "450 kcal"), or a bare string blob ("cca 650 kcal, 30 g
-    bílkovin" — prod goal 134 crashed on exactly that). Returns None when no
-    number can be trusted."""
-    if not isinstance(meal, dict):
-        return None
-    info = meal.get('nutritional_info')
-    if isinstance(info, dict):
-        calories = info.get('calories')
-        if isinstance(calories, (int, float)):
-            return float(calories) if calories > 0 else None
-        if isinstance(calories, str):
-            m = _LEADING_NUMBER_RE.search(calories)
-            if m:
-                value = float(m.group(1).replace(',', '.'))
-                return value if value > 0 else None
-        return None
-    if isinstance(info, str):
-        # A free-text blob mixes numbers ("30 g bílkovin"); only a number
-        # explicitly tied to kcal is safe to read.
-        m = _KCAL_IN_TEXT_RE.search(info)
-        if m:
-            value = float(m.group(1).replace(',', '.'))
-            return value if value > 0 else None
-    return None
-
-
 # Fallback per-slot calorie targets (roughly a 2000-kcal adult day) used when
 # the generated plan carries no usable number for a slot. Without one, the
 # overlay served exactly one base-portion — for piece-counted recipes that is
@@ -925,183 +901,3 @@ _SLOT_DEFAULT_KCAL: Dict[str, float] = {
     'small_meal': 250.0,
     'snack': 250.0,
 }
-
-
-def slot_target(
-    calorie_targets: Optional[Dict[int, Dict[str, float]]],
-    day_number: int,
-    slot_key: str,
-) -> Optional[float]:
-    """Calorie target for a slot: the generated plan's own number when usable,
-    else the slot-type default. slot_key is 'lunch' or 'small_meal:0'-style."""
-    derived = (calorie_targets or {}).get(day_number, {}).get(slot_key)
-    if derived:
-        return derived
-    return _SLOT_DEFAULT_KCAL.get(slot_key.split(':', 1)[0])
-
-
-def _calorie_targets_from_days(
-    transformed_days: List[Dict[str, Any]],
-) -> Dict[int, Dict[str, float]]:
-    """Per-slot calorie targets read off the generated plan itself — the LLM
-    already sized each meal for this user, so its calories are the best
-    available 'how big should this slot be' signal (no goal field needed)."""
-    targets: Dict[int, Dict[str, float]] = {}
-    for idx, day in enumerate(transformed_days):
-        day_number = day.get('day_number', idx + 1)
-        per_slot: Dict[str, float] = {}
-
-        def add(slot_key: str, meal: Any) -> None:
-            calories = _meal_calories(meal)
-            if calories is not None:
-                per_slot[slot_key] = calories
-
-        for slot in ('breakfast', 'lunch', 'dinner'):
-            add(slot, day.get(slot))
-        for slot_type, list_key in (('small_meal', 'small_meals'), ('snack', 'snacks')):
-            for i, meal in enumerate(day.get(list_key) or []):
-                add(f'{slot_type}:{i}', meal)
-        targets[day_number] = per_slot
-    return targets
-
-
-def overlay_curated_recipes(
-    transformed_days: List[Dict[str, Any]],
-    goal: Any,
-    *,
-    status: str = CuratedRecipe.Status.PUBLISHED,
-    facets: Optional[PromptFacets] = None,
-) -> Dict[str, Any]:
-    """Overlay real curated recipes onto facet-eligible slots of an already-
-    generated plan. Uncovered/ineligible slots keep their generated meal
-    (flagged source=generated). Preserves each meal's existing `meal_identifier`.
-    Returns {'days', 'coverage', 'facets', 'gaps'}.
-    """
-    if facets is None:
-        vocab = published_cuisine_vocab(status=status)
-        facets = extract_prompt_facets(
-            getattr(goal, 'prompt', '') or '',
-            language=getattr(goal, 'language_code', 'cs') or 'cs',
-            cuisine_vocab=vocab,
-        )
-
-    # Restrictions stated in the prompt are enforced here at generation, but the
-    # extraction result used to die with this call — leaving refine/replace/swap
-    # blind to them. Persist so the rest of the product honours the same rules.
-    store_derived_dietary_tags(goal, getattr(facets, 'dietary', set()))
-
-    calorie_targets = _calorie_targets_from_days(transformed_days)
-    selection = select_recipes_for_plan(
-        goal, status=status, facets=facets,
-        calorie_targets=calorie_targets,
-        recently_served_ids=recently_served_curated_ids(goal),
-    )
-    sel_by_day = {d['day_number']: d['slots'] for d in selection['days']}
-    gaps: List[Dict[str, Any]] = list(selection['gaps'])
-    required_tags = required_tags_for_goal(goal)
-
-    promoted_ids: Set[int] = set()
-    goal_id = getattr(goal, 'id', None) or getattr(goal, 'pk', 0)
-    rescued = 0
-
-    # Suspect facets = the user said something concrete and we failed to parse
-    # it. The generated plan is then the only prompt-aware artifact: keep its
-    # meals, only fill slots that are actually empty (rescue-only).
-    rescue_only = bool(getattr(facets, 'suspect', False))
-    if rescue_only:
-        logger.warning(
-            "Facet extraction suspect for goal %s: overlay running rescue-only "
-            "(generated meals kept)", goal_id)
-
-    for idx, day in enumerate(transformed_days):
-        day_number = day.get('day_number', idx + 1)
-        slots = sel_by_day.get(day_number, {})
-
-        # Main meals: breakfast/lunch/dinner are single objects. A chosen
-        # recipe attaches even when the slot is empty — a truncated/stub LLM
-        # response (dropped in transform) must not discard a full curated
-        # selection with it (prod goal 133: 4/4 chosen, 0 applied, plan
-        # failed the completeness guard).
-        for slot in ('breakfast', 'lunch', 'dinner'):
-            recipe = slots.get(slot)
-            if recipe is None:
-                continue
-            existing = day.get(slot)
-            if existing and rescue_only:
-                continue
-            target = slot_target(calorie_targets, day_number, slot)
-            meal, side_gap = render_curated_meal(recipe, target_kcal=target, required_tags=required_tags)
-            if side_gap:
-                gaps.append({'day_number': day_number, 'slot': slot, 'reason': side_gap,
-                             'required_tags': sorted(required_tags), 'unmatched_wanted': []})
-            meal['meal_identifier'] = (
-                (existing or {}).get('meal_identifier')
-                or f"{goal_id}:{day_number}:{slot}:0"
-            )
-            if not existing:
-                rescued += 1
-            day[slot] = meal
-            promoted_ids.add(recipe.id)
-
-        # small_meals / snacks are lists; overlay positionally, appending
-        # rescued meals for chosen indices past the (possibly hollowed) list.
-        for slot_type, list_key in (('small_meal', 'small_meals'), ('snack', 'snacks')):
-            meals = day.get(list_key) or []
-            chosen = {
-                int(k.split(':', 1)[1]): r
-                for k, r in slots.items() if k.startswith(slot_type + ':')
-            }
-            for i in range(max([len(meals)] + [x + 1 for x in chosen])):
-                recipe = chosen.get(i)
-                if recipe is None:
-                    continue
-                if i < len(meals) and rescue_only:
-                    continue
-                existing = meals[i] if i < len(meals) else None
-                target = slot_target(calorie_targets, day_number, f'{slot_type}:{i}')
-                meal, side_gap = render_curated_meal(recipe, target_kcal=target, required_tags=required_tags)
-                if side_gap:
-                    gaps.append({'day_number': day_number, 'slot': f'{slot_type}:{i}', 'reason': side_gap,
-                                 'required_tags': sorted(required_tags), 'unmatched_wanted': []})
-                meal['meal_identifier'] = (
-                    (existing.get('meal_identifier') if isinstance(existing, dict) else None)
-                    or f"{goal_id}:{day_number}:{slot_type}:{i}"
-                )
-                if i < len(meals):
-                    meals[i] = meal
-                else:
-                    meals.append(meal)
-                    rescued += 1
-                promoted_ids.add(recipe.id)
-            day[list_key] = meals
-
-    if rescued:
-        logger.info("Recipe grounding rescued %d empty slot(s) with curated recipes", rescued)
-
-    # Mark every non-curated meal explicitly as generated for the frontend.
-    for day in transformed_days:
-        for slot in ('breakfast', 'lunch', 'dinner'):
-            m = day.get(slot)
-            if isinstance(m, dict) and 'source' not in m:
-                m['source'] = 'generated'
-        for list_key in ('small_meals', 'snacks'):
-            for m in (day.get(list_key) or []):
-                if isinstance(m, dict) and 'source' not in m:
-                    m['source'] = 'generated'
-
-    # Bump usage_count for what we served (variety/popularity signal).
-    if promoted_ids:
-        CuratedRecipe.objects.filter(pk__in=promoted_ids).update(
-            usage_count=F('usage_count') + 1
-        )
-
-    return {
-        'days': transformed_days,
-        'coverage': {**selection['coverage'], 'rescued': rescued},
-        'facets': facets.to_debug(),
-        'gaps': gaps,
-    }
-
-
-def grounding_enabled() -> bool:
-    return bool(getattr(settings, 'RECIPE_GROUNDING_ENABLED', False))

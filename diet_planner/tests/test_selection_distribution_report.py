@@ -49,7 +49,7 @@ class SelectionDistributionReportTests(TestCase):
         self.assertIn('distinct recipes served:', output)
         self.assertIn('never-served:', output)
         self.assertIn('top-15 share:', output)
-        self.assertIn('day1-lunch repeat rate:', output)
+        self.assertIn('first-lunch repeat rate:', output)
 
     def test_serves_at_least_one_recipe(self):
         output = self.run_command('--regens', '2', '--days', '2')

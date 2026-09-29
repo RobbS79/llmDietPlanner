@@ -176,9 +176,9 @@ class Command(BaseCommand):
 
         for idx, query in enumerate(queries):
             goal = SimpleNamespace(
-                pk=idx, num_days=query.num_days,
-                small_meals_per_day=0, snacks_per_day=0,
-                breakfast=True, lunch=True, dinner=True,
+                pk=idx,
+                breakfasts=query.num_days, lunches=query.num_days, dinners=query.num_days,
+                small_meals=0, snacks=0,
                 dietary_restrictions=query.dietary_restrictions,
             )
 
@@ -191,7 +191,7 @@ class Command(BaseCommand):
             else:
                 facets = query.facets
 
-            result = rr.select_recipes_for_plan(goal, facets=facets)
+            result = rr.select_recipes_for_pool(goal, facets=facets)
             filled += result['coverage']['filled']
             total += result['coverage']['total']
 

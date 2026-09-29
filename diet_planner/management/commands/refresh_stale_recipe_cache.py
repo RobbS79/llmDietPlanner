@@ -22,7 +22,7 @@ Dry-run by default; prints a table and changes nothing:
     python manage.py refresh_stale_recipe_cache
 
 With --apply, each stale row is rewritten in place from the current corpus,
-along with its plan slot so the two cannot disagree:
+along with its plan position (pool or legacy day grid) so the two cannot disagree:
 
     python manage.py refresh_stale_recipe_cache --apply [--goal-id N]
 """
@@ -33,18 +33,25 @@ from django.db import transaction
 
 from diet_planner.models import DietaryPlan, Recipe
 from diet_planner.models.curated import CuratedRecipe
+from diet_planner.services.meal_locator import (
+    LIST_KEY_FOR_TYPE,
+    locate_meal,
+    parse_meal_identifier,
+    plan_meals_field,
+    set_meal,
+)
 from diet_planner.services.recipe_retrieval import (
+    _SLOT_DEFAULT_KCAL,
     per_portion_calories,
     portions_for_target,
     scale_recipe_to_meal,
-    slot_target,
 )
 
 # Rounding through int()/_fmt_grams means an exact match is not expected.
 TOLERANCE = 0.02
 
-_LIST_SLOTS = {'small_meals': 'small_meal', 'snacks': 'snack'}
-_LIST_KEY_FOR_TYPE = {v: k for k, v in _LIST_SLOTS.items()}
+# Plural day-dict list keys -> the singular slot type they hold.
+_TYPE_FOR_LIST_KEY = {v: k for k, v in LIST_KEY_FOR_TYPE.items()}
 
 
 def expected_calories(curated: CuratedRecipe, servings) -> Optional[float]:
@@ -67,41 +74,25 @@ def is_stale(row: Recipe, curated: CuratedRecipe, tolerance: float = TOLERANCE) 
 
 
 def slot_key_for(meal_type: str) -> str:
-    """Plan meal_type -> the slot key `slot_target` keys its defaults by."""
-    return _LIST_SLOTS.get(meal_type, meal_type)
+    """Plan meal_type -> the slot key `_SLOT_DEFAULT_KCAL` is keyed by
+    (accepts the plural list spelling too)."""
+    return _TYPE_FOR_LIST_KEY.get(meal_type, meal_type)
 
 
-def rebuild_meal(curated: CuratedRecipe, meal_identifier: str, day_number: int, meal_type: str):
-    """The meal this slot should hold given the current corpus. Portioned to the
-    slot-type default target: the plan's own calories are what we're repairing,
-    so they cannot also be the yardstick."""
-    target = slot_target(None, day_number, slot_key_for(meal_type))
+def rebuild_meal(curated: CuratedRecipe, meal_identifier: str, meal_type: str):
+    """The meal this position should hold given the current corpus. Portioned
+    to the slot-type default target: the plan's own calories are what we're
+    repairing, so they cannot also be the yardstick."""
+    target = _SLOT_DEFAULT_KCAL.get(slot_key_for(meal_type))
     meal = scale_recipe_to_meal(curated, portions=portions_for_target(curated, target))
     meal['meal_identifier'] = meal_identifier
     return meal
 
 
-def _write_plan_slot(plan: DietaryPlan, day_number: int, meal_type: str, meal) -> bool:
-    """Replace the slot in plan.days. Returns whether anything was written."""
-    day = next((d for d in (plan.days or []) if d.get('day_number') == day_number), None)
-    if not isinstance(day, dict):
-        return False
-    # Identifiers name the slot type ('small_meal'); the day keys the list by
-    # its plural ('small_meals'). Accept either spelling.
-    list_key = meal_type if meal_type in _LIST_SLOTS else _LIST_KEY_FOR_TYPE.get(meal_type)
-    if list_key:
-        entries = day.get(list_key) or []
-        for i, existing in enumerate(entries):
-            if isinstance(existing, dict) and \
-                    existing.get('meal_identifier') == meal['meal_identifier']:
-                entries[i] = meal
-                day[list_key] = entries
-                return True
-        return False
-    if not isinstance(day.get(meal_type), dict):
-        return False
-    day[meal_type] = meal
-    return True
+def _position_holds(plan: DietaryPlan, ref, slug: str) -> bool:
+    """Whether the plan position `ref` still holds the curated recipe `slug`."""
+    current = locate_meal(plan, ref)
+    return current is not None and current.get('curated_recipe_slug') == slug
 
 
 class Command(BaseCommand):
@@ -116,7 +107,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Imported here: views pulls in DRF and the URL conf, which a management
         # command has no reason to load at import time.
-        from diet_planner.views import _parse_meal_identifier, _recipe_cache_fields
+        from diet_planner.views import _recipe_cache_fields
 
         apply_changes = options['apply']
         rows = Recipe.objects.exclude(curated_recipe_slug='')
@@ -126,7 +117,7 @@ class Command(BaseCommand):
         by_slug = {c.slug: c for c in CuratedRecipe.objects.filter(
             slug__in=rows.values_list('curated_recipe_slug', flat=True))}
 
-        checked = stale = repaired = orphaned = unparseable = 0
+        checked = stale = repaired = orphaned = unparseable = moved = 0
 
         for row in rows.select_related('dietary_goal').order_by('id'):
             checked += 1
@@ -142,15 +133,26 @@ class Command(BaseCommand):
 
             stale += 1
             try:
-                _, day_number, meal_type, _index = _parse_meal_identifier(row.meal_identifier)
-            except (ValueError, IndexError):
+                ref = parse_meal_identifier(row.meal_identifier)
+            except ValueError:
                 unparseable += 1
                 self.stdout.write(self.style.WARNING(
                     f'  skip    {row.meal_identifier}  "{row.name}"  '
                     f'-> unparseable meal identifier'))
                 continue
 
-            meal = rebuild_meal(curated, row.meal_identifier, day_number, meal_type)
+            # The position may since hold a different dish (a swap, a
+            # regenerated pool): never overwrite someone else's meal. Checked
+            # in the dry run too, so its "repairable" count matches --apply.
+            plan = DietaryPlan.objects.filter(dietary_goal_id=row.dietary_goal_id).first()
+            if plan is not None and not _position_holds(plan, ref, curated.slug):
+                moved += 1
+                self.stdout.write(self.style.WARNING(
+                    f'  moved   {row.meal_identifier}  "{row.name}"  '
+                    f'-> plan position no longer holds {curated.slug!r}, skipped'))
+                continue
+
+            meal = rebuild_meal(curated, row.meal_identifier, ref.slot)
             old_cal = (row.nutritional_info or {}).get('calories')
             new_cal = (meal.get('nutritional_info') or {}).get('calories')
             self.stdout.write(
@@ -158,24 +160,32 @@ class Command(BaseCommand):
                 f'{row.servings}x {old_cal} kcal -> {meal["servings"]}x {new_cal} kcal')
 
             if not apply_changes:
+                repaired += 1  # would repair
                 continue
 
             with transaction.atomic():
-                plan = DietaryPlan.objects.filter(
+                plan = DietaryPlan.objects.select_for_update().filter(
                     dietary_goal_id=row.dietary_goal_id).first()
-                if plan is not None and _write_plan_slot(plan, day_number, meal_type, meal):
-                    plan.save(update_fields=['days'])
+                if plan is not None and not _position_holds(plan, ref, curated.slug):
+                    # Changed between the check above and this write.
+                    moved += 1
+                    continue
+                if plan is not None and set_meal(plan, ref, meal):
+                    # Pool writes stamp the canonical identifier; keep the
+                    # row's own string (differs only for legacy 3-part ids).
+                    meal['meal_identifier'] = row.meal_identifier
+                    plan.save(update_fields=[plan_meals_field(plan)])
                 # .update(), not .save(): Recipe.save() re-promotes is_public and
                 # re-derives the slug, neither of which a repair should trigger.
                 # Cooked state is deliberately NOT reset — the dish is unchanged,
                 # only the amounts were wrong.
                 Recipe.objects.filter(pk=row.pk).update(
                     **_recipe_cache_fields(meal, meal.get('instructions', [])))
-            repaired += 1
+                repaired += 1
 
         summary = (f'checked {checked}, stale {stale}, '
-                   f'{"repaired" if apply_changes else "repairable"} {repaired if apply_changes else stale}, '
-                   f'orphaned {orphaned}, unparseable {unparseable}')
+                   f'{"repaired" if apply_changes else "repairable"} {repaired}, '
+                   f'orphaned {orphaned}, unparseable {unparseable}, moved {moved}')
         self.stdout.write(self.style.SUCCESS(summary) if apply_changes else summary)
-        if not apply_changes and stale:
+        if not apply_changes and repaired:
             self.stdout.write('Dry run — re-run with --apply to write these repairs.')

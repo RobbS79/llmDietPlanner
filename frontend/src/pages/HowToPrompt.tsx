@@ -25,12 +25,14 @@ const JOURNEY = [
   {
     step: '3',
     title: 'Nastavení jídel',
-    desc: 'Krok „Jídla“: která jídla dne chcete (snídaně, oběd, večeře, svačinky) a na kolik dní (1–30).',
+    // EN: Step "Meals": how many breakfasts, lunches, dinners and small meals you want (0–14 each). No days; cook the recipes when it suits you.
+    desc: 'Krok „Jídla“: kolik snídaní, obědů, večeří a svačin chcete (0–14 od každého). Žádné dny — recepty uvaříte, kdy se vám to hodí.',
   },
   {
     step: '4',
     title: 'Plán',
-    desc: 'Za pár minut máte jídelníček: recepty s postupem, kalorie a makra na porci, nákupní seznam ke každému receptu a přehled, které suroviny jsou tento týden v akci.',
+    // EN: In a few minutes you're done: …
+    desc: 'Za pár minut máte hotovo: recepty s postupem, kalorie a makra na porci, nákupní seznam ke každému receptu a přehled, které suroviny jsou tento týden v akci.',
   },
   {
     step: '5',
@@ -56,8 +58,9 @@ const TIPS = [
     desc: 'V profilu jsou závazné pro každý plán i pro každou výměnu receptu.',
   },
   {
-    title: 'Chcete jen večeře? V kroku „Jídla“ odškrtněte snídani a oběd.',
-    desc: 'Nepište to do zadání — plán by stejně obsahoval všechna jídla, která máte zaškrtnutá.',
+    // EN: Want dinners only? Set the others to 0 in the "Meals" step. Don't put counts in the prompt: the prompt says WHAT, the step says HOW MANY.
+    title: 'Chcete jen večeře? V kroku „Jídla“ nastavte ostatní na 0.',
+    desc: 'Počty nepište do zadání — zadání říká, JAKÁ jídla chcete, krok „Jídla“ říká KOLIK.',
   },
 ];
 
@@ -66,17 +69,18 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
     title: '„Mám maso a zeleninu, co z toho uvařit?“',
     intro: 'Nejčastější otázka Čechů vůbec. V září vede cuketa, celoročně kuřecí prsa, vepřová kýta a mleté maso.',
     prompts: [
-      'Chci tenhle týden vařit hlavně z kuřecích prsou, cukety a brambor. Obědy a večeře na 3 dny, nic složitého.',
+      'Chci tenhle týden vařit hlavně z kuřecích prsou, cukety a brambor. Obědy a večeře, nic složitého.',
       'Koupila jsem kilo vepřové kýty. Chci ji využít v obědech tento týden, k tomu jednoduché večeře bez masa.',
-      'Máme spoustu cuket ze zahrady — chci recepty, kde se cuketa opravdu spotřebuje, na celý týden.',
+      'Máme spoustu cuket ze zahrady — chci recepty, kde se cuketa opravdu spotřebuje.',
     ],
     tip: 'Pojmenujte suroviny konkrétně („kuřecí prsa“, ne „kuře“) a řekněte, ve kterém jídle dne je chcete.',
   },
   {
     title: '„Chci zhubnout, ale vařit si doma“',
-    intro: 'Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu a kolik jídel denně chcete (svačinky zapněte v kroku „Jídla“).',
+    // EN: A home version of the boxed diet. Give daily calories or target weight; how many meals you want is set in the "Meals" step.
+    intro: 'Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu; kolik jídel chcete, nastavíte v kroku „Jídla“.',
     prompts: [
-      'Chci zhubnout 10 kg. 1 500 kcal denně, 5 jídel, jednoduchá domácí jídla jako z krabičkové diety.',
+      'Chci zhubnout 10 kg. 1 500 kcal denně, jednoduchá domácí jídla jako z krabičkové diety.',
       'Jídelníček na hubnutí pro ženu po padesátce, sedavé zaměstnání, žádné extrémy, obyčejné české suroviny.',
       'Hubnu, chodím 3× týdně do posilovny. Hodně bílkovin, večeře lehké, obědy normální.',
     ],
@@ -85,15 +89,15 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
     title: '„Keto, málo sacharidů, hodně bílkovin“',
     intro: 'Zaškrtněte v profilu Keto / Low-carb nebo Vysokoproteinové a v zadání upřesněte, jak přísně.',
     prompts: [
-      'Keto jídelníček na týden. Domácí a levné suroviny, ne drahé speciality.',
-      'Lehké večeře bohaté na bílkoviny, do 500 kcal, na celý týden. Obědy klidně s přílohou.',
+      'Keto jídelníček. Domácí a levné suroviny, ne drahé speciality.',
+      'Lehké večeře bohaté na bílkoviny, do 500 kcal. Obědy klidně s přílohou.',
     ],
   },
   {
     title: '„Rychle, levně, pro rodinu“',
     prompts: [
       'Večeře pro rodinu se dvěma dětmi (5 a 9 let), max 30 minut, nic pálivého, žádné houby ani ryby.',
-      'Levné a jednoduché obědy a večeře pro 2 studenty na týden, ať se suroviny vzájemně využijí.',
+      'Levné a jednoduché obědy a večeře pro 2 studenty, ať se suroviny vzájemně využijí.',
       'Rychlé večeře po práci z mletého masa, brambor a těstovin, 4 porce.',
     ],
     tip: 'Čas na vaření a počet osob nastavte v profilu; v zadání pak stačí říct, co děti (ne)jedí.',
@@ -102,21 +106,21 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
     title: '„Bez masa, bez lepku“',
     intro: 'Styl nastavte v profilu (Vegetarián, Vegan, Bezlepkové) — pak Vařto nenabídne maso ani při výměně receptu. V zadání řekněte, co vás na bezmasé kuchyni nudí.',
     prompts: [
-      'Vegetariánský jídelníček na týden. Ne pořád tofu a čočka — chci i klasiku jako smažený sýr, bramborák, halušky.',
-      'Bezlepkové obědy a večeře pro dítě (8 let) na týden, jednoduché, česká kuchyně.',
+      'Vegetariánský jídelníček. Ne pořád tofu a čočka — chci i klasiku jako smažený sýr, bramborák, halušky.',
+      'Bezlepkové obědy a večeře pro dítě (8 let), jednoduché, česká kuchyně.',
     ],
   },
   {
     title: '„Sport, nabírání svalů“',
     prompts: [
-      'Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin, 5 jídel denně.',
+      'Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin.',
       'Jídelníček pro syna (14 let, fotbal 4× týdně) — vydatné obědy a svačiny do školy.',
     ],
   },
   {
     title: '„Pro seniory / měkká strava“',
     prompts: [
-      'Jídelníček pro babičku (80 let) na týden. Měkká, nenáročná jídla, klasická česká kuchyně, malé porce.',
+      'Jídelníček pro babičku (80 let). Měkká, nenáročná jídla, klasická česká kuchyně, malé porce.',
     ],
   },
 ];

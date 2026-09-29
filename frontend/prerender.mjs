@@ -23,7 +23,8 @@ const routes = [
     path: '/',
     outFile: 'index.html',
     title: 'Vařto — Jídelníček na míru podle vašeho cíle',
-    description: 'Popište svůj cíl a dostanete týdenní jídelníček na míru — recepty, kalorie a makra i nákupní seznam. U některých surovin navíc slevy z letáků. 2 jídelníčky zdarma.',
+    // EN: Describe your goal, choose how many breakfasts, lunches and dinners, and get tailored recipes with calories, macros and a shopping list. Some ingredients also show leaflet deals. 2 plans free.
+    description: 'Popište svůj cíl, zvolte počet snídaní, obědů a večeří — a dostanete recepty na míru s kaloriemi, makry i nákupním seznamem. U některých surovin navíc slevy z letáků. 2 jídelníčky zdarma.',
     canonical: '/',
   },
   {

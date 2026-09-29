@@ -12,9 +12,9 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from diet_planner.models import DietaryGoal, DietaryPlan
-from diet_planner.tasks import transform_days_to_new_format
 from diet_planner.tests.test_recipe_replace import make_recipe
-from diet_planner.views import _commit_slot_swap, _locate_plan_slot, _parse_meal_identifier
+from diet_planner.services.meal_locator import MealRef, parse_meal_identifier, set_meal
+from diet_planner.views import _commit_slot_swap, _locate_plan_slot
 
 
 def _curated_meal(name, kcal=300):
@@ -27,36 +27,12 @@ def _curated_meal(name, kcal=300):
     }
 
 
-class TransformAssignsListSlotIdentifiersTest(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        user = User.objects.create_user('t', password='x')
-        cls.goal = DietaryGoal.objects.create(
-            user=user, prompt='p', country='CZ', city='Prague', num_days=1,
-        )
-
-    def test_small_meals_and_snacks_get_indexed_identifiers(self):
-        days = [{
-            'day_number': 2,
-            'lunch': {'name': 'Oběd'},
-            'small_meals': [{'name': 'Polévka'}, {'name': 'Klínky'}],
-            'snacks': [{'name': 'Jablko'}],
-        }]
-        out = transform_days_to_new_format(days, self.goal)
-        g = self.goal.id
-        self.assertEqual(
-            [m['meal_identifier'] for m in out[0]['small_meals']],
-            [f'{g}:2:small_meal:0', f'{g}:2:small_meal:1'],
-        )
-        self.assertEqual(out[0]['snacks'][0]['meal_identifier'], f'{g}:2:snack:0')
-
-
 class ParseMealIdentifierTest(SimpleTestCase):
     def test_four_part_identifier_yields_index(self):
-        self.assertEqual(_parse_meal_identifier('5:2:small_meal:1'), (5, 2, 'small_meal', 1))
+        self.assertEqual(parse_meal_identifier('5:2:small_meal:1'), MealRef(5, 'small_meal', 1, 2))
 
     def test_three_part_identifier_defaults_index_to_zero(self):
-        self.assertEqual(_parse_meal_identifier('5:2:lunch'), (5, 2, 'lunch', 0))
+        self.assertEqual(parse_meal_identifier('5:2:lunch'), MealRef(5, 'lunch', 0, 2))
 
 
 class ListSlotBase(TestCase):
@@ -100,11 +76,11 @@ class RecipeDetailResolvesListSlotsTest(ListSlotBase):
 
 
 class RefreshCommandWritesListSlotTest(ListSlotBase):
-    def test_write_plan_slot_replaces_the_small_meal_by_identifier(self):
-        from diet_planner.management.commands.refresh_stale_recipe_cache import _write_plan_slot
+    def test_set_meal_replaces_the_small_meal_by_position(self):
+        # The refresh command writes through meal_locator.set_meal.
         ident = f'{self.goal.id}:1:small_meal:1'
         new = {**_curated_meal('Nové klínky', 250), 'meal_identifier': ident}
-        self.assertTrue(_write_plan_slot(self.plan, 1, 'small_meal', new))
+        self.assertTrue(set_meal(self.plan, parse_meal_identifier(ident), new))
         names = [m['name'] for m in self.plan.days[0]['small_meals']]
         self.assertEqual(names, ['Cuketová polévka', 'Nové klínky'])
 
@@ -114,15 +90,14 @@ class LocateAndSwapListSlotTest(ListSlotBase):
         ctx, err = _locate_plan_slot(self.user, f'{self.goal.id}:1:small_meal:1')
         self.assertIsNone(err)
         self.assertEqual(ctx.current_meal['name'], 'Bramborové klínky')
-        self.assertEqual((ctx.meal_type, ctx.slot_index), ('small_meal', 1))
+        self.assertEqual((ctx.meal_type, ctx.ref.index, ctx.ref.day_number), ('small_meal', 1, 1))
 
     def test_swap_writes_back_into_the_list_at_that_index(self):
         chosen = make_recipe(name_cs='Mrkvový salát')
         ident = f'{self.goal.id}:1:small_meal:1'
         ctx, _ = _locate_plan_slot(self.user, ident)
         _commit_slot_swap(
-            goal=ctx.goal, plan=ctx.plan, target_day=ctx.target_day,
-            meal_type=ctx.meal_type, slot_index=ctx.slot_index,
+            goal=ctx.goal, plan=ctx.plan, ref=parse_meal_identifier(ident),
             meal_identifier=ident, chosen=chosen, user=self.user,
         )
         self.plan.refresh_from_db()

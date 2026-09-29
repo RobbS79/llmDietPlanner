@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dayMealEntries, dayTotals, parseNutrition, MEAL_SLOT_LABELS } from './planMeals';
+import { dayMealEntries, dayTotals, parseNutrition, MEAL_SLOT_LABELS, groupPoolMeals, poolEntries, poolTotals, POOL_SECTION_LABELS } from './planMeals';
 
 const day = {
   day_number: 3,
@@ -39,5 +39,39 @@ describe('dayMealEntries', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].mealId).toBe('9:1:dinner:0');
     expect(MEAL_SLOT_LABELS.dinner).toBe('Večeře');
+  });
+});
+
+const pool = [
+  { slot: 'dinner', index: 1, name: 'Řízek', meal_identifier: '151:dinner:1', nutritional_info: { calories: 700 } },
+  { slot: 'breakfast', index: 0, name: 'Kaše', meal_identifier: '151:breakfast:0', nutritional_info: { calories: 400 } },
+  { slot: 'dinner', index: 0, name: 'Guláš', nutritional_info: { calories: 600 } },
+  { slot: 'snack', index: 0, name: 'Jablko', meal_identifier: '151:snack:0', nutritional_info: { calories: 80 } },
+];
+
+describe('pool helpers', () => {
+  it('poolEntries orders by slot then index and falls back to the pool identifier', () => {
+    const entries = poolEntries(pool, '151');
+    expect(entries.map(e => e.meal.name)).toEqual(['Kaše', 'Guláš', 'Řízek', 'Jablko']);
+    expect(entries.map(e => e.mealId)).toEqual(['151:breakfast:0', '151:dinner:0', '151:dinner:1', '151:snack:0']);
+    expect(entries.map(e => e.isMain)).toEqual([true, true, true, false]);
+    expect(entries[3].label).toBe('Snack');
+  });
+
+  it('groupPoolMeals yields only non-empty sections with plural labels', () => {
+    const sections = groupPoolMeals(pool, '151');
+    expect(sections.map(s => s.slot)).toEqual(['breakfast', 'dinner', 'snack']);
+    expect(sections.map(s => s.label)).toEqual(['Snídaně', 'Večeře', 'Snacky']);
+    expect(sections[1].entries.map(e => e.meal.name)).toEqual(['Guláš', 'Řízek']);
+    expect(POOL_SECTION_LABELS.lunch).toBe('Obědy');
+  });
+
+  it('poolTotals counts cooked and averages kcal over mains only', () => {
+    const t = poolTotals(pool, '151', new Set(['151:dinner:1', '151:snack:0']));
+    expect(t).toEqual({ cooked: 2, total: 4, avgMainKcal: 567 });
+  });
+
+  it('poolTotals with no mains has avgMainKcal 0', () => {
+    expect(poolTotals([pool[3]], '151', new Set()).avgMainKcal).toBe(0);
   });
 });

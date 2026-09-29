@@ -681,3 +681,15 @@ class DataExportTests(TestCase):
         self.assertEqual(body["preferences"]["goal"], "lose_weight")
         # must not leak the other user
         self.assertNotIn("e2@example.com", resp.content.decode())
+
+    def test_export_goal_rows_include_pool_counts(self):
+        from diet_planner.models import DietaryGoal
+        DietaryGoal.objects.create(user=self.user, prompt="p", breakfasts=1, lunches=2,
+                                   dinners=3, small_meals=0, snacks=1)
+        self.client.force_authenticate(self.user)
+        import json
+        rows = json.loads(self.client.get("/api/auth/export/").content)["meal_plans"]
+        self.assertEqual(len(rows), 1)
+        for key in ("breakfasts", "lunches", "dinners", "small_meals", "snacks"):
+            self.assertIn(key, rows[0])
+        self.assertEqual(rows[0]["dinners"], 3)

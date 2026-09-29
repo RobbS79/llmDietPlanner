@@ -8,8 +8,8 @@ describe('savePreferences', () => {
   beforeEach(() => vi.clearAllMocks());
   it('PATCHes only the dietary_preferences payload', async () => {
     vi.mocked(api.patch).mockResolvedValue({ data: { status: 'success' } });
-    await savePreferences({ goal: 'eat_healthy', num_days: 5 });
-    expect(api.patch).toHaveBeenCalledWith('/auth/profile/', { dietary_preferences: { goal: 'eat_healthy', num_days: 5 } });
+    await savePreferences({ goal: 'eat_healthy', cooking_time: '30min' });
+    expect(api.patch).toHaveBeenCalledWith('/auth/profile/', { dietary_preferences: { goal: 'eat_healthy', cooking_time: '30min' } });
   });
 });
 

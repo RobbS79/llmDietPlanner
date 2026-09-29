@@ -14,9 +14,9 @@ hledají (Google Trends CZ a našeptávače Google + Seznam, září 2026 —
    úroveň vaření. Vařto to bere v potaz u každého plánu, nemusíte to psát znovu.
 2. **Zadání** (krok 1 „Cíle“) — jedno textové pole. Napište vlastními slovy,
    co chcete. Volíte zemi a město (kvůli slevovým letákům).
-3. **Nastavení jídel** (krok 2 „Jídla“) — která jídla dne chcete (snídaně,
-   oběd, večeře, svačinky) a na kolik dní (1–30).
-4. **Plán** — za pár minut máte jídelníček: recepty s postupem, kalorie a makra
+3. **Nastavení jídel** (krok 2 „Jídla“) — kolik snídaní, obědů, večeří a svačin chcete (0–14 od každého). Žádné dny — recepty uvaříte, kdy se vám to hodí.
+   <!-- EN: how many breakfasts, lunches, dinners and small meals (0–14 each). No days; cook the recipes when it suits you. -->
+4. **Plán** — za pár minut máte hotovo: recepty s postupem, kalorie a makra
    na porci, nákupní seznam ke každému receptu a přehled, které suroviny jsou
    tento týden v akci.
 5. **Doladění** — u každého receptu je tlačítko **Poradit se s kuchařkou**.
@@ -43,8 +43,9 @@ Tři tipy, které dělají největší rozdíl:
   uvařit z kýty“ je pokyn.
 - **Alergie a stravovací styl patří do profilu**, ne do zadání. V profilu jsou
   závazné pro každý plán i pro každou výměnu receptu.
-- **Chcete jen večeře?** V kroku 2 odškrtněte snídani a oběd. Nepište to do
-  zadání — plán by stejně obsahoval všechna jídla, která máte zaškrtnutá.
+- **Chcete jen večeře? V kroku „Jídla“ nastavte ostatní na 0.** Počty nepište do
+  zadání — zadání říká, JAKÁ jídla chcete, krok „Jídla“ říká KOLIK.
+  <!-- EN: Want dinners only? Set the others to 0 in the Meals step. Prompt says WHAT, step says HOW MANY. -->
 
 ---
 
@@ -54,20 +55,21 @@ Tři tipy, které dělají největší rozdíl:
 Nejčastější otázka Čechů vůbec. V září vede cuketa, celoročně kuřecí prsa,
 vepřová kýta a mleté maso.
 
-> Chci tenhle týden vařit hlavně z kuřecích prsou, cukety a brambor. Obědy a večeře na 3 dny, nic složitého.
+> Chci tenhle týden vařit hlavně z kuřecích prsou, cukety a brambor. Obědy a večeře, nic složitého.
 
 > Koupila jsem kilo vepřové kýty. Chci ji využít v obědech tento týden, k tomu jednoduché večeře bez masa.
 
-> Máme spoustu cuket ze zahrady — chci recepty, kde se cuketa opravdu spotřebuje, na celý týden.
+> Máme spoustu cuket ze zahrady — chci recepty, kde se cuketa opravdu spotřebuje.
 
 Tip: pojmenujte suroviny konkrétně („kuřecí prsa“, ne „kuře“) a řekněte, ve
 kterém jídle dne je chcete.
 
 ### „Chci zhubnout, ale vařit si doma“
-Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu a kolik
-jídel denně chcete (svačinky zapněte v kroku 2).
+Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu; kolik
+jídel chcete, nastavíte v kroku „Jídla“.
+<!-- EN: give daily calories or target weight; how many meals is set in the Meals step -->
 
-> Chci zhubnout 10 kg. 1 500 kcal denně, 5 jídel, jednoduchá domácí jídla jako z krabičkové diety.
+> Chci zhubnout 10 kg. 1 500 kcal denně, jednoduchá domácí jídla jako z krabičkové diety.
 
 > Jídelníček na hubnutí pro ženu po padesátce, sedavé zaměstnání, žádné extrémy, obyčejné české suroviny.
 
@@ -77,15 +79,15 @@ jídel denně chcete (svačinky zapněte v kroku 2).
 Zaškrtněte v profilu **Keto / Low-carb** nebo **Vysokoproteinové** a v zadání
 upřesněte, jak přísně.
 
-> Keto jídelníček na týden. Domácí a levné suroviny, ne drahé speciality.
+> Keto jídelníček. Domácí a levné suroviny, ne drahé speciality.
 
-> Lehké večeře bohaté na bílkoviny, do 500 kcal, na celý týden. Obědy klidně s přílohou.
+> Lehké večeře bohaté na bílkoviny, do 500 kcal. Obědy klidně s přílohou.
 
 ### „Rychle, levně, pro rodinu“
 
 > Večeře pro rodinu se dvěma dětmi (5 a 9 let), max 30 minut, nic pálivého, žádné houby ani ryby.
 
-> Levné a jednoduché obědy a večeře pro 2 studenty na týden, ať se suroviny vzájemně využijí.
+> Levné a jednoduché obědy a večeře pro 2 studenty, ať se suroviny vzájemně využijí.
 
 > Rychlé večeře po práci z mletého masa, brambor a těstovin, 4 porce.
 
@@ -96,19 +98,19 @@ Tip: čas na vaření a počet osob nastavte v profilu; v zadání pak stačí
 Styl nastavte v profilu (Vegetarián, Vegan, Bezlepkové) — pak Vařto nenabídne
 maso ani při výměně receptu. V zadání řekněte, co vás na bezmasé kuchyni nudí.
 
-> Vegetariánský jídelníček na týden. Ne pořád tofu a čočka — chci i klasiku jako smažený sýr, bramborák, halušky.
+> Vegetariánský jídelníček. Ne pořád tofu a čočka — chci i klasiku jako smažený sýr, bramborák, halušky.
 
-> Bezlepkové obědy a večeře pro dítě (8 let) na týden, jednoduché, česká kuchyně.
+> Bezlepkové obědy a večeře pro dítě (8 let), jednoduché, česká kuchyně.
 
 ### „Sport, nabírání svalů“
 
-> Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin, 5 jídel denně.
+> Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin.
 
 > Jídelníček pro syna (14 let, fotbal 4× týdně) — vydatné obědy a svačiny do školy.
 
 ### „Pro seniory / měkká strava“
 
-> Jídelníček pro babičku (80 let) na týden. Měkká, nenáročná jídla, klasická česká kuchyně, malé porce.
+> Jídelníček pro babičku (80 let). Měkká, nenáročná jídla, klasická česká kuchyně, malé porce.
 
 ---
 

@@ -15,14 +15,10 @@ import {
   type Preferences,
 } from '@/lib/preferences';
 
-type PrefsState = Preferences & { num_days: number };
-
-const DEFAULT_NUM_DAYS = 7;
+type PrefsState = Preferences;
 
 function seedFromProfile(profile: Profile): PrefsState {
-  const saved = profile.dietary_preferences;
-  const num_days = typeof saved.num_days === 'number' ? saved.num_days : DEFAULT_NUM_DAYS;
-  return { ...DEFAULT_PREFERENCES, ...saved, num_days };
+  return { ...DEFAULT_PREFERENCES, ...profile.dietary_preferences };
 }
 
 export function PreferencesSection({ profile }: { profile: Profile }) {
@@ -30,9 +26,6 @@ export function PreferencesSection({ profile }: { profile: Profile }) {
   const queryClient = useQueryClient();
   const [data, setData] = useState<PrefsState>(() => seedFromProfile(profile));
   const [error, setError] = useState('');
-  // Separate raw text for the num_days input so the user can clear the field
-  // while typing without `data.num_days` ever going NaN in between keystrokes.
-  const [numDaysText, setNumDaysText] = useState(() => String(seedFromProfile(profile).num_days));
 
   const update = <K extends keyof PrefsState>(field: K, value: PrefsState[K]) =>
     setData(prev => ({ ...prev, [field]: value }));
@@ -43,12 +36,7 @@ export function PreferencesSection({ profile }: { profile: Profile }) {
 
   const mutation = useMutation({
     mutationFn: () => {
-      // Defensive: guarantee an integer 1–30 lands in the payload even if
-      // `data.num_days` were somehow left in a transient/invalid state.
-      const num_days = Number.isFinite(data.num_days)
-        ? Math.min(30, Math.max(1, Math.round(data.num_days)))
-        : DEFAULT_NUM_DAYS;
-      const payload: Record<string, unknown> = { ...data, num_days };
+      const payload: Record<string, unknown> = { ...data };
       return savePreferences(payload);
     },
     onSuccess: () => {
@@ -180,7 +168,7 @@ export function PreferencesSection({ profile }: { profile: Profile }) {
         </div>
       </div>
 
-      {/* Country + plan length */}
+      {/* Country */}
       <div className="grid sm:grid-cols-2 gap-8">
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-muted mb-4 block">Země</label>
@@ -196,34 +184,6 @@ export function PreferencesSection({ profile }: { profile: Profile }) {
           </div>
         </div>
 
-        <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-muted mb-4 block">Počet dní jídelníčku</label>
-          <input
-            type="number"
-            min={1}
-            max={30}
-            value={numDaysText}
-            onChange={e => {
-              const raw = e.target.value;
-              setNumDaysText(raw);
-              if (raw === '') {
-                // Let the field show empty while the user is editing, but
-                // never let the underlying save-state go NaN in the meantime.
-                update('num_days', DEFAULT_NUM_DAYS);
-                return;
-              }
-              const n = parseInt(raw, 10);
-              if (!Number.isNaN(n)) update('num_days', Math.min(30, Math.max(1, n)));
-            }}
-            onBlur={() => {
-              if (numDaysText === '' || Number.isNaN(parseInt(numDaysText, 10))) {
-                setNumDaysText(String(DEFAULT_NUM_DAYS));
-                update('num_days', DEFAULT_NUM_DAYS);
-              }
-            }}
-            className="w-full bg-paper border border-line rounded-xl h-12 px-4 text-sm font-bold text-ink focus:outline-none"
-          />
-        </div>
       </div>
 
       <button

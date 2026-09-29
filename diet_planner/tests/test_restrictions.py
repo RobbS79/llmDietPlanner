@@ -1,8 +1,6 @@
 """Unit tests for diet_planner.services.restrictions."""
 from unittest.mock import MagicMock
 
-import pytest
-
 from diet_planner.services.restrictions import (
     ResolvedRestrictions,
     RestrictionResolver,
@@ -240,140 +238,11 @@ class TestDeterministicSwap:
                 )
 
 
-from diet_planner.services.restrictions import (
-    RepairBudgetExhausted,
-    RepairOutcome,
-    repair_meals_with_violations,
-)
-
-
-class _FakeLLM:
-    """Stub for GeminiService.regenerate_meal. Each script entry is the dict
-    returned by the next call."""
-
-    def __init__(self, scripted: list[dict]):
-        self._scripted = list(scripted)
-        self.calls = 0
-
-    def regenerate_meal(self, *, original_meal, goal, exclusions, **_):
-        self.calls += 1
-        return self._scripted.pop(0)
-
-
-class TestRepairLoop:
-    def _exclusions(self):
-        # 'mouka' (nominative) catches ingredient names like 'pšeničná mouka'
-        # and triggers the deterministic swap; 'mouk' (prefix) catches Czech
-        # case forms like 'moukou' in instruction prose, which has no swap.
-        return ResolvedRestrictions(
-            tags=frozenset({"gluten_free"}),
-            exclusion_keywords=frozenset({"mouka", "mouk"}),
-            freeform_allergens=frozenset(),
-        )
-
-    def test_no_violations_returns_days_unchanged(self):
-        days = [{
-            "day_number": 1,
-            "breakfast": _meal(ingredients=[{"name": "rýže", "quantity": 100, "unit": "g"}]),
-        }]
-        outcome = repair_meals_with_violations(
-            days=days, goal=MagicMock(),
-            exclusions=self._exclusions(), llm=_FakeLLM([]),
-        )
-        assert outcome.days == days
-        assert outcome.reprompts == 0
-
-    def test_swap_applied_no_llm_call(self):
-        days = [{
-            "day_number": 1,
-            "lunch": _meal(ingredients=[{"name": "pšeničná mouka", "quantity": 100, "unit": "g"}]),
-        }]
-        llm = _FakeLLM([])
-        outcome = repair_meals_with_violations(
-            days=days, goal=MagicMock(),
-            exclusions=self._exclusions(), llm=llm,
-        )
-        assert llm.calls == 0
-        assert outcome.days[0]["lunch"]["ingredients"][0]["name"] == "bezlepková mouka"
-
-    def test_reprompt_for_unmapped_violation(self):
-        # Instruction-only violation isn't swappable -> must re-prompt
-        days = [{
-            "day_number": 1,
-            "lunch": _meal(
-                ingredients=[{"name": "máslo", "quantity": 50, "unit": "g"}],
-                instructions=["Smíchej s moukou."],
-            ),
-        }]
-        compliant_replacement = _meal(
-            name="GF lunch",
-            ingredients=[{"name": "máslo", "quantity": 50, "unit": "g"}],
-            instructions=["Smíchej s bezlepkovou moukou."],
-        )
-        llm = _FakeLLM([compliant_replacement])
-        outcome = repair_meals_with_violations(
-            days=days, goal=MagicMock(),
-            exclusions=self._exclusions(), llm=llm,
-        )
-        assert llm.calls == 1
-        assert outcome.days[0]["lunch"]["name"] == "GF lunch"
-
-    def test_two_failed_reprompts_then_failure(self):
-        days = [{
-            "day_number": 1,
-            "lunch": _meal(
-                ingredients=[{"name": "máslo", "quantity": 50, "unit": "g"}],
-                instructions=["Smíchej s moukou."],
-            ),
-        }]
-        # Both replacements still contain 'moukou' in instructions
-        still_bad = _meal(
-            ingredients=[{"name": "máslo", "quantity": 50, "unit": "g"}],
-            instructions=["Smíchej s moukou."],
-        )
-        llm = _FakeLLM([still_bad, still_bad])
-        with pytest.raises(RepairBudgetExhausted):
-            repair_meals_with_violations(
-                days=days, goal=MagicMock(),
-                exclusions=self._exclusions(), llm=llm,
-                max_reprompts_per_meal=2, max_reprompts_per_plan=6,
-            )
-        assert llm.calls == 2
-
-    def test_per_plan_budget_caps_calls(self):
-        # Each meal becomes compliant after exactly one re-prompt, so the
-        # per-meal cap (2) never trips. Re-prompts accumulate across meals;
-        # the 6th spends the per-plan budget and the 7th meal raises before
-        # any further LLM call -> exactly 6 calls.
-        days = [
-            {
-                "day_number": d,
-                "lunch": _meal(
-                    ingredients=[{"name": "máslo", "quantity": 50, "unit": "g"}],
-                    instructions=["Smíchej s moukou."],
-                ),
-            }
-            for d in range(1, 8)  # 7 days, 7 violations
-        ]
-        compliant = _meal(
-            ingredients=[{"name": "máslo", "quantity": 50, "unit": "g"}],
-            instructions=["Smíchej s bezlepkovou moukou."],
-        )
-        llm = _FakeLLM([compliant] * 6)
-        with pytest.raises(RepairBudgetExhausted):
-            repair_meals_with_violations(
-                days=days, goal=MagicMock(),
-                exclusions=self._exclusions(), llm=llm,
-                max_reprompts_per_meal=2, max_reprompts_per_plan=6,
-            )
-        assert llm.calls == 6
-
-
 from diet_planner.llm_service import GeminiService
 
 
-class TestGeminiServiceEnforcement:
-    """The wiring that hooks the repair loop into meal-plan generation."""
+class TestGeminiServiceExclusions:
+    """How GeminiService resolves restrictions when a caller passes none."""
 
     def _svc(self):
         # Bypass __init__ so no API key / client is required for these units.
@@ -400,51 +269,3 @@ class TestGeminiServiceEnforcement:
         )
         assert "gluten_free" in resolved.tags
         assert "mouka" in resolved.exclusion_keywords
-
-    def test_enforce_applies_deterministic_swap(self):
-        svc = self._svc()
-        parsed = {"days": [{
-            "day_number": 1,
-            "lunch": _meal(ingredients=[
-                {"name": "pšeničná mouka", "quantity": 100, "unit": "g"}
-            ]),
-        }]}
-        svc._enforce_restrictions(parsed, MagicMock(), self._gf_exclusions())
-        assert parsed["days"][0]["lunch"]["ingredients"][0]["name"] == "bezlepková mouka"
-
-    def test_enforce_noop_when_no_exclusion_keywords(self):
-        svc = self._svc()
-        parsed = {"days": [{
-            "day_number": 1,
-            "lunch": _meal(ingredients=[{"name": "mouka", "quantity": 1, "unit": "g"}]),
-        }]}
-        empty = ResolvedRestrictions(
-            tags=frozenset(), exclusion_keywords=frozenset(),
-            freeform_allergens=frozenset(),
-        )
-        svc._enforce_restrictions(parsed, MagicMock(), empty)
-        # No keywords -> nothing inspected or changed.
-        assert parsed["days"][0]["lunch"]["ingredients"][0]["name"] == "mouka"
-
-    def test_enforce_handles_missing_days_key(self):
-        svc = self._svc()
-        parsed = {}  # e.g. a malformed/empty LLM response
-        svc._enforce_restrictions(parsed, MagicMock(), self._gf_exclusions())
-        assert parsed == {}
-
-    def test_enforce_propagates_budget_exhausted(self):
-        svc = self._svc()
-        # Instruction-only violation has no swap; stub re-prompt to keep failing.
-        svc.regenerate_meal = lambda **kw: _meal(
-            ingredients=[{"name": "máslo", "quantity": 1, "unit": "g"}],
-            instructions=["Smíchej s moukou."],
-        )
-        parsed = {"days": [{
-            "day_number": 1,
-            "lunch": _meal(
-                ingredients=[{"name": "máslo", "quantity": 1, "unit": "g"}],
-                instructions=["Smíchej s moukou."],
-            ),
-        }]}
-        with pytest.raises(RepairBudgetExhausted):
-            svc._enforce_restrictions(parsed, MagicMock(), self._gf_exclusions())

@@ -10,7 +10,7 @@ import type { Page, Route } from '@playwright/test';
  * `/api/recipes/.*` handler take precedence, so these win.
  */
 
-const MEAL_ID = '42:1:breakfast:0';
+const MEAL_ID = '42:breakfast:0';
 const RECIPE_URL = `/plan/42/recipe/${MEAL_ID}`;
 
 const candidate = (id: number, name: string, why: string | null = null) => ({

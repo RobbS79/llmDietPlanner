@@ -6,8 +6,8 @@ interface ReceiptItem {
   deal?: boolean;      // shows "ve slevě" chip
 }
 interface ReceiptProps {
-  title: string;        // e.g. "Váš týden"
-  subtitle?: string;    // e.g. "3 jídla denně · 7 dní"
+  title: string;        // e.g. "Ukázkový recept"
+  subtitle?: string;    // e.g. "5 jídel"
   source?: string;      // e.g. "Rohlík.cz"
   items: ReceiptItem[];
   totalLabel: string;   // e.g. "Ve slevě tento týden"

@@ -52,7 +52,61 @@ const defaultStatusSequence = [
   { goal_status: 'completed' },
 ];
 
+const meal = (slot: string, name: string, description: string, prep: number, ni: any, ingredients: any[]) => ({
+  slot,
+  index: 0,
+  meal_identifier: `42:${slot}:0`,
+  name,
+  description,
+  preparation_time: prep,
+  nutritional_info: ni,
+  ingredients,
+});
+
 const defaultGoalDetail = {
+  id: 42,
+  prompt: 'Mocked metabolic protocol',
+  city: 'Prague',
+  is_pool: true,
+  breakfasts: 1,
+  lunches: 1,
+  dinners: 1,
+  small_meals: 0,
+  snacks: 0,
+  counts: { breakfast: 1, lunch: 1, dinner: 1, small_meal: 0, snack: 0 },
+  language_code: 'cs',
+  status: 'completed',
+  dietary_plan: {
+    total_price: 1234,
+    currency: 'CZK',
+    days: [],
+    shortfall: {},
+    meals: [
+      meal('breakfast', 'Mocked Oats', 'A satiating bowl of oats', 10,
+        { kcal: '450', protein: '20g', carbs: '60g', fat: '12g' },
+        [
+          { name: 'Oats', quantity: '100', unit: 'g' },
+          { name: 'Milk', quantity: '200', unit: 'ml' },
+          { name: 'Honey', quantity: '1', unit: 'tbsp' },
+        ]),
+      meal('lunch', 'Mocked Chicken Bowl', 'Protein-forward lunch', 25,
+        { kcal: '650', protein: '45g', carbs: '55g', fat: '18g' },
+        [
+          { name: 'Chicken breast', quantity: '200', unit: 'g' },
+          { name: 'Rice', quantity: '150', unit: 'g' },
+        ]),
+      meal('dinner', 'Mocked Salmon', 'Omega-rich dinner', 20,
+        { kcal: '700', protein: '50g', carbs: '30g', fat: '30g' },
+        [
+          { name: 'Salmon fillet', quantity: '250', unit: 'g' },
+          { name: 'Asparagus', quantity: '200', unit: 'g' },
+        ]),
+    ],
+  },
+};
+
+/** Pre-pool goal: num_days + dietary_plan.days, meals null. */
+export const legacyGoalDetail = {
   id: 42,
   prompt: 'Mocked metabolic protocol',
   city: 'Prague',
@@ -101,38 +155,13 @@ const defaultGoalDetail = {
         },
       },
     ],
-    shopping_list: [
-      {
-        ingredient: 'Oats',
-        quantity: '500',
-        unit: 'g',
-        price: 49,
-        currency: 'CZK',
-        matched_product_name: 'Oats Rolled 500g',
-      },
-      {
-        ingredient: 'Chicken breast',
-        quantity: '600',
-        unit: 'g',
-        price: 199,
-        currency: 'CZK',
-        matched_product_name: 'Chicken breast fillet',
-      },
-      {
-        ingredient: 'Salmon fillet',
-        quantity: '250',
-        unit: 'g',
-        price: 289,
-        currency: 'CZK',
-        matched_product_name: 'Atlantic Salmon 250g',
-      },
-    ],
+    meals: null,
   },
 };
 
 const defaultRecipe = {
   id: 1,
-  meal_identifier: '42:1:breakfast:0',
+  meal_identifier: '42:breakfast:0',
   dietary_goal_id: 42,
   name: 'Mocked Oats',
   description: 'A satiating bowl of oats',

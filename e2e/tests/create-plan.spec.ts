@@ -5,7 +5,8 @@ import { test, expect } from '../fixtures/auth';
  *
  * The form is a 2-step wizard:
  *   Step 1 ("Cíle"):  prompt textarea, country, city — gated "Další krok" button.
- *   Step 2 ("Jídla"): meal toggles, duration buttons, "Vygenerovat plán" submit.
+ *   Step 2 ("Jídla"): per-slot count steppers (five slots), presets
+ *                     (Pracovní týden / Víkend), "Vygenerovat plán" submit.
  *
  * The form posts to /api/goals/ which the mock fixture intercepts and
  * returns goal_id=42, simulating immediate task acceptance. The PlanView
@@ -37,7 +38,9 @@ test.describe('create plan form', () => {
 
     // Advance to step 2 for duration + submit
     await goToStepTwo(page);
-    await expect(page.getByText(/délka plánu/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pracovní týden' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Víkend' })).toBeVisible();
+    await expect(page.locator('#count-breakfasts')).toBeVisible();
     await expect(page.getByRole('button', { name: /vygenerovat plán/i })).toBeVisible();
   });
 
@@ -61,25 +64,39 @@ test.describe('create plan form', () => {
     await expect(page).toHaveURL(/\/create$/);
   });
 
-  test('toggling meals deactivates the visual selection', async ({ authedPage: page }) => {
+  test('stepper increments and decrements a slot count', async ({ authedPage: page }) => {
     await page.goto('/create');
     await goToStepTwo(page);
 
-    const breakfast = page.getByRole('button', { name: /snídaně/i });
-    await expect(breakfast).toBeVisible();
-    // Click to deactivate, then re-activate
-    await breakfast.click();
-    await breakfast.click();
+    const breakfasts = page.locator('#count-breakfasts');
+    await expect(breakfasts).toHaveValue('5');
+    await page.getByRole('button', { name: 'Více: Snídaně' }).click();
+    await expect(breakfasts).toHaveValue('6');
+    await page.getByRole('button', { name: 'Méně: Snídaně' }).click();
+    await expect(breakfasts).toHaveValue('5');
   });
 
-  test('day duration buttons update the selected duration', async ({ authedPage: page }) => {
+  test('weekend preset fills the counts', async ({ authedPage: page }) => {
     await page.goto('/create');
     await goToStepTwo(page);
 
-    const day14 = page.getByRole('button', { name: /^14D$/i });
-    await day14.click();
-    // The clicked button should now carry the active emerald class.
-    await expect(day14).toHaveClass(/bg-emerald-600/);
+    await page.getByRole('button', { name: 'Víkend' }).click();
+    await expect(page.locator('#count-breakfasts')).toHaveValue('2');
+    await expect(page.locator('#count-lunches')).toHaveValue('2');
+    await expect(page.locator('#count-dinners')).toHaveValue('2');
+    await expect(page.locator('#count-small_meals')).toHaveValue('0');
+    await expect(page.locator('#count-snacks')).toHaveValue('2');
+  });
+
+  test('zero total meals blocks submit', async ({ authedPage: page }) => {
+    await page.goto('/create');
+    await goToStepTwo(page);
+
+    for (const f of ['breakfasts', 'lunches', 'dinners', 'small_meals', 'snacks']) {
+      await page.locator(`#count-${f}`).fill('0');
+    }
+    await expect(page.getByRole('alert').filter({ hasText: 'Vyberte alespoň jedno jídlo.' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /vygenerovat plán/i })).toBeDisabled();
   });
 
   test('happy path: submit form -> redirect to /plan/:id -> shows completed plan', async ({
@@ -90,7 +107,13 @@ test.describe('create plan form', () => {
     await fillStepOne(page, 'E2E test plan prompt', 'Praha');
     await page.getByRole('button', { name: /další krok/i }).click();
 
+    const postReq = page.waitForRequest(
+      (r) => r.method() === 'POST' && /\/api\/goals\/$/.test(r.url()),
+    );
     await page.getByRole('button', { name: /vygenerovat plán/i }).click();
+    const body = (await postReq).postDataJSON();
+    expect(body).toMatchObject({ breakfasts: 5, lunches: 5, dinners: 5, small_meals: 5, snacks: 0 });
+    expect(body).not.toHaveProperty('num_days');
 
     // Mock returns goal_id=42 -> navigation
     await expect(page).toHaveURL(/\/plan\/42$/);

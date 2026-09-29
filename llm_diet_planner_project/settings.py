@@ -351,9 +351,6 @@ FRESHNESS_CONFIG = {
     'KOSIK_CZ':    {'fresh_hours': 12, 'stale_hours': 24, 'expire_hours': 48},
 }
 
-# Feature flag for catalog-constrained generation
-CATALOG_CONSTRAINED_GENERATION = config('CATALOG_CONSTRAINED_GENERATION', default=True, cast=bool)
-
 # --- 9. GEMINI AI CONFIGURATION ---
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', config('GEMINI_API_KEY', default=None))
 GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
@@ -405,12 +402,6 @@ RECIPE_HUMAN_JUDGE_ENABLED = config('RECIPE_HUMAN_JUDGE_ENABLED', default=False,
 # valid effort values: low | medium | high | max.
 RECIPE_HUMAN_JUDGE_MODEL = config('RECIPE_HUMAN_JUDGE_MODEL', default='claude-sonnet-4-6')
 RECIPE_HUMAN_JUDGE_EFFORT = config('RECIPE_HUMAN_JUDGE_EFFORT', default='low')
-
-# Recipe grounding (Direction B, B3): when enabled, the meal-plan generator
-# overlays vetted real recipes from the CuratedRecipe corpus onto covered slots
-# (uncovered slots keep the LLM-generated meal). Off by default so the corpus
-# can be populated/promoted in prod before retrieval goes live.
-RECIPE_GROUNDING_ENABLED = config('RECIPE_GROUNDING_ENABLED', default=False, cast=bool)
 
 # Reject newly curated recipes carrying ingredients you cannot buy in an
 # ordinary Czech supermarket. Ships off; flip on once ratings are loaded.

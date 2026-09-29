@@ -1,17 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, BrainCircuit, Coffee, UtensilsCrossed, Utensils, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ChefHat, FileText, ChevronDown } from 'lucide-react';
+import { Loader2, BrainCircuit, Minus, Plus, Check, AlertCircle, RotateCcw, ArrowRight, ArrowLeft, ChefHat, FileText, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { ProtocolUpload } from '@/components/ProtocolUpload';
 import { buildPreferencesPrompt } from '@/lib/preferences';
+import { countLabel, mealsLabel, poolSummary, type PoolSlot } from '@/lib/poolCounts';
 
 const STEPS = [
   { label: 'Cíle', icon: BrainCircuit },
   { label: 'Jídla', icon: ChefHat },
 ];
+
+type CountField = 'breakfasts' | 'lunches' | 'dinners' | 'small_meals' | 'snacks';
+const COUNT_FIELDS: { slot: PoolSlot; field: CountField; label: string }[] = [
+  { slot: 'breakfast', field: 'breakfasts', label: 'Snídaně' },
+  { slot: 'lunch', field: 'lunches', label: 'Obědy' },
+  { slot: 'dinner', field: 'dinners', label: 'Večeře' },
+  { slot: 'small_meal', field: 'small_meals', label: 'Svačiny' },
+  { slot: 'snack', field: 'snacks', label: 'Drobné snacky' },
+];
+// EN: "Working week" 5/5/5/5/0, "Weekend" 2/2/2/0/2
+const PRESETS = [
+  { label: 'Pracovní týden', counts: { breakfasts: 5, lunches: 5, dinners: 5, small_meals: 5, snacks: 0 } },
+  { label: 'Víkend', counts: { breakfasts: 2, lunches: 2, dinners: 2, small_meals: 0, snacks: 2 } },
+];
+// Legacy (pre-pool) goals have all-zero counts; show their day length instead.
+const goalChipCount = (goal: { counts?: Record<string, number>; num_days?: number | null }) => {
+  const total = Object.values(goal.counts || {}).reduce((a, b) => a + (b || 0), 0);
+  return total === 0 && goal.num_days ? `${goal.num_days} dní` : mealsLabel(total);
+};
+const clampCount = (n: number) => Math.min(14, Math.max(0, Number.isFinite(n) ? Math.round(n) : 0));
 
 export const CreatePlan = () => {
   const navigate = useNavigate();
@@ -19,21 +40,17 @@ export const CreatePlan = () => {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const [protocolExpanded, setProtocolExpanded] = useState(false);
-  // Raw text for the free day-count input so the field can go empty mid-edit
-  // without formData.num_days ever becoming NaN. Kept in sync with chips + prefill.
-  const [numDaysText, setNumDaysText] = useState('7');
   const [formData, setFormData] = useState({
     prompt: '',
     dietary_restrictions: '',
     country: 'CZ',
     city: '',
     language_code: 'cs',
-    num_days: 7,
-    breakfast: true,
-    lunch: true,
-    dinner: true,
-    small_meals_per_day: 2,
-    snacks_per_day: 1,
+    breakfasts: 5,
+    lunches: 5,
+    dinners: 5,
+    small_meals: 5,
+    snacks: 0,
     goal_id: null as number | null,
     historic_plan_id: null as number | null,
   });
@@ -72,14 +89,12 @@ export const CreatePlan = () => {
       country: goal.country || prev.country,
       city: goal.city || prev.city,
       language_code: goal.language_code || prev.language_code,
-      num_days: goal.num_days ?? prev.num_days,
-      breakfast: goal.breakfast ?? prev.breakfast,
-      lunch: goal.lunch ?? prev.lunch,
-      dinner: goal.dinner ?? prev.dinner,
-      small_meals_per_day: goal.small_meals_per_day ?? prev.small_meals_per_day,
-      snacks_per_day: goal.snacks_per_day ?? prev.snacks_per_day,
+      breakfasts: goal.breakfasts ?? prev.breakfasts,
+      lunches: goal.lunches ?? prev.lunches,
+      dinners: goal.dinners ?? prev.dinners,
+      small_meals: goal.small_meals ?? prev.small_meals,
+      snacks: goal.snacks ?? prev.snacks,
     }));
-    setNumDaysText(String(goal.num_days ?? formData.num_days));
   };
 
   const mutation = useMutation({
@@ -90,9 +105,11 @@ export const CreatePlan = () => {
 
   const update = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  const totalMeals = COUNT_FIELDS.reduce((s, f) => s + formData[f.field], 0);
+
   const canAdvance = () => {
     if (step === 0) return formData.prompt.trim().length > 0 && formData.city.trim().length > 0;
-    return true;
+    return totalMeals > 0;
   };
 
   const next = () => { if (step < STEPS.length - 1 && canAdvance()) setStep(step + 1); };
@@ -159,7 +176,7 @@ export const CreatePlan = () => {
                   className="px-4 py-2.5 bg-paper border border-line rounded-xl text-xs font-bold text-ink hover:bg-kraft hover:border-green/40 transition-all truncate max-w-[220px]"
                   title={goal.prompt}
                 >
-                  {goal.city} · {goal.num_days}d — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
+                  {goal.city} · {goalChipCount(goal)} — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
                 </button>
               ))}
             </div>
@@ -250,79 +267,45 @@ export const CreatePlan = () => {
               <h2 className="font-display text-2xl font-black uppercase tracking-tight italic leading-none">Nastavení jídel</h2>
             </div>
 
-            <Card className="p-8 space-y-12">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                {[
-                  { id: 'breakfast', label: 'Snídaně', icon: Coffee },
-                  { id: 'lunch', label: 'Oběd', icon: UtensilsCrossed },
-                  { id: 'dinner', label: 'Večeře', icon: Utensils },
-                ].map((meal) => (
-                  <button
-                    key={meal.id}
-                    type="button"
-                    onClick={() => update(meal.id, !(formData as any)[meal.id])}
-                    className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-4 ${
-                      (formData as any)[meal.id]
-                        ? 'bg-green-soft border-green text-ink shadow-xl shadow-green/10'
-                        : 'bg-paper border-transparent text-muted hover:text-ink grayscale opacity-40'
-                    }`}
-                  >
-                    <meal.icon size={28} />
-                    <span className="font-black uppercase text-[10px] tracking-widest leading-none">{meal.label}</span>
+            <Card className="p-8 space-y-10">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted italic mr-2">Rychlá volba</span>
+                {PRESETS.map(p => (
+                  <button key={p.label} type="button" onClick={() => setFormData(prev => ({ ...prev, ...p.counts }))}
+                    className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-line bg-paper text-muted hover:text-ink hover:border-green/40 transition-all">
+                    {p.label}
                   </button>
                 ))}
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-12">
-                <div className="space-y-6">
-                  <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted italic">Svačinky</span>
-                    <span className="text-xl font-black text-green italic">{formData.small_meals_per_day}/den</span>
+              <div className="grid sm:grid-cols-2 gap-5">
+                {COUNT_FIELDS.map(({ slot, field, label }) => (
+                  <div key={field} className="flex items-center justify-between gap-4 bg-paper border border-line rounded-2xl px-5 py-4">
+                    <div>
+                      <label htmlFor={`count-${field}`} className="block text-[10px] font-black uppercase tracking-widest text-muted">{label}</label>
+                      <span className="text-sm font-bold text-ink">{countLabel(slot, formData[field])}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" aria-label={`Méně: ${label}`} onClick={() => update(field, clampCount(formData[field] - 1))}
+                        className="w-9 h-9 rounded-lg border border-line bg-card text-ink hover:border-green/40 flex items-center justify-center"><Minus size={14} /></button>
+                      <input id={`count-${field}`} type="number" min={0} max={14} value={formData[field]}
+                        onFocus={e => e.target.select()}
+                        onChange={e => update(field, clampCount(parseInt(e.target.value, 10)))}
+                        className="w-14 h-9 bg-card border border-line rounded-lg text-center text-sm font-black text-ink focus:outline-none focus:border-green" />
+                      <button type="button" aria-label={`Více: ${label}`} onClick={() => update(field, clampCount(formData[field] + 1))}
+                        className="w-9 h-9 rounded-lg border border-line bg-card text-ink hover:border-green/40 flex items-center justify-center"><Plus size={14} /></button>
+                    </div>
                   </div>
-                  <input type="range" min="0" max="5" className="w-full h-2 bg-kraft rounded-full appearance-none accent-green cursor-pointer" value={formData.small_meals_per_day} onChange={e => update('small_meals_per_day', parseInt(e.target.value))} />
-                </div>
-                <div className="space-y-6">
-                  <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted italic">Drobné snacky</span>
-                    <span className="text-xl font-black text-green italic">{formData.snacks_per_day}/den</span>
-                  </div>
-                  <input type="range" min="0" max="3" className="w-full h-2 bg-kraft rounded-full appearance-none accent-green cursor-pointer" value={formData.snacks_per_day} onChange={e => update('snacks_per_day', parseInt(e.target.value))} />
-                </div>
+                ))}
               </div>
 
-              <div className="pt-8 border-t border-line">
-                <span className="block text-[10px] font-black uppercase tracking-widest text-muted mb-3 italic">Délka plánu (dny)</span>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  {[3, 7, 14].map(d => (
-                    <button key={d} type="button" onClick={() => { update('num_days', d); setNumDaysText(String(d)); }} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-line ${formData.num_days === d ? 'bg-green text-white shadow-lg border-green/40' : 'bg-paper text-muted hover:text-ink'}`}>
-                      {d}D
-                    </button>
-                  ))}
-                  <div className="flex items-center gap-2 ml-1">
-                    <input
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={numDaysText}
-                      aria-label="Počet dní (1 až 30)"
-                      onChange={e => {
-                        const raw = e.target.value;
-                        setNumDaysText(raw);
-                        if (raw === '') { update('num_days', 7); return; }
-                        const n = parseInt(raw, 10);
-                        if (!Number.isNaN(n)) update('num_days', Math.min(30, Math.max(1, n)));
-                      }}
-                      onBlur={() => {
-                        const n = parseInt(numDaysText, 10);
-                        if (numDaysText === '' || Number.isNaN(n)) { setNumDaysText('7'); update('num_days', 7); }
-                        else { const c = Math.min(30, Math.max(1, n)); setNumDaysText(String(c)); update('num_days', c); }
-                      }}
-                      className="w-20 bg-paper border border-line rounded-xl h-11 px-3 text-sm font-black text-ink text-center focus:outline-none focus:border-green"
-                    />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted">dní · 1–30</span>
-                  </div>
-                </div>
-              </div>
+              <p className="text-sm font-bold text-ink">{poolSummary({ breakfast: formData.breakfasts, lunch: formData.lunches, dinner: formData.dinners, small_meal: formData.small_meals, snack: formData.snacks })}</p>
+              {totalMeals === 0 && (
+                // EN: "Pick at least one meal."
+                <p role="alert" className="text-sm font-bold text-paprika-strong">Vyberte alespoň jedno jídlo.</p>
+              )}
+              {/* EN: "No days — you cook the recipes whenever it suits you; each recipe has its own shopping list." */}
+              <p className="text-xs text-muted leading-relaxed">Žádné dny — recepty uvaříte, kdy se vám to hodí. Každý recept má vlastní nákupní seznam.</p>
             </Card>
           </section>
         )}
@@ -349,7 +332,7 @@ export const CreatePlan = () => {
               Další krok <ArrowRight size={16} />
             </button>
           ) : (
-            <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex items-center gap-4 px-12 h-16 bg-green hover:bg-green-mid text-white rounded-2xl font-black text-lg uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] disabled:opacity-30">
+            <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt || totalMeals === 0} className="flex items-center gap-4 px-12 h-16 bg-green hover:bg-green-mid text-white rounded-2xl font-black text-lg uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] disabled:opacity-30">
               {mutation.isPending ? <><Loader2 className="animate-spin" size={24} /> Vytváří se...</> : <>Vygenerovat plán <ArrowRight size={20} /></>}
             </button>
           )}
@@ -368,7 +351,7 @@ export const CreatePlan = () => {
                 Další krok <ArrowRight size={16} />
               </button>
             ) : (
-              <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt} className="flex-1 flex items-center justify-center gap-3 h-14 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
+              <button type="button" onClick={handleSubmit} disabled={mutation.isPending || !formData.prompt || totalMeals === 0} className="flex-1 flex items-center justify-center gap-3 h-14 bg-green hover:bg-green-mid text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-30">
                 {mutation.isPending ? <><Loader2 className="animate-spin" size={20} /> Vytváří se...</> : <>Vygenerovat plán <ArrowRight size={16} /></>}
               </button>
             )}

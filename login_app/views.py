@@ -542,7 +542,8 @@ class DataExportView(APIView):
         sub = Subscription.objects.filter(user=user).first()
         attr = getattr(user, 'marketing_attribution', None)
         goals = list(DietaryGoal.objects.filter(user=user)
-                     .values('id', 'prompt', 'num_days', 'status', 'created_at'))
+                     .values('id', 'prompt', 'num_days', 'breakfasts', 'lunches', 'dinners',
+                             'small_meals', 'snacks', 'status', 'created_at'))
 
         payload = {
             "account": {

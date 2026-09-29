@@ -43,6 +43,8 @@ from .serializers import (
     build_shopping_list,
     build_deals,
 )
+from pydantic import ValidationError as PydanticValidationError
+
 from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
 from .services.recipe_retrieval import (
@@ -55,10 +57,13 @@ from .services.recipe_retrieval import (
     score_recipe,
     wanted_matcher,
 )
+from .services.meal_locator import (
+    iter_plan_meals, locate_meal, parse_meal_identifier, plan_meals_field, set_meal,
+)
 from .services.prompt_facets import PromptFacets, extract_prompt_facets
 from .services.refine_agent import run_refine_turn
 from .services.refine_chat import clamp_messages, refine_conversation
-from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, process_protocol_pdf_task
+from .tasks import generate_meal_pool_task, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
 from billing.entitlements import active_subscription
@@ -151,12 +156,19 @@ class DietaryGoalCreateView(APIView):
                 'city': schema.city,
                 'currency': currency,
                 'language_code': schema.language_code,
-                'num_days': schema.num_days,
-                'breakfast': schema.breakfast,
-                'lunch': schema.lunch,
-                'dinner': schema.dinner,
-                'small_meals_per_day': schema.small_meals_per_day,
-                'snacks_per_day': schema.snacks_per_day,
+                'breakfasts': schema.breakfasts,
+                'lunches': schema.lunches,
+                'dinners': schema.dinners,
+                'small_meals': schema.small_meals,
+                'snacks': schema.snacks,
+                # Null the legacy day-grid shape so finalising an existing
+                # draft/legacy goal never leaves both shapes populated.
+                'num_days': None,
+                'breakfast': None,
+                'lunch': None,
+                'dinner': None,
+                'small_meals_per_day': None,
+                'snacks_per_day': None,
                 'shop': schema.shop.value if schema.shop else 'ROHLIK',
                 'store_mode': 'single',
                 'status': DietaryGoal.StatusChoices.PENDING,
@@ -199,11 +211,7 @@ class DietaryGoalCreateView(APIView):
 
             # Trigger Background Synthesis
             try:
-                use_catalog = getattr(settings, 'CATALOG_CONSTRAINED_GENERATION', False)
-                if use_catalog:
-                    task = process_dietary_goal_catalog_task.delay(dietary_goal.id)
-                else:
-                    task = process_dietary_goal_task.delay(dietary_goal.id)
+                task = generate_meal_pool_task.delay(dietary_goal.id)
                 dietary_goal.celery_task_id = task.id
                 dietary_goal.save(update_fields=['celery_task_id'])
                 message = "Synthesis protocol initiated."
@@ -224,6 +232,25 @@ class DietaryGoalCreateView(APIView):
                 status=status.HTTP_201_CREATED
             )
             
+        except PydanticValidationError as e:
+            errors = e.errors(include_input=False, include_url=False)
+            msgs = [str(err.get('msg', '')) for err in errors]
+            legacy = any(f in m for m in msgs for f in DietaryGoalCreateRequest._LEGACY_FIELDS)
+            fields = [
+                ".".join(str(p) for p in err.get('loc', ()))
+                for err in errors if err.get('loc')
+            ]
+            first = msgs[0] if msgs else "Invalid input parameters"
+            if first.startswith("Value error, "):
+                first = first[len("Value error, "):]
+            code = "LEGACY_PAYLOAD" if legacy else "INVALID_INPUT"
+            # Never log/return str(e): it echoes input values (the prompt).
+            logger.warning("Goal create validation failed: code=%s fields=%s types=%s",
+                           code, fields, [err.get('type') for err in errors])
+            return Response(
+                {"status": "error", "code": code, "error": first, "fields": fields},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except ValueError as e:
             logger.warning(f"Validation error: {e}")
             return Response({"status": "error", "error": "Invalid input parameters"}, status=status.HTTP_400_BAD_REQUEST)
@@ -309,22 +336,6 @@ class DietaryGoalTaskStatusView(APIView):
             return Response({"status": "error", "error": "Goal not found"}, status=404)
 
 
-class DietaryGoalPromptDebugView(APIView):
-    """
-    Debug tool to inspect raw JSON prompt construction.
-    Restricted to admin users only.
-    """
-    permission_classes = [IsAdminUser]
-
-    def get(self, request, goal_id: int) -> Response:
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id)
-            llm_prompt_json = build_llm_prompt_json(goal)
-            return Response({"status": "success", "data": {"goal_id": goal_id, "json_object": llm_prompt_json}})
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Goal not found"}, status=404)
-
-
 class AdminRetryGoalView(APIView):
     """Retry or fail a stuck goal. Users can retry their own goals."""
     permission_classes = [IsAuthenticated]
@@ -362,11 +373,24 @@ class AdminRetryGoalView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
+        if (goal.status == DietaryGoal.StatusChoices.COMPLETED
+                or DietaryPlan.objects.filter(dietary_goal=goal).exists()):
+            return Response(
+                {"status": "error", "code": "ALREADY_COMPLETED", "error": "Plán už existuje."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not any(goal.pool_counts().values()):
+            return Response(
+                {"status": "error", "code": "LEGACY_GOAL",
+                 "error": "Tento plán vznikl ve starém formátu, vytvořte prosím nový."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         goal.status = DietaryGoal.StatusChoices.PENDING
         goal.error_message = ''
         goal.save(update_fields=['status', 'error_message'])
         try:
-            task = process_dietary_goal_task.delay(goal_id)
+            task = generate_meal_pool_task.delay(goal_id)
             goal.celery_task_id = task.id
             goal.save(update_fields=['celery_task_id'])
             return Response({"status": "success", "data": {"goal_id": goal_id, "new_status": "pending", "task_id": task.id}})
@@ -399,49 +423,6 @@ class ShopsListView(APIView):
             })
 
         return Response({"status": "success", "data": {"country": country, "shops": shops}})
-
-
-def _parse_meal_identifier(meal_identifier: str):
-    """(goal_id, day_number, meal_type, index) from 'goal_id:day_number:meal_type:index'.
-
-    Raises ValueError when malformed. Shared by the recipe-detail GET and the
-    replace swap so the identifier contract cannot drift between them. The
-    index only matters for list slots (small_meal / snack); dict slots
-    (breakfast / lunch / dinner) always carry 0.
-    """
-    parts = meal_identifier.split(':')
-    if len(parts) < 3:
-        raise ValueError('meal identifier needs at least goal:day:type')
-    index = int(parts[3]) if len(parts) > 3 and parts[3] != '' else 0
-    return int(parts[0]), int(parts[1]), parts[2], index
-
-
-# Day-dict keys for the list slots, keyed by the identifier's meal_type.
-_LIST_SLOT_KEYS = {'small_meal': 'small_meals', 'snack': 'snacks'}
-
-
-def _get_slot_meal(day, meal_type: str, index: int = 0):
-    """The meal dict at a slot, or None. Dict slots ignore the index."""
-    if not isinstance(day, dict):
-        return None
-    list_key = _LIST_SLOT_KEYS.get(meal_type)
-    if list_key is None:
-        meal = day.get(meal_type)
-        return meal if isinstance(meal, dict) else None
-    items = day.get(list_key) or []
-    if not isinstance(items, list) or index < 0 or index >= len(items):
-        return None
-    meal = items[index]
-    return meal if isinstance(meal, dict) else None
-
-
-def _set_slot_meal(day, meal_type: str, index: int, meal) -> None:
-    """Write a meal dict into a slot (list slots by index)."""
-    list_key = _LIST_SLOT_KEYS.get(meal_type)
-    if list_key is None:
-        day[meal_type] = meal
-    else:
-        day[list_key][index] = meal
 
 
 def _recipe_cache_fields(meal: Dict[str, Any], instructions) -> Dict[str, Any]:
@@ -510,28 +491,19 @@ class RecipeDetailView(APIView):
         except Recipe.DoesNotExist:
             pass
 
-        # Generate on-demand: parse meal_identifier (format: goal_id:day_number:meal_type:index)
         try:
-            goal_id, day_number, meal_type, slot_index = _parse_meal_identifier(meal_identifier)
-        except (ValueError, IndexError):
+            ref = parse_meal_identifier(meal_identifier)
+        except ValueError:
             return Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
-
         try:
-            goal = DietaryGoal.objects.get(id=goal_id, user=request.user)
+            goal = DietaryGoal.objects.get(id=ref.goal_id, user=request.user)
         except DietaryGoal.DoesNotExist:
             return Response({"status": "error", "error": "Goal not found"}, status=404)
-
         try:
             plan = goal.dietary_plan
         except DietaryPlan.DoesNotExist:
             return Response({"status": "error", "error": "Plan not found"}, status=404)
-
-        # Find the meal in plan days (list slots resolve by index)
-        meal = None
-        for day in (plan.days or []):
-            if day.get('day_number') == day_number:
-                meal = _get_slot_meal(day, meal_type, slot_index)
-                break
+        meal = locate_meal(plan, ref)
         if not meal:
             return Response({"status": "error", "error": "Meal not found in plan"}, status=404)
 
@@ -604,85 +576,84 @@ class RecipeDetailView(APIView):
 
 
 def _locate_plan_slot(user, meal_identifier: str):
-    """Resolve a meal identifier to its plan slot for `user`.
-
-    Returns (ctx, None) on success where ctx has .goal, .plan, .target_day,
-    .meal_type, .slot_index, .current_meal — or (None, error Response) on any
-    failure. Shared by RecipeReplaceView and RecipeRefineView so both address
-    slots identically."""
+    """Resolve a meal identifier (pool or legacy) to its plan position for
+    `user`. Returns (ctx, None) with ctx.goal / .plan / .ref / .meal_type /
+    .current_meal, or (None, error Response). Shared by RecipeReplaceView,
+    RecipeRefineView and RecipeResearchJobView so all address meals
+    identically."""
     from types import SimpleNamespace
     try:
-        goal_id, day_number, meal_type, slot_index = _parse_meal_identifier(meal_identifier)
-    except (ValueError, IndexError):
+        ref = parse_meal_identifier(meal_identifier)
+    except ValueError:
         return None, Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
     try:
-        goal = DietaryGoal.objects.get(id=goal_id, user=user)
+        goal = DietaryGoal.objects.get(id=ref.goal_id, user=user)
     except DietaryGoal.DoesNotExist:
         return None, Response({"status": "error", "error": "Goal not found"}, status=404)
     try:
         plan = goal.dietary_plan
     except DietaryPlan.DoesNotExist:
         return None, Response({"status": "error", "error": "Plan not found"}, status=404)
-    target_day = next(
-        (d for d in (plan.days or []) if d.get('day_number') == day_number), None,
-    )
-    current_meal = _get_slot_meal(target_day, meal_type, slot_index)
+    current_meal = locate_meal(plan, ref)
     if not isinstance(current_meal, dict):
         return None, Response({"status": "error", "error": "Meal not found in plan"}, status=404)
-    return SimpleNamespace(
-        goal=goal, plan=plan, target_day=target_day,
-        meal_type=meal_type, slot_index=slot_index, current_meal=current_meal,
-    ), None
+    return SimpleNamespace(goal=goal, plan=plan, ref=ref, meal_type=ref.slot, current_meal=current_meal), None
 
 
-def _plan_swap_state(plan, current_id, *, day_number=None):
-    """Selection context for swapping one slot: (pool, used_recipe_ids,
-    used_cuisines, used_families_today). used_recipe_ids covers every curated
-    recipe elsewhere in the plan (the slot being swapped doesn't count) so a
-    swap never duplicates a dish already on another day/slot.
-    `used_families_today` is the set of dish families served on `day_number`
-    in OTHER slots, so a swap cannot bring lečo back onto a day that already
-    has it."""
+def _plan_swap_state(plan, current_id):
+    """Selection context for swapping one position: (pool, used_recipe_ids,
+    used_cuisines, used_families). used_recipe_ids covers every curated recipe
+    elsewhere in the plan (the position being swapped doesn't count) so a swap
+    never duplicates a dish. Families are POOL-WIDE — a swap must not bring a
+    second guláš into the plan; on legacy plans the same rule now applies
+    across all days (stricter than the old same-day rule, correct)."""
     used_recipe_ids: set = set()
-    used_families_today: set = set()
     pool = published_pool()
     family_by_id = {r.id: (r.dish_family or '') for r in pool}
-    for d in (plan.days or []):
-        same_day = day_number is not None and d.get('day_number') == day_number
-        for slot in ('breakfast', 'lunch', 'dinner'):
-            m = d.get(slot)
-            if isinstance(m, dict) and m.get('curated_recipe_id'):
-                used_recipe_ids.add(m['curated_recipe_id'])
-                if same_day and m['curated_recipe_id'] != current_id:
-                    fam = family_by_id.get(m['curated_recipe_id'])
-                    if fam:
-                        used_families_today.add(fam)
-        for list_key in ('small_meals', 'snacks'):
-            for m in (d.get(list_key) or []):
-                if isinstance(m, dict) and m.get('curated_recipe_id'):
-                    used_recipe_ids.add(m['curated_recipe_id'])
+    for m in iter_plan_meals(plan):
+        cid = m.get('curated_recipe_id')
+        if cid:
+            used_recipe_ids.add(cid)
     used_recipe_ids.discard(current_id)
+    used_families = {family_by_id[i] for i in used_recipe_ids if family_by_id.get(i)}
     cuisine_by_id = {r.id: (r.cuisine or '') for r in pool}
     used_cuisines = [cuisine_by_id[i] for i in used_recipe_ids if cuisine_by_id.get(i)]
-    return pool, used_recipe_ids, used_cuisines, used_families_today
+    return pool, used_recipe_ids, used_cuisines, used_families
 
 
-def _commit_slot_swap(*, goal, plan, target_day, meal_type, meal_identifier, chosen, user, slot_index=0):
-    """Atomically write `chosen` (a CuratedRecipe) into the slot: rewrite
-    plan.days, bump usage_count, refresh the cached Recipe row IN PLACE (same
-    pk — a substantive row is auto-published at /recepty/<pk>/, recreating
-    would orphan that live URL), and reset cooked state. Returns the Recipe.
-    `slot_index` addresses list slots (small_meal / snack)."""
+def _eligible_with_family_relax(slot, required_tags, *, pool, exclude_ids, facets, used_families, **kw):
+    """Corpus candidates for a swap: exclude families already in the plan, and
+    only when that leaves nothing fall back to ignoring families (a repeat
+    beats 'no alternatives'). Spec §8."""
+    strict = eligible_recipes_for_slot(
+        slot, required_tags, pool=pool, exclude_ids=exclude_ids, facets=facets,
+        exclude_families=used_families, **kw)
+    if strict:
+        return strict
+    return eligible_recipes_for_slot(
+        slot, required_tags, pool=pool, exclude_ids=exclude_ids, facets=facets, **kw)
+
+
+def _commit_slot_swap(*, goal, plan, ref, meal_identifier, chosen, user):
+    """Atomically write `chosen` (a CuratedRecipe) at `ref`: rewrite the plan
+    JSON, bump usage_count, refresh the cached Recipe row IN PLACE (same pk —
+    a substantive row is auto-published at /recepty/<pk>/, recreating would
+    orphan that live URL), reset cooked state. Returns the Recipe. Legacy list
+    slots are written by position (the identifier's index), which matches
+    every producer."""
     with transaction.atomic():
         # Portion the incoming recipe to the outgoing meal's calories — a swap
         # must not turn a 500-kcal slot into the new recipe's whole pot.
-        old = _get_slot_meal(target_day, meal_type, slot_index)
+        old = locate_meal(plan, ref)
         old_cal = (old.get('nutritional_info') or {}).get('calories') if isinstance(old, dict) else None
         new_meal, _ = render_curated_meal(
             chosen, target_kcal=old_cal, required_tags=required_tags_for_goal(goal))
+        if not set_meal(plan, ref, new_meal):
+            raise ValueError(f"meal position {meal_identifier} vanished during swap")
+        # Pool writes stamp the canonical identifier; keep the caller's string
+        # (== canonical for pool ids; legacy 3-part ids stay as received).
         new_meal['meal_identifier'] = meal_identifier
-        _set_slot_meal(target_day, meal_type, slot_index, new_meal)
-        plan.save(update_fields=['days'])
+        plan.save(update_fields=[plan_meals_field(plan)])
         CuratedRecipe.objects.filter(pk=chosen.id).update(usage_count=F('usage_count') + 1)
         recipe, _ = Recipe.objects.update_or_create(
             meal_identifier=meal_identifier,
@@ -717,8 +688,7 @@ class RecipeReplaceView(APIView):
         required_tags = required_tags_for_goal(goal)
         current_id = ctx.current_meal.get('curated_recipe_id')
         exclude_ids = {current_id} if current_id else set()
-        pool, used_recipe_ids, used_cuisines, used_families_today = _plan_swap_state(
-            plan, current_id, day_number=ctx.target_day.get('day_number'))
+        pool, used_recipe_ids, used_cuisines, used_families = _plan_swap_state(plan, current_id)
 
         hint = (request.data.get('hint') or '').strip()
         facets = None
@@ -747,9 +717,9 @@ class RecipeReplaceView(APIView):
         floor = PromptFacets(max_time_minutes=time_limit) if time_limit else None
 
         def pick(active_facets):
-            candidates = eligible_recipes_for_slot(
+            candidates = _eligible_with_family_relax(
                 ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
-                exclude_families=used_families_today,
+                used_families=used_families,
             )
             if not candidates:
                 return None
@@ -778,8 +748,7 @@ class RecipeReplaceView(APIView):
             )
 
         recipe = _commit_slot_swap(
-            goal=goal, plan=plan, target_day=ctx.target_day, meal_type=ctx.meal_type,
-            slot_index=ctx.slot_index,
+            goal=goal, plan=plan, ref=ctx.ref,
             meal_identifier=meal_identifier, chosen=chosen, user=request.user,
         )
         return Response({
@@ -899,14 +868,12 @@ class RecipeRefineView(APIView):
         goal = ctx.goal
         required_tags = required_tags_for_goal(goal)
         current_id = ctx.current_meal.get('curated_recipe_id')
-        pool, used_recipe_ids, used_cuisines, used_families_today = _plan_swap_state(
-            ctx.plan, current_id, day_number=ctx.target_day.get('day_number'))
+        pool, used_recipe_ids, used_cuisines, used_families = _plan_swap_state(ctx.plan, current_id)
 
         if request.data.get('accept') is not None:
             return self._accept(
                 request, ctx=ctx, meal_identifier=meal_identifier,
                 required_tags=required_tags, current_id=current_id, pool=pool,
-                used_families_today=used_families_today,
             )
 
         messages = clamp_messages(request.data.get('messages'))
@@ -935,7 +902,7 @@ class RecipeRefineView(APIView):
                     used_cuisines=used_cuisines,
                     messages=messages,
                     time_budget=time_budget,
-                    exclude_families=used_families_today,
+                    exclude_families=used_families,
                 )
                 return Response({
                     "status": "success",
@@ -983,9 +950,9 @@ class RecipeRefineView(APIView):
         floor = PromptFacets(max_time_minutes=time_limit) if time_limit else None
 
         def pick(active_facets):
-            candidates = eligible_recipes_for_slot(
+            candidates = _eligible_with_family_relax(
                 ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
-                exclude_families=used_families_today,
+                used_families=used_families,
             )
             if not candidates:
                 return None
@@ -1022,19 +989,20 @@ class RecipeRefineView(APIView):
             },
         }, status=200)
 
-    def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool,
-                used_families_today=frozenset()):
+    def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool):
         try:
             accept_id = int(request.data.get('accept'))
         except (TypeError, ValueError):
             return Response({"status": "error", "error": "Invalid accept id"}, status=400)
         # Re-validate against the SAME eligibility gate the preview used — the
         # corpus or plan may have changed between preview and accept, and a
-        # crafted id must never bypass slot/dietary rules.
+        # crafted id must never bypass slot/dietary rules. Family dedupe is a
+        # selection PREFERENCE, not an integrity gate, so it is not re-applied
+        # here: a facet-narrowed preview may legitimately have relaxed it
+        # (spec §8), and accepting a card the user was shown must not 400.
         exclude_ids = {current_id} if current_id else set()
         candidates = eligible_recipes_for_slot(
             ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=None,
-            exclude_families=used_families_today,
         )
         # Spec 2026-07-27 decision 1: the requester's own chat_web drafts are
         # acceptable without full catalog mapping (their unmapped ingredients
@@ -1046,7 +1014,7 @@ class RecipeRefineView(APIView):
         ))
         candidates += eligible_recipes_for_slot(
             ctx.meal_type, required_tags, pool=own_drafts, exclude_ids=exclude_ids,
-            facets=None, enforce_mapping=False, exclude_families=used_families_today,
+            facets=None, enforce_mapping=False,
         )
         chosen = next((r for r in candidates if r.id == accept_id), None)
         if chosen is None:
@@ -1060,8 +1028,7 @@ class RecipeRefineView(APIView):
             "name": ctx.current_meal.get('name') or '',
         } if current_id else None
         recipe = _commit_slot_swap(
-            goal=ctx.goal, plan=ctx.plan, target_day=ctx.target_day, meal_type=ctx.meal_type,
-            slot_index=ctx.slot_index,
+            goal=ctx.goal, plan=ctx.plan, ref=ctx.ref,
             meal_identifier=meal_identifier, chosen=chosen, user=request.user,
         )
         return Response({
@@ -1115,15 +1082,21 @@ class MealInstanceView(APIView):
             return Response({"status": "error", "error": "Node not found"}, status=404)
 
     def patch(self, request, meal_identifier: str) -> Response:
+        try:
+            ref = parse_meal_identifier(meal_identifier)
+        except ValueError:
+            return Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
+        if not DietaryGoal.objects.filter(id=ref.goal_id, user=request.user).exists():
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
         instance, created = MealInstance.objects.get_or_create(
             meal_identifier=meal_identifier,
             user=request.user,
             defaults={
-                'dietary_goal_id': int(meal_identifier.split(':')[0]),
+                'dietary_goal_id': ref.goal_id,
                 'meal_name': request.data.get('meal_name', ''),
-                'day_number': int(meal_identifier.split(':')[1]) if len(meal_identifier.split(':')) > 1 else 1,
-                'meal_type': meal_identifier.split(':')[2] if len(meal_identifier.split(':')) > 2 else '',
-            }
+                'day_number': ref.day_number,
+                'meal_type': ref.slot,
+            },
         )
         serializer = MealInstanceCreateUpdateSerializer(instance, data=request.data, partial=True)
         if serializer.is_valid():

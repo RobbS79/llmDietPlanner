@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Wallet, Trash2, X, Check } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Trash2, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 import { fetchBillingMe, quotaHeadline, type BillingMe } from '@/lib/billing';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { mealsLabel } from '@/lib/poolCounts';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
@@ -40,35 +41,6 @@ export const Dashboard = () => {
   // Subscribers (Stripe or promo) get their tier + monthly quota in the header
   // instead of the free counter, which no longer applies to them.
   const { data: billing } = useQuery<BillingMe>({ queryKey: ['billing-me'], queryFn: fetchBillingMe });
-
-  const completedGoalIds = (goals || [])
-    .filter((g: any) => g.status === 'completed')
-    .slice(0, 6)
-    .map((g: any) => g.id);
-
-  const goalDetails = useQueries({
-    queries: completedGoalIds.map((gid: number) => ({
-      queryKey: ['plan', gid],
-      queryFn: () => api.get(`/goals/${gid}/`).then(res => res.data.data),
-      staleTime: 5 * 60 * 1000,
-    })),
-  });
-
-  const costMap = new Map<number, { total: number; perDay: number | null; currency: string; days: number }>();
-  goalDetails.forEach((q: any) => {
-    // Use the new pro-rated food-cost ESTIMATE; legacy total_price is gone.
-    const estimate = q.data?.dietary_plan?.pricing?.estimate;
-    if (estimate && estimate.total > 0) {
-      costMap.set(q.data.id, {
-        total: estimate.total,
-        perDay: estimate.per_day ?? null,
-        currency: estimate.currency || 'CZK',
-        days: q.data.num_days || 7,
-      });
-    }
-  });
-
-  const latestCost = completedGoalIds.length > 0 ? costMap.get(completedGoalIds[0]) : undefined;
 
   const deleteMutation = useMutation({
     mutationFn: (goalIds: number[]) => api.post('/goals/bulk-delete/', { goal_ids: goalIds }),
@@ -176,32 +148,6 @@ export const Dashboard = () => {
           </div>
         )}
 
-        {latestCost && !selectMode && (() => {
-          const dailyCost = Math.round(latestCost.perDay ?? latestCost.total / latestCost.days);
-          return (
-            <div className="mb-10 bg-green-soft border border-green/40 rounded-2xl p-6 sm:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-green-soft border border-green/40 flex items-center justify-center shrink-0">
-                    <Wallet size={24} className="text-green" />
-                  </div>
-                  <div>
-                    {/* EN gloss: "Latest plan — food cost per day" — per-day per-person is the hero */}
-                    <p className="text-[9px] font-black text-green uppercase tracking-[0.3em] mb-1">Poslední plán — cena jídla na den</p>
-                    <p className="text-3xl sm:text-4xl font-black text-ink italic tracking-tighter leading-none tabular-nums">
-                      ~{dailyCost.toLocaleString('cs-CZ')} <span className="text-green text-sm not-italic uppercase">{latestCost.currency}</span>
-                      {/* EN gloss: "/ day · per person" */}
-                      <span className="text-muted text-xs not-italic ml-2 lowercase">/ den &middot; na osobu</span>
-                    </p>
-                    {/* EN gloss: "approx. {total} {currency} total for the plan — estimate" */}
-                    <p className="text-xs text-muted font-bold mt-1 italic tabular-nums">~{Math.round(latestCost.total).toLocaleString('cs-CZ')} {latestCost.currency} celkem &middot; odhad</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
             <>
@@ -259,24 +205,12 @@ export const Dashboard = () => {
                   {goal.prompt}
                 </h3>
 
-                {costMap.has(goal.id) && (() => {
-                  const c = costMap.get(goal.id)!;
-                  const perDay = Math.round(c.perDay ?? c.total / c.days);
-                  return (
-                    <div className="mb-4 bg-green-soft border border-green/40 rounded-xl px-4 py-3 flex items-center justify-between">
-                      {/* EN gloss: "Estimate · per day" */}
-                      <span className="text-[9px] font-black text-muted uppercase tracking-widest">Odhad &middot; na den</span>
-                      <span className="text-lg font-black text-green italic tracking-tighter tabular-nums">
-                        ~{perDay.toLocaleString('cs-CZ')} {c.currency}
-                      </span>
-                    </div>
-                  );
-                })()}
-
                 <div className="mt-auto pt-8 flex flex-col gap-4 border-t border-line">
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-muted italic">
                     <span className="flex items-center gap-2"><MapPin size={12} className="text-green" /> {goal.city}</span>
-                    <span className="bg-kraft px-2 py-0.5 rounded text-ink">{goal.num_days} dní</span>
+                    <span className="bg-kraft px-2 py-0.5 rounded text-ink">{goal.is_pool
+                      ? mealsLabel(Object.values(goal.counts || {}).reduce((a: number, b: unknown) => a + (Number(b) || 0), 0))
+                      : `${goal.num_days} dní`}</span>
                   </div>
                   <div className="flex justify-between items-center text-[9px] font-black text-muted uppercase tracking-[0.4em] pt-1">
                     <span>{new Date(goal.created_at).toLocaleDateString()}</span>

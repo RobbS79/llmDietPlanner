@@ -25,7 +25,7 @@ FACTS = {
                'link': 'https://eatalnicek.eu/recepty/1/svickova/?utm_source={channel}'},
     'showcase': {'kind': 'showcase', 'iso_week': '2026-W37', 'goal_id': 1, 'prompt': 'Chci zhubnout.',
                  'meals': [{'slot': 'lunch', 'name': 'Rizoto', 'kcal': 600, 'deals_matched': 0}],
-                 'total_kcal': 600, 'link': 'https://eatalnicek.eu/?utm_source={channel}'},
+                 'link': 'https://eatalnicek.eu/?utm_source={channel}'},
 }
 
 
@@ -293,14 +293,12 @@ class DryRunShowcaseTests(TestCase):
 
     def _completed_showcase_goal(self):
         goal = DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[0], country='CZ',
-                                          num_days=1, language_code='cs',
+                                          dinners=2, language_code='cs',
                                           status=DietaryGoal.StatusChoices.COMPLETED)
-        DietaryPlan.objects.create(dietary_goal=goal, days=[{
-            'day_number': 1,
-            'breakfast': self._meal('Ovesná kaše', 700),
-            'lunch': self._meal('Kuřecí rizoto', 1240),
-            'small_meals': [], 'snacks': [],
-        }])
+        DietaryPlan.objects.create(dietary_goal=goal, days=[], meals=[
+            {**self._meal('Ovesná kaše', 700), 'slot': 'breakfast', 'index': 0},
+            {**self._meal('Kuřecí rizoto', 1240), 'slot': 'dinner', 'index': 0},
+        ])
         return goal
 
     def _run(self):

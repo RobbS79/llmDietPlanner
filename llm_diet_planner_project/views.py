@@ -126,6 +126,8 @@ def public_recipe_view(request, pk, slug=None):
             elif 'fat' in kl:
                 schema_ld["nutrition"]["fatContent"] = str(v)
 
+    # CTA copy (EN): "Want more recipes like this, with a shopping list?" /
+    # "Say how many lunches and dinners you want and Vařto picks the recipes; for each you'll see what is on sale this week."
     recipe_html = f'''<div style="max-width:56rem;margin:0 auto;padding:3rem 1.5rem;background:#F7F3EC;color:#241E1A;">
 <nav style="margin-bottom:2rem;font-size:0.875rem;"><a href="/recepty/" style="color:#2E6B43;">Recepty</a> / <span>{escape(recipe.name)}</span></nav>
 <div style="position:relative;height:20rem;border-radius:1.5rem;overflow:hidden;margin-bottom:2rem;">
@@ -144,8 +146,8 @@ def public_recipe_view(request, pk, slug=None):
 </div>
 {f'<section style="margin-top:2rem;"><h3 style="font-size:0.875rem;font-weight:900;">Nutriční hodnoty</h3><dl style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-top:0.5rem;">{nutrition_html}</dl></section>' if nutrition_html else ''}
 <div style="margin-top:3rem;padding:2rem;text-align:center;background:#FFFFFF;border:1px solid #E4DAC8;border-radius:1.5rem;">
-<p style="font-size:1.25rem;font-weight:900;">Chcete celý týden takových jídel?</p>
-<p style="color:#5E564C;margin-top:0.5rem;">Vařto sestaví jídelníček na míru s recepty a nákupním seznamem — a u každého receptu uvidíte, co je tento týden ve slevě.</p>
+<p style="font-size:1.25rem;font-weight:900;">Chcete víc takových receptů s nákupním seznamem?</p>
+<p style="color:#5E564C;margin-top:0.5rem;">Řeknete, kolik obědů a večeří chcete, a Vařto vybere recepty — u každého uvidíte, co je tento týden ve slevě.</p>
 <a href="/login" style="display:inline-block;margin-top:1rem;padding:0.875rem 2rem;background:#2E6B43;color:white;border-radius:0.75rem;text-decoration:none;font-weight:900;">Vytvořte si jídelníček zdarma</a>
 </div>
 </div>
