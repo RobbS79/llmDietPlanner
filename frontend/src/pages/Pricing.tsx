@@ -65,7 +65,8 @@ const PLANS = [
 const FAQ = [
   {
     q: 'Kolik jídelníčků mohu zdarma vygenerovat?',
-    a: 'V bezplatném tarifu vytvoříte 2 jídelníčky, každý s možností 3 úprav. Každý jídelníček obsahuje kompletní vícedenné menu s recepty a nákupním seznamem.',
+    // EN: On the free tier you create 2 jídelníčky, each with 3 edits. A jídelníček is a set of recipes for your request, each with nutrition and a shopping list.
+    a: 'V bezplatném tarifu vytvoříte 2 jídelníčky, každý s možností 3 úprav. Jídelníček je sada receptů podle vašeho zadání — každý s nutričními hodnotami a nákupním seznamem.',
   },
   {
     q: 'Jak přesné jsou ceny z obchodů?',
@@ -326,7 +327,7 @@ export const Pricing = () => {
 
         <div className="text-center mb-16">
           <p className="text-muted text-sm">
-            Stojí méně než jedno kafe týdně. Za to dostanete <strong className="text-ink">celý týden jídelníčku na míru vašemu cíli</strong> — s recepty, nutričními hodnotami a nákupním seznamem, ve kterém rovnou vidíte suroviny aktuálně ve slevě.
+            Stojí méně než jedno kafe týdně. Za to dostanete <strong className="text-ink">recepty na míru vašemu cíli</strong> — s nutričními hodnotami a nákupním seznamem, ve kterém rovnou vidíte suroviny aktuálně ve slevě.
           </p>
         </div>
 

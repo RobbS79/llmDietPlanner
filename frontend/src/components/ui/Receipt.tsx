@@ -7,7 +7,7 @@ interface ReceiptItem {
 }
 interface ReceiptProps {
   title: string;        // e.g. "Váš týden"
-  subtitle?: string;    // e.g. "3 jídla denně · 7 dní"
+  subtitle?: string;    // e.g. "5 jídel"
   source?: string;      // e.g. "Rohlík.cz"
   items: ReceiptItem[];
   totalLabel: string;   // e.g. "Ve slevě tento týden"

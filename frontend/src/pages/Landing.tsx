@@ -6,10 +6,10 @@ import { Receipt } from '@/components/ui/Receipt';
 import { captureAttribution } from '@/lib/analytics';
 
 const SAMPLE_PLAN = {
-  days: [
-    { day: 1, meals: ['Ovesná kaše s ovocem', 'Kuřecí wok s rýží', 'Losos s brokolicí'] },
-    { day: 2, meals: ['Jogurt s granolou', 'Salát s tuňákem', 'Hovězí guláš s knedlíkem'] },
-    { day: 3, meals: ['Vajíčka s avokádo', 'Treščí filé s brambory', 'Kuřecí curry s rýží'] },
+  sections: [
+    { label: 'Snídaně', meals: ['Ovesná kaše s ovocem'] },
+    { label: 'Obědy', meals: ['Kuřecí wok s rýží', 'Treščí filé s brambory'] },
+    { label: 'Večeře', meals: ['Losos s brokolicí', 'Hovězí guláš s knedlíkem'] },
   ],
   recipe: {
     name: 'Kuřecí wok s rýží',
@@ -67,11 +67,13 @@ export const Landing = () => {
 
             <h1 className="font-display text-5xl sm:text-7xl font-extrabold tracking-tight leading-[0.95] mb-8">
               Zhubnout, nabrat, nebo jen jíst líp?<br />
-              <span className="text-paprika">Naplánujeme vám celý týden jídla.</span>
+              {/* EN: Tell us how many lunches and dinners you want. */}
+              <span className="text-paprika">Řekněte si, kolik obědů a večeří chcete.</span>
             </h1>
 
+            {/* EN: Describe your goal in your own words, choose how many breakfasts, lunches and dinners, and get finished recipes with nutrition and a shopping list for each. Some ingredients also show current leaflet deals. */}
             <p className="text-lg sm:text-xl text-muted max-w-xl mb-4 leading-relaxed">
-              Popíšete svůj cíl vlastními slovy — a dostanete <strong className="text-ink">jídelníček na míru s recepty, nutričními hodnotami (kalorie a makra) a nákupním seznamem.</strong> U některých surovin navíc rovnou vidíte aktuální slevy z letáků.
+              Popíšete svůj cíl vlastními slovy, zvolíte počet snídaní, obědů a večeří — a dostanete <strong className="text-ink">hotové recepty s nutričními hodnotami (kalorie a makra) a nákupním seznamem ke každému z nich.</strong> U některých surovin navíc rovnou vidíte aktuální slevy z letáků.
             </p>
 
             <p className="text-sm text-muted mb-10">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
@@ -229,21 +231,17 @@ export const Landing = () => {
             <div className="lg:col-span-7 bg-card border border-line rounded-3xl p-8 sm:p-10">
               <div className="flex items-center gap-3 mb-8">
                 <div className="px-3 py-1 bg-green-soft rounded-lg text-[10px] font-bold text-green uppercase tracking-widest">Ukázkový plán</div>
-                <span className="text-xs font-semibold text-muted">3 dny · Praha</span>
+                {/* EN: 5 meals · Prague */}
+                <span className="text-xs font-semibold text-muted">5 jídel · Praha</span>
               </div>
 
               <div className="space-y-6">
-                {SAMPLE_PLAN.days.map((day) => (
-                  <div key={day.day} className="flex gap-6 items-start">
-                    <div className="w-10 h-10 rounded-xl bg-green text-white flex items-center justify-center font-display font-extrabold text-lg shrink-0 shadow-lg">
-                      {day.day}
-                    </div>
+                {SAMPLE_PLAN.sections.map((section) => (
+                  <div key={section.label} className="flex gap-3 items-start">
+                    <span className="text-[10px] font-bold text-muted uppercase tracking-widest w-20 shrink-0">{section.label}</span>
                     <div className="flex-1 space-y-2">
-                      {day.meals.map((meal, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <span className="text-[10px] font-bold text-muted uppercase tracking-widest w-20 shrink-0">
-                            {['Snídaně', 'Oběd', 'Večeře'][i]}
-                          </span>
+                      {section.meals.map((meal) => (
+                        <div key={meal} className="flex items-center gap-3">
                           <span className="text-sm font-semibold text-ink">{meal}</span>
                         </div>
                       ))}
@@ -309,8 +307,9 @@ export const Landing = () => {
       <section className="bg-paper">
         <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
           <div className="bg-green-soft border border-line rounded-3xl p-12 sm:p-20 text-center">
+            {/* EN: Ready to cook your way? */}
             <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
-              Připraveni naplánovat týden jídla?
+              Připraveni vařit podle sebe?
             </h2>
             <p className="text-muted text-lg mb-10 max-w-md mx-auto">
               Začněte se 2 jídelníčky zdarma. Bez kreditní karty.
