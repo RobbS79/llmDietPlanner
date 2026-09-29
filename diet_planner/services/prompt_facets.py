@@ -3,8 +3,8 @@ Free-text prompt -> structured PromptFacets, used to make recipe grounding
 prompt-aware (see docs/superpowers/specs/2026-06-17-prompt-aware-recipe-grounding-design.md).
 
 This module is intentionally dependency-free w.r.t. recipe_retrieval: it takes
-`cuisine_vocab` as an argument so the caller (recipe_retrieval.overlay) owns the
-corpus lookup and no import cycle is created.
+`cuisine_vocab` as an argument so the caller (meal_pool, the replace/refine
+views) owns the corpus lookup and no import cycle is created.
 """
 from __future__ import annotations
 
@@ -41,8 +41,8 @@ class PromptFacets:
     # recipe total_time; recipes with unknown time are let through.
     max_time_minutes: Optional[int] = None
     # Extraction anomaly: the prompt was substantive but extraction (after a
-    # retry) produced nothing. The overlay must then treat the generated plan
-    # as the only prompt-aware artifact and stop overriding generated meals.
+    # retry) produced nothing. The meal pool then generates the mains from the
+    # LLM with the raw prompt; small meals stay curated.
     # Not part of is_empty(): it describes extraction, not the user.
     suspect: bool = False
 
@@ -204,8 +204,8 @@ def extract_prompt_facets(
 
     A substantive prompt that extracts to nothing is retried once; if it stays
     empty (or the LLM call fails), the returned facets carry `suspect=True` so
-    the overlay degrades to rescue-only instead of silently discarding the
-    user's words (goal 133)."""
+    mains are generated from the LLM with the raw prompt (small meals stay
+    curated) instead of silently discarding the user's words (goal 133)."""
     if not prompt or not prompt.strip():
         return PromptFacets()
     gen = generate or _default_generate
@@ -234,5 +234,6 @@ def extract_prompt_facets(
         facets.suspect = True
         logger.warning(
             "Prompt facets empty for substantive prompt (len=%d) after retry — "
-            "overlay will keep generated meals (rescue-only)", len(prompt.strip()))
+            "mains are generated from the LLM with the raw prompt; small meals "
+            "stay curated", len(prompt.strip()))
     return facets

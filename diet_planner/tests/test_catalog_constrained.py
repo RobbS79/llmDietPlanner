@@ -1,102 +1,13 @@
 """
-Smoke tests for the catalog-constrained meal generation flow (Phase 4).
-
-Tests the full chain: catalog preparation → price resolution → source labeling.
-LLM call is mocked — everything else is real.
+PriceResolver tests: DB-only price resolution, source labeling and unit
+conversion.
 """
-from datetime import timedelta
-from decimal import Decimal
-from unittest.mock import patch, MagicMock
-
 from django.test import TestCase
-from django.utils import timezone
 from django.contrib.auth.models import User
 
-from diet_planner.models import DietaryGoal, DietaryPlan, GroceryStore, PriceSourceType
-from diet_planner.services.catalog import CatalogService, PANTRY_STAPLES
+from diet_planner.models import DietaryGoal, PriceSourceType
 from diet_planner.services.price_resolver import PriceResolver, PriceSource
 from diet_planner.tests.factories import make_price
-
-
-class CatalogServiceTest(TestCase):
-    """Test catalog building from LeafletOffer data."""
-
-    def setUp(self):
-        self.user = User.objects.create_user('testuser', password='test')
-        self.store = GroceryStore.objects.get(code='LIDL_CZ')
-        self.goal = DietaryGoal.objects.create(
-            user=self.user,
-            prompt='Test meal plan',
-            country='CZ',
-            city='Prague',
-            shop='LIDL_CZ',
-            num_days=3,
-        )
-        for name, price in [
-            ('kuřecí prsa', 139.90),
-            ('rýže basmati', 45.90),
-            ('rajčata', 29.90),
-            ('jogurt bílý', 18.90),
-            ('vejce 10ks M', 64.90),
-            ('špenát mražený', 29.90),
-            ('olivový olej extra virgin', 89.90),
-            ('mléko polotučné', 22.90),
-        ]:
-            make_price(
-                store_code='LIDL_CZ',
-                normalized_name=name,
-                display_name=name.title(),
-                price=price,
-                source_type=PriceSourceType.STORE_REGULAR,
-            )
-        make_price(
-            store_code='LIDL_CZ',
-            normalized_name='banány',
-            display_name='Banány',
-            price=19.90,
-            source_type=PriceSourceType.LEAFLET_DISCOUNT,
-            original_price=29.90,
-            discount_percentage=33,
-            valid_for_days=3,
-        )
-
-    def test_catalog_loads_products(self):
-        service = CatalogService()
-        catalog = service.build_catalog_for_prompt(self.goal)
-        self.assertGreaterEqual(catalog['total_products'], 8)
-        self.assertGreater(len(catalog['pantry_staples']), 20)
-
-    def test_catalog_compact_text(self):
-        service = CatalogService()
-        catalog = service.build_catalog_for_prompt(self.goal)
-        text = service.build_compact_prompt_text(catalog, self.goal)
-        self.assertIn('#', text)  # catalog IDs
-        self.assertIn('PANTRY STAPLES', text)
-        self.assertIn('CZK', text)
-
-    def test_dietary_filter_vegetarian(self):
-        self.goal.dietary_restrictions = 'vegetarian'
-        self.goal.save()
-        # build_catalog_for_prompt filters by the resolved restriction set the
-        # caller passes in (it no longer reads goal.dietary_restrictions itself).
-        from diet_planner.services.restrictions import RestrictionResolver
-        exclusions = RestrictionResolver().resolve(self.goal)
-        service = CatalogService()
-        catalog = service.build_catalog_for_prompt(self.goal, exclusions=exclusions)
-        all_names = []
-        for products in catalog['products_by_category'].values():
-            all_names.extend(p['name'] for p in products)
-        self.assertNotIn('kuřecí prsa', all_names)
-        self.assertIn('rýže basmati', all_names)
-
-    def test_discounted_items_flagged(self):
-        service = CatalogService()
-        catalog = service.build_catalog_for_prompt(self.goal)
-        all_products = []
-        for products in catalog['products_by_category'].values():
-            all_products.extend(products)
-        discounted = [p for p in all_products if p.get('discounted')]
-        self.assertGreater(len(discounted), 0)
 
 
 class PriceResolverTest(TestCase):
@@ -122,7 +33,7 @@ class PriceResolverTest(TestCase):
             discount_percentage=18,
             valid_for_days=5,
         )
-        # `catalog_id` now refers to StoreProduct.id (see CatalogService._load_products)
+        # `catalog_id` refers to StoreProduct.id
         self.catalog_id = self.record.store_product_id
         # Albert offer for cross-store test
         make_price(

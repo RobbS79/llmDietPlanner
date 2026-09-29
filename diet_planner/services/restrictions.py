@@ -1,7 +1,7 @@
 """Dietary restriction resolution, validation, and repair.
 
 Single source of truth for everything restriction-related. Used by:
-- CatalogService to filter the product catalog
+- the meal pool (services/meal_pool.py) to resolve a goal's restrictions
 - GeminiService to inject restriction rules into meal-plan prompts
 - The post-generation validator that rejects/repairs violating meals
 """

@@ -285,7 +285,7 @@ class WantedIngredientMatcher:
 
     `hits()` returns the number of DISTINCT concepts a recipe satisfies —
     the ranking weight in `score_recipe`, and the prompt-fit signal for the
-    overlay threshold.
+    wanted-fit threshold in `select_recipes_for_pool`.
     """
 
     def __init__(self, concepts: List[tuple], slug_category: Dict[str, str]):
@@ -877,8 +877,8 @@ def render_curated_meal(
     required_tags: Set[str],
 ) -> tuple:
     """The ONE way a curated recipe becomes a plan meal: pick the příloha the
-    diet allows, size the portions on main+side, render. Used by the overlay,
-    the replace swap, and refine preview/accept, so the card never differs
+    diet allows, size the portions on main+side, render. Used by the meal
+    pool, the replace swap, and refine preview/accept, so the card never differs
     from what accept writes. Returns (meal, gap_reason) where gap_reason is
     'side_unavailable' when the recipe wants a side and the diet forbids all
     of them (served bare — a corpus/diet gap worth counting), else None."""
@@ -890,10 +890,11 @@ def render_curated_meal(
     return meal, gap
 
 
-# Fallback per-slot calorie targets (roughly a 2000-kcal adult day) used when
-# the generated plan carries no usable number for a slot. Without one, the
-# overlay served exactly one base-portion — for piece-counted recipes that is
-# a fraction of a meal (prod goal 134: 1/12 muffin batch = 16-kcal breakfast).
+# Per-slot calorie targets (roughly a 2000-kcal adult day). The meal pool
+# uses these as the per-slot portion target for every curated meal. Without a
+# target a recipe is served as exactly one base-portion — for piece-counted
+# recipes that is a fraction of a meal (prod goal 134: 1/12 muffin batch =
+# 16-kcal breakfast).
 _SLOT_DEFAULT_KCAL: Dict[str, float] = {
     'breakfast': 450.0,
     'lunch': 650.0,
