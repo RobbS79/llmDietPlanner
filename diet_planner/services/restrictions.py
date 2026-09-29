@@ -8,7 +8,7 @@ Single source of truth for everything restriction-related. Used by:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Optional
 
 from diet_planner.services.catalog import DIETARY_EXCLUSIONS
 
@@ -377,15 +377,21 @@ def repair_single_meal(
     llm,
     meal_key: str,
     max_reprompts: int = 2,
+    regenerate: Optional[Callable[[dict], dict]] = None,
 ) -> tuple[dict, int, int]:
     """Swap or re-prompt ONE meal until it violates no exclusion.
 
     Returns (compliant_meal, reprompts_used, swaps_used). Raises
     RepairBudgetExhausted after `max_reprompts` re-prompts still violate.
     A no-op (same object back) when there are no exclusion keywords.
+    regenerate(meal) -> meal lets the caller keep slot/prompt/usage context
+    (the pool builder passes a slot-aware call).
     """
     if not exclusions.exclusion_keywords:
         return meal, 0, 0
+    if regenerate is None:
+        def regenerate(m: dict) -> dict:
+            return llm.regenerate_meal(original_meal=m, goal=goal, exclusions=exclusions)
     current = meal
     reprompts = swaps = 0
     while True:
@@ -402,6 +408,12 @@ def repair_single_meal(
                 current = patched
                 break
         if patched is not None:
+            swap_cap = len(current.get('ingredients') or []) * max(1, len(exclusions.tags)) + 1
+            if swaps > swap_cap:
+                raise RepairBudgetExhausted(
+                    'deterministic swap loop did not converge',
+                    meal_key=meal_key, violations=violations,
+                )
             continue
         if reprompts >= max_reprompts:
             raise RepairBudgetExhausted(
@@ -410,7 +422,7 @@ def repair_single_meal(
             )
         logger.info("restriction-repair: re-prompting %s (attempt %d) for %d violations",
                     meal_key, reprompts + 1, len(violations))
-        current = llm.regenerate_meal(original_meal=current, goal=goal, exclusions=exclusions)
+        current = regenerate(current)
         reprompts += 1
 
 

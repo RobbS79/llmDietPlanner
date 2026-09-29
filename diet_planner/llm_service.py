@@ -333,6 +333,7 @@ EXAMPLE INGREDIENT FORMAT:
         shop_url: Optional[str] = None,
         catalog_text: Optional[str] = None,
         single_meal: bool = False,
+        task_line: Optional[str] = None,
     ) -> str:
         """Build the system prompt for meal generation.
 
@@ -367,12 +368,16 @@ EXAMPLE INGREDIENT FORMAT:
                 '"snacks": [...]}, ...]}'
             )
             scope_line = f"TASK: generate a {num_days}-day meal plan."
+        if task_line:
+            scope_line = task_line
 
-        source_line = (
-            f"Browse {shop_url} for context but don't list prices."
-            if shop_url
-            else f"Use ONLY the AVAILABLE PRODUCTS list below.\n\n{catalog_text or ''}"
-        )
+        if shop_url:
+            source_line = f"Browse {shop_url} for context but don't list prices."
+        elif single_meal and not catalog_text:
+            source_line = ""
+        else:
+            source_line = f"Use ONLY the AVAILABLE PRODUCTS list below.\n\n{catalog_text or ''}"
+        source_block = f"{source_line}\n\n" if source_line else ""
 
         # Ingredient efficiency: a meal plan built from many one-off ingredients
         # produces a long, expensive, hard-to-shop list (some plans hit ~99
@@ -402,7 +407,7 @@ EXAMPLE INGREDIENT FORMAT:
             f"RESPONSE FORMAT: Valid JSON only, no markdown, all text in {target_language}.\n\n"
             f"{scope_line}\n"
             f"{schema_hint}\n\n"
-            f"{source_line}\n\n"
+            f"{source_block}"
             f"{restriction_block}"
             f"CRITICAL RULES:\n"
             f"- Keep instructions VERY BRIEF: 3 steps maximum per meal\n"
@@ -455,37 +460,22 @@ EXAMPLE INGREDIENT FORMAT:
         repair loop when the validator finds a forbidden ingredient.
         """
         model = model or self.default_model
+        slot = original_meal.get('slot') or original_meal.get('food_category') or 'meal'
         system_prompt = self._build_meal_system_prompt(
             goal=goal, exclusions=exclusions, shop_url=None, single_meal=True,
         )
         meal_brief = (
-            f"Slot: {original_meal.get('food_category', 'meal')}\n"
+            f"Slot: {slot}\n"
             f"Replace this meal because it violated restrictions:\n"
             f"  name: {original_meal.get('name', '?')}\n"
             f"  ingredients: "
             f"{[i.get('name') for i in (original_meal.get('ingredients') or []) if isinstance(i, dict)]}\n"
             f"Produce a compliant replacement for the same slot."
         )
-        gemini_model = genai.GenerativeModel(
-            model_name=model, system_instruction=system_prompt
+        out = self._single_meal_call(
+            system_prompt=system_prompt, brief=meal_brief, model=model, slot=slot,
         )
-        response = gemini_model.generate_content(
-            meal_brief,
-            generation_config={
-                "response_mime_type": "application/json",
-                "temperature": 0.7,
-                "max_output_tokens": getattr(
-                    settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536
-                ),
-            },
-            request_options={"timeout": 120},
-        )
-        return json.loads(response.text)
-
-    _SLOT_BRIEF_CS = {
-        'breakfast': 'snídaně', 'lunch': 'oběd', 'dinner': 'večeře',
-        'small_meal': 'svačina', 'snack': 'malý snack',
-    }
+        return out['meal']
 
     def generate_slot_meal(
         self,
@@ -493,7 +483,7 @@ EXAMPLE INGREDIENT FORMAT:
         slot: str,
         user_prompt: str,
         goal: Any,
-        exclusions: "ResolvedRestrictions",
+        exclusions: "Optional[ResolvedRestrictions]" = None,
         avoid_names: List[str],
         model: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -502,41 +492,95 @@ EXAMPLE INGREDIENT FORMAT:
         {'meal': dict, input/output/total tokens, cost_usd, model}. Raises on
         LLM/JSON failure — the caller turns that into a shortfall."""
         model = model or self.default_model
+        exclusions = self._resolve_exclusions(goal, exclusions)
         system_prompt = self._build_meal_system_prompt(
             goal=goal, exclusions=exclusions, shop_url=None, single_meal=True,
+            task_line="TASK: produce ONE new meal for the given slot honoring all rules.",
         )
         avoid = ', '.join(n for n in avoid_names if n) or '(none)'
         brief = (
-            f"Slot: {slot} ({self._SLOT_BRIEF_CS.get(slot, slot)})\n"
+            f"Slot: {slot}\n"
             f"User request: {user_prompt}\n"
             f"Dishes already in this plan (do NOT repeat or closely resemble): {avoid}\n"
             f"Produce ONE meal for this slot that fits the request. "
             f"Include realistic nutritional_info with numeric calories for ONE portion "
             f"and set servings to 1."
         )
-        gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
-        response = gemini_model.generate_content(
-            brief,
-            generation_config={
-                "response_mime_type": "application/json",
-                "temperature": 0.7,
-                "max_output_tokens": getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536),
-            },
-            request_options={"timeout": 120},
+        return self._single_meal_call(
+            system_prompt=system_prompt, brief=brief, model=model, slot=slot,
         )
-        parsed = json.loads(response.text)
-        meal = self._unwrap_single_meal(parsed, slot)
-        if not isinstance(meal, dict) or not meal.get('name'):
-            raise ValueError(f"slot meal for {slot!r} came back without a name")
-        usage = response.usage_metadata
-        return {
-            'meal': meal,
-            'input_tokens': usage.prompt_token_count,
-            'output_tokens': usage.candidates_token_count,
-            'total_tokens': usage.total_token_count,
-            'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
-            'model': model,
-        }
+
+    def _single_meal_call(
+        self,
+        *,
+        system_prompt: str,
+        brief: str,
+        model: str,
+        slot: str,
+        temperature: float = 0.7,
+    ) -> Dict[str, Any]:
+        """One Gemini round-trip that must yield ONE meal dict.
+
+        Shared by regenerate_meal and generate_slot_meal. Raises ValueError on
+        a non-STOP finish, unparseable JSON, or a reply without a meal name.
+        """
+        try:
+            gemini_model = genai.GenerativeModel(
+                model_name=model, system_instruction=system_prompt,
+            )
+            response = gemini_model.generate_content(
+                brief,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": temperature,
+                    "max_output_tokens": getattr(
+                        settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536
+                    ),
+                },
+                request_options={"timeout": 120},
+            )
+            candidates = getattr(response, 'candidates', None)
+            finish_name = None
+            if candidates:
+                finish = getattr(candidates[0], 'finish_reason', None)
+                finish_name = getattr(finish, 'name', None) if finish is not None else None
+            # Missing / non-string finish_reason is treated as OK.
+            if not candidates or (isinstance(finish_name, str) and finish_name != 'STOP'):
+                raise ValueError(
+                    f"slot meal {slot}: finish_reason={finish_name}, "
+                    f"prompt_feedback={getattr(response, 'prompt_feedback', None)}"
+                )
+            parsed = self._loads_lenient(response.text)
+            meal = self._unwrap_single_meal(parsed, slot)
+            if not isinstance(meal, dict) or not meal.get('name'):
+                raise ValueError(f"slot meal for {slot!r} came back without a name")
+            usage = response.usage_metadata
+            return {
+                'meal': meal,
+                'input_tokens': usage.prompt_token_count,
+                'output_tokens': usage.candidates_token_count,
+                'total_tokens': usage.total_token_count,
+                'cost_usd': calculate_cost(
+                    usage.prompt_token_count, usage.candidates_token_count, model,
+                ),
+                'model': model,
+            }
+        except Exception as exc:
+            logger.error("Single-meal generation error (%s): %s", slot, exc, exc_info=True)
+            raise
+
+    @staticmethod
+    def _loads_lenient(content: str) -> Any:
+        """json.loads, retrying once after stripping trailing commas."""
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            cleaned = re.sub(r',\s*}', '}', content)
+            cleaned = re.sub(r',\s*]', ']', cleaned)
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError as e2:
+                raise ValueError(f"single-meal reply is not valid JSON: {e2}") from e2
 
     @staticmethod
     def _unwrap_single_meal(parsed: Any, slot: str) -> Any:
@@ -551,10 +595,17 @@ EXAMPLE INGREDIENT FORMAT:
             if isinstance(day, dict):
                 if isinstance(day.get(slot), dict):
                     return day[slot]
+                list_keys = ['small_meals', 'snacks']
+                preferred = {'small_meal': 'small_meals', 'snack': 'snacks'}.get(slot)
+                if preferred:
+                    list_keys.remove(preferred)
+                    items = day.get(preferred)
+                    if isinstance(items, list) and items and isinstance(items[0], dict):
+                        return items[0]
                 for key in ('breakfast', 'lunch', 'dinner'):
                     if isinstance(day.get(key), dict):
                         return day[key]
-                for key in ('small_meals', 'snacks'):
+                for key in list_keys:
                     items = day.get(key)
                     if isinstance(items, list) and items and isinstance(items[0], dict):
                         return items[0]
