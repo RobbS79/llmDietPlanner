@@ -30,6 +30,7 @@ from diet_planner.services.recipe_curation import (
     _save_with_unique_slug,
     curate_from_source,
 )
+from diet_planner.services.meal_locator import parse_meal_identifier
 from diet_planner.services.recipe_retrieval import required_tags_for_goal
 
 logger = logging.getLogger(__name__)
@@ -185,14 +186,16 @@ def _canonicalize_url(url: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _slot_of(meal_identifier: str) -> str:
-    parts = (meal_identifier or '').split(':')
-    return parts[2] if len(parts) > 2 else 'lunch'
+    try:
+        return parse_meal_identifier(meal_identifier).slot
+    except ValueError:
+        return 'lunch'
 
 
 def _goal_of(job: RecipeResearchJob) -> Optional[DietaryGoal]:
-    parts = (job.meal_identifier or '').split(':')
     try:
-        return DietaryGoal.objects.get(id=int(parts[0]), user=job.user)
+        goal_id = parse_meal_identifier(job.meal_identifier).goal_id
+        return DietaryGoal.objects.get(id=goal_id, user=job.user)
     except Exception:
         return None
 
