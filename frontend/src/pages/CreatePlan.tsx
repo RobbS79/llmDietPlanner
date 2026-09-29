@@ -27,6 +27,11 @@ const PRESETS = [
   { label: 'Pracovní týden', counts: { breakfasts: 5, lunches: 5, dinners: 5, small_meals: 5, snacks: 0 } },
   { label: 'Víkend', counts: { breakfasts: 2, lunches: 2, dinners: 2, small_meals: 0, snacks: 2 } },
 ];
+// Legacy (pre-pool) goals have all-zero counts; show their day length instead.
+const goalChipCount = (goal: { counts?: Record<string, number>; num_days?: number | null }) => {
+  const total = Object.values(goal.counts || {}).reduce((a, b) => a + (b || 0), 0);
+  return total === 0 && goal.num_days ? `${goal.num_days} dní` : mealsLabel(total);
+};
 const clampCount = (n: number) => Math.min(14, Math.max(0, Number.isFinite(n) ? Math.round(n) : 0));
 
 export const CreatePlan = () => {
@@ -171,7 +176,7 @@ export const CreatePlan = () => {
                   className="px-4 py-2.5 bg-paper border border-line rounded-xl text-xs font-bold text-ink hover:bg-kraft hover:border-green/40 transition-all truncate max-w-[220px]"
                   title={goal.prompt}
                 >
-                  {goal.city} · {mealsLabel(Object.values((goal.counts || {}) as Record<string, number>).reduce((a, b) => a + (b || 0), 0))} — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
+                  {goal.city} · {goalChipCount(goal)} — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
                 </button>
               ))}
             </div>
@@ -284,6 +289,7 @@ export const CreatePlan = () => {
                       <button type="button" aria-label={`Méně: ${label}`} onClick={() => update(field, clampCount(formData[field] - 1))}
                         className="w-9 h-9 rounded-lg border border-line bg-card text-ink hover:border-green/40 flex items-center justify-center"><Minus size={14} /></button>
                       <input id={`count-${field}`} type="number" min={0} max={14} value={formData[field]}
+                        onFocus={e => e.target.select()}
                         onChange={e => update(field, clampCount(parseInt(e.target.value, 10)))}
                         className="w-14 h-9 bg-card border border-line rounded-lg text-center text-sm font-black text-ink focus:outline-none focus:border-green" />
                       <button type="button" aria-label={`Více: ${label}`} onClick={() => update(field, clampCount(formData[field] + 1))}
@@ -298,8 +304,8 @@ export const CreatePlan = () => {
                 // EN: "Pick at least one meal."
                 <p role="alert" className="text-sm font-bold text-paprika-strong">Vyberte alespoň jedno jídlo.</p>
               )}
-              {/* EN: "No days. You cook them whenever it suits you; each recipe has its own shopping list." */}
-              <p className="text-xs text-muted leading-relaxed">Žádné dny — uvaříte je, kdy se vám to hodí. Každý recept má vlastní nákupní seznam.</p>
+              {/* EN: "No days — you cook the recipes whenever it suits you; each recipe has its own shopping list." */}
+              <p className="text-xs text-muted leading-relaxed">Žádné dny — recepty uvaříte, kdy se vám to hodí. Každý recept má vlastní nákupní seznam.</p>
             </Card>
           </section>
         )}

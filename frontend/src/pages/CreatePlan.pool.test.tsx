@@ -12,6 +12,8 @@ vi.mock('@/lib/api', () => ({
       if (url === '/goals/list/') return Promise.resolve({ data: { data: [
         { id: 3, status: 'completed', prompt: 'starý', city: 'Brno', country: 'CZ', language_code: 'cs',
           breakfasts: 1, lunches: 2, dinners: 3, small_meals: 0, snacks: 4, counts: { breakfast: 1, lunch: 2, dinner: 3, small_meal: 0, snack: 4 } },
+        { id: 4, status: 'completed', prompt: 'legacy', city: 'Ostrava', country: 'CZ', language_code: 'cs', num_days: 7,
+          breakfasts: 0, lunches: 0, dinners: 0, small_meals: 0, snacks: 0, counts: { breakfast: 0, lunch: 0, dinner: 0, small_meal: 0, snack: 0 } },
       ] } });
       return Promise.resolve({ data: { data: { dietary_preferences: {} } } });
     }),
@@ -67,5 +69,10 @@ describe('CreatePlan (pool)', () => {
     await userEvent.click(screen.getAllByRole('button', { name: /Další krok/ })[0]);
     expect(screen.getByLabelText('Drobné snacky')).toHaveValue(4);
     expect(screen.getByLabelText('Obědy')).toHaveValue(2);
+  });
+
+  it('legacy goal chip shows its day count instead of 0 meals', async () => {
+    mount();
+    expect(await screen.findByRole('button', { name: /Ostrava · 7 dní/ })).toBeInTheDocument();
   });
 });
