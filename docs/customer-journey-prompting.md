@@ -16,7 +16,7 @@ hledají (Google Trends CZ a našeptávače Google + Seznam, září 2026 —
    co chcete. Volíte zemi a město (kvůli slevovým letákům).
 3. **Nastavení jídel** (krok 2 „Jídla“) — kolik snídaní, obědů, večeří a svačin chcete (0–14 od každého). Žádné dny — recepty uvaříte, kdy se vám to hodí.
    <!-- EN: how many breakfasts, lunches, dinners and small meals (0–14 each). No days; cook the recipes when it suits you. -->
-4. **Plán** — za pár minut máte recepty: recepty s postupem, kalorie a makra
+4. **Plán** — za pár minut máte hotovo: recepty s postupem, kalorie a makra
    na porci, nákupní seznam ke každému receptu a přehled, které suroviny jsou
    tento týden v akci.
 5. **Doladění** — u každého receptu je tlačítko **Poradit se s kuchařkou**.
@@ -65,10 +65,11 @@ Tip: pojmenujte suroviny konkrétně („kuřecí prsa“, ne „kuře“) a ře
 kterém jídle dne je chcete.
 
 ### „Chci zhubnout, ale vařit si doma“
-Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu a kolik
-jídel denně chcete (svačiny nastavte v kroku „Jídla“).
+Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu; kolik
+jídel chcete, nastavíte v kroku „Jídla“.
+<!-- EN: give daily calories or target weight; how many meals is set in the Meals step -->
 
-> Chci zhubnout 10 kg. 1 500 kcal denně, 5 jídel, jednoduchá domácí jídla jako z krabičkové diety.
+> Chci zhubnout 10 kg. 1 500 kcal denně, jednoduchá domácí jídla jako z krabičkové diety.
 
 > Jídelníček na hubnutí pro ženu po padesátce, sedavé zaměstnání, žádné extrémy, obyčejné české suroviny.
 
@@ -103,7 +104,7 @@ maso ani při výměně receptu. V zadání řekněte, co vás na bezmasé kuchy
 
 ### „Sport, nabírání svalů“
 
-> Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin, 5 jídel denně.
+> Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin.
 
 > Jídelníček pro syna (14 let, fotbal 4× týdně) — vydatné obědy a svačiny do školy.
 

@@ -65,8 +65,8 @@ const PLANS = [
 const FAQ = [
   {
     q: 'Kolik jídelníčků mohu zdarma vygenerovat?',
-    // EN: On the free tier you create 2 jídelníčky, each with 3 edits. A jídelníček is a set of recipes for your request, each with nutrition and a shopping list.
-    a: 'V bezplatném tarifu vytvoříte 2 jídelníčky, každý s možností 3 úprav. Jídelníček je sada receptů podle vašeho zadání — každý s nutričními hodnotami a nákupním seznamem.',
+    // EN: On the free tier you create 2 jídelníčky, each with 3 edits. A jídelníček is a set of recipes for your request, each recipe with nutrition and a shopping list.
+    a: 'V bezplatném tarifu vytvoříte 2 jídelníčky, každý s možností 3 úprav. Jídelníček je sada receptů podle vašeho zadání — každý recept s nutričními hodnotami a nákupním seznamem.',
   },
   {
     q: 'Jak přesné jsou ceny z obchodů?',

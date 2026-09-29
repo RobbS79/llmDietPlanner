@@ -31,8 +31,8 @@ const JOURNEY = [
   {
     step: '4',
     title: 'Plán',
-    // EN: In a few minutes you have recipes: …
-    desc: 'Za pár minut máte recepty: recepty s postupem, kalorie a makra na porci, nákupní seznam ke každému receptu a přehled, které suroviny jsou tento týden v akci.',
+    // EN: In a few minutes you're done: …
+    desc: 'Za pár minut máte hotovo: recepty s postupem, kalorie a makra na porci, nákupní seznam ke každému receptu a přehled, které suroviny jsou tento týden v akci.',
   },
   {
     step: '5',
@@ -77,9 +77,10 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
   },
   {
     title: '„Chci zhubnout, ale vařit si doma“',
-    intro: 'Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu a kolik jídel denně chcete (svačiny nastavte v kroku „Jídla“).',
+    // EN: A home version of the boxed diet. Give daily calories or target weight; how many meals you want is set in the "Meals" step.
+    intro: 'Domácí verze krabičkové diety. Uveďte denní kalorie nebo cílovou váhu; kolik jídel chcete, nastavíte v kroku „Jídla“.',
     prompts: [
-      'Chci zhubnout 10 kg. 1 500 kcal denně, 5 jídel, jednoduchá domácí jídla jako z krabičkové diety.',
+      'Chci zhubnout 10 kg. 1 500 kcal denně, jednoduchá domácí jídla jako z krabičkové diety.',
       'Jídelníček na hubnutí pro ženu po padesátce, sedavé zaměstnání, žádné extrémy, obyčejné české suroviny.',
       'Hubnu, chodím 3× týdně do posilovny. Hodně bílkovin, večeře lehké, obědy normální.',
     ],
@@ -112,7 +113,7 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
   {
     title: '„Sport, nabírání svalů“',
     prompts: [
-      'Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin, 5 jídel denně.',
+      'Nabírám svalovou hmotu, 80 kg, trénuju 4× týdně. Zhruba 3 000 kcal a hodně bílkovin.',
       'Jídelníček pro syna (14 let, fotbal 4× týdně) — vydatné obědy a svačiny do školy.',
     ],
   },

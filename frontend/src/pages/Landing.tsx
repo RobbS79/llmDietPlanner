@@ -164,7 +164,8 @@ export const Landing = () => {
                 step: '2',
                 icon: ChefHat,
                 title: 'Sestavíme váš plán',
-                desc: 'Vygenerujeme kompletní vícedenní jídelníček se snídaní, obědem, večeří, recepty a nutričními hodnotami.',
+                // EN: We pick recipes for your request, as many breakfasts/lunches/dinners as you ask, with method and nutrition.
+                desc: 'Vybereme recepty podle vašeho zadání — tolik snídaní, obědů a večeří, kolik si řeknete — s postupem a nutričními hodnotami.',
               },
               {
                 step: '3',
@@ -238,7 +239,7 @@ export const Landing = () => {
               <div className="space-y-6">
                 {SAMPLE_PLAN.sections.map((section) => (
                   <div key={section.label} className="flex gap-3 items-start">
-                    <span className="text-[10px] font-bold text-muted uppercase tracking-widest w-20 shrink-0">{section.label}</span>
+                    <span className="text-[10px] font-bold text-muted uppercase tracking-widest leading-5 w-20 shrink-0">{section.label}</span>
                     <div className="flex-1 space-y-2">
                       {section.meals.map((meal) => (
                         <div key={meal} className="flex items-center gap-3">
@@ -307,9 +308,9 @@ export const Landing = () => {
       <section className="bg-paper">
         <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
           <div className="bg-green-soft border border-line rounded-3xl p-12 sm:p-20 text-center">
-            {/* EN: Ready to cook your way? */}
+            {/* EN: Ready to cook your own way? */}
             <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
-              Připraveni vařit podle sebe?
+              Připraveni vařit po svém?
             </h2>
             <p className="text-muted text-lg mb-10 max-w-md mx-auto">
               Začněte se 2 jídelníčky zdarma. Bez kreditní karty.
