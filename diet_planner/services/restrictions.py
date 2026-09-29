@@ -394,6 +394,7 @@ def repair_single_meal(
             return llm.regenerate_meal(original_meal=m, goal=goal, exclusions=exclusions)
     current = meal
     reprompts = swaps = 0
+    swaps_this_version = 0  # guard counter; resets after each regenerate()
     while True:
         violations = validate_meal_against_exclusions(
             current, exclusions.exclusion_keywords, meal_key=meal_key,
@@ -405,11 +406,12 @@ def repair_single_meal(
             patched = try_deterministic_swap(current, v, tags=exclusions.tags)
             if patched is not None:
                 swaps += 1
+                swaps_this_version += 1
                 current = patched
                 break
         if patched is not None:
             swap_cap = len(current.get('ingredients') or []) * max(1, len(exclusions.tags)) + 1
-            if swaps > swap_cap:
+            if swaps_this_version > swap_cap:
                 raise RepairBudgetExhausted(
                     'deterministic swap loop did not converge',
                     meal_key=meal_key, violations=violations,
@@ -424,6 +426,7 @@ def repair_single_meal(
                     meal_key, reprompts + 1, len(violations))
         current = regenerate(current)
         reprompts += 1
+        swaps_this_version = 0
 
 
 def repair_meals_with_violations(

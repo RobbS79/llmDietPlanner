@@ -217,3 +217,21 @@ class RepairSingleMealExtraTest(SimpleTestCase):
         self.assertEqual(reprompts, 1)
         regen.assert_called_once_with(meal)
         llm.regenerate_meal.assert_not_called()
+
+    def test_swap_guard_counts_per_meal_version(self):
+        # 2 swaps + non-swappable 'seitan' -> re-prompt -> 2-ingredient reply
+        # needing 2 more swaps. Cumulative 4 exceeds that reply's cap (2*1+1=3),
+        # so the guard must count swaps per version, not cumulatively.
+        excl = ResolvedRestrictions(
+            tags=frozenset({'gluten_free'}),
+            exclusion_keywords=frozenset({'mouka', 'těstoviny', 'seitan'}),
+            freeform_allergens=frozenset())
+        meal = {'name': 'A', 'ingredients': [
+            {'name': 'mouka'}, {'name': 'těstoviny'}, {'name': 'seitan'}]}
+        regen = MagicMock(return_value={'name': 'B', 'ingredients': [
+            {'name': 'mouka'}, {'name': 'těstoviny'}]})
+        out, reprompts, swaps = repair_single_meal(
+            meal, goal=None, exclusions=excl, llm=MagicMock(), meal_key='dinner:0',
+            regenerate=regen)
+        self.assertEqual((reprompts, swaps), (1, 4))
+        self.assertEqual(out['name'], 'B')
