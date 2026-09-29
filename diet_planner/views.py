@@ -43,6 +43,8 @@ from .serializers import (
     build_shopping_list,
     build_deals,
 )
+from pydantic import ValidationError as PydanticValidationError
+
 from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
 from .services.recipe_retrieval import (
@@ -156,6 +158,14 @@ class DietaryGoalCreateView(APIView):
                 'dinners': schema.dinners,
                 'small_meals': schema.small_meals,
                 'snacks': schema.snacks,
+                # Null the legacy day-grid shape so finalising an existing
+                # draft/legacy goal never leaves both shapes populated.
+                'num_days': None,
+                'breakfast': None,
+                'lunch': None,
+                'dinner': None,
+                'small_meals_per_day': None,
+                'snacks_per_day': None,
                 'shop': schema.shop.value if schema.shop else 'ROHLIK',
                 'store_mode': 'single',
                 'status': DietaryGoal.StatusChoices.PENDING,
@@ -219,6 +229,25 @@ class DietaryGoalCreateView(APIView):
                 status=status.HTTP_201_CREATED
             )
             
+        except PydanticValidationError as e:
+            errors = e.errors(include_input=False, include_url=False)
+            msgs = [str(err.get('msg', '')) for err in errors]
+            legacy = any(f in m for m in msgs for f in DietaryGoalCreateRequest._LEGACY_FIELDS)
+            fields = [
+                ".".join(str(p) for p in err.get('loc', ()))
+                for err in errors
+            ]
+            first = msgs[0] if msgs else "Invalid input parameters"
+            if first.startswith("Value error, "):
+                first = first[len("Value error, "):]
+            code = "LEGACY_PAYLOAD" if legacy else "INVALID_INPUT"
+            # Never log/return str(e): it echoes input values (the prompt).
+            logger.warning("Goal create validation failed: code=%s fields=%s types=%s",
+                           code, fields, [err.get('type') for err in errors])
+            return Response(
+                {"status": "error", "code": code, "error": first, "fields": fields},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except ValueError as e:
             logger.warning(f"Validation error: {e}")
             return Response({"status": "error", "error": "Invalid input parameters"}, status=status.HTTP_400_BAD_REQUEST)

@@ -9,14 +9,8 @@ from .models import DietaryGoal, DietaryPlan, Recipe, MealInstance, HistoricNutr
 class DietaryGoalSerializer(serializers.ModelSerializer):
     """Serializer for DietaryGoal model."""
     user = serializers.ReadOnlyField(source='user.username')
-    counts = serializers.SerializerMethodField()
-    is_pool = serializers.SerializerMethodField()
-
-    def get_counts(self, obj):
-        return obj.pool_counts()
-
-    def get_is_pool(self, obj):
-        return obj.is_pool
+    counts = serializers.ReadOnlyField(source='pool_counts')
+    is_pool = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = DietaryGoal
@@ -129,7 +123,7 @@ class DietaryPlanSerializer(serializers.ModelSerializer):
 
     def get_meals(self, obj):
         """Pool plans: the flat meal list. Legacy plans: None."""
-        return obj.meals if obj.meals is not None else None
+        return obj.meals
 
     def get_shortfall(self, obj):
         debug = obj.grounding_debug if isinstance(obj.grounding_debug, dict) else {}
@@ -154,14 +148,8 @@ class DietaryGoalDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer with nested dietary plan."""
     dietary_plan = DietaryPlanSerializer(read_only=True, allow_null=True, required=False)
     user = serializers.ReadOnlyField(source='user.username')
-    counts = serializers.SerializerMethodField()
-    is_pool = serializers.SerializerMethodField()
-
-    def get_counts(self, obj):
-        return obj.pool_counts()
-
-    def get_is_pool(self, obj):
-        return obj.is_pool
+    counts = serializers.ReadOnlyField(source='pool_counts')
+    is_pool = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = DietaryGoal
