@@ -12,10 +12,18 @@ Order of operations (spec §5):
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
+from django.conf import settings
 from django.db.models import F
+
+try:
+    from billiard.exceptions import SoftTimeLimitExceeded
+except ImportError:  # pragma: no cover — billiard ships with celery
+    class SoftTimeLimitExceeded(Exception):
+        """Stand-in so the re-raise clause stays valid without billiard."""
 
 from diet_planner.models import CuratedRecipe
 from diet_planner.services.meal_locator import MAIN_SLOTS, POOL_SLOTS, pool_identifier
@@ -37,6 +45,31 @@ from diet_planner.services.restrictions import (
 logger = logging.getLogger(__name__)
 
 _USAGE_KEYS = ('input_tokens', 'output_tokens', 'total_tokens')
+# Consecutive gap-fill failures after which Gemini is assumed down and the
+# remaining positions become shortfall without further calls.
+_BREAKER_THRESHOLD = 3
+
+
+def _monotonic() -> float:
+    """Indirection so tests can drive the gap-fill clock without patching
+    the process-wide time.monotonic."""
+    return time.monotonic()
+
+
+def _normalise_generated(meal: Any) -> Dict[str, Any]:
+    """Coerce an LLM meal into the shape the rest of the pipeline expects:
+    list ingredients/instructions, str description, stripped str name."""
+    if not isinstance(meal, dict):
+        raise ValueError(f"generated meal is not a dict: {type(meal).__name__}")
+    out = dict(meal)
+    for key in ('ingredients', 'instructions'):
+        if not isinstance(out.get(key), list):
+            out[key] = []
+    desc = out.get('description')
+    out['description'] = '' if desc is None else str(desc)
+    name = out.get('name')
+    out['name'] = '' if name is None else str(name).strip()
+    return out
 
 
 @dataclass
@@ -80,6 +113,19 @@ def _protocol_prompt(goal: Any) -> str:
     )
 
 
+def _render_curated(recipe: CuratedRecipe, slot: str, index: int, goal_id: Any,
+                    required_tags, gaps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Step 3 for one position: curated recipe -> positioned meal dict."""
+    meal, side_gap = render_curated_meal(
+        recipe, target_kcal=_SLOT_DEFAULT_KCAL.get(slot), required_tags=required_tags)
+    if side_gap:
+        gaps.append({'slot': slot, 'index': index, 'reason': side_gap,
+                     'required_tags': sorted(required_tags), 'unmatched_wanted': []})
+    meal.update({'slot': slot, 'index': index,
+                 'meal_identifier': pool_identifier(goal_id, slot, index)})
+    return meal
+
+
 def build_meal_pool(goal: Any, *, llm: Any = None,
                     status: str = CuratedRecipe.Status.PUBLISHED) -> PoolResult:
     if llm is None:
@@ -112,27 +158,41 @@ def build_meal_pool(goal: Any, *, llm: Any = None,
     served_ids = set()
     for entry in selection['meals']:
         slot, index, recipe = entry['slot'], entry['index'], entry['recipe']
-        meal, side_gap = render_curated_meal(
-            recipe, target_kcal=_SLOT_DEFAULT_KCAL.get(slot), required_tags=required_tags)
-        if side_gap:
-            gaps.append({'slot': slot, 'index': index, 'reason': side_gap,
-                         'required_tags': sorted(required_tags), 'unmatched_wanted': []})
-        meal.update({'slot': slot, 'index': index,
-                     'meal_identifier': pool_identifier(goal_id, slot, index)})
-        meals.append(meal)
+        meals.append(_render_curated(recipe, slot, index, goal_id, required_tags, gaps))
         served_ids.add(recipe.id)
 
-    # Gap fill: every requested position with no curated meal.
+    # Gap fill: every requested position with no curated meal. Bounded by a
+    # wall-clock budget (Celery soft limit is 300 s) and a circuit breaker so a
+    # dead Gemini costs 3 calls, not one per position.
     covered = {(m['slot'], m['index']) for m in meals}
     usage = _empty_usage()
     shortfall: Dict[str, int] = {}
+    shortfall_reasons: Dict[str, str] = {}
     exclusions = RestrictionResolver().resolve(goal)
     user_prompt = _protocol_prompt(goal)
+    budget = getattr(settings, 'MEAL_POOL_GAP_FILL_BUDGET_SECONDS', 240)
+    consecutive_failures = 0
+
+    def _short(slot: str, index: int, reason: str) -> None:
+        shortfall[slot] = shortfall.get(slot, 0) + 1
+        shortfall_reasons[f'{slot}:{index}'] = reason
+
+    started = _monotonic()
     for slot in POOL_SLOTS:
         for index in range(counts.get(slot, 0)):
             if (slot, index) in covered:
                 continue
             key = f'{slot}:{index}'
+            if _monotonic() - started > budget:
+                logger.warning("Pool gap goal=%s %s: gap-fill time budget (%ss) spent — shortfall",
+                               goal_id, key, budget)
+                _short(slot, index, 'time_budget')
+                continue
+            if consecutive_failures >= _BREAKER_THRESHOLD:
+                logger.warning("Pool gap goal=%s %s: breaker open after %d consecutive failures "
+                               "— shortfall", goal_id, key, consecutive_failures)
+                _short(slot, index, 'breaker')
+                continue
             try:
                 out = llm.generate_slot_meal(
                     slot=slot, user_prompt=user_prompt, goal=goal, exclusions=exclusions,
@@ -147,23 +207,63 @@ def build_meal_pool(goal: Any, *, llm: Any = None,
                         avoid_names=[m.get('name', '') for m in meals] + [bad_meal.get('name', '')],
                     )
                     _add_usage(usage, again)
-                    return again['meal']
+                    return _normalise_generated(again['meal'])
                 meal, _r, _s = repair_single_meal(
-                    out['meal'], goal=goal, exclusions=exclusions, llm=llm, meal_key=key,
-                    regenerate=_regen)
+                    _normalise_generated(out['meal']), goal=goal, exclusions=exclusions,
+                    llm=llm, meal_key=key, regenerate=_regen)
+                meal = _normalise_generated(meal)
+            except SoftTimeLimitExceeded:
+                raise
             except RepairBudgetExhausted as exc:
-                logger.warning("Pool gap %s: restriction repair exhausted (%s) — shortfall", key, exc)
-                shortfall[slot] = shortfall.get(slot, 0) + 1
+                logger.warning("Pool gap goal=%s %s: restriction repair exhausted (%s: %s; "
+                               "violations=%s) — shortfall", goal_id, key, type(exc).__name__,
+                               exc, exc.violations)
+                _short(slot, index, 'repair_exhausted')
+                consecutive_failures += 1
                 continue
             except Exception as exc:  # noqa: BLE001 — a gap must never sink the plan
-                logger.warning("Pool gap %s: LLM fill failed (%s) — shortfall", key, exc)
-                shortfall[slot] = shortfall.get(slot, 0) + 1
+                logger.warning("Pool gap goal=%s %s: LLM fill failed (%s: %s) — shortfall",
+                               goal_id, key, type(exc).__name__, exc,
+                               exc_info=not isinstance(exc, ValueError))
+                _short(slot, index, 'llm_error')
+                consecutive_failures += 1
                 continue
-            meal = dict(meal)
+            consecutive_failures = 0
             meal.setdefault('servings', 1)
             meal.update({'source': 'generated', 'slot': slot, 'index': index,
                          'meal_identifier': pool_identifier(goal_id, slot, index)})
             meals.append(meal)
+            covered.add((slot, index))
+
+    # Suspect facets sent the mains to Gemini; if Gemini could not deliver,
+    # a prompt-blind curated main beats a plan with no mains at all.
+    if skip:
+        missing = [(slot, index) for slot in MAIN_SLOTS
+                   for index in range(counts.get(slot, 0)) if (slot, index) not in covered]
+        if missing:
+            logger.warning("Pool goal=%s: suspect facets and LLM short on %d main(s) — "
+                           "falling back to prompt-blind corpus", goal_id, len(missing))
+            fallback = select_recipes_for_pool(
+                goal, status=status, facets=None,
+                recently_served_ids=recently_served_curated_ids(goal),
+            )
+            by_pos = {(e['slot'], e['index']): e['recipe'] for e in fallback['meals']}
+            for slot, index in missing:
+                recipe = by_pos.get((slot, index))
+                if recipe is None or recipe.id in served_ids:
+                    continue
+                meal = _render_curated(recipe, slot, index, goal_id, required_tags, gaps)
+                meal['source'] = 'curated'
+                meal['fallback'] = 'prompt_blind'
+                meals.append(meal)
+                covered.add((slot, index))
+                served_ids.add(recipe.id)
+                if shortfall_reasons.pop(f'{slot}:{index}', None) is not None:
+                    shortfall[slot] -= 1
+                    if not shortfall[slot]:
+                        del shortfall[slot]
+                gaps.append({'slot': slot, 'index': index, 'reason': 'suspect_fallback_corpus',
+                             'required_tags': sorted(required_tags), 'unmatched_wanted': []})
 
     if not meals:
         raise ValueError(f"Meal pool for goal {goal_id} is empty (corpus + LLM both came up short)")
@@ -181,6 +281,7 @@ def build_meal_pool(goal: Any, *, llm: Any = None,
             'coverage': selection['coverage'],
             'gaps': gaps,
             'shortfall': shortfall,
+            'shortfall_reasons': shortfall_reasons,
             'counts': counts,
         },
         llm_usage=usage,

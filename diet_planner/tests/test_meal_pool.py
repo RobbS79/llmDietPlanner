@@ -8,6 +8,7 @@ from diet_planner.models import CuratedRecipe, DietaryGoal
 from diet_planner.services.meal_pool import build_meal_pool
 from diet_planner.services.prompt_facets import PromptFacets
 from diet_planner.services.restrictions import RepairBudgetExhausted
+from billiard.exceptions import SoftTimeLimitExceeded
 from diet_planner.tests.test_recipe_replace import make_recipe
 
 
@@ -72,13 +73,6 @@ class BuildMealPoolTest(TestCase):
         self.assertEqual(len(result.meals), 3)
         self.assertEqual(result.grounding_debug['shortfall'], {'breakfast': 2})
 
-    def test_repair_budget_exhausted_counts_as_shortfall(self):
-        goal = self._goal(breakfasts=1)
-        with patch('diet_planner.services.meal_pool.repair_single_meal',
-                   side_effect=RepairBudgetExhausted('x', meal_key='breakfast:0', violations=[])):
-            with self.assertRaises(ValueError):
-                build_meal_pool(goal, llm=_llm())   # only position is short → empty pool → refused
-
     def test_repair_budget_exhausted_is_shortfall_when_others_exist(self):
         goal = self._goal(dinners=1, breakfasts=1)
         with patch('diet_planner.services.meal_pool.repair_single_meal',
@@ -124,3 +118,80 @@ class BuildMealPoolTest(TestCase):
         self.assertEqual(llm.generate_slot_meal.call_count, 2)
         self.assertEqual(result.llm_usage['total_tokens'], 24)
         self.assertEqual(result.meals[0]['source'], 'generated')
+
+    def test_suspect_facets_with_llm_down_fall_back_to_prompt_blind_corpus(self):
+        goal = self._goal(dinners=2, snacks=1)
+        make_recipe(name_cs='Jablko', meal_types=['snack'], dish_role='')
+        with patch('diet_planner.services.meal_pool.extract_prompt_facets',
+                   return_value=PromptFacets(suspect=True)):
+            result = build_meal_pool(goal, llm=_llm(fail=True))
+        dinners = [m for m in result.meals if m['slot'] == 'dinner']
+        self.assertEqual(len(dinners), 2)
+        self.assertTrue(all(m['source'] == 'curated' for m in dinners))
+        self.assertTrue(all(m['fallback'] == 'prompt_blind' for m in dinners))
+        self.assertEqual(result.grounding_debug['shortfall'], {})
+        self.assertEqual(result.grounding_debug['shortfall_reasons'], {})
+        self.assertIn('suspect_fallback_corpus',
+                      [g['reason'] for g in result.grounding_debug['gaps']])
+
+    def test_breaker_stops_calling_llm_after_three_failures(self):
+        goal = self._goal(breakfasts=5, dinners=1)
+        llm = _llm(fail=True)
+        result = build_meal_pool(goal, llm=llm)
+        self.assertEqual(llm.generate_slot_meal.call_count, 3)
+        self.assertEqual(result.grounding_debug['shortfall'], {'breakfast': 5})
+        reasons = list(result.grounding_debug['shortfall_reasons'].values())
+        self.assertEqual(reasons.count('llm_error'), 3)
+        self.assertEqual(reasons.count('breaker'), 2)
+
+    def test_time_budget_stops_gap_fill(self):
+        goal = self._goal(breakfasts=3, dinners=1)
+        llm = _llm()
+        # start + first position check read 0; every later check is past budget.
+        clock = iter([0, 0])
+        with patch('diet_planner.services.meal_pool._monotonic',
+                   side_effect=lambda: next(clock, 10_000)):
+            result = build_meal_pool(goal, llm=llm)
+        self.assertEqual(llm.generate_slot_meal.call_count, 1)
+        self.assertEqual(result.grounding_debug['shortfall'], {'breakfast': 2})
+        self.assertEqual(result.grounding_debug['shortfall_reasons'],
+                         {'breakfast:1': 'time_budget', 'breakfast:2': 'time_budget'})
+
+    def test_soft_time_limit_is_not_swallowed(self):
+        goal = self._goal(breakfasts=1, dinners=1)
+        llm = MagicMock()
+        llm.generate_slot_meal.side_effect = SoftTimeLimitExceeded()
+        with self.assertRaises(SoftTimeLimitExceeded):
+            build_meal_pool(goal, llm=llm)
+
+    def test_malformed_generated_meal_is_normalised(self):
+        goal = self._goal(breakfasts=1)
+        llm = _llm(meals=[{'name': ' X ', 'ingredients': None, 'instructions': None,
+                           'description': None}])
+        result = build_meal_pool(goal, llm=llm)
+        meal = result.meals[0]
+        self.assertEqual(meal['name'], 'X')
+        self.assertEqual(meal['ingredients'], [])
+        self.assertEqual(meal['instructions'], [])
+        self.assertEqual(meal['description'], '')
+
+    def test_real_repair_reprompts_violating_meal(self):
+        goal = DietaryGoal.objects.create(user=self.user, prompt='snídaně', country='CZ',
+                                          language_code='cs', dietary_restrictions='vegetarian',
+                                          breakfasts=1)
+        bad = {'name': 'Kuřecí omeleta', 'ingredients': [{'name': 'kuřecí prsa'}]}
+        good = {'name': 'Ovesná kaše', 'ingredients': [{'name': 'ovesné vločky'}]}
+        llm = _llm(meals=[bad, good])
+        result = build_meal_pool(goal, llm=llm)
+        self.assertEqual(len(result.meals), 1)
+        self.assertEqual(result.meals[0]['name'], 'Ovesná kaše')
+        self.assertEqual(result.meals[0]['source'], 'generated')
+        self.assertEqual(result.llm_usage['total_tokens'], 24)
+
+    def test_prompt_dietary_facets_are_stored_on_goal(self):
+        goal = self._goal(dinners=1)
+        with patch('diet_planner.services.meal_pool.extract_prompt_facets',
+                   return_value=PromptFacets(dietary={'vegan'})), \
+                patch('diet_planner.services.meal_pool.store_derived_dietary_tags') as store:
+            build_meal_pool(goal, llm=_llm())
+        store.assert_called_once_with(goal, {'vegan'})
