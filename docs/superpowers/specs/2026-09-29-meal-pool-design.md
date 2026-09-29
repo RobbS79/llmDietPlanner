@@ -54,9 +54,9 @@ Legacy columns `num_days`, `breakfast`, `lunch`, `dinner`,
 `small_meals_per_day`, `snacks_per_day` become nullable and are no longer
 written. They stay so old goals load, render and export.
 
-`DietaryGoal.is_pool` (property): `self.dietary_plan.meals is not None` when a
-plan exists, else `self.breakfasts is not None`. This is the single switch
-serializers and UI read.
+`DietaryGoal.is_pool` (property): true when at least one of the five count
+fields is non-null. `DietaryPlan.is_pool`: `meals is not None`. These are the
+switches serializers and UI read.
 
 ### 4.2 API
 
@@ -149,7 +149,8 @@ curated_recipe_id/slug, attribution, side) plus:
 ```
 
 Order in the list = slot order (breakfast, lunch, dinner, small_meal, snack),
-then index. `days` stays for legacy plans and is `null` for pool plans.
+then index. `days` stays for legacy plans and is `[]` (the field default) for
+pool plans; `meals` is `null` on legacy plans.
 
 ### 6.2 Identifier
 
