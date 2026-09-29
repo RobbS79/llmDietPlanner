@@ -23,6 +23,7 @@ This module handles the core dietary plan generation workflow using Celery tasks
 """
 
 from llm_diet_planner_project.celery_compat import shared_task
+from django.db import transaction
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
 import json
@@ -38,6 +39,12 @@ from .scrapers.scraper_service import ScraperService
 from .services.canonical_lookup import resolve_canonical
 from .services.restrictions import RepairBudgetExhausted
 from .services.meal_pool import build_meal_pool
+
+try:
+    from billiard.exceptions import SoftTimeLimitExceeded
+except ImportError:  # pragma: no cover — billiard ships with celery
+    class SoftTimeLimitExceeded(Exception):
+        """Stand-in so the except clause stays valid without billiard."""
 from analytics.events import track_plan_generated
 
 logger = logging.getLogger(__name__)
@@ -458,34 +465,86 @@ def process_protocol_pdf_task(self, plan_id: int) -> Dict[str, Any]:
         raise self.retry(exc=exc, countdown=30)
 
 
-@shared_task(bind=True, max_retries=3)
-def generate_meal_pool_task(self, goal_id: int) -> Dict[str, Any]:
-    """Pool-model generation (spec docs/superpowers/specs/2026-09-29-meal-pool-design.md).
-    Corpus first, Gemini for gaps; stores DietaryPlan.meals."""
-    log_prefix = f"[POOL:{goal_id}:{str(uuid.uuid4())[:8]}]"
+LEGACY_GOAL_MESSAGE = (
+    "This goal predates the meal pool model and cannot be regenerated; create a new plan."
+)
+
+
+class EmptyPoolError(ValueError):
+    """build_meal_pool found nothing to serve — terminal, retrying won't help."""
+
+
+def _mark_failed(goal_id: int, message: str) -> None:
+    """Record a generation failure on the goal (REFUND_ELIGIBLE when payment is pending)."""
     try:
         goal = DietaryGoal.objects.get(id=goal_id)
+        goal.error_message = message
+        if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
+            goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
+            logger.warning(f"Goal {goal_id} marked REFUND_ELIGIBLE (order {goal.shopify_order_id})")
+        else:
+            goal.status = DietaryGoal.StatusChoices.FAILED
+        goal.save(update_fields=['status', 'error_message'])
+    except Exception as inner_exc:
+        logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
+
+
+def generate_meal_pool(goal_id: int, log_prefix: Optional[str] = None) -> Dict[str, Any]:
+    """Pool-model generation (spec docs/superpowers/specs/2026-09-29-meal-pool-design.md).
+    Corpus first, Gemini for gaps; stores DietaryPlan.meals.
+
+    Plain function (no Celery). Returns {'status': 'success', 'plan_id'} or
+    {'status': 'failed', 'reason'} for handled terminal cases. Any other failure
+    marks the goal FAILED and re-raises (EmptyPoolError for an empty pool,
+    SoftTimeLimitExceeded on timeout) so the caller decides whether to retry.
+    """
+    log_prefix = log_prefix or f"[POOL:{goal_id}:{str(uuid.uuid4())[:8]}]"
+    try:
+        goal = DietaryGoal.objects.get(id=goal_id)
+
+        # Idempotency: a redelivered/retried task must not create a second plan.
+        existing = DietaryPlan.objects.filter(dietary_goal_id=goal_id).order_by('id').first()
+        if existing is not None:
+            goal.status = DietaryGoal.StatusChoices.COMPLETED
+            fields = ['status']
+            if goal.completed_at is None:
+                goal.completed_at = timezone.now()
+                fields.append('completed_at')
+            goal.save(update_fields=fields)
+            logger.info(f"{log_prefix} plan already exists (plan {existing.id}); nothing to do")
+            return {'status': 'success', 'plan_id': existing.id}
+
+        counts = goal.pool_counts()
+        if not any(counts.values()):
+            logger.warning(f"{log_prefix} legacy goal without pool counts; refusing to generate")
+            _mark_failed(goal_id, LEGACY_GOAL_MESSAGE)
+            return {'status': 'failed', 'reason': 'legacy_goal'}
+
         goal.status = DietaryGoal.StatusChoices.PROCESSING
         goal.save(update_fields=['status'])
-        logger.info(f"{log_prefix} Building pool {goal.pool_counts()}")
+        logger.info(f"{log_prefix} Building pool {counts}")
 
-        result = build_meal_pool(goal)
+        try:
+            result = build_meal_pool(goal)
+        except ValueError as exc:
+            raise EmptyPoolError(str(exc)) from exc
         usage = result.llm_usage or {}
-        plan = DietaryPlan.objects.create(
-            dietary_goal=goal,
-            meals=result.meals,
-            days=[],
-            currency=goal.currency,
-            llm_model_used=usage.get('model'),
-            llm_input_tokens=usage.get('input_tokens'),
-            llm_output_tokens=usage.get('output_tokens'),
-            llm_total_tokens=usage.get('total_tokens'),
-            llm_cost_usd=usage.get('cost_usd'),
-            grounding_debug=result.grounding_debug,
-        )
-        goal.status = DietaryGoal.StatusChoices.COMPLETED
-        goal.completed_at = timezone.now()
-        goal.save(update_fields=['status', 'completed_at'])
+        with transaction.atomic():
+            plan = DietaryPlan.objects.create(
+                dietary_goal=goal,
+                meals=result.meals,
+                days=[],
+                currency=goal.currency,
+                llm_model_used=usage.get('model'),
+                llm_input_tokens=usage.get('input_tokens'),
+                llm_output_tokens=usage.get('output_tokens'),
+                llm_total_tokens=usage.get('total_tokens'),
+                llm_cost_usd=usage.get('cost_usd'),
+                grounding_debug=result.grounding_debug,
+            )
+            goal.status = DietaryGoal.StatusChoices.COMPLETED
+            goal.completed_at = timezone.now()
+            goal.save(update_fields=['status', 'completed_at'])
         try:
             track_plan_generated(goal.user, goal.id)
         except Exception:
@@ -496,18 +555,27 @@ def generate_meal_pool_task(self, goal_id: int) -> Dict[str, Any]:
                     f"shortfall {result.grounding_debug.get('shortfall')}")
         return {'status': 'success', 'plan_id': plan.id}
 
+    except SoftTimeLimitExceeded:
+        logger.error(f"{log_prefix} soft time limit exceeded")
+        _mark_failed(goal_id, "Meal plan generation failed: timed out")
+        raise
     except Exception as exc:
         logger.error(f"{log_prefix} failed: {exc}", exc_info=True)
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id)
-            goal.error_message = f"Meal plan generation failed: {exc}"
-            if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
-                goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
-            else:
-                goal.status = DietaryGoal.StatusChoices.FAILED
-            goal.save(update_fields=['status', 'error_message'])
-        except Exception as inner_exc:
-            logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
+        _mark_failed(goal_id, f"Meal plan generation failed: {exc}")
+        raise
+
+
+@shared_task(bind=True, max_retries=3)
+def generate_meal_pool_task(self, goal_id: int) -> Dict[str, Any]:
+    """Celery wrapper around generate_meal_pool. Empty pool and soft time limit
+    are terminal (goal already FAILED, no retry); anything else retries with backoff."""
+    try:
+        return generate_meal_pool(goal_id)
+    except SoftTimeLimitExceeded:
+        return {'status': 'failed', 'reason': 'soft_time_limit'}
+    except EmptyPoolError:
+        return {'status': 'failed', 'reason': 'empty_pool'}
+    except Exception as exc:
         raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries))
 
 

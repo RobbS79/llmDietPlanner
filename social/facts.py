@@ -7,6 +7,7 @@ as status=skipped with the reason.
 """
 from __future__ import annotations
 
+import logging
 import os
 from datetime import date, timedelta
 from typing import Callable, Optional
@@ -22,6 +23,8 @@ from diet_planner.services.recipe_deals import active_deal_index, recipe_deals
 
 from .models import SocialPost
 from .personas import PERSONA_PROMPTS, persona_for_week
+
+logger = logging.getLogger(__name__)
 
 MIN_DEAL_INGREDIENTS = 3
 MAX_DEAL_INGREDIENTS = 8
@@ -167,8 +170,13 @@ def recipe_photo(facts: dict, fetch: Callable[[str], bytes] = _default_fetch) ->
 # ---------------------------------------------------------------- showcase
 
 def _default_run_plan(goal_id: int) -> None:
-    from diet_planner.tasks import generate_meal_pool_task
-    generate_meal_pool_task.apply(args=(goal_id,))
+    # Plain function, not the Celery task: the showcase must never inherit
+    # task retries. Failures are recorded on the goal, which the caller checks.
+    from diet_planner.tasks import generate_meal_pool
+    try:
+        generate_meal_pool(goal_id)
+    except Exception:
+        logger.exception('showcase plan generation failed for goal %s', goal_id)
 
 
 def _qa_user() -> User:

@@ -235,7 +235,7 @@ class DietaryGoalCreateView(APIView):
             legacy = any(f in m for m in msgs for f in DietaryGoalCreateRequest._LEGACY_FIELDS)
             fields = [
                 ".".join(str(p) for p in err.get('loc', ()))
-                for err in errors
+                for err in errors if err.get('loc')
             ]
             first = msgs[0] if msgs else "Invalid input parameters"
             if first.startswith("Value error, "):
@@ -369,6 +369,19 @@ class AdminRetryGoalView(APIView):
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
+
+        if (goal.status == DietaryGoal.StatusChoices.COMPLETED
+                or DietaryPlan.objects.filter(dietary_goal=goal).exists()):
+            return Response(
+                {"status": "error", "code": "ALREADY_COMPLETED", "error": "Plán už existuje."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not any(goal.pool_counts().values()):
+            return Response(
+                {"status": "error", "code": "LEGACY_GOAL",
+                 "error": "Tento plán vznikl ve starém formátu, vytvořte prosím nový."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         goal.status = DietaryGoal.StatusChoices.PENDING
         goal.error_message = ''
