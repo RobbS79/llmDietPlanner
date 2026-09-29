@@ -16,8 +16,8 @@ const MOBILE = { width: 390, height: 844 };
 // Three goals to exercise every Badge status colour: completed (green),
 // failed (paprika), processing (blue/pending).
 const seededGoals = [
-  { id: 1, prompt: 'Mediterranean cutting protocol', city: 'Prague', num_days: 7, status: 'completed', created_at: new Date().toISOString() },
-  { id: 2, prompt: 'High protein bulk', city: 'Brno', num_days: 14, status: 'processing_meal_plan', created_at: new Date().toISOString() },
+  { id: 1, prompt: 'Mediterranean cutting protocol', city: 'Prague', is_pool: true, counts: { breakfast: 3, lunch: 3, dinner: 3, small_meal: 0, snack: 0 }, status: 'completed', created_at: new Date().toISOString() },
+  { id: 2, prompt: 'High protein bulk', city: 'Brno', is_pool: true, counts: { breakfast: 0, lunch: 5, dinner: 5, small_meal: 0, snack: 2 }, status: 'processing_meal_plan', created_at: new Date().toISOString() },
   { id: 3, prompt: 'Keto reset week', city: 'Ostrava', num_days: 5, status: 'failed', created_at: new Date().toISOString() },
 ];
 
@@ -103,7 +103,7 @@ test('plan view', async ({ authedPage: page }) => {
 
 test('recipe page', async ({ authedPage: page }) => {
   await addMissingMocks(page);
-  await page.goto('/plan/42/recipe/42:1:breakfast:0');
+  await page.goto('/plan/42/recipe/42:breakfast:0');
   await expect(page.getByRole('heading', { name: /mocked oats/i })).toBeVisible({ timeout: 30_000 });
   await shoot(page, 'recipe');
 });

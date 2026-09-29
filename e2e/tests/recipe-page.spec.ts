@@ -15,7 +15,7 @@ test.describe('recipe page', () => {
   test('renders recipe with ingredients and step-by-step instructions', async ({
     authedPage: page,
   }) => {
-    await page.goto('/plan/42/recipe/42:1:breakfast:0');
+    await page.goto('/plan/42/recipe/42:breakfast:0');
 
     // Recipe heading
     await expect(page.getByRole('heading', { name: /mocked oats/i })).toBeVisible({
@@ -44,7 +44,7 @@ test.describe('recipe page', () => {
   });
 
   test('shows prep time and cook time badges', async ({ authedPage: page }) => {
-    await page.goto('/plan/42/recipe/42:1:breakfast:0');
+    await page.goto('/plan/42/recipe/42:breakfast:0');
 
     await expect(page.getByRole('heading', { name: /mocked oats/i })).toBeVisible({
       timeout: 10_000,
@@ -59,7 +59,7 @@ test.describe('recipe page', () => {
   });
 
   test('"Back to Plan" button navigates back to plan view', async ({ authedPage: page }) => {
-    await page.goto('/plan/42/recipe/42:1:breakfast:0');
+    await page.goto('/plan/42/recipe/42:breakfast:0');
 
     await expect(page.getByRole('heading', { name: /mocked oats/i })).toBeVisible({
       timeout: 10_000,
@@ -78,7 +78,7 @@ test.describe('recipe page', () => {
 
     // Click on Mocked Oats meal card
     await page.getByText(/Mocked Oats/i).click();
-    await expect(page).toHaveURL(/\/plan\/42\/recipe\/42:1:breakfast:0$/);
+    await expect(page).toHaveURL(/\/plan\/42\/recipe\/42:breakfast:0$/);
 
     // Verify recipe loaded
     await expect(page.getByRole('heading', { name: /mocked oats/i })).toBeVisible({

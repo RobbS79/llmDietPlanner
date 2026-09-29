@@ -23,7 +23,8 @@ test.describe('dashboard', () => {
             id: 1,
             prompt: 'Mediterranean cutting protocol',
             city: 'Prague',
-            num_days: 7,
+            is_pool: true,
+            counts: { breakfast: 1, lunch: 1, dinner: 1, small_meal: 0, snack: 0 },
             status: 'completed',
             created_at: new Date().toISOString(),
           },
@@ -48,6 +49,9 @@ test.describe('dashboard', () => {
       await expect(page.getByText(/completed/i).first()).toBeVisible();
       // ID format: #1
       await expect(page.getByText(/#1/)).toBeVisible();
+      // Pool goal shows a meal count (Czech plural), legacy goal keeps days
+      await expect(page.getByText('3 jídla')).toBeVisible();
+      await expect(page.getByText('14 dní')).toBeVisible();
     });
 
     test('clicking a goal card navigates to /plan/:id', async ({ authedPage: page }) => {
