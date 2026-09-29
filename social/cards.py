@@ -233,7 +233,8 @@ def _deals_card(facts: dict) -> bytes:
 # ------------------------------------------------------------ showcase card
 
 SHOWCASE_CTA = 'Jídelníček na míru zdarma → eatalnicek.eu'
-SLOT_LABELS = {'breakfast': 'Snídaně', 'lunch': 'Oběd', 'dinner': 'Večeře'}
+SLOT_LABELS = {'breakfast': 'Snídaně', 'lunch': 'Oběd', 'dinner': 'Večeře',
+               'small_meal': 'Svačina', 'snack': 'Snack'}
 NUMBERS_COLUMN = 230   # right-hand strip reserved for kcal + deals badge
 MEAL_CARD_H = 164
 
@@ -270,9 +271,6 @@ def _showcase_card(facts: dict) -> bytes:
             _badge(draw, text, right - w, y + 62, PALETTE['green'], PALETTE['green_soft'], badge_font)
         y += MEAL_CARD_H + 20
 
-    if facts.get('total_kcal'):
-        draw.text((MARGIN, y + 10), f"Celkem {facts['total_kcal']} kcal za den",
-                  font=_font('body', 30, 500), fill=PALETTE['muted'])
     _wordmark(draw, SHOWCASE_CTA)
     return _to_png(img)
 

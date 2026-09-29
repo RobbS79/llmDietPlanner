@@ -30,7 +30,8 @@ MIN_DEAL_INGREDIENTS = 3
 MAX_DEAL_INGREDIENTS = 8
 RECIPE_REPOST_DAYS = 90
 SHOWCASE_GOALS_TO_KEEP = 4
-MEAL_SLOTS = ('breakfast', 'lunch', 'dinner')
+MEAL_SLOTS = ('breakfast', 'lunch', 'dinner', 'small_meal', 'snack')
+SHOWCASE_COUNTS = {'breakfasts': 1, 'lunches': 0, 'dinners': 2, 'small_meals': 0, 'snacks': 0}
 
 
 class NoFacts(Exception):
@@ -230,34 +231,32 @@ def showcase_facts(iso_week: str, run_plan: Callable[[int], None] = _default_run
         prompt = goal.prompt or prompt
     else:
         goal = DietaryGoal.objects.create(user=user, prompt=prompt, country='CZ',
-                                          num_days=1, language_code='cs')
+                                          language_code='cs', **SHOWCASE_COUNTS)
         run_plan(goal.id)
         goal.refresh_from_db()
         _prune_showcase_goals(user)
         if goal.status != DietaryGoal.StatusChoices.COMPLETED:
             raise NoFacts(f'plan generation ended {goal.status}: {goal.error_message or "no detail"}')
     plan = DietaryPlan.objects.filter(dietary_goal=goal).first()
-    day = next((d for d in (plan.days if plan else []) if d.get('day_number') == 1), None)
-    if not day:
-        raise NoFacts('plan completed but has no day 1')
+    pool = list(plan.meals or []) if plan else []
+    if not pool:
+        raise NoFacts('plan completed but has no meals')
     meals = []
     index = active_deal_index()
-    for slot in MEAL_SLOTS:
-        meal = day.get(slot)
-        if not meal or not meal.get('name'):
+    for meal in pool:
+        if not meal.get('name') or meal.get('slot') not in MEAL_SLOTS:
             continue
         kcal = _per_portion_kcal(meal.get('nutritional_info'), meal.get('servings'),
                                  bool(meal.get('curated_recipe_slug')))
         hit = recipe_deals(meal.get('ingredients') or [], index)
-        meals.append({'slot': slot, 'name': meal['name'],
+        meals.append({'slot': meal['slot'], 'name': meal['name'],
                       'kcal': kcal,
                       'deals_matched': hit['matched']})
     if len(meals) < 2:
-        raise NoFacts('day 1 has fewer than two named meals')
+        raise NoFacts('pool has fewer than two named meals')
     return {
         'kind': 'showcase', 'iso_week': iso_week,
         'goal_id': goal.id, 'prompt': prompt, 'meals': meals,
-        'total_kcal': sum(m['kcal'] or 0 for m in meals),
         'link': _link('/', 'showcase', iso_week),
     }
 

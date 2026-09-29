@@ -233,7 +233,7 @@ KIND_BRIEF = {
     'recipe': 'Středeční recept: jméno, kcal na porci, čas, kde je zdroj, a kolik surovin je v akci '
               '(je-li deals_matched 0, o akcích se vůbec nezmiňuj). '
               'Vrať {"caption": "<max 600 znaků, na konci 3–5 hashtagů, jeden z nich #varto>"}.',
-    'showcase': 'Páteční ukázka: co uživatel napsal (pole "prompt") a jaký den mu Vařto sestavilo (pole "meals"). '
+    'showcase': 'Páteční ukázka: co uživatel napsal (pole "prompt") a jaká jídla mu Vařto vybralo (pole "meals" — bez dnů, uživatel si vaří, kdy chce). '
                 'Vrať {"caption": "<max 600 znaků>"}.',
 }
 

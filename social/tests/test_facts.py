@@ -216,27 +216,27 @@ class ShowcaseFactsTests(TestCase):
         goal = DietaryGoal.objects.get(pk=goal_id)
         goal.status = DietaryGoal.StatusChoices.COMPLETED
         goal.save(update_fields=['status'])
-        DietaryPlan.objects.create(dietary_goal=goal, days=[{
-            'day_number': 1,
-            'breakfast': _curated_meal('Ovesná kaše', 700, [{'name': 'ovesné vločky'}]),
-            'lunch': _curated_meal('Kuřecí rizoto', 1240, [{'name': 'rýže'}]),
-            # LLM-authored: no provenance, so its calories have no known basis.
-            'dinner': _curated_meal('Zeleninová polévka', 280, [{'name': 'mrkev'}],
-                                    curated=False),
-            'small_meals': [], 'snacks': [],
-        }])
+        g = goal.id
+        # The soup is LLM-authored: no provenance, so its calories have no known basis.
+        DietaryPlan.objects.create(dietary_goal=goal, days=[], meals=[
+            {**_curated_meal('Ovesná kaše', 700, [{'name': 'ovesné vločky'}]),
+             'slot': 'breakfast', 'index': 0, 'meal_identifier': f'{g}:breakfast:0'},
+            {**_curated_meal('Kuřecí rizoto', 1240, [{'name': 'rýže'}]),
+             'slot': 'dinner', 'index': 0, 'meal_identifier': f'{g}:dinner:0'},
+            {**_curated_meal('Zeleninová polévka', 280, [{'name': 'mrkev'}], curated=False),
+             'slot': 'dinner', 'index': 1, 'meal_identifier': f'{g}:dinner:1'},
+        ])
 
-    def test_showcase_creates_goal_for_qa_user_and_reads_day_one(self):
+    def test_showcase_creates_goal_for_qa_user_and_reads_the_pool(self):
         with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
             facts = build_facts('showcase', '2026-W37', run_plan=self._fake_run)
         self.assertEqual(facts['prompt'], persona_for_week('2026-W37'))
         self.assertEqual([m['name'] for m in facts['meals']],
                          ['Ovesná kaše', 'Kuřecí rizoto', 'Zeleninová polévka'])
         self.assertEqual([m['kcal'] for m in facts['meals']], [350, 620, None])
-        self.assertEqual(facts['total_kcal'], 970)   # only the meals we can stand behind
         goal = DietaryGoal.objects.get(pk=facts['goal_id'])
         self.assertEqual(goal.user, self.qa)
-        self.assertEqual(goal.num_days, 1)
+        self.assertEqual(goal.pool_counts(), {'breakfast': 1, 'lunch': 0, 'dinner': 2, 'small_meal': 0, 'snack': 0})
 
     def test_showcase_raises_when_generation_fails(self):
         def failing(goal_id):
@@ -261,7 +261,7 @@ class ShowcaseFactsTests(TestCase):
         # The QA account is also driven by the /qa-prod tester; its goals (and
         # the plans that cascade with them) must survive our housekeeping.
         theirs = DietaryGoal.objects.create(user=self.qa, prompt='QA smoke run',
-                                            country='CZ', num_days=1)
+                                            country='CZ', dinners=1)
         with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
             for week in range(30, 36):
                 build_facts('showcase', f'2026-W{week}', run_plan=self._fake_run)
@@ -285,7 +285,7 @@ class ShowcaseFactsTests(TestCase):
         with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
             with self.assertRaises(NoFacts) as ctx:
                 build_facts('showcase', '2026-W37', run_plan=empty)
-        self.assertIn('no day 1', str(ctx.exception))
+        self.assertIn('no meals', str(ctx.exception))
 
     def test_dry_run_reuses_the_newest_completed_showcase_plan(self):
         with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
@@ -321,16 +321,15 @@ class ShowcaseFactsTests(TestCase):
         newer.delete()
         self.assertEqual(latest_showcase_goal(self.qa), older)
 
-    def test_showcase_raises_when_day_one_has_a_single_meal(self):
+    def test_showcase_raises_when_pool_has_a_single_meal(self):
         def thin(goal_id):
             goal = DietaryGoal.objects.get(pk=goal_id)
             goal.status = DietaryGoal.StatusChoices.COMPLETED
             goal.save(update_fields=['status'])
-            DietaryPlan.objects.create(dietary_goal=goal, days=[{
-                'day_number': 1,
-                'breakfast': _curated_meal('Ovesná kaše', 700, []),
-                'lunch': {}, 'dinner': None, 'small_meals': [], 'snacks': [],
-            }])
+            DietaryPlan.objects.create(dietary_goal=goal, days=[], meals=[
+                {**_curated_meal('Ovesná kaše', 700, []), 'slot': 'breakfast', 'index': 0},
+                {'slot': 'lunch', 'index': 0, 'name': ''},
+            ])
         with patch.dict('os.environ', {'QA_TEST_USERNAME': 'qa_bot'}):
             with self.assertRaises(NoFacts) as ctx:
                 build_facts('showcase', '2026-W37', run_plan=thin)
