@@ -874,7 +874,6 @@ class RecipeRefineView(APIView):
             return self._accept(
                 request, ctx=ctx, meal_identifier=meal_identifier,
                 required_tags=required_tags, current_id=current_id, pool=pool,
-                used_families=used_families,
             )
 
         messages = clamp_messages(request.data.get('messages'))
@@ -990,19 +989,20 @@ class RecipeRefineView(APIView):
             },
         }, status=200)
 
-    def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool,
-                used_families=frozenset()):
+    def _accept(self, request, *, ctx, meal_identifier, required_tags, current_id, pool):
         try:
             accept_id = int(request.data.get('accept'))
         except (TypeError, ValueError):
             return Response({"status": "error", "error": "Invalid accept id"}, status=400)
         # Re-validate against the SAME eligibility gate the preview used — the
         # corpus or plan may have changed between preview and accept, and a
-        # crafted id must never bypass slot/dietary rules.
+        # crafted id must never bypass slot/dietary rules. Family dedupe is a
+        # selection PREFERENCE, not an integrity gate, so it is not re-applied
+        # here: a facet-narrowed preview may legitimately have relaxed it
+        # (spec §8), and accepting a card the user was shown must not 400.
         exclude_ids = {current_id} if current_id else set()
-        candidates = _eligible_with_family_relax(
+        candidates = eligible_recipes_for_slot(
             ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=None,
-            used_families=used_families,
         )
         # Spec 2026-07-27 decision 1: the requester's own chat_web drafts are
         # acceptable without full catalog mapping (their unmapped ingredients
@@ -1012,9 +1012,9 @@ class RecipeRefineView(APIView):
             created_for_user=request.user,
             status=CuratedRecipe.Status.DRAFT,
         ))
-        candidates += _eligible_with_family_relax(
+        candidates += eligible_recipes_for_slot(
             ctx.meal_type, required_tags, pool=own_drafts, exclude_ids=exclude_ids,
-            facets=None, enforce_mapping=False, used_families=used_families,
+            facets=None, enforce_mapping=False,
         )
         chosen = next((r for r in candidates if r.id == accept_id), None)
         if chosen is None:

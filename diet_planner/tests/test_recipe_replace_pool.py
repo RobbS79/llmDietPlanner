@@ -232,3 +232,40 @@ class PoolStaleCacheRepairTest(PoolPlanBase):
         self.assertEqual(self.plan.meals[1]['curated_recipe_id'], self.b.id)
         moved.refresh_from_db()
         self.assertEqual(moved.servings, 5)
+
+
+class FacetRelaxedPreviewCanBeAcceptedTest(FamilyRelaxationTest):
+    """A chat-narrowed preview may relax family dedupe (only Hungarian dish is a
+    second guláš); accepting that shown card must not 400 on a family re-check."""
+
+    def test_preview_then_accept_of_family_repeat(self):
+        from unittest.mock import patch
+        from django.test import override_settings
+        from diet_planner.services.prompt_facets import PromptFacets
+        self.c.cuisine = 'hungarian'
+        self.c.save(update_fields=['cuisine'])
+        make_recipe(name_cs='Svíčková', dish_family='svickova', meal_types=['lunch', 'dinner'])
+        url = reverse('diet_planner:recipe-refine', kwargs={'meal_identifier': self.ident})
+        with override_settings(REFINE_CHAT_AGENT_ENABLED=False), \
+                patch('diet_planner.views.refine_conversation',
+                      return_value=(PromptFacets(cuisines={'hungarian'}), None)):
+            preview = self.client.post(
+                url, {'messages': [{'role': 'user', 'text': 'něco maďarského'}]}, format='json')
+        self.assertEqual(preview.status_code, 200, preview.content)
+        self.assertEqual(preview.json()['data']['candidate']['curated_recipe_id'], self.c.id)
+        resp = self.client.post(url, {'accept': self.c.id}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.meals[1]['curated_recipe_id'], self.c.id)
+
+
+class PoolStaleCacheDryRunTest(PoolStaleCacheRepairTest):
+    def test_dry_run_counts_moved_like_apply(self):
+        from io import StringIO
+        from django.core.management import call_command
+        self._row(self._ident('dinner', 0), [])
+        out = StringIO()
+        call_command('refresh_stale_recipe_cache', stdout=out)
+        output = out.getvalue()
+        self.assertIn('repairable 1,', output)
+        self.assertIn('moved 1', output)

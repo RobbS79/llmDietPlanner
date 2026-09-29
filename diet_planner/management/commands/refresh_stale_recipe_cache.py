@@ -89,6 +89,12 @@ def rebuild_meal(curated: CuratedRecipe, meal_identifier: str, meal_type: str):
     return meal
 
 
+def _position_holds(plan: DietaryPlan, ref, slug: str) -> bool:
+    """Whether the plan position `ref` still holds the curated recipe `slug`."""
+    current = locate_meal(plan, ref)
+    return current is not None and current.get('curated_recipe_slug') == slug
+
+
 class Command(BaseCommand):
     help = 'Re-derive cached Recipe rows whose nutrition no longer matches the curated corpus.'
 
@@ -135,6 +141,17 @@ class Command(BaseCommand):
                     f'-> unparseable meal identifier'))
                 continue
 
+            # The position may since hold a different dish (a swap, a
+            # regenerated pool): never overwrite someone else's meal. Checked
+            # in the dry run too, so its "repairable" count matches --apply.
+            plan = DietaryPlan.objects.filter(dietary_goal_id=row.dietary_goal_id).first()
+            if plan is not None and not _position_holds(plan, ref, curated.slug):
+                moved += 1
+                self.stdout.write(self.style.WARNING(
+                    f'  moved   {row.meal_identifier}  "{row.name}"  '
+                    f'-> plan position no longer holds {curated.slug!r}, skipped'))
+                continue
+
             meal = rebuild_meal(curated, row.meal_identifier, ref.slot)
             old_cal = (row.nutritional_info or {}).get('calories')
             new_cal = (meal.get('nutritional_info') or {}).get('calories')
@@ -143,21 +160,16 @@ class Command(BaseCommand):
                 f'{row.servings}x {old_cal} kcal -> {meal["servings"]}x {new_cal} kcal')
 
             if not apply_changes:
+                repaired += 1  # would repair
                 continue
 
             with transaction.atomic():
-                plan = DietaryPlan.objects.filter(
+                plan = DietaryPlan.objects.select_for_update().filter(
                     dietary_goal_id=row.dietary_goal_id).first()
-                if plan is not None:
-                    # The position may since hold a different dish (a swap,
-                    # a regenerated pool): never overwrite someone else's meal.
-                    current = locate_meal(plan, ref)
-                    if current is None or current.get('curated_recipe_slug') != curated.slug:
-                        moved += 1
-                        self.stdout.write(self.style.WARNING(
-                            f'  moved   {row.meal_identifier}  "{row.name}"  '
-                            f'-> plan position no longer holds {curated.slug!r}, skipped'))
-                        continue
+                if plan is not None and not _position_holds(plan, ref, curated.slug):
+                    # Changed between the check above and this write.
+                    moved += 1
+                    continue
                 if plan is not None and set_meal(plan, ref, meal):
                     # Pool writes stamp the canonical identifier; keep the
                     # row's own string (differs only for legacy 3-part ids).
@@ -172,8 +184,8 @@ class Command(BaseCommand):
                 repaired += 1
 
         summary = (f'checked {checked}, stale {stale}, '
-                   f'{"repaired" if apply_changes else "repairable"} {repaired if apply_changes else stale}, '
+                   f'{"repaired" if apply_changes else "repairable"} {repaired}, '
                    f'orphaned {orphaned}, unparseable {unparseable}, moved {moved}')
         self.stdout.write(self.style.SUCCESS(summary) if apply_changes else summary)
-        if not apply_changes and stale:
+        if not apply_changes and repaired:
             self.stdout.write('Dry run — re-run with --apply to write these repairs.')
