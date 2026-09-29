@@ -86,4 +86,4 @@ class Command(BaseCommand):
         w(f'distinct recipes served: {distinct}')
         w(f'never-served: {never} ({never_pct:.1f}% of pool)')
         w(f'top-15 share: {top15_share:.1f}% of serves')
-        w(f'day1-lunch repeat rate: {repeat:.2f} (1.00 = same dish every regeneration)')
+        w(f'first-lunch repeat rate: {repeat:.2f} (1.00 = same dish every regeneration)')
