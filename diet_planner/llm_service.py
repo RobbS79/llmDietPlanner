@@ -482,6 +482,86 @@ EXAMPLE INGREDIENT FORMAT:
         )
         return json.loads(response.text)
 
+    _SLOT_BRIEF_CS = {
+        'breakfast': 'snídaně', 'lunch': 'oběd', 'dinner': 'večeře',
+        'small_meal': 'svačina', 'snack': 'malý snack',
+    }
+
+    def generate_slot_meal(
+        self,
+        *,
+        slot: str,
+        user_prompt: str,
+        goal: Any,
+        exclusions: "ResolvedRestrictions",
+        avoid_names: List[str],
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """ONE meal for ONE pool slot, written with the user's full prompt.
+        Used to fill positions the curated corpus could not cover. Returns
+        {'meal': dict, input/output/total tokens, cost_usd, model}. Raises on
+        LLM/JSON failure — the caller turns that into a shortfall."""
+        model = model or self.default_model
+        system_prompt = self._build_meal_system_prompt(
+            goal=goal, exclusions=exclusions, shop_url=None, single_meal=True,
+        )
+        avoid = ', '.join(n for n in avoid_names if n) or '(none)'
+        brief = (
+            f"Slot: {slot} ({self._SLOT_BRIEF_CS.get(slot, slot)})\n"
+            f"User request: {user_prompt}\n"
+            f"Dishes already in this plan (do NOT repeat or closely resemble): {avoid}\n"
+            f"Produce ONE meal for this slot that fits the request. "
+            f"Include realistic nutritional_info with numeric calories for ONE portion "
+            f"and set servings to 1."
+        )
+        gemini_model = genai.GenerativeModel(model_name=model, system_instruction=system_prompt)
+        response = gemini_model.generate_content(
+            brief,
+            generation_config={
+                "response_mime_type": "application/json",
+                "temperature": 0.7,
+                "max_output_tokens": getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536),
+            },
+            request_options={"timeout": 120},
+        )
+        parsed = json.loads(response.text)
+        meal = self._unwrap_single_meal(parsed, slot)
+        if not isinstance(meal, dict) or not meal.get('name'):
+            raise ValueError(f"slot meal for {slot!r} came back without a name")
+        usage = response.usage_metadata
+        return {
+            'meal': meal,
+            'input_tokens': usage.prompt_token_count,
+            'output_tokens': usage.candidates_token_count,
+            'total_tokens': usage.total_token_count,
+            'cost_usd': calculate_cost(usage.prompt_token_count, usage.candidates_token_count, model),
+            'model': model,
+        }
+
+    @staticmethod
+    def _unwrap_single_meal(parsed: Any, slot: str) -> Any:
+        """Gemini sometimes wraps a single meal in the old {"days": [...]}
+        shape or a {"meal": {...}} envelope; unwrap both."""
+        if isinstance(parsed, dict) and 'name' in parsed:
+            return parsed
+        if isinstance(parsed, dict) and isinstance(parsed.get('meal'), dict):
+            return parsed['meal']
+        if isinstance(parsed, dict) and isinstance(parsed.get('days'), list) and parsed['days']:
+            day = parsed['days'][0]
+            if isinstance(day, dict):
+                if isinstance(day.get(slot), dict):
+                    return day[slot]
+                for key in ('breakfast', 'lunch', 'dinner'):
+                    if isinstance(day.get(key), dict):
+                        return day[key]
+                for key in ('small_meals', 'snacks'):
+                    items = day.get(key)
+                    if isinstance(items, list) and items and isinstance(items[0], dict):
+                        return items[0]
+        if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+            return parsed[0]
+        return parsed
+
     def _resolve_exclusions(self, goal: Any, exclusions):
         """Resolve restrictions from the goal when a caller didn't pass them.
 

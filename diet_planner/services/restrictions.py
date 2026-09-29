@@ -369,6 +369,51 @@ def _replace_meal(day: dict, slot: str, list_idx: int | None, new_meal: dict) ->
         day[slot][list_idx] = new_meal
 
 
+def repair_single_meal(
+    meal: dict,
+    *,
+    goal,
+    exclusions: ResolvedRestrictions,
+    llm,
+    meal_key: str,
+    max_reprompts: int = 2,
+) -> tuple[dict, int, int]:
+    """Swap or re-prompt ONE meal until it violates no exclusion.
+
+    Returns (compliant_meal, reprompts_used, swaps_used). Raises
+    RepairBudgetExhausted after `max_reprompts` re-prompts still violate.
+    A no-op (same object back) when there are no exclusion keywords.
+    """
+    if not exclusions.exclusion_keywords:
+        return meal, 0, 0
+    current = meal
+    reprompts = swaps = 0
+    while True:
+        violations = validate_meal_against_exclusions(
+            current, exclusions.exclusion_keywords, meal_key=meal_key,
+        )
+        if not violations:
+            return current, reprompts, swaps
+        patched = None
+        for v in violations:
+            patched = try_deterministic_swap(current, v, tags=exclusions.tags)
+            if patched is not None:
+                swaps += 1
+                current = patched
+                break
+        if patched is not None:
+            continue
+        if reprompts >= max_reprompts:
+            raise RepairBudgetExhausted(
+                f"Meal {meal_key}: still violating after {reprompts} re-prompts",
+                meal_key=meal_key, violations=violations,
+            )
+        logger.info("restriction-repair: re-prompting %s (attempt %d) for %d violations",
+                    meal_key, reprompts + 1, len(violations))
+        current = llm.regenerate_meal(original_meal=current, goal=goal, exclusions=exclusions)
+        reprompts += 1
+
+
 def repair_meals_with_violations(
     *,
     days: list[dict],
@@ -378,69 +423,18 @@ def repair_meals_with_violations(
     max_reprompts_per_meal: int = 2,
     max_reprompts_per_plan: int = 6,
 ) -> RepairOutcome:
-    """Walk every meal; swap or re-prompt anything that violates exclusions.
-
-    Raises RepairBudgetExhausted if the per-meal cap (default 2) or the
-    per-plan cap (default 6) is hit while violations remain. Caller is
-    expected to mark the DietaryGoal as FAILED in that case.
-    """
+    """LEGACY day-grid walker, kept only until Task 11 removes the last caller."""
     if not exclusions.exclusion_keywords:
         return RepairOutcome(days=days, reprompts=0, swaps=0)
-
-    total_reprompts = 0
-    total_swaps = 0
-
+    total_reprompts = total_swaps = 0
     for d_idx, slot, list_idx, meal in _iter_meals(days):
         meal_key = f"day_{days[d_idx].get('day_number', d_idx + 1)}.{slot}"
         if list_idx is not None:
             meal_key += f"[{list_idx}]"
-        current = meal
-        attempts = 0
-
-        while True:
-            violations = validate_meal_against_exclusions(
-                current, exclusions.exclusion_keywords, meal_key=meal_key,
-            )
-            if not violations:
-                _replace_meal(days[d_idx], slot, list_idx, current)
-                break
-
-            # Try deterministic swap for the FIRST violation we can fix
-            patched = None
-            for v in violations:
-                patched = try_deterministic_swap(
-                    current, v, tags=exclusions.tags,
-                )
-                if patched is not None:
-                    total_swaps += 1
-                    current = patched
-                    break
-
-            if patched is not None:
-                # Loop again: validator will tell us if more violations remain
-                continue
-
-            # No swap available -> re-prompt
-            if attempts >= max_reprompts_per_meal:
-                raise RepairBudgetExhausted(
-                    f"Meal {meal_key}: still violating after "
-                    f"{attempts} re-prompts",
-                    meal_key=meal_key, violations=violations,
-                )
-            if total_reprompts >= max_reprompts_per_plan:
-                raise RepairBudgetExhausted(
-                    f"Plan re-prompt budget exhausted "
-                    f"({max_reprompts_per_plan}) at meal {meal_key}",
-                    meal_key=meal_key, violations=violations,
-                )
-            logger.info(
-                "restriction-repair: re-prompting %s (attempt %d) for %d violations",
-                meal_key, attempts + 1, len(violations),
-            )
-            current = llm.regenerate_meal(
-                original_meal=current, goal=goal, exclusions=exclusions,
-            )
-            attempts += 1
-            total_reprompts += 1
-
+        budget = min(max_reprompts_per_meal, max_reprompts_per_plan - total_reprompts)
+        fixed, r, s = repair_single_meal(
+            meal, goal=goal, exclusions=exclusions, llm=llm, meal_key=meal_key, max_reprompts=budget)
+        _replace_meal(days[d_idx], slot, list_idx, fixed)
+        total_reprompts += r
+        total_swaps += s
     return RepairOutcome(days=days, reprompts=total_reprompts, swaps=total_swaps)
