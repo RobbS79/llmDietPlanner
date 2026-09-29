@@ -276,7 +276,7 @@ class ShowcaseFactsTests(TestCase):
                 build_facts('showcase', '2026-W37', run_plan=self._fake_run)
         self.assertIn('seed_qa_account', str(ctx.exception))
 
-    def test_showcase_raises_when_the_plan_has_no_day_one(self):
+    def test_showcase_raises_when_the_plan_has_no_meals(self):
         def empty(goal_id):
             goal = DietaryGoal.objects.get(pk=goal_id)
             goal.status = DietaryGoal.StatusChoices.COMPLETED
@@ -308,18 +308,25 @@ class ShowcaseFactsTests(TestCase):
         self.assertIn('no completed showcase plan to reuse', str(ctx.exception))
 
     def test_latest_showcase_goal_ignores_goals_this_pipeline_did_not_write(self):
-        DietaryGoal.objects.create(user=self.qa, prompt='QA smoke run', country='CZ', num_days=1,
+        DietaryGoal.objects.create(user=self.qa, prompt='QA smoke run', country='CZ', dinners=1,
                                    status=DietaryGoal.StatusChoices.COMPLETED)
         self.assertIsNone(latest_showcase_goal(self.qa))
         older = DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[0], country='CZ',
-                                           num_days=1,
+                                           dinners=1,
                                            status=DietaryGoal.StatusChoices.COMPLETED)
         newer = DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[1], country='CZ',
-                                           num_days=1,
+                                           dinners=1,
                                            status=DietaryGoal.StatusChoices.COMPLETED)
         self.assertEqual(latest_showcase_goal(self.qa), newer)
         newer.delete()
         self.assertEqual(latest_showcase_goal(self.qa), older)
+
+    def test_latest_showcase_goal_skips_legacy_day_grid_goals(self):
+        pool = DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[0], country='CZ',
+                                          dinners=1, status=DietaryGoal.StatusChoices.COMPLETED)
+        DietaryGoal.objects.create(user=self.qa, prompt=PERSONA_PROMPTS[1], country='CZ',
+                                   num_days=1, status=DietaryGoal.StatusChoices.COMPLETED)
+        self.assertEqual(latest_showcase_goal(self.qa), pool)
 
     def test_showcase_raises_when_pool_has_a_single_meal(self):
         def thin(goal_id):

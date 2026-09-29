@@ -213,7 +213,7 @@ def latest_showcase_goal(user: User) -> Optional[DietaryGoal]:
     for goal in (DietaryGoal.objects
                  .filter(user=user, status=DietaryGoal.StatusChoices.COMPLETED)
                  .order_by('-id')):
-        if (goal.prompt or '') in PERSONA_PROMPTS:
+        if goal.is_pool and (goal.prompt or '') in PERSONA_PROMPTS:
             return goal
     return None
 

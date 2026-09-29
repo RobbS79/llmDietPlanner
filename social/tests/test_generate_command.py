@@ -25,7 +25,7 @@ FACTS = {
                'link': 'https://eatalnicek.eu/recepty/1/svickova/?utm_source={channel}'},
     'showcase': {'kind': 'showcase', 'iso_week': '2026-W37', 'goal_id': 1, 'prompt': 'Chci zhubnout.',
                  'meals': [{'slot': 'lunch', 'name': 'Rizoto', 'kcal': 600, 'deals_matched': 0}],
-                 'total_kcal': 600, 'link': 'https://eatalnicek.eu/?utm_source={channel}'},
+                 'link': 'https://eatalnicek.eu/?utm_source={channel}'},
 }
 
 
