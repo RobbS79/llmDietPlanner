@@ -359,35 +359,78 @@ class DietaryGoal(models.Model):
         help_text="Single store or cross-store optimization (premium)"
     )
 
-    # Meal plan configuration (day-by-day plan)
+    # --- Meal pool (2026-09-29): how many of each meal type the user wants.
+    # Slots: breakfast / lunch / dinner / small_meal / snack. NULL on goals
+    # created before the pool model (those carry the legacy day fields).
+    breakfasts = models.IntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(14)],
+        help_text="Number of breakfast recipes wanted (pool model)",
+    )
+    lunches = models.IntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(14)],
+        help_text="Number of lunch recipes wanted (pool model)",
+    )
+    dinners = models.IntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(14)],
+        help_text="Number of dinner recipes wanted (pool model)",
+    )
+    small_meals = models.IntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(14)],
+        help_text="Number of small-meal recipes wanted (pool model)",
+    )
+    snacks = models.IntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(14)],
+        help_text="Number of snack recipes wanted (pool model)",
+    )
+
+    # --- LEGACY day-grid configuration. Read-only for goals created before
+    # the pool model; never written by the create endpoint any more.
     num_days = models.IntegerField(
-        default=7,
+        null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(30)],
-        help_text="Number of days for the meal plan"
+        help_text="LEGACY: number of days (day-grid plans only)",
     )
-    # Main meals (breakfast, lunch, dinner)
-    breakfast = models.BooleanField(
-        default=True,
-        help_text="Include breakfast in the meal plan"
-    )
-    lunch = models.BooleanField(
-        default=True,
-        help_text="Include lunch in the meal plan"
-    )
-    dinner = models.BooleanField(
-        default=True,
-        help_text="Include dinner in the meal plan"
-    )
+    breakfast = models.BooleanField(null=True, blank=True, help_text="LEGACY: include breakfast")
+    lunch = models.BooleanField(null=True, blank=True, help_text="LEGACY: include lunch")
+    dinner = models.BooleanField(null=True, blank=True, help_text="LEGACY: include dinner")
     small_meals_per_day = models.IntegerField(
-        default=2,
+        null=True, blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(5)],
-        help_text="Number of small meals per day"
+        help_text="LEGACY: small meals per day",
     )
     snacks_per_day = models.IntegerField(
-        default=1,
+        null=True, blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(3)],
-        help_text="Number of snacks per day"
+        help_text="LEGACY: snacks per day",
     )
+
+    #: Slot key -> the count field that holds it. The single source of truth
+    #: for "which fields make up the pool" — serializers, schemas and the
+    #: selector all iterate this.
+    POOL_COUNT_FIELDS = {
+        'breakfast': 'breakfasts',
+        'lunch': 'lunches',
+        'dinner': 'dinners',
+        'small_meal': 'small_meals',
+        'snack': 'snacks',
+    }
+
+    @property
+    def is_pool(self) -> bool:
+        """True for goals created under the pool model (counts populated)."""
+        return self.breakfasts is not None
+
+    def pool_counts(self) -> dict:
+        """{slot: requested count}; 0 for every slot on a legacy goal."""
+        return {
+            slot: int(getattr(self, field) or 0)
+            for slot, field in self.POOL_COUNT_FIELDS.items()
+        }
     
     # Timestamps (ISO-8601 compliant)
     created_at = models.DateTimeField(
@@ -504,6 +547,18 @@ class DietaryPlan(models.Model):
         default=list,
         help_text="Day-by-day meal plan with main courses, small meals, and snacks (JSON structure)"
     )
+    meals = models.JSONField(
+        null=True, blank=True, default=None,
+        help_text=(
+            "Pool model: flat list of meal dicts, each with slot/index/"
+            "meal_identifier. NULL on legacy day-grid plans (which use `days`)."
+        ),
+    )
+
+    @property
+    def is_pool(self) -> bool:
+        return self.meals is not None
+
     meal_ideas = models.JSONField(
         default=list,
         help_text="Legacy field: meal ideas (deprecated, use days instead)"
@@ -719,7 +774,7 @@ class Recipe(models.Model):
         max_length=255,
         unique=True,
         db_index=True,
-        help_text="Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)"
+        help_text="Meal identifier: <goal>:<slot>:<index> (pool) or legacy <goal>:<day>:<type>:<index>"
     )
     dietary_goal = models.ForeignKey(
         DietaryGoal,
@@ -829,7 +884,7 @@ class MealInstance(models.Model):
     meal_identifier = models.CharField(
         max_length=255,
         db_index=True,
-        help_text="Unique identifier for the meal (format: goal_id:day_number:meal_type:meal_index)"
+        help_text="Meal identifier: <goal>:<slot>:<index> (pool) or legacy <goal>:<day>:<type>:<index>"
     )
     
     # Meal metadata (stored for reference even if meal structure changes)
@@ -838,7 +893,8 @@ class MealInstance(models.Model):
         help_text="Name of the meal"
     )
     day_number = models.IntegerField(
-        help_text="Day number in the meal plan"
+        null=True, blank=True,
+        help_text="LEGACY day number; NULL for pool-model meals",
     )
     meal_type = models.CharField(
         max_length=50,
