@@ -167,8 +167,8 @@ def recipe_photo(facts: dict, fetch: Callable[[str], bytes] = _default_fetch) ->
 # ---------------------------------------------------------------- showcase
 
 def _default_run_plan(goal_id: int) -> None:
-    from diet_planner.tasks import process_dietary_goal_task
-    process_dietary_goal_task.apply(args=(goal_id,))
+    from diet_planner.tasks import generate_meal_pool_task
+    generate_meal_pool_task.apply(args=(goal_id,))
 
 
 def _qa_user() -> User:

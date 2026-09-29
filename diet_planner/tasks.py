@@ -37,6 +37,7 @@ from .llm_service import GeminiService
 from .scrapers.scraper_service import ScraperService
 from .services.canonical_lookup import resolve_canonical
 from .services.restrictions import RepairBudgetExhausted
+from .services.meal_pool import build_meal_pool
 from analytics.events import track_plan_generated
 
 logger = logging.getLogger(__name__)
@@ -455,6 +456,59 @@ def process_protocol_pdf_task(self, plan_id: int) -> Dict[str, Any]:
     except Exception as exc:
         logger.error(f"Error processing protocol PDF {plan_id}: {exc}", exc_info=True)
         raise self.retry(exc=exc, countdown=30)
+
+
+@shared_task(bind=True, max_retries=3)
+def generate_meal_pool_task(self, goal_id: int) -> Dict[str, Any]:
+    """Pool-model generation (spec docs/superpowers/specs/2026-09-29-meal-pool-design.md).
+    Corpus first, Gemini for gaps; stores DietaryPlan.meals."""
+    log_prefix = f"[POOL:{goal_id}:{str(uuid.uuid4())[:8]}]"
+    try:
+        goal = DietaryGoal.objects.get(id=goal_id)
+        goal.status = DietaryGoal.StatusChoices.PROCESSING
+        goal.save(update_fields=['status'])
+        logger.info(f"{log_prefix} Building pool {goal.pool_counts()}")
+
+        result = build_meal_pool(goal)
+        usage = result.llm_usage or {}
+        plan = DietaryPlan.objects.create(
+            dietary_goal=goal,
+            meals=result.meals,
+            days=[],
+            currency=goal.currency,
+            llm_model_used=usage.get('model'),
+            llm_input_tokens=usage.get('input_tokens'),
+            llm_output_tokens=usage.get('output_tokens'),
+            llm_total_tokens=usage.get('total_tokens'),
+            llm_cost_usd=usage.get('cost_usd'),
+            grounding_debug=result.grounding_debug,
+        )
+        goal.status = DietaryGoal.StatusChoices.COMPLETED
+        goal.completed_at = timezone.now()
+        goal.save(update_fields=['status', 'completed_at'])
+        try:
+            track_plan_generated(goal.user, goal.id)
+        except Exception:
+            logger.exception("track_plan_generated failed (non-fatal)")
+        cov = result.grounding_debug.get('coverage', {})
+        logger.info(f"{log_prefix} Plan {plan.id}: {len(result.meals)} meals, "
+                    f"curated {cov.get('filled')}/{cov.get('total')}, "
+                    f"shortfall {result.grounding_debug.get('shortfall')}")
+        return {'status': 'success', 'plan_id': plan.id}
+
+    except Exception as exc:
+        logger.error(f"{log_prefix} failed: {exc}", exc_info=True)
+        try:
+            goal = DietaryGoal.objects.get(id=goal_id)
+            goal.error_message = f"Meal plan generation failed: {exc}"
+            if goal.status == DietaryGoal.StatusChoices.PAYMENT_PENDING:
+                goal.status = DietaryGoal.StatusChoices.REFUND_ELIGIBLE
+            else:
+                goal.status = DietaryGoal.StatusChoices.FAILED
+            goal.save(update_fields=['status', 'error_message'])
+        except Exception as inner_exc:
+            logger.error(f"Failed to update goal {goal_id} status: {inner_exc}")
+        raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries))
 
 
 def _build_protocol_prompt(goal: DietaryGoal) -> str:

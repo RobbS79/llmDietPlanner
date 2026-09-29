@@ -1,93 +1,57 @@
-"""The catalog-constrained task (the path prod actually uses when
-CATALOG_CONSTRAINED_GENERATION is on) must fire the ``plan_generated`` CAPI
-activation event exactly once when generation completes successfully.
+"""The pool generation task (``generate_meal_pool_task``, the path every
+caller now dispatches) must fire the ``plan_generated`` CAPI activation event
+exactly once when generation completes successfully — and never when it fails.
 
-Scaffolding (setUp, product fixtures, LLM mock shape, patch targets) is
-mirrored from ``test_catalog_task_restrictions.py`` — that test already
-drives ``process_dietary_goal_catalog_task`` to a successful COMPLETED
-result via ``GeminiService.generate_catalog_constrained_plan`` mocked with a
-minimal valid plan payload, and disables recipe grounding so the mock
-payload doesn't need to satisfy the curated-recipe overlay.
+``build_meal_pool`` is patched so the test exercises only the task's
+persistence + event wiring, not corpus selection or Gemini.
 """
 from unittest.mock import patch
 
-from django.test import TestCase
 from django.contrib.auth.models import User
+from django.test import TestCase
 
-from diet_planner.models import DietaryGoal, PriceSourceType
-from diet_planner.tests.factories import make_price
-
-
-# The catalog task falls back to the legacy flow when fewer than 10 products
-# remain after dietary-restriction filtering, so we need >= 10 products to
-# survive (no restrictions here, so all of them survive).
-_PRODUCTS = [
-    ("kuřecí prsa", 139.90),
-    ("hovězí maso", 199.90),
-    ("šunka", 49.90),
-    ("rýže basmati", 45.90),
-    ("rajčata", 29.90),
-    ("jogurt bílý", 18.90),
-    ("vejce 10ks M", 64.90),
-    ("špenát mražený", 29.90),
-    ("olivový olej extra virgin", 89.90),
-    ("mléko polotučné", 22.90),
-    ("brambory", 19.90),
-    ("cibule", 14.90),
-    ("mrkev", 12.90),
-    ("paprika", 39.90),
-]
+from diet_planner.models import DietaryGoal
+from diet_planner.services.meal_pool import PoolResult
+from diet_planner.tasks import generate_meal_pool_task
 
 
 class PlanGeneratedEventTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("plangenuser", password="test")
-        for name, price in _PRODUCTS:
-            make_price(
-                store_code="LIDL_CZ",
-                normalized_name=name,
-                display_name=name.title(),
-                price=price,
-                source_type=PriceSourceType.STORE_REGULAR,
-            )
         self.goal = DietaryGoal.objects.create(
-            user=self.user,
-            prompt="jídelníček",
-            country="CZ",
-            city="Prague",
-            shop="LIDL_CZ",
-            num_days=1, breakfast=True, lunch=True, dinner=True, small_meals_per_day=0, snacks_per_day=0,
-            status=DietaryGoal.StatusChoices.PROCESSING,
+            user=self.user, prompt="jídelníček", country="CZ", currency="CZK",
+            language_code="cs", dinners=1,
+        )
+
+    def _result(self):
+        return PoolResult(
+            meals=[{
+                "slot": "dinner", "index": 0, "name": "Rýže",
+                "meal_identifier": f"{self.goal.id}:dinner:0",
+                "ingredients": [{"name": "rýže basmati", "quantity": 100, "unit": "g"}],
+                "source": "curated",
+            }],
+            grounding_debug={"facets": {}, "coverage": {"filled": 1, "total": 1}, "gaps": [],
+                             "shortfall": {}, "counts": {"dinner": 1}},
+            llm_usage={"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                       "cost_usd": 0.0, "model": None},
         )
 
     @patch("diet_planner.tasks.track_plan_generated")
-    def test_catalog_task_fires_plan_generated_on_success(self, mock_track):
-        from diet_planner.llm_service import GeminiService
-        from diet_planner.tasks import process_dietary_goal_catalog_task
-
-        def _capture(self_llm, *, user_prompt, catalog_text, goal, **kw):
-            return {
-                "response": {"days": [{
-                    "day_number": 1,
-                    "lunch": {
-                        "name": "Rýže",
-                        "ingredients": [{"name": "rýže basmati", "quantity": 100, "unit": "g"}],
-                        "instructions": ["uvařit"],
-                    },
-                }]},
-                "input_tokens": 1, "output_tokens": 1, "total_tokens": 2,
-                "cost_usd": 0.0, "model": "gemini-test",
-            }
-
-        with patch.object(
-            GeminiService, "generate_catalog_constrained_plan", _capture
-        ), patch(
-            "diet_planner.services.recipe_retrieval.grounding_enabled",
-            return_value=False,
-        ):
-            result = process_dietary_goal_catalog_task.apply(args=[self.goal.id]).get()
+    def test_pool_task_fires_plan_generated_on_success(self, mock_track):
+        with patch("diet_planner.tasks.build_meal_pool", return_value=self._result()):
+            result = generate_meal_pool_task.apply(args=[self.goal.id]).get()
 
         self.assertEqual(result["status"], "success", result)
         mock_track.assert_called_once()
         self.assertEqual(mock_track.call_args.args[0], self.goal.user)
         self.assertEqual(mock_track.call_args.args[1], self.goal.id)
+
+    @patch("diet_planner.tasks.track_plan_generated")
+    def test_pool_task_does_not_fire_on_failure(self, mock_track):
+        with patch("diet_planner.tasks.build_meal_pool", side_effect=ValueError("empty pool")):
+            try:
+                generate_meal_pool_task.apply(args=[self.goal.id], throw=True)
+            except Exception:
+                pass
+        mock_track.assert_not_called()

@@ -58,7 +58,7 @@ from .services.recipe_retrieval import (
 from .services.prompt_facets import PromptFacets, extract_prompt_facets
 from .services.refine_agent import run_refine_turn
 from .services.refine_chat import clamp_messages, refine_conversation
-from .tasks import process_dietary_goal_task, process_dietary_goal_catalog_task, build_llm_prompt_json, process_protocol_pdf_task
+from .tasks import generate_meal_pool_task, process_protocol_pdf_task
 from llm_diet_planner_project.celery_compat import AsyncResult, is_celery_available
 from login_app.models import UserProfile
 from billing.entitlements import active_subscription
@@ -199,11 +199,7 @@ class DietaryGoalCreateView(APIView):
 
             # Trigger Background Synthesis
             try:
-                use_catalog = getattr(settings, 'CATALOG_CONSTRAINED_GENERATION', False)
-                if use_catalog:
-                    task = process_dietary_goal_catalog_task.delay(dietary_goal.id)
-                else:
-                    task = process_dietary_goal_task.delay(dietary_goal.id)
+                task = generate_meal_pool_task.delay(dietary_goal.id)
                 dietary_goal.celery_task_id = task.id
                 dietary_goal.save(update_fields=['celery_task_id'])
                 message = "Synthesis protocol initiated."
@@ -309,22 +305,6 @@ class DietaryGoalTaskStatusView(APIView):
             return Response({"status": "error", "error": "Goal not found"}, status=404)
 
 
-class DietaryGoalPromptDebugView(APIView):
-    """
-    Debug tool to inspect raw JSON prompt construction.
-    Restricted to admin users only.
-    """
-    permission_classes = [IsAdminUser]
-
-    def get(self, request, goal_id: int) -> Response:
-        try:
-            goal = DietaryGoal.objects.get(id=goal_id)
-            llm_prompt_json = build_llm_prompt_json(goal)
-            return Response({"status": "success", "data": {"goal_id": goal_id, "json_object": llm_prompt_json}})
-        except DietaryGoal.DoesNotExist:
-            return Response({"status": "error", "error": "Goal not found"}, status=404)
-
-
 class AdminRetryGoalView(APIView):
     """Retry or fail a stuck goal. Users can retry their own goals."""
     permission_classes = [IsAuthenticated]
@@ -366,7 +346,7 @@ class AdminRetryGoalView(APIView):
         goal.error_message = ''
         goal.save(update_fields=['status', 'error_message'])
         try:
-            task = process_dietary_goal_task.delay(goal_id)
+            task = generate_meal_pool_task.delay(goal_id)
             goal.celery_task_id = task.id
             goal.save(update_fields=['celery_task_id'])
             return Response({"status": "success", "data": {"goal_id": goal_id, "new_status": "pending", "task_id": task.id}})
