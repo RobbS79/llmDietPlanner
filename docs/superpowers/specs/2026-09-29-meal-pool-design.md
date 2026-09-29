@@ -159,12 +159,15 @@ New: `<goal_id>:<slot>:<index>` (3 parts). Legacy: `<goal_id>:<day>:<type>:<inde
 
 `diet_planner/services/meal_locator.py`:
 
-- `parse_meal_identifier(s) -> MealRef(goal_id, slot, index, day_number|None, is_legacy)`.
-  Disambiguation: part 2 numeric → legacy day; part 2 in the slot vocabulary
-  → pool. `ValueError` otherwise.
-- `locate_meal(plan, ref) -> (container, key)` such that `container[key]` is
-  the meal dict, for both shapes.
-- `set_meal(plan, ref, meal)`.
+- `parse_meal_identifier(s) -> MealRef(goal_id, slot, index, day_number|None)`
+  with `is_legacy` and `identifier` properties. Disambiguation: part 2 numeric
+  → legacy day; part 2 in the slot vocabulary → pool. Numeric parts must be
+  canonical non-negative integers. `ValueError` otherwise. `ref.identifier`
+  is the canonical form (a 3-part legacy id renders as 4 parts) and is never
+  used as a DB key for legacy rows — callers keep the string they received.
+- `locate_meal(plan, ref) -> meal dict | None`, for both shapes.
+- `set_meal(plan, ref, meal) -> bool` (replace only; pool writes stamp
+  slot/index/meal_identifier), `iter_plan_meals(plan)`, `plan_meals_field(plan)`.
 
 This module replaces `views._parse_meal_identifier`, `_LIST_SLOT_KEYS`,
 `_get_slot_meal`, `_set_slot_meal`, `_locate_plan_slot`'s day lookup, the
