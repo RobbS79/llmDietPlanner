@@ -146,6 +146,6 @@ describe('RecipePage refine chat integration', () => {
       await new Promise((r) => setTimeout(r, 4_500));
       expect(banner).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Vrátit původní recept' })).toBeInTheDocument();
-    });
+    }, 10_000); // the 4.5 s wait plus setup sits right at vitest's 5 s default
   });
 });
