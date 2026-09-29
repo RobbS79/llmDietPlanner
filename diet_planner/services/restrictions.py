@@ -327,13 +327,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class RepairOutcome:
-    days: list[dict]
-    reprompts: int
-    swaps: int
-
-
 class RepairBudgetExhausted(Exception):
     """Raised when a meal can't be repaired within the configured budget."""
 
@@ -341,32 +334,6 @@ class RepairBudgetExhausted(Exception):
         super().__init__(message)
         self.meal_key = meal_key
         self.violations = violations
-
-
-_SLOT_KEYS = ("breakfast", "lunch", "dinner")
-_SLOT_LIST_KEYS = ("small_meals", "snacks")
-
-
-def _iter_meals(days: list[dict]):
-    """Yield (day_index, slot_key, list_index_or_None, meal_dict)."""
-    for d_idx, day in enumerate(days):
-        for slot in _SLOT_KEYS:
-            meal = day.get(slot)
-            if isinstance(meal, dict):
-                yield d_idx, slot, None, meal
-        for slot in _SLOT_LIST_KEYS:
-            arr = day.get(slot) or []
-            if isinstance(arr, list):
-                for i, m in enumerate(arr):
-                    if isinstance(m, dict):
-                        yield d_idx, slot, i, m
-
-
-def _replace_meal(day: dict, slot: str, list_idx: int | None, new_meal: dict) -> None:
-    if list_idx is None:
-        day[slot] = new_meal
-    else:
-        day[slot][list_idx] = new_meal
 
 
 def repair_single_meal(
@@ -427,29 +394,3 @@ def repair_single_meal(
         current = regenerate(current)
         reprompts += 1
         swaps_this_version = 0
-
-
-def repair_meals_with_violations(
-    *,
-    days: list[dict],
-    goal,
-    exclusions: ResolvedRestrictions,
-    llm,
-    max_reprompts_per_meal: int = 2,
-    max_reprompts_per_plan: int = 6,
-) -> RepairOutcome:
-    """LEGACY day-grid walker, kept only until Task 11 removes the last caller."""
-    if not exclusions.exclusion_keywords:
-        return RepairOutcome(days=days, reprompts=0, swaps=0)
-    total_reprompts = total_swaps = 0
-    for d_idx, slot, list_idx, meal in _iter_meals(days):
-        meal_key = f"day_{days[d_idx].get('day_number', d_idx + 1)}.{slot}"
-        if list_idx is not None:
-            meal_key += f"[{list_idx}]"
-        budget = min(max_reprompts_per_meal, max_reprompts_per_plan - total_reprompts)
-        fixed, r, s = repair_single_meal(
-            meal, goal=goal, exclusions=exclusions, llm=llm, meal_key=meal_key, max_reprompts=budget)
-        _replace_meal(days[d_idx], slot, list_idx, fixed)
-        total_reprompts += r
-        total_swaps += s
-    return RepairOutcome(days=days, reprompts=total_reprompts, swaps=total_swaps)

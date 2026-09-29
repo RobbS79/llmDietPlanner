@@ -21,7 +21,7 @@ echo ""
 echo "3. Testing Celery import:"
 python -c "
 try:
-    from diet_planner.tasks import process_dietary_goal_task
+    from diet_planner.tasks import generate_meal_pool_task
     print('   ✅ Tasks module imports successfully')
 except Exception as e:
     print(f'   ❌ Import error: {e}')

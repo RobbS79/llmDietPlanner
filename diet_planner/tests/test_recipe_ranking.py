@@ -4,8 +4,10 @@ Issue #47: preferences must RANK, not GATE.
 Covers the retrieval-layer rework: WantedIngredientMatcher (category /
 canonical / word-boundary matching), dominant wanted weight in score_recipe,
 the hard total-time gate, per-slot calorie targets, and the lunch/dinner
-prompt-fit threshold with corpus-gap reporting in select_recipes_for_plan.
+prompt-fit threshold with corpus-gap reporting in select_recipes_for_pool.
 """
+from types import SimpleNamespace
+
 from django.test import TestCase
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
@@ -14,10 +16,9 @@ from diet_planner.services.prompt_facets import PromptFacets
 from diet_planner.services.recipe_retrieval import (
     WantedIngredientMatcher,
     eligible_recipes_for_slot,
-    overlay_curated_recipes,
     recipe_matches_facets,
     score_recipe,
-    select_recipes_for_plan,
+    select_recipes_for_pool,
 )
 
 
@@ -157,63 +158,65 @@ class TimeGateTest(SeededTestCase):
 
 
 def _goal(**kw):
-    class G:
-        pass
-    g = G()
-    g.dietary_restrictions = kw.get('dietary_restrictions')
-    g.num_days = kw.get('num_days', 1)
-    g.small_meals_per_day = kw.get('small_meals_per_day', 0)
-    g.snacks_per_day = kw.get('snacks_per_day', 0)
-    g.breakfast = kw.get('breakfast', False)
-    g.lunch = kw.get('lunch', True)
-    g.dinner = kw.get('dinner', False)
-    return g
+    """Pool-shaped goal: one lunch by default, per-slot counts."""
+    return SimpleNamespace(
+        pk=kw.get('pk', 1),
+        dietary_restrictions=kw.get('dietary_restrictions'),
+        breakfasts=kw.get('breakfasts', 0),
+        lunches=kw.get('lunches', 1),
+        dinners=kw.get('dinners', 0),
+        small_meals=kw.get('small_meals', 0),
+        snacks=kw.get('snacks', 0),
+    )
+
+
+def _first_by_slot(result):
+    return {m['slot']: m['recipe'] for m in result['meals'] if m['index'] == 0}
 
 
 class SelectFitThresholdTest(SeededTestCase):
     def test_lunch_uncovered_and_gap_reported_when_no_wanted_fit(self):
         _recipe('salat-only', ['cucumber'], meal_types=['lunch'])
         facets = PromptFacets(wanted_ingredients={'maso'})
-        result = select_recipes_for_plan(_goal(), facets=facets)
+        result = select_recipes_for_pool(_goal(), facets=facets)
         self.assertEqual(result['coverage']['filled'], 0)
-        self.assertEqual(result['days'][0]['slots'], {})
+        self.assertEqual(result['meals'], [])
         self.assertEqual(len(result['gaps']), 1)
         gap = result['gaps'][0]
         self.assertEqual(gap['slot'], 'lunch')
-        self.assertEqual(gap['day_number'], 1)
+        self.assertEqual(gap['index'], 0)
         self.assertIn('maso', gap['unmatched_wanted'])
 
     def test_lunch_covered_when_wanted_fit_exists(self):
         _recipe('salat-b', ['cucumber'], meal_types=['lunch'])
         meat = _recipe('maso-b', ['chicken-breast'], meal_types=['lunch'])
         facets = PromptFacets(wanted_ingredients={'maso'})
-        result = select_recipes_for_plan(_goal(), facets=facets)
-        self.assertEqual(result['days'][0]['slots']['lunch'].id, meat.id)
+        result = select_recipes_for_pool(_goal(), facets=facets)
+        self.assertEqual(_first_by_slot(result)['lunch'].id, meat.id)
         self.assertEqual(result['gaps'], [])
 
     def test_breakfast_not_subject_to_wanted_fit_threshold(self):
         # Wanted tokens describe the plan's mains; a meatless breakfast is fine.
         granola = _recipe('granola', ['basmati-rice'], meal_types=['breakfast'])
         facets = PromptFacets(wanted_ingredients={'maso'})
-        result = select_recipes_for_plan(
-            _goal(breakfast=True, lunch=False), facets=facets,
+        result = select_recipes_for_pool(
+            _goal(breakfasts=1, lunches=0), facets=facets,
         )
-        self.assertEqual(result['days'][0]['slots']['breakfast'].id, granola.id)
+        self.assertEqual(_first_by_slot(result)['breakfast'].id, granola.id)
 
     def test_empty_pool_reports_gap(self):
-        result = select_recipes_for_plan(_goal(), facets=PromptFacets())
+        result = select_recipes_for_pool(_goal(), facets=PromptFacets())
         self.assertEqual(len(result['gaps']), 1)
         self.assertEqual(result['gaps'][0]['reason'], 'no_eligible_recipes')
 
-    def test_calorie_targets_prefer_right_sized_recipe(self):
+    def test_slot_default_target_prefers_right_sized_recipe(self):
+        # The pool sizes lunch against the 650-kcal slot default.
         _recipe('side-414', ['cucumber'], base_nutrition={'calories': 414},
                 meal_types=['lunch'])
         main = _recipe('main-680', ['basmati-rice'], base_nutrition={'calories': 680},
                        meal_types=['lunch'])
-        result = select_recipes_for_plan(
-            _goal(), facets=None, calorie_targets={1: {'lunch': 700.0}},
-        )
-        self.assertEqual(result['days'][0]['slots']['lunch'].id, main.id)
+        result = select_recipes_for_pool(_goal(), facets=None)
+        self.assertEqual(_first_by_slot(result)['lunch'].id, main.id)
 
 
 class Plan131RegressionTest(SeededTestCase):
@@ -257,10 +260,10 @@ class Plan131RegressionTest(SeededTestCase):
             wanted_ingredients={'maso', 'ryba', 'rýže', 'zelenina'},
             max_time_minutes=30,
         )
-        goal = _goal(dietary_restrictions='bezlepková dieta', dinner=True)
-        result = select_recipes_for_plan(goal, facets=facets)
+        goal = _goal(dietary_restrictions='bezlepková dieta', dinners=1)
+        result = select_recipes_for_pool(goal, facets=facets)
 
-        slots = result['days'][0]['slots']
+        slots = _first_by_slot(result)
         mains = {chicken.id, salmon.id}
         self.assertIn(slots['lunch'].id, mains)
         self.assertIn(slots['dinner'].id, mains)
@@ -271,32 +274,3 @@ class Plan131RegressionTest(SeededTestCase):
         self.assertNotIn(slow.id, {slots['lunch'].id, slots['dinner'].id})
         self.assertNotIn(gluten.id, {slots['lunch'].id, slots['dinner'].id})
         self.assertEqual(result['gaps'], [])
-
-
-class OverlayTargetsAndGapsTest(SeededTestCase):
-    def _days(self, calories=700):
-        return [{
-            'day_number': 1,
-            'lunch': {
-                'name': 'LLM lunch', 'meal_identifier': 'g:1:lunch:0',
-                'nutritional_info': {'calories': calories},
-            },
-        }]
-
-    def test_overlay_derives_calorie_target_from_generated_meal(self):
-        _recipe('side-o', ['cucumber'], base_nutrition={'calories': 414},
-                meal_types=['lunch'])
-        _recipe('main-o', ['basmati-rice'], base_nutrition={'calories': 680},
-                meal_types=['lunch'])
-        result = overlay_curated_recipes(self._days(700), _goal(), facets=PromptFacets())
-        self.assertEqual(result['days'][0]['lunch']['name'], 'main-o')
-
-    def test_overlay_keeps_generated_lunch_and_reports_gap_when_no_wanted_fit(self):
-        _recipe('salat-o', ['cucumber'], meal_types=['lunch'])
-        facets = PromptFacets(wanted_ingredients={'maso'})
-        result = overlay_curated_recipes(self._days(), _goal(), facets=facets)
-        lunch = result['days'][0]['lunch']
-        self.assertEqual(lunch['name'], 'LLM lunch')
-        self.assertEqual(lunch['source'], 'generated')
-        self.assertEqual(len(result['gaps']), 1)
-        self.assertEqual(result['gaps'][0]['reason'], 'wanted_fit_below_threshold')

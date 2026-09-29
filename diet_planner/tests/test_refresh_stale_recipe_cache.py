@@ -102,7 +102,7 @@ class RefreshCommandTest(TestCase):
         self.assertEqual(self.row.servings, 5)
         self.assertEqual(self.row.nutritional_info['calories'], 5286)
 
-    def test_apply_reportions_the_row_to_the_slot_target(self):
+    def test_apply_reportions_the_row_to_the_slot_default_kcal(self):
         self._run('--apply')
         self.row.refresh_from_db()
         # Lunch defaults to 650 kcal; at 529/portion that is one portion.

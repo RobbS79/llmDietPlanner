@@ -26,9 +26,9 @@ would, and answer three human questions:
 Design constraints this module honours:
 
 * **Advisory, not blocking (for now).** It returns findings; the caller
-  decides what to do with them. Today `MealPlanValidator` surfaces them as
-  warnings so we can measure the false-positive rate before promoting any
-  of it to a hard checkout gate. See `docs/qa-recipe-shopping-coherence.md`
+  decides what to do with them (today `services.recipe_curation`), so we
+  can measure the false-positive rate before promoting any of it to a hard
+  gate. See `docs/qa-recipe-shopping-coherence.md`
   §7 for the promotion path.
 * **Fail-open.** A judge that errors, times out, is disabled, or has no API
   key must never break plan generation. Every failure path returns a

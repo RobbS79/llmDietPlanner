@@ -12,7 +12,6 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from diet_planner.models import DietaryGoal, DietaryPlan
-from diet_planner.tasks import transform_days_to_new_format
 from diet_planner.tests.test_recipe_replace import make_recipe
 from diet_planner.services.meal_locator import MealRef, parse_meal_identifier, set_meal
 from diet_planner.views import _commit_slot_swap, _locate_plan_slot
@@ -26,30 +25,6 @@ def _curated_meal(name, kcal=300):
         'ingredients': [{'name': 'cuketa', 'quantity': 200, 'unit': 'g', 'canonical': 'zucchini'}],
         'nutritional_info': {'calories': kcal, 'protein': '10g', 'carbs': '20g', 'fat': '5g'},
     }
-
-
-class TransformAssignsListSlotIdentifiersTest(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        user = User.objects.create_user('t', password='x')
-        cls.goal = DietaryGoal.objects.create(
-            user=user, prompt='p', country='CZ', city='Prague', num_days=1,
-        )
-
-    def test_small_meals_and_snacks_get_indexed_identifiers(self):
-        days = [{
-            'day_number': 2,
-            'lunch': {'name': 'Oběd'},
-            'small_meals': [{'name': 'Polévka'}, {'name': 'Klínky'}],
-            'snacks': [{'name': 'Jablko'}],
-        }]
-        out = transform_days_to_new_format(days, self.goal)
-        g = self.goal.id
-        self.assertEqual(
-            [m['meal_identifier'] for m in out[0]['small_meals']],
-            [f'{g}:2:small_meal:0', f'{g}:2:small_meal:1'],
-        )
-        self.assertEqual(out[0]['snacks'][0]['meal_identifier'], f'{g}:2:snack:0')
 
 
 class ParseMealIdentifierTest(SimpleTestCase):

@@ -92,7 +92,7 @@ def _add_usage(total: Dict[str, Any], one: Dict[str, Any]) -> None:
 
 def _protocol_prompt(goal: Any) -> str:
     """The user prompt with an attached specialist protocol prepended
-    (moved here from tasks._build_protocol_prompt)."""
+    (moved here from the old day-grid task)."""
     user_prompt = getattr(goal, 'prompt', '') or ''
     ref = getattr(goal, 'historic_plan_reference_id', None)
     if not ref:
