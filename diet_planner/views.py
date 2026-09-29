@@ -621,6 +621,19 @@ def _plan_swap_state(plan, current_id):
     return pool, used_recipe_ids, used_cuisines, used_families
 
 
+def _eligible_with_family_relax(slot, required_tags, *, pool, exclude_ids, facets, used_families, **kw):
+    """Corpus candidates for a swap: exclude families already in the plan, and
+    only when that leaves nothing fall back to ignoring families (a repeat
+    beats 'no alternatives'). Spec §8."""
+    strict = eligible_recipes_for_slot(
+        slot, required_tags, pool=pool, exclude_ids=exclude_ids, facets=facets,
+        exclude_families=used_families, **kw)
+    if strict:
+        return strict
+    return eligible_recipes_for_slot(
+        slot, required_tags, pool=pool, exclude_ids=exclude_ids, facets=facets, **kw)
+
+
 def _commit_slot_swap(*, goal, plan, ref, meal_identifier, chosen, user):
     """Atomically write `chosen` (a CuratedRecipe) at `ref`: rewrite the plan
     JSON, bump usage_count, refresh the cached Recipe row IN PLACE (same pk —
@@ -704,9 +717,9 @@ class RecipeReplaceView(APIView):
         floor = PromptFacets(max_time_minutes=time_limit) if time_limit else None
 
         def pick(active_facets):
-            candidates = eligible_recipes_for_slot(
+            candidates = _eligible_with_family_relax(
                 ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
-                exclude_families=used_families,
+                used_families=used_families,
             )
             if not candidates:
                 return None
@@ -938,9 +951,9 @@ class RecipeRefineView(APIView):
         floor = PromptFacets(max_time_minutes=time_limit) if time_limit else None
 
         def pick(active_facets):
-            candidates = eligible_recipes_for_slot(
+            candidates = _eligible_with_family_relax(
                 ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
-                exclude_families=used_families,
+                used_families=used_families,
             )
             if not candidates:
                 return None
@@ -987,9 +1000,9 @@ class RecipeRefineView(APIView):
         # corpus or plan may have changed between preview and accept, and a
         # crafted id must never bypass slot/dietary rules.
         exclude_ids = {current_id} if current_id else set()
-        candidates = eligible_recipes_for_slot(
+        candidates = _eligible_with_family_relax(
             ctx.meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=None,
-            exclude_families=used_families,
+            used_families=used_families,
         )
         # Spec 2026-07-27 decision 1: the requester's own chat_web drafts are
         # acceptable without full catalog mapping (their unmapped ingredients
@@ -999,9 +1012,9 @@ class RecipeRefineView(APIView):
             created_for_user=request.user,
             status=CuratedRecipe.Status.DRAFT,
         ))
-        candidates += eligible_recipes_for_slot(
+        candidates += _eligible_with_family_relax(
             ctx.meal_type, required_tags, pool=own_drafts, exclude_ids=exclude_ids,
-            facets=None, enforce_mapping=False, exclude_families=used_families,
+            facets=None, enforce_mapping=False, used_families=used_families,
         )
         chosen = next((r for r in candidates if r.id == accept_id), None)
         if chosen is None:
@@ -1073,6 +1086,8 @@ class MealInstanceView(APIView):
             ref = parse_meal_identifier(meal_identifier)
         except ValueError:
             return Response({"status": "error", "error": "Invalid meal identifier format"}, status=400)
+        if not DietaryGoal.objects.filter(id=ref.goal_id, user=request.user).exists():
+            return Response({"status": "error", "error": "Goal not found"}, status=404)
         instance, created = MealInstance.objects.get_or_create(
             meal_identifier=meal_identifier,
             user=request.user,

@@ -101,7 +101,7 @@ class RecipeDetailResolvesListSlotsTest(ListSlotBase):
 
 
 class RefreshCommandWritesListSlotTest(ListSlotBase):
-    def test_write_plan_slot_replaces_the_small_meal_by_identifier(self):
+    def test_set_meal_replaces_the_small_meal_by_position(self):
         # The refresh command writes through meal_locator.set_meal.
         ident = f'{self.goal.id}:1:small_meal:1'
         new = {**_curated_meal('Nové klínky', 250), 'meal_identifier': ident}

@@ -111,7 +111,7 @@ class Command(BaseCommand):
         by_slug = {c.slug: c for c in CuratedRecipe.objects.filter(
             slug__in=rows.values_list('curated_recipe_slug', flat=True))}
 
-        checked = stale = repaired = orphaned = unparseable = 0
+        checked = stale = repaired = orphaned = unparseable = moved = 0
 
         for row in rows.select_related('dietary_goal').order_by('id'):
             checked += 1
@@ -148,8 +148,17 @@ class Command(BaseCommand):
             with transaction.atomic():
                 plan = DietaryPlan.objects.filter(
                     dietary_goal_id=row.dietary_goal_id).first()
-                if plan is not None and locate_meal(plan, ref) is not None \
-                        and set_meal(plan, ref, meal):
+                if plan is not None:
+                    # The position may since hold a different dish (a swap,
+                    # a regenerated pool): never overwrite someone else's meal.
+                    current = locate_meal(plan, ref)
+                    if current is None or current.get('curated_recipe_slug') != curated.slug:
+                        moved += 1
+                        self.stdout.write(self.style.WARNING(
+                            f'  moved   {row.meal_identifier}  "{row.name}"  '
+                            f'-> plan position no longer holds {curated.slug!r}, skipped'))
+                        continue
+                if plan is not None and set_meal(plan, ref, meal):
                     # Pool writes stamp the canonical identifier; keep the
                     # row's own string (differs only for legacy 3-part ids).
                     meal['meal_identifier'] = row.meal_identifier
@@ -160,11 +169,11 @@ class Command(BaseCommand):
                 # only the amounts were wrong.
                 Recipe.objects.filter(pk=row.pk).update(
                     **_recipe_cache_fields(meal, meal.get('instructions', [])))
-            repaired += 1
+                repaired += 1
 
         summary = (f'checked {checked}, stale {stale}, '
                    f'{"repaired" if apply_changes else "repairable"} {repaired if apply_changes else stale}, '
-                   f'orphaned {orphaned}, unparseable {unparseable}')
+                   f'orphaned {orphaned}, unparseable {unparseable}, moved {moved}')
         self.stdout.write(self.style.SUCCESS(summary) if apply_changes else summary)
         if not apply_changes and stale:
             self.stdout.write('Dry run — re-run with --apply to write these repairs.')

@@ -416,7 +416,7 @@ def eligible_recipes_for_slot(
     `enforce_roles=False` relaxes ONLY the dish-role slot-fit gate — used as
     the select-time fallback when a slot has no role-appropriate candidates.
     `exclude_families` drops every recipe whose `dish_family` is in the set
-    (same-day dedupe: lečo at lunch means no lečo at dinner). An empty family
+    (plan-wide dedupe: lečo at lunch means no lečo at dinner). An empty family
     is never excluded — untagged rows must keep flowing.
     All other gates (slot, dietary, facets) always apply."""
     meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)

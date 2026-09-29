@@ -225,20 +225,28 @@ def _tool_search_corpus(
         max_time_minutes=max_time,
     )
     active = None if facets.is_empty() else facets
-    candidates = eligible_recipes_for_slot(
-        meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active,
-        exclude_families=exclude_families,
-    )
+
+    def _eligible(active_facets):
+        # Spec §8: never repeat a family already in the plan — unless that
+        # leaves nothing, then a repeat beats "no alternatives".
+        strict = eligible_recipes_for_slot(
+            meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
+            exclude_families=exclude_families,
+        )
+        if strict or not exclude_families:
+            return strict
+        return eligible_recipes_for_slot(
+            meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=active_facets,
+        )
+
+    candidates = _eligible(active)
     if not candidates and active is not None:
         # Soft criteria too narrow — retry unsteered so the model can say so
         # honestly and still offer the best available dish. The time cap is a
         # restriction, not a preference: it stays on, so the retry can never
         # answer "nothing under 30 minutes" with a 90-minute roast.
         floor = PromptFacets(max_time_minutes=max_time) if max_time else None
-        candidates = eligible_recipes_for_slot(
-            meal_type, required_tags, pool=pool, exclude_ids=exclude_ids, facets=floor,
-            exclude_families=exclude_families,
-        )
+        candidates = _eligible(floor)
     ranked = sorted(
         candidates,
         key=lambda r: score_recipe(

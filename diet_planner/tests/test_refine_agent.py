@@ -399,3 +399,18 @@ class SearchCorpusFamilyExclusionTest(TestCase):
             exclude_families={'leco'},
         )
         self.assertEqual([c['id'] for c in payload['candidates']], [gulas.id])
+
+    def test_repeated_family_is_offered_when_nothing_else_fits(self):
+        # Spec §8: a repeat beats "no alternatives".
+        leco = make_recipe(name_cs='Lečo', dish_family='leco')
+        payload = refine_agent._tool_search_corpus(
+            {},
+            meal_type='lunch',
+            required_tags=set(),
+            pool=[leco],
+            exclude_ids=set(),
+            used_recipe_ids=set(),
+            used_cuisines=[],
+            exclude_families={'leco'},
+        )
+        self.assertEqual([c['id'] for c in payload['candidates']], [leco.id])

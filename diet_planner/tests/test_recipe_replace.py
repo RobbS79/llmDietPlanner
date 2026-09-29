@@ -382,7 +382,7 @@ class PrilohaAndFamilyOnSwapTest(ReplaceRecipeTestBase):
         plan.save(update_fields=['days'])
         return plan
 
-    def test_swap_never_offers_a_family_already_on_that_day(self):
+    def test_swap_never_offers_a_family_already_in_the_plan(self):
         current = make_recipe(name_cs='Kuřecí rizoto', dish_family='rizoto')
         leco_a = make_recipe(name_cs='Lečo s klobásou', dish_family='leco')
         leco_b = make_recipe(name_cs='Lečo', dish_family='leco')
