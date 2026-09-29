@@ -627,6 +627,117 @@ def score_recipe(
     return score
 
 
+# ---------------------------------------------------------------------------
+# Pool selection (2026-09-29): N recipes per slot, no days
+# ---------------------------------------------------------------------------
+
+_POOL_SLOT_ORDER = ('breakfast', 'lunch', 'dinner', 'small_meal', 'snack')
+_POOL_COUNT_ATTRS = {
+    'breakfast': 'breakfasts', 'lunch': 'lunches', 'dinner': 'dinners',
+    'small_meal': 'small_meals', 'snack': 'snacks',
+}
+
+
+def pool_counts(goal: Any) -> Dict[str, int]:
+    """{slot: requested count} read off a goal (or any namespace); 0 default.
+    Mirrors DietaryGoal.pool_counts() but works for simulation namespaces."""
+    return {slot: int(getattr(goal, attr, 0) or 0) for slot, attr in _POOL_COUNT_ATTRS.items()}
+
+
+def select_recipes_for_pool(
+    goal: Any,
+    *,
+    status: str = CuratedRecipe.Status.PUBLISHED,
+    facets: Optional[PromptFacets] = None,
+    recently_served_ids: Optional[Set[int]] = None,
+    skip_slots: Sequence[str] = (),
+) -> Dict[str, Any]:
+    """Greedy selection of `count` recipes for every slot in the pool.
+
+    Returns {'meals': [{'slot', 'index', 'recipe'}], 'coverage': {'filled',
+    'total'}, 'gaps': [{'slot', 'index', 'reason', 'required_tags',
+    'unmatched_wanted'}]}. Positions that could not be filled are absent from
+    `meals` and present in `gaps` (the caller fills them from the LLM).
+    `skip_slots` positions are recorded as 'slot_skipped' gaps without
+    consulting the corpus (used when facet extraction is suspect).
+    Family dedupe is POOL-WIDE: lečo at lunch means no lečo at dinner either.
+    """
+    required_tags = required_tags_for_goal(goal)
+    counts = pool_counts(goal)
+    pool = published_pool(status)
+    goal_seed = getattr(goal, 'pk', None) or getattr(goal, 'id', None) or 0
+    used_recipe_ids: Set[int] = set()
+    used_cuisines: List[str] = []
+    used_canonicals: Set[str] = set()
+    used_families: Set[str] = set()
+    used_families_count: Counter = Counter()
+    meals: List[Dict[str, Any]] = []
+    gaps: List[Dict[str, Any]] = []
+    filled = total = 0
+
+    def record_gap(slot: str, index: int, reason: str) -> None:
+        gap = {
+            'slot': slot, 'index': index, 'reason': reason,
+            'required_tags': sorted(required_tags),
+            'unmatched_wanted': sorted(facets.wanted_ingredients) if facets else [],
+        }
+        gaps.append(gap)
+        logger.info("Recipe pool corpus gap: %s", gap)
+
+    for slot in _POOL_SLOT_ORDER:
+        for index in range(counts.get(slot, 0)):
+            total += 1
+            if slot in skip_slots:
+                record_gap(slot, index, 'slot_skipped')
+                continue
+            candidates = eligible_recipes_for_slot(
+                slot, required_tags, pool=pool, facets=facets,
+                exclude_ids=used_recipe_ids, exclude_families=used_families)
+            if not candidates and used_families:
+                candidates = eligible_recipes_for_slot(
+                    slot, required_tags, pool=pool, facets=facets, exclude_ids=used_recipe_ids)
+                if candidates:
+                    record_gap(slot, index, 'family_relaxed')
+            if not candidates:
+                candidates = eligible_recipes_for_slot(
+                    slot, required_tags, pool=pool, facets=facets,
+                    exclude_ids=used_recipe_ids, enforce_roles=False)
+                if candidates:
+                    record_gap(slot, index, 'role_relaxed')
+                else:
+                    record_gap(slot, index, 'no_eligible_recipes')
+                    continue
+            target = _SLOT_DEFAULT_KCAL.get(slot)
+            scored = [(score_recipe(
+                r, used_recipe_ids=used_recipe_ids, used_cuisines=used_cuisines,
+                facets=facets, used_canonicals=used_canonicals,
+                target_calories=target, recently_served_ids=recently_served_ids,
+                used_families=used_families_count,
+            ), r) for r in candidates]
+            top = max(s for s, _ in scored)
+            window = [r for s, r in scored if s >= top - _SAMPLING_WINDOW]
+            rng = random.Random(f'{goal_seed}:{slot}:{index}')
+            best = rng.choice(window)
+            if (
+                facets is not None and facets.wanted_ingredients
+                and slot in _WANTED_FIT_SLOTS
+                and wanted_matcher(facets).hits(best) == 0
+            ):
+                record_gap(slot, index, 'wanted_fit_below_threshold')
+                continue
+            meals.append({'slot': slot, 'index': index, 'recipe': best})
+            if best.dish_family:
+                used_families.add(best.dish_family)
+                used_families_count[best.dish_family] += 1
+            used_recipe_ids.add(best.id)
+            if best.cuisine:
+                used_cuisines.append(best.cuisine)
+            used_canonicals |= _recipe_canonicals(best)
+            filled += 1
+
+    return {'meals': meals, 'coverage': {'filled': filled, 'total': total}, 'gaps': gaps}
+
+
 def select_recipes_for_plan(
     goal: Any,
     *,
