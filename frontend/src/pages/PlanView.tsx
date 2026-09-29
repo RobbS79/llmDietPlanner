@@ -11,13 +11,19 @@ import { DayCard } from '@/components/plan/DayCard';
 import { WeekStrip } from '@/components/plan/WeekStrip';
 import { SlotSection } from '@/components/plan/SlotSection';
 import { SlotStrip } from '@/components/plan/SlotStrip';
-import { poolSummary } from '@/lib/poolCounts';
+import { mealsLabel, poolSummary, type PoolCounts } from '@/lib/poolCounts';
 import { AdRail } from '@/components/ads/AdRail';
+
+/** "3 večeře · 1 snack"; without usable counts, "N jídel" from the meals themselves. */
+function poolHeading(counts: Partial<PoolCounts> | null | undefined, meals: unknown[]): string {
+  const hasCounts = !!counts && Object.values(counts).some((n) => (n ?? 0) > 0);
+  return hasCounts ? poolSummary(counts) : mealsLabel(meals.length);
+}
 
 function exportPlanAsText(goalDetail: any, plan: any) {
   const lines: string[] = [];
   const isPool = Array.isArray(plan.meals);
-  lines.push(`JÍDELNÍČEK — ${goalDetail.city}, ${isPool ? poolSummary(goalDetail.counts) : `${goalDetail.num_days} dní`}`);
+  lines.push(`JÍDELNÍČEK — ${goalDetail.city}, ${isPool ? poolHeading(goalDetail.counts, plan.meals) : `${goalDetail.num_days} dní`}`);
   lines.push(`Vytvořeno: ${new Date().toLocaleDateString('cs-CZ')}`);
   lines.push('');
   const pushMeal = (label: string, meal: PlanMeal) => {
@@ -128,6 +134,7 @@ export const PlanView = () => {
   const sections = isPool ? groupPoolMeals(plan.meals, id!) : [];
   const totals = isPool ? poolTotals(plan.meals, id!, cookedSet) : null;
   const counts = goalDetail?.counts || {};
+  const hasMains = sections.some((section) => section.isMain && section.entries.length > 0);
 
   return (
     <MainLayout>
@@ -140,7 +147,7 @@ export const PlanView = () => {
             <div className="flex flex-wrap gap-4 pt-6">
               {[
                 { icon: MapPin, text: goalDetail.city },
-                { icon: Timer, text: isPool ? poolSummary(counts) : `${goalDetail.num_days} dní` },
+                { icon: Timer, text: isPool ? poolHeading(counts, plan.meals) : `${goalDetail.num_days} dní` },
                 { icon: Globe, text: (goalDetail.language_code || 'CS').toUpperCase() },
               ].map((meta, i) => (
                 <div key={i} className="flex items-center gap-3 bg-card border border-line px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
@@ -182,7 +189,7 @@ export const PlanView = () => {
             {[
               // EN: "Meals", "Avg kcal per main", "Cooked"
               { label: 'Jídel', value: totals.total, icon: null, color: 'text-ink' },
-              { label: 'Prům. kcal na hlavní jídlo', value: totals.avgMainKcal, icon: Flame, color: 'text-orange-600' },
+              { label: 'Prům. kcal na hlavní jídlo', value: hasMains ? totals.avgMainKcal : '—', icon: Flame, color: 'text-orange-600' },
               { label: 'Uvařeno', value: `${totals.cooked}/${totals.total}`, icon: ChefHat, color: 'text-green' },
             ].map((stat) => (
               <div key={stat.label} className="bg-card border border-line rounded-2xl p-5">
