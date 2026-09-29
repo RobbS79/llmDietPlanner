@@ -120,6 +120,16 @@ Replaces both `process_dietary_goal_task` and
    slots go through the gap path with the raw prompt; small meals/snacks
    still come from the corpus.
 5. **Guard.** `_assert_plan_has_content` becomes "at least one meal".
+   Gap filling is bounded: a wall-clock budget
+   (`MEAL_POOL_GAP_FILL_BUDGET_SECONDS`, default 240 s, under the 300 s Celery
+   soft limit), a breaker after 3 consecutive failures, and
+   `SoftTimeLimitExceeded` is re-raised, never swallowed. Remaining positions
+   are shortfall with a reason in `grounding_debug.shortfall_reasons`.
+   If facets were suspect and Gemini could not fill the mains, the mains
+   fall back to a prompt-blind corpus pick (`meal.fallback = 'prompt_blind'`)
+   rather than shipping a mains-less pool. Known gap, unchanged from before:
+   prompt-stated allergy keywords are enforced on generated meals only;
+   curated selection filters on dietary tags.
 6. **Store.** `DietaryPlan.objects.create(meals=…, grounding_debug={facets,
    coverage, gaps, shortfall}, llm_* accounting)`.
 
