@@ -104,3 +104,39 @@ class IterTest(SimpleTestCase):
     def test_plan_meals_field(self):
         self.assertEqual(plan_meals_field(_pool_plan()), 'meals')
         self.assertEqual(plan_meals_field(_legacy_plan()), 'days')
+
+
+class StrictParseTest(SimpleTestCase):
+    def test_rejects_non_canonical_integers(self):
+        for bad in ('01:dinner:0', '1:dinner:01', '1:dinner:-1', '1:dinner:1_0',
+                    '1:2:lunch:-1', '1: 2:lunch:0'):
+            with self.assertRaises(ValueError, msg=bad):
+                parse_meal_identifier(bad)
+
+    def test_identifier_roundtrip_and_three_part_canonicalised(self):
+        for ident in ('151:dinner:3', '150:2:small_meal:1'):
+            self.assertEqual(parse_meal_identifier(ident).identifier, ident)
+        self.assertEqual(parse_meal_identifier('150:2:lunch').identifier, '150:2:lunch:0')
+
+    def test_empty_legacy_index_is_zero(self):
+        self.assertEqual(parse_meal_identifier('1:2:dinner:').index, 0)
+
+
+class RobustnessTest(SimpleTestCase):
+    def test_non_dict_entries_skipped_and_not_located(self):
+        pool = SimpleNamespace(days=[], meals=['junk', {'slot': 'dinner', 'index': 0, 'name': 'A'}])
+        self.assertEqual([m['name'] for m in iter_plan_meals(pool)], ['A'])
+        legacy = SimpleNamespace(meals=None, days=[
+            {'day_number': 1, 'small_meals': [None, {'name': 'S2'}]}])
+        self.assertEqual([m['name'] for m in iter_plan_meals(legacy)], ['S2'])
+        self.assertIsNone(locate_meal(legacy, parse_meal_identifier('1:1:small_meal:0')))
+        pool2 = SimpleNamespace(days=[], meals=['junk'])
+        self.assertIsNone(locate_meal(pool2, parse_meal_identifier('1:dinner:0')))
+
+    def test_empty_pool_is_pool(self):
+        self.assertEqual(plan_meals_field(SimpleNamespace(meals=[], days=[])), 'meals')
+
+    def test_set_legacy_guards(self):
+        plan = SimpleNamespace(meals=None, days=[{'day_number': 1, 'small_meals': 'oops'}])
+        self.assertFalse(set_meal(plan, parse_meal_identifier('1:1:small_meal:0'), {'name': 'x'}))
+        self.assertFalse(set_meal(plan, parse_meal_identifier('1:9:lunch:0'), {'name': 'x'}))

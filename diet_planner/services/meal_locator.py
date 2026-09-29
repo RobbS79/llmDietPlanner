@@ -25,6 +25,7 @@ LIST_KEY_FOR_TYPE = {'small_meal': 'small_meals', 'snack': 'snacks'}
 
 @dataclass(frozen=True)
 class MealRef:
+    """A parsed meal identifier: pool (day_number None) or legacy (day_number set)."""
     goal_id: int
     slot: str
     index: int
@@ -36,13 +37,24 @@ class MealRef:
 
     @property
     def identifier(self) -> str:
+        """Canonical form. For pool refs this equals the parsed string. For
+        legacy refs a 3-part id is rendered as 4 parts, so never use this as a
+        DB lookup key for legacy rows — use the original string the caller
+        received."""
         if self.is_legacy:
             return f'{self.goal_id}:{self.day_number}:{self.slot}:{self.index}'
         return pool_identifier(self.goal_id, self.slot, self.index)
 
 
 def pool_identifier(goal_id: int, slot: str, index: int) -> str:
+    """Build the pool identifier ``<goal>:<slot>:<index>``."""
     return f'{goal_id}:{slot}:{index}'
+
+
+def _canonical_int(part: str, what: str) -> int:
+    if not (part.isdecimal() and str(int(part)) == part):
+        raise ValueError(f'{what} must be a canonical non-negative integer')
+    return int(part)
 
 
 def parse_meal_identifier(value: str) -> MealRef:
@@ -50,10 +62,7 @@ def parse_meal_identifier(value: str) -> MealRef:
     parts = (value or '').split(':')
     if len(parts) < 3:
         raise ValueError('meal identifier needs at least three parts')
-    try:
-        goal_id = int(parts[0])
-    except ValueError:
-        raise ValueError('meal identifier must start with the goal id') from None
+    goal_id = _canonical_int(parts[0], 'goal id')
     if parts[1].isdigit():
         # legacy: goal:day:type[:index]
         slot = parts[2]
@@ -61,18 +70,13 @@ def parse_meal_identifier(value: str) -> MealRef:
             raise ValueError(f'unknown legacy slot {slot!r}')
         index = 0
         if len(parts) == 4 and parts[3] != '':
-            try:
-                index = int(parts[3])
-            except ValueError:
-                raise ValueError('legacy index must be an integer') from None
-        return MealRef(goal_id=goal_id, slot=slot, index=index, day_number=int(parts[1]))
+            index = _canonical_int(parts[3], 'legacy index')
+        return MealRef(goal_id=goal_id, slot=slot, index=index,
+                       day_number=_canonical_int(parts[1], 'legacy day'))
     slot = parts[1]
     if slot not in POOL_SLOTS or len(parts) != 3:
         raise ValueError(f'unknown pool slot {slot!r}')
-    try:
-        index = int(parts[2])
-    except ValueError:
-        raise ValueError('pool index must be an integer') from None
+    index = _canonical_int(parts[2], 'pool index')
     return MealRef(goal_id=goal_id, slot=slot, index=index)
 
 
@@ -89,6 +93,7 @@ def _legacy_day(plan: Any, day_number: int) -> Optional[dict]:
 
 
 def _pool_position(plan: Any, ref: MealRef) -> Optional[int]:
+    """First (slot, index) match wins; the plan builder guarantees uniqueness."""
     for i, meal in enumerate(getattr(plan, 'meals', None) or []):
         if isinstance(meal, dict) and meal.get('slot') == ref.slot and meal.get('index') == ref.index:
             return i
@@ -136,7 +141,7 @@ def set_meal(plan: Any, ref: MealRef, meal: dict) -> bool:
             day[ref.slot] = meal
             return True
         items = day.get(list_key) or []
-        if not (0 <= ref.index < len(items)):
+        if not isinstance(items, list) or not (0 <= ref.index < len(items)):
             return False
         items[ref.index] = meal
         day[list_key] = items
