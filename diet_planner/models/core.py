@@ -422,8 +422,8 @@ class DietaryGoal(models.Model):
 
     @property
     def is_pool(self) -> bool:
-        """True for goals created under the pool model (counts populated)."""
-        return self.breakfasts is not None
+        """True for goals created under the pool model: at least one count field is set."""
+        return any(getattr(self, f) is not None for f in self.POOL_COUNT_FIELDS.values())
 
     def pool_counts(self) -> dict:
         """{slot: requested count}; 0 for every slot on a legacy goal."""

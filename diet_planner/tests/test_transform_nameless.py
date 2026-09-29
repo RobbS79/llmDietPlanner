@@ -15,7 +15,7 @@ class TransformDropsNamelessMealsTest(TestCase):
     def setUpTestData(cls):
         user = User.objects.create_user('t', password='x')
         cls.goal = DietaryGoal.objects.create(
-            user=user, prompt='p', country='CZ', city='Prague', num_days=1,
+            user=user, prompt='p', country='CZ', city='Prague', num_days=1, breakfast=True, lunch=True, dinner=True, small_meals_per_day=0, snacks_per_day=0,
         )
 
     def test_nameless_small_meal_dropped(self):

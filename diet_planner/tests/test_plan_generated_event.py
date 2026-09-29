@@ -56,7 +56,7 @@ class PlanGeneratedEventTests(TestCase):
             country="CZ",
             city="Prague",
             shop="LIDL_CZ",
-            num_days=1,
+            num_days=1, breakfast=True, lunch=True, dinner=True, small_meals_per_day=0, snacks_per_day=0,
             status=DietaryGoal.StatusChoices.PROCESSING,
         )
 

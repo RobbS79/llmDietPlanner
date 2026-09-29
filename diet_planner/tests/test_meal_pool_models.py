@@ -38,6 +38,7 @@ class PoolGoalFieldsTest(TestCase):
     def test_plan_meals_defaults_to_null_and_day_number_optional(self):
         goal = DietaryGoal.objects.create(user=self.user, prompt='p', country='CZ', dinners=1)
         plan = DietaryPlan.objects.create(dietary_goal=goal, currency='CZK', meals=[{'slot': 'dinner', 'index': 0, 'name': 'x'}])
+        self.assertTrue(goal.is_pool)
         self.assertEqual(plan.meals[0]['slot'], 'dinner')
         self.assertEqual(plan.days, [])
         mi = MealInstance.objects.create(
