@@ -1,0 +1,587 @@
+{
+ "SRLegacyFoods": [
+  {
+   "fdcId": 171413,
+   "description": "Oil, olive, salad or cooking",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 884.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 0.0
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 0.0
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 100.0
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 13.5,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "tbsp"
+     },
+     "modifier": ""
+    },
+    {
+     "gramWeight": 216.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "cup"
+     },
+     "modifier": ""
+    }
+   ]
+  },
+  {
+   "fdcId": 171077,
+   "description": "Chicken, broilers or fryers, breast, meat only, raw",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 120.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 22.5
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 0.0
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 2.6
+    }
+   ],
+   "foodPortions": []
+  },
+  {
+   "fdcId": 171078,
+   "description": "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 165.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 31.0
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 0.0
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 3.6
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 140.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "cup"
+     },
+     "modifier": "chopped or diced"
+    }
+   ]
+  },
+  {
+   "fdcId": 169756,
+   "description": "Rice, white, long-grain, regular, raw, unenriched",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 365.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 7.1
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 80.0
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 0.7
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 185.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "cup"
+     },
+     "modifier": ""
+    }
+   ]
+  },
+  {
+   "fdcId": 170000,
+   "description": "Onions, raw",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 40.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 1.1
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 9.3
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 0.1
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 110.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "undetermined"
+     },
+     "modifier": "medium"
+    }
+   ]
+  },
+  {
+   "fdcId": 169230,
+   "description": "Garlic, raw",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 149.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 6.4
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 33.1
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 0.5
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 3.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "undetermined"
+     },
+     "modifier": "clove"
+    }
+   ]
+  },
+  {
+   "fdcId": 171265,
+   "description": "Milk, whole, 3.25% milkfat",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 61.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 3.2
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 4.8
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 3.3
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 244.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "cup"
+     },
+     "modifier": ""
+    }
+   ]
+  },
+  {
+   "fdcId": 169761,
+   "description": "Wheat flour, white, all-purpose, enriched, bleached",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 364.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 10.3
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 76.3
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 1.0
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 125.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "cup"
+     },
+     "modifier": ""
+    },
+    {
+     "gramWeight": 7.8,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "tbsp"
+     },
+     "modifier": ""
+    }
+   ]
+  },
+  {
+   "fdcId": 171287,
+   "description": "Egg, whole, raw, fresh",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 143.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 12.6
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 0.7
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 9.5
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 50.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "undetermined"
+     },
+     "modifier": "large"
+    }
+   ]
+  },
+  {
+   "fdcId": 173410,
+   "description": "Butter, salted",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 717.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 0.9
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 0.1
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 81.1
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 14.2,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "tbsp"
+     },
+     "modifier": ""
+    }
+   ]
+  },
+  {
+   "fdcId": 169640,
+   "description": "Honey",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 304.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 0.3
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 82.4
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 0.0
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 21.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "tbsp"
+     },
+     "modifier": ""
+    }
+   ]
+  },
+  {
+   "fdcId": 170500,
+   "description": "Tomatoes, red, ripe, canned, packed in tomato juice",
+   "foodNutrients": [
+    {
+     "nutrient": {
+      "id": 1008,
+      "name": "Energy",
+      "unitName": "kcal"
+     },
+     "amount": 17.0
+    },
+    {
+     "nutrient": {
+      "id": 1003,
+      "name": "Protein",
+      "unitName": "g"
+     },
+     "amount": 0.8
+    },
+    {
+     "nutrient": {
+      "id": 1005,
+      "name": "Carbohydrate, by difference",
+      "unitName": "g"
+     },
+     "amount": 3.9
+    },
+    {
+     "nutrient": {
+      "id": 1004,
+      "name": "Total lipid (fat)",
+      "unitName": "g"
+     },
+     "amount": 0.1
+    }
+   ],
+   "foodPortions": [
+    {
+     "gramWeight": 240.0,
+     "amount": 1.0,
+     "measureUnit": {
+      "name": "cup"
+     },
+     "modifier": ""
+    }
+   ]
+  }
+ ]
+}
