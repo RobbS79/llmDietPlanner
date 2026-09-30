@@ -677,7 +677,7 @@
     fat: 0.5
     density: 0.56
     piece_weight_g: 5  # one clove (stroužek); a recipe "ks" usually counts cloves, a whole head is ~50 g - revisit if the corpus counts heads
-    unit_weights: {stroužek: 5}
+    unit_weights: {hlava: 40, stroužek: 5}
     source: usda:169230
   default_unit: ks
   is_pantry_staple: true
@@ -903,6 +903,7 @@
     carbs: 1.43
     fat: 28.6
     density: 0.4  # grated
+    piece_weight_g: 20
     unit_weights: {plátek: 20}
     usda_query: cheese, edam
     source: usda:173419
@@ -1086,6 +1087,7 @@
     carbs: 0.7
     fat: 4.04
     density: 0.6
+    piece_weight_g: 20
     unit_weights: {plátek: 20}
     usda_query: ham, sliced, pre-packaged, deli meat (96%fat free, water added)
     source: usda:173863
@@ -1166,7 +1168,7 @@
     fat: 0.34
     density: 0.29  # sliced, USDA 1 cup = 70 g
     piece_weight_g: 20
-    unit_weights: {plátek: 6}
+    unit_weights: {hrst: 30, plátek: 6}
     usda_query: mushrooms, white, raw
     source: usda:169251
   default_unit: g
@@ -1249,8 +1251,8 @@
     carbs: 2.23
     fat: 0.22
     density: 0.12
-    piece_weight_g: 250  # head ~250 g
-    unit_weights: {hrst: 20, lístek: 15}
+    piece_weight_g: 300
+    unit_weights: {hlava: 300, hrst: 20, lístek: 15}
     usda_query: lettuce, butterhead (includes boston and bibb types), raw
     source: usda:168429
 
@@ -1309,7 +1311,7 @@
     fat: 1.49
     density: 0.088  # raw leaves, USDA 1 cup = 21 g
     piece_weight_g: 15  # leaf ~15 g
-    unit_weights: {hrst: 30, lístek: 15}
+    unit_weights: {hrst: 30, lístek: 15, svazek: 150}
     source: usda:168421
 
 - name: peas
@@ -1395,7 +1397,7 @@
     fat: 0.75
     density: 0.4
     piece_weight_g: 20  # thumb-size piece ~20 g
-    unit_weights: {plátek: 2.2}
+    unit_weights: {cm: 6, plátek: 2.2}
     source: usda:169231
 
 - name: sweet potato
@@ -1762,6 +1764,7 @@
     carbs: 61.3
     fat: 1.06
     density: 0.813
+    unit_weights: {hrst: 30}
     usda_query: beans, kidney, red, mature seeds, raw
     source: usda:173744
 
@@ -2115,7 +2118,8 @@
     carbs: 4.35
     fat: 0.73
     density: 0.2
-    unit_weights: {hrst: 10, svazek: 20}
+    piece_weight_g: 1
+    unit_weights: {hrst: 10, svazek: 30}
     source: usda:169994
 
 - name: dill
@@ -2909,6 +2913,7 @@
     carbs: 8.41
     fat: 0.73
     density: 0.38
+    piece_weight_g: 2
     unit_weights: {hrst: 10, lístek: 0.1, snítka: 2, svazek: 20}
     usda_query: spearmint, fresh
     source: usda:173475
@@ -3663,7 +3668,8 @@
     carbs: 29.1
     fat: 1.16
     density: 0.4
-    unit_weights: {balení: 30}
+    piece_weight_g: 30
+    unit_weights: {balení: 30, dávka: 30}
     source: usda:173177
 
 - name: cardamom
@@ -3819,7 +3825,7 @@
     fat: 0.52
     density: 0.1
     piece_weight_g: 25
-    unit_weights: {hrst: 10, snítka: 2.2, svazek: 25}
+    unit_weights: {hrst: 10, snítka: 2.2, svazek: 30}
     source: usda:169997
 
 - name: sage
@@ -4216,7 +4222,8 @@
     carbs: 1.2
     fat: 37.0
     density: 0.6
-    unit_weights: {plátek: 8}
+    piece_weight_g: 5
+    unit_weights: {plátek: 5}
     source: usda:174603
 
 # --- Fats ---
@@ -4941,6 +4948,7 @@
     protein: 17.8
     carbs: 0.0
     fat: 5.6
+    piece_weight_g: 1500
     unit_weights: {plátek: 150}
     source: usda:171952
 
@@ -5451,3 +5459,894 @@
     piece_weight_g: 20
     unit_weights: {balení: 125}
     source: manual:CZ label, Olomoucke tvaruzky (A.W.)
+# --- Pantry staples created on prod by migration 0022 (fields copied from the prod rows) ---
+
+- name: "Apple cider vinegar"
+  slug: apple-cider-vinegar
+  name_cs: "Jablečný ocet"
+  name_sk: "Jablčný ocot"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [500, 750]
+  estimated_price_czk: 50.00
+  estimated_price_eur: 2.00
+  aliases:
+    - { alias: "cider vinegar", language_code: en }
+    - { alias: "acv", language_code: en }
+  nutrition:
+    kcal: 21.0
+    protein: 0.0
+    carbs: 0.93
+    fat: 0.0
+    density: 1
+    usda_query: vinegar, cider
+    source: usda:173469
+
+- name: "Baking soda"
+  slug: baking-soda
+  name_cs: "Jedlá soda"
+  name_sk: "Jedlá sóda"
+  category: baking
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [50, 100]
+  estimated_price_czk: 15.00
+  estimated_price_eur: 0.60
+  aliases:
+    - { alias: "sodium bicarbonate", language_code: en }
+    - { alias: "bicarbonate of soda", language_code: en }
+  nutrition:
+    kcal: 0.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 0.0
+    density: 1
+    usda_query: leavening agents, baking soda
+    source: usda:175040
+
+- name: "BBQ sauce"
+  slug: bbq-sauce
+  name_cs: "BBQ omáčka"
+  name_sk: "BBQ omáčka"
+  category: condiments
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [300, 500]
+  estimated_price_czk: 60.00
+  estimated_price_eur: 2.40
+  aliases:
+    - { alias: "barbecue sauce", language_code: en }
+  nutrition:
+    kcal: 172.0
+    protein: 0.82
+    carbs: 40.8
+    fat: 0.63
+    density: 1.1
+    usda_query: sauce, barbecue
+    source: usda:174523
+
+- name: "Caraway seeds"
+  slug: caraway-seeds
+  name_cs: "Kmín"
+  name_sk: "Rasca"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 25.00
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "caraway", language_code: en }
+  nutrition:
+    kcal: 333.0
+    protein: 19.8
+    carbs: 49.9
+    fat: 14.6
+    density: 0.55
+    usda_query: spices, caraway seed
+    source: usda:170918
+
+- name: "Cayenne pepper"
+  slug: cayenne-pepper
+  name_cs: "Kajenský pepř"
+  name_sk: "Kajenské korenie"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 35.00
+  estimated_price_eur: 1.40
+  aliases:
+    - { alias: "cayenne", language_code: en }
+  nutrition:
+    kcal: 318.0
+    protein: 12.0
+    carbs: 56.6
+    fat: 17.3
+    density: 0.5
+    usda_query: spices, pepper, red or cayenne
+    source: usda:170932
+
+- name: "Cocoa powder"
+  slug: cocoa-powder
+  name_cs: "Kakaový prášek"
+  name_sk: "Kakaový prášok"
+  category: baking
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [100, 200]
+  estimated_price_czk: 40.00
+  estimated_price_eur: 1.60
+  aliases:
+    - { alias: "cocoa", language_code: en }
+    - { alias: "kakao", language_code: cs }
+  nutrition:
+    kcal: 228.0
+    protein: 19.6
+    carbs: 57.9
+    fat: 13.7
+    density: 0.5
+    usda_query: cocoa, dry powder, unsweetened
+    source: usda:169593
+
+- name: "Cornstarch"
+  slug: cornstarch
+  name_cs: "Kukuřičný škrob"
+  name_sk: "Kukuričný škrob"
+  category: baking
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [200, 400]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "corn starch", language_code: en }
+    - { alias: "maizena", language_code: en }
+  nutrition:
+    kcal: 381.0
+    protein: 0.26
+    carbs: 91.3
+    fat: 0.05
+    density: 0.55
+    usda_query: cornstarch
+    source: usda:169698
+
+- name: "Cumin"
+  slug: cumin
+  name_cs: "Římský kmín"
+  name_sk: "Rímska rasca"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 25.00
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "ground cumin", language_code: en }
+  nutrition:
+    kcal: 375.0
+    protein: 17.8
+    carbs: 44.2
+    fat: 22.3
+    density: 0.55
+    usda_query: spices, cumin seed
+    source: usda:170923
+
+- name: "Curry powder"
+  slug: curry-powder
+  name_cs: "Kari koření"
+  name_sk: "Karí korenie"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "curry", language_code: en }
+    - { alias: "kari", language_code: cs }
+  nutrition:
+    kcal: 325.0
+    protein: 14.3
+    carbs: 55.8
+    fat: 14.0
+    density: 0.5
+    usda_query: spices, curry powder
+    source: usda:170924
+
+- name: "Dijon mustard"
+  slug: dijon-mustard
+  name_cs: "Dijonská hořčice"
+  name_sk: "Dijonská horčica"
+  category: condiments
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [200, 250]
+  estimated_price_czk: 50.00
+  estimated_price_eur: 2.00
+  nutrition:
+    kcal: 150
+    protein: 7.5
+    carbs: 3.5
+    fat: 11.5
+    density: 1.05
+    source: manual:Maille Dijon Originale label (approx.)
+
+- name: "Dry yeast"
+  slug: dry-yeast
+  name_cs: "Sušené droždí"
+  name_sk: "Sušené droždie"
+  category: baking
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [7, 21]
+  estimated_price_czk: 10.00
+  estimated_price_eur: 0.40
+  aliases:
+    - { alias: "instant yeast", language_code: en }
+    - { alias: "active dry yeast", language_code: en }
+  nutrition:
+    kcal: 325
+    protein: 40.4
+    carbs: 41.2
+    fat: 7.61
+    density: 0.6
+    piece_weight_g: 7
+    unit_weights: {balení: 7}
+    source: manual:= USDA SR Legacy 175043 yeast, baker's, active dry (matcher excludes apostrophes)
+
+- name: "Fish sauce"
+  slug: fish-sauce
+  name_cs: "Rybí omáčka"
+  name_sk: "Rybacia omáčka"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [200, 500]
+  estimated_price_czk: 80.00
+  estimated_price_eur: 3.20
+  aliases:
+    - { alias: "nam pla", language_code: en }
+  nutrition:
+    kcal: 35.0
+    protein: 5.06
+    carbs: 3.64
+    fat: 0.01
+    density: 1.1
+    usda_query: sauce, fish, ready-to-serve
+    source: usda:174531
+
+- name: "Garlic powder"
+  slug: garlic-powder
+  name_cs: "Česnekový prášek"
+  name_sk: "Cesnakový prášok"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 35.00
+  estimated_price_eur: 1.40
+  aliases:
+    - { alias: "granulated garlic", language_code: en }
+    - { alias: "sušený česnek", language_code: cs }
+  nutrition:
+    kcal: 331.0
+    protein: 16.6
+    carbs: 72.7
+    fat: 0.73
+    density: 0.55
+    usda_query: spices, garlic powder
+    source: usda:171325
+
+- name: "Ghee"
+  slug: ghee
+  name_cs: "Přepuštěné máslo"
+  name_sk: "Prepustené maslo"
+  category: oils
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [200, 250]
+  estimated_price_czk: 120.00
+  estimated_price_eur: 5.00
+  aliases:
+    - { alias: "clarified butter", language_code: en }
+  nutrition:
+    kcal: 900.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 100.0
+    density: 0.91
+    usda_query: butter, clarified butter (ghee)
+    source: usda:171314
+
+- name: "Ground coriander"
+  slug: ground-coriander
+  name_cs: "Mletý koriandr"
+  name_sk: "Mletý koriander"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    # alias "coriander" (en) owned by coriander
+  nutrition:
+    kcal: 298.0
+    protein: 12.4
+    carbs: 55.0
+    fat: 17.8
+    density: 0.45
+    usda_query: spices, coriander seed
+    source: usda:170922
+
+- name: "Ground ginger"
+  slug: ground-ginger
+  name_cs: "Mletý zázvor"
+  name_sk: "Mletý ďumbier"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 35.00
+  estimated_price_eur: 1.40
+  aliases:
+    - { alias: "ginger powder", language_code: en }
+  nutrition:
+    kcal: 335.0
+    protein: 8.98
+    carbs: 71.6
+    fat: 4.24
+    density: 0.5
+    usda_query: spices, ginger, ground
+    source: usda:170926
+
+- name: "Horseradish"
+  slug: horseradish
+  name_cs: "Strouhaný křen"
+  name_sk: "Strúhaný chren"
+  category: condiments
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [180, 300]
+  estimated_price_czk: 40.00
+  estimated_price_eur: 1.60
+  aliases:
+    - { alias: "křen", language_code: cs }
+    - { alias: "chren", language_code: sk }
+  nutrition:
+    kcal: 48.0
+    protein: 1.18
+    carbs: 11.3
+    fat: 0.69
+    density: 1
+    usda_query: horseradish, prepared
+    source: usda:173472
+
+- name: "Hot paprika"
+  slug: hot-paprika
+  name_cs: "Pálivá paprika"
+  name_sk: "Pálivá paprika"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  nutrition:
+    kcal: 282.0
+    protein: 14.1
+    carbs: 54.0
+    fat: 12.9
+    density: 0.45
+    usda_query: spices, paprika
+    source: usda:171329
+
+- name: "Ketchup"
+  slug: ketchup
+  name_cs: "Kečup"
+  name_sk: "Kečup"
+  category: condiments
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [300, 500, 900]
+  estimated_price_czk: 40.00
+  estimated_price_eur: 1.60
+  aliases:
+    - { alias: "tomato ketchup", language_code: en }
+  nutrition:
+    kcal: 101.0
+    protein: 1.04
+    carbs: 27.4
+    fat: 0.1
+    density: 1.1
+    usda_query: catsup
+    source: usda:168556
+
+- name: "Maple syrup"
+  slug: maple-syrup
+  name_cs: "Javorový sirup"
+  name_sk: "Javorový sirup"
+  category: other
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [250, 500]
+  estimated_price_czk: 200.00
+  estimated_price_eur: 8.00
+  nutrition:
+    kcal: 260.0
+    protein: 0.04
+    carbs: 67.0
+    fat: 0.06
+    density: 1.33
+    usda_query: syrups, maple
+    source: usda:169661
+
+- name: "Nutmeg"
+  slug: nutmeg
+  name_cs: "Muškátový oříšek"
+  name_sk: "Muškátový oriešok"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [15, 30]
+  estimated_price_czk: 40.00
+  estimated_price_eur: 1.60
+  aliases:
+    - { alias: "ground nutmeg", language_code: en }
+  nutrition:
+    kcal: 525.0
+    protein: 5.84
+    carbs: 49.3
+    fat: 36.3
+    density: 0.5
+    piece_weight_g: 5
+    usda_query: spices, nutmeg, ground
+    source: usda:171326
+
+- name: "Onion powder"
+  slug: onion-powder
+  name_cs: "Cibulový prášek"
+  name_sk: "Cibuľový prášok"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "sušená cibule", language_code: cs }
+  nutrition:
+    kcal: 341.0
+    protein: 10.4
+    carbs: 79.1
+    fat: 1.04
+    density: 0.45
+    usda_query: spices, onion powder
+    source: usda:171327
+
+- name: "Oregano"
+  slug: oregano
+  name_cs: "Oregano"
+  name_sk: "Oregano"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [10, 20]
+  estimated_price_czk: 25.00
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "dried oregano", language_code: en }
+  nutrition:
+    kcal: 265.0
+    protein: 9.0
+    carbs: 68.9
+    fat: 4.28
+    density: 0.2
+    usda_query: spices, oregano, dried
+    source: usda:171328
+
+- name: "Oyster sauce"
+  slug: oyster-sauce
+  name_cs: "Ústřicová omáčka"
+  name_sk: "Ustricová omáčka"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [250, 500]
+  estimated_price_czk: 70.00
+  estimated_price_eur: 2.80
+  nutrition:
+    kcal: 51.0
+    protein: 1.35
+    carbs: 10.9
+    fat: 0.25
+    density: 1.1
+    usda_query: sauce, oyster, ready-to-serve
+    source: usda:174529
+
+- name: "Rice vinegar"
+  slug: rice-vinegar
+  name_cs: "Rýžový ocet"
+  name_sk: "Ryžový ocot"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [150, 250]
+  estimated_price_czk: 60.00
+  estimated_price_eur: 2.40
+  nutrition:
+    kcal: 18.0
+    protein: 0.0
+    carbs: 0.04
+    fat: 0.0
+    density: 1
+    usda_query: vinegar, distilled
+    source: usda:172237
+
+- name: "Rosemary"
+  slug: rosemary
+  name_cs: "Rozmarýn"
+  name_sk: "Rozmarín"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [10, 20]
+  estimated_price_czk: 25.00
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "dried rosemary", language_code: en }
+  nutrition:
+    kcal: 331.0
+    protein: 4.88
+    carbs: 64.1
+    fat: 15.2
+    density: 0.25
+    unit_weights: {snítka: 2}
+    usda_query: spices, rosemary, dried
+    source: usda:171333
+
+- name: "Sesame oil"
+  slug: sesame-oil
+  name_cs: "Sezamový olej"
+  name_sk: "Sezamový olej"
+  category: oils
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [100, 250]
+  estimated_price_czk: 100.00
+  estimated_price_eur: 4.00
+  nutrition:
+    kcal: 884.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 100.0
+    density: 0.92
+    usda_query: oil, sesame, salad or cooking
+    source: usda:171016
+
+- name: "Sriracha sauce"
+  slug: sriracha-sauce
+  name_cs: "Sriracha omáčka"
+  name_sk: "Sriracha omáčka"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [200, 500]
+  estimated_price_czk: 90.00
+  estimated_price_eur: 3.60
+  aliases:
+    # alias "sriracha" (en) owned by hot-sauce
+  nutrition:
+    kcal: 93.0
+    protein: 1.93
+    carbs: 19.2
+    fat: 0.93
+    density: 1.1
+    usda_query: sauce, hot chile, sriracha
+    source: usda:171186
+
+- name: "Stock cube"
+  slug: stock-cube
+  name_cs: "Bujón v kostce"
+  name_sk: "Bujón v kocke"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [60, 120]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "bouillon cube", language_code: en }
+    - { alias: "broth cube", language_code: en }
+    - { alias: "bujon", language_code: cs }
+  nutrition:
+    kcal: 267.0
+    protein: 16.7
+    carbs: 18.0
+    fat: 13.9
+    piece_weight_g: 10
+    unit_weights: {balení: 10}
+    usda_query: soup, chicken broth or bouillon, dry
+    source: usda:171562
+
+- name: "Sweet paprika"
+  slug: sweet-paprika
+  name_cs: "Sladká paprika"
+  name_sk: "Sladká paprika"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50, 100]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "ground paprika", language_code: en }
+    - { alias: "mletá paprika", language_code: cs }
+    # alias "paprika" (en) owned by bell-pepper
+  nutrition:
+    kcal: 282.0
+    protein: 14.1
+    carbs: 54.0
+    fat: 12.9
+    density: 0.45
+    usda_query: spices, paprika
+    source: usda:171329
+
+- name: "Tabasco sauce"
+  slug: tabasco-sauce
+  name_cs: "Tabasco"
+  name_sk: "Tabasco"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [60, 150]
+  estimated_price_czk: 100.00
+  estimated_price_eur: 4.00
+  aliases:
+    - { alias: "tabasco", language_code: en }
+    # alias "hot sauce" (en) owned by hot-sauce
+  nutrition:
+    kcal: 11.0
+    protein: 0.51
+    carbs: 1.75
+    fat: 0.37
+    density: 1.1
+    usda_query: sauce, ready-to-serve, pepper or hot
+    source: usda:174527
+
+- name: "Table salt"
+  slug: table-salt
+  name_cs: "Kuchyňská sůl"
+  name_sk: "Kuchynská soľ"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [500, 1000]
+  estimated_price_czk: 10.00
+  estimated_price_eur: 0.40
+  aliases:
+    - { alias: "soľ", language_code: sk }
+    - { alias: "jodovaná sůl", language_code: cs }
+    # alias "salt" (en) owned by salt
+    # alias "sůl" (cs) owned by salt
+  nutrition:
+    kcal: 0.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 0.0
+    density: 1.2
+    usda_query: salt, table
+    source: usda:173468
+
+- name: "Thyme"
+  slug: thyme
+  name_cs: "Tymián"
+  name_sk: "Tymián"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [10, 20]
+  estimated_price_czk: 25.00
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "dried thyme", language_code: en }
+  nutrition:
+    kcal: 276.0
+    protein: 9.11
+    carbs: 63.9
+    fat: 7.43
+    density: 0.3
+    unit_weights: {snítka: 1}
+    usda_query: spices, thyme, dried
+    source: usda:170938
+
+- name: "Turmeric"
+  slug: turmeric
+  name_cs: "Kurkuma"
+  name_sk: "Kurkuma"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "ground turmeric", language_code: en }
+  nutrition:
+    kcal: 312.0
+    protein: 9.68
+    carbs: 67.1
+    fat: 3.25
+    density: 0.6
+    usda_query: spices, turmeric, ground
+    source: usda:172231
+
+- name: "Vegeta seasoning"
+  slug: vegeta-seasoning
+  name_cs: "Vegeta"
+  name_sk: "Vegeta"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [125, 250, 500]
+  estimated_price_czk: 50.00
+  estimated_price_eur: 2.00
+  aliases:
+    - { alias: "vegeta", language_code: en }
+  nutrition:
+    kcal: 90
+    protein: 4.1
+    carbs: 17.6
+    fat: 0.2
+    density: 0.8
+    source: manual:Podravka Vegeta label (approx.)
+
+- name: "White pepper"
+  slug: white-pepper
+  name_cs: "Mletý bílý pepř"
+  name_sk: "Mleté biele korenie"
+  category: spices
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [25, 50]
+  estimated_price_czk: 60.00
+  estimated_price_eur: 2.40
+  nutrition:
+    kcal: 296.0
+    protein: 10.4
+    carbs: 68.6
+    fat: 2.12
+    density: 0.5
+    usda_query: spices, pepper, white
+    source: usda:170933
+
+- name: "White sugar"
+  slug: white-sugar
+  name_cs: "Cukr krystal"
+  name_sk: "Cukor kryštál"
+  category: baking
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [500, 1000]
+  estimated_price_czk: 25.00
+  estimated_price_eur: 1.00
+  aliases:
+    - { alias: "granulated sugar", language_code: en }
+    - { alias: "cukor", language_code: sk }
+    # alias "sugar" (en) owned by sugar
+    # alias "cukr" (cs) owned by sugar
+  nutrition:
+    kcal: 387.0
+    protein: 0.0
+    carbs: 100.0
+    fat: 0.0
+    density: 0.85
+    usda_query: sugars, granulated
+    source: usda:169655
+
+- name: "White vinegar"
+  slug: white-vinegar
+  name_cs: "Bílý ocet"
+  name_sk: "Biely ocot"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [500, 1000]
+  estimated_price_czk: 20.00
+  estimated_price_eur: 0.80
+  aliases:
+    - { alias: "distilled vinegar", language_code: en }
+  nutrition:
+    kcal: 18.0
+    protein: 0.0
+    carbs: 0.04
+    fat: 0.0
+    density: 1
+    usda_query: vinegar, distilled
+    source: usda:172237
+
+- name: "Wine vinegar"
+  slug: wine-vinegar
+  name_cs: "Vinný ocet"
+  name_sk: "Vínový ocot"
+  category: condiments
+  default_unit: ml
+  typical_unit: ml
+  is_pantry_staple: true
+  typical_package_sizes: [500, 750]
+  estimated_price_czk: 35.00
+  estimated_price_eur: 1.40
+  aliases:
+    - { alias: "red wine vinegar", language_code: en }
+    # alias "white wine vinegar" (en) owned by white-wine-vinegar
+  nutrition:
+    kcal: 19.0
+    protein: 0.04
+    carbs: 0.27
+    fat: 0.0
+    density: 1
+    usda_query: vinegar, red wine
+    source: usda:172240
+
+- name: "Yellow mustard"
+  slug: yellow-mustard
+  name_cs: "Plnotučná hořčice"
+  name_sk: "Plnotučná horčica"
+  category: condiments
+  default_unit: g
+  typical_unit: g
+  is_pantry_staple: true
+  typical_package_sizes: [200, 300, 400]
+  estimated_price_czk: 30.00
+  estimated_price_eur: 1.20
+  aliases:
+    - { alias: "horčica", language_code: sk }
+    # alias "mustard" (en) owned by mustard
+    # alias "hořčice" (cs) owned by mustard
+  nutrition:
+    kcal: 117
+    protein: 6.4
+    carbs: 7.1
+    fat: 6.6
+    density: 1.05
+    source: manual:CZ label, plnotučná hořčice (Kand/Bzenecká, typical)
