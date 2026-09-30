@@ -120,15 +120,16 @@ line_grams(line, row) -> LineMass(grams: float | None, method: str, reason: str 
 ```
 
 - `quantity` null/0 → `grams=0, method='to_taste'` (never blocks).
-- Mass units (`g, gram, kg, dkg, mg`) → direct.
+- Mass units (`g, gram, kg, dkg, mg`) → direct. A non-empty quantity that
+  does not parse ("1/2", "cca 200") is `bad_quantity` and blocks.
 - Volume units (`ml, l, dl, cl, lžíce/pl/tbsp 15 ml, lžička/čl/tsp 5 ml,
-  hrnek/cup 250 ml, šálek 240 ml, sklenice 300 ml, konzerva/plechovka 400 ml`)
+  hrnek/šálek/cup 250 ml, sklenice 300 ml, konzerva/plechovka 400 ml`)
   → ml × `density_g_per_ml`; no density → `None, reason='no_density'`.
 - Count units (`ks, kus, kusy, kusů, stroužek, plátek, svazek, hrst, snítka,
   lístek, špetka, balení`) → `unit_weights[unit]` if present, else for
-  `ks/kus*` `avg_piece_weight_g`, else a small unit-only default for
-  quantity-less garnish units (`špetka 1 g, snítka 2 g, lístek 1 g`); anything
-  else → `None, reason='no_piece_weight'`.
+  `ks/kus*` `avg_piece_weight_g`, else `None, reason='no_piece_weight'`; other count
+  units without a `unit_weights` entry → `None, reason='no_unit_weight'`;
+  garnish units carry a fixed default (`špetka 1 g, snítka 2 g, lístek 1 g`).
 - Unit vocabulary and aliases live in one place (`services/unit_vocab.py`),
   imported by `line_mass`, `units.py` (pricing) and `ingredient_mass`.
   `ingredient_mass.estimate_mass_g` keeps its lower-bound API and delegates.
