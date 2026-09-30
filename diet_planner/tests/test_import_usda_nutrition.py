@@ -37,6 +37,28 @@ class MatchingTest(SimpleTestCase):
         self.assertEqual(conf, 0.0)
 
 
+    def test_query_token_must_be_in_head_segment(self):
+        pool = [{'fdcId': 1, 'description': 'Pork, cured, salt pork, raw'},
+                {'fdcId': 2, 'description': 'Nuts, almond butter, plain, without salt added'},
+                {'fdcId': 3, 'description': 'Salt, table'},
+                {'fdcId': 4, 'description': 'Butter, salted'}]
+        self.assertEqual(best_match('salt', pool, category='spices')[0]['fdcId'], 3)
+        self.assertEqual(best_match('butter', pool, category='dairy')[0]['fdcId'], 4)
+        m, conf = best_match('salt', pool[:2], category='spices')   # "salt" only outside the head
+        self.assertIsNone(m)
+        self.assertEqual(conf, 0.0)
+
+    def test_brand_restaurant_and_snack_foods_are_excluded(self):
+        pool = [{'fdcId': 1, 'description': "APPLEBEE'S, mozzarella sticks"},
+                {'fdcId': 2, 'description': 'Restaurant, Italian, lasagna with meat'},
+                {'fdcId': 3, 'description': 'Snacks, tortilla chips, nacho cheese'},
+                {'fdcId': 4, 'description': 'Candies, NESTLE, AFTER EIGHT Mints'},
+                {'fdcId': 5, 'description': 'Cheese, mozzarella, whole milk'}]
+        self.assertEqual(best_match('mozzarella', pool, category='dairy')[0]['fdcId'], 5)
+        for name, cat in (('lasagna', 'grains'), ('tortilla', 'grains'), ('mint', 'vegetables')):
+            self.assertEqual(best_match(name, pool, category=cat), (None, 0.0), name)
+
+
 class DerivationTest(SimpleTestCase):
     def test_nutrients_of(self):
         oil = next(f for f in foods() if f['fdcId'] == 171413)
