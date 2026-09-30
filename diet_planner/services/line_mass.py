@@ -1,4 +1,4 @@
-"""One ingredient line -> grams. Pure; never raises.
+"""One ingredient line -> grams. Pure; never raises on well-formed table rows.
 
 Mass units convert directly; volume units need the ingredient's density;
 count units need its piece weight (`ks`) or an ingredient-specific unit weight
@@ -8,33 +8,48 @@ zero quantity is "to taste" = 0 g and never a gap.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from diet_planner.services.nutrition_lookups import NutrientRow
 from diet_planner.services.unit_vocab import (
     COUNT_UNITS, GARNISH_G, MASS_G, VOLUME_ML, normalize_unit,
 )
+
+if TYPE_CHECKING:
+    from diet_planner.services.nutrition_lookups import NutrientRow
 
 
 @dataclass(frozen=True)
 class LineMass:
     grams: Optional[float]
     method: str          # mass | volume | count | unit_weight | garnish | to_taste | none
-    reason: Optional[str] = None  # no_density | no_piece_weight | no_unit_weight | unknown_unit
+    reason: Optional[str] = None  # no_density | no_piece_weight | no_unit_weight | unknown_unit | bad_quantity
 
 
-def _quantity(value: Any) -> Optional[float]:
+_BAD = object()
+
+
+def _quantity(value: Any):
+    """Positive float; None for to-taste (None, blank, <= 0); _BAD if unparseable."""
     if value is None or isinstance(value, bool):
         return None
-    try:
-        q = float(value) if isinstance(value, (int, float)) else float(str(value).strip().replace(',', '.'))
-    except (TypeError, ValueError):
-        return None
+    if isinstance(value, (int, float)):
+        q = float(value)
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        text = ''.join(text.split()).replace('\u202f', '').replace('\u00a0', '').replace(',', '.')
+        try:
+            q = float(text)
+        except ValueError:
+            return _BAD
     return q if q > 0 else None
 
 
-def line_grams(line: dict, row: Optional[NutrientRow]) -> LineMass:
+def line_grams(line: dict, row: "Optional[NutrientRow]") -> LineMass:
     qty = _quantity((line or {}).get('quantity'))
+    if qty is _BAD:
+        return LineMass(None, 'none', 'bad_quantity')
     if qty is None:
         return LineMass(0.0, 'to_taste')
     code = normalize_unit((line or {}).get('unit'))

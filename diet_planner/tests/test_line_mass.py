@@ -35,6 +35,11 @@ class ToBaseTest(SimpleTestCase):
         self.assertEqual(to_base(1, 'sklenice'), (1, None))
         self.assertEqual(to_base(1, 'cl'), (10, 'volume'))
 
+    def test_only_spetka_bridges_garnish_to_pricing(self):
+        self.assertEqual(to_base(1, 'špetka'), (0.3, 'volume'))
+        self.assertEqual(to_base(1, 'snítka'), (1, None))
+        self.assertEqual(to_base(1, 'lístek'), (1, None))
+
 
 class LineGramsTest(SimpleTestCase):
     def test_mass_units(self):
@@ -76,6 +81,20 @@ class LineGramsTest(SimpleTestCase):
         self.assertEqual(line_grams({'quantity': 1, 'unit': 'furlong'}, row()).reason, 'unknown_unit')
         self.assertEqual(line_grams({'quantity': 100, 'unit': 'g'}, None).grams, 100)   # mass never needs a row
         self.assertEqual(line_grams({'quantity': 1, 'unit': 'ks'}, None).reason, 'no_piece_weight')
+
+    def test_quantity_parsing(self):
+        self.assertEqual(line_grams({'quantity': '1 500', 'unit': 'g'}, row()).grams, 1500)
+        self.assertEqual(line_grams({'quantity': '1\u202f500', 'unit': 'g'}, row()).grams, 1500)
+        for bad in ('1/2', 'cca 200'):
+            r = line_grams({'quantity': bad, 'unit': 'g'}, row())
+            self.assertEqual((r.grams, r.reason), (None, 'bad_quantity'), bad)
+        self.assertEqual(line_grams({'quantity': '', 'unit': 'g'}, row()).method, 'to_taste')
+        self.assertEqual(line_grams({'quantity': '  ', 'unit': 'g'}, row()).method, 'to_taste')
+
+    def test_mg_and_dotted_units(self):
+        self.assertAlmostEqual(line_grams({'quantity': 500, 'unit': 'mg'}, row()).grams, 0.5)
+        self.assertEqual(normalize_unit('dl.'), 'dl')
+        self.assertEqual(normalize_unit('Ks.'), 'ks')
 
     def test_czech_decimal_comma(self):
         self.assertEqual(line_grams({'quantity': '1,5', 'unit': 'kg'}, row()).grams, 1500)

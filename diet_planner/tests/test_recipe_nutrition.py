@@ -68,3 +68,8 @@ class ComputeTest(SimpleTestCase):
         self.assertIsInstance(b['calories'], int)
         self.assertEqual(b['source'], 'computed')
         self.assertEqual(b['protein'], round(139.21, 1))
+
+    def test_bad_quantity_is_reported_and_incomplete(self):
+        n = compute_recipe_nutrition([{'name': 'rýže', 'canonical': 'rice-basmati', 'quantity': '1/2', 'unit': 'kg'}], TABLE)
+        self.assertEqual(n.unconverted[0]['reason'], 'bad_quantity')
+        self.assertFalse(n.complete)

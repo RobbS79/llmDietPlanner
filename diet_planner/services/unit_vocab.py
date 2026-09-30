@@ -9,6 +9,7 @@ from typing import Dict, Optional, Tuple
 ALIASES: Dict[str, str] = {
     # mass
     'g': 'g', 'gram': 'g', 'gramy': 'g', 'gramu': 'g', 'gramů': 'g', 'gramow': 'g', 'g.': 'g',
+    'mg': 'mg', 'miligram': 'mg', 'miligramy': 'mg', 'miligramů': 'mg',
     'dkg': 'dkg', 'dag': 'dkg', 'deka': 'dkg',
     'kg': 'kg', 'kilogram': 'kg', 'kilogramy': 'kg', 'kilogramů': 'kg', 'kilogramow': 'kg', 'kg.': 'kg',
     # volume
@@ -36,7 +37,7 @@ ALIASES: Dict[str, str] = {
     'lístek': 'lístek', 'lístky': 'lístek', 'lístků': 'lístek',
 }
 
-MASS_G: Dict[str, float] = {'g': 1.0, 'dkg': 10.0, 'kg': 1000.0}
+MASS_G: Dict[str, float] = {'mg': 0.001, 'g': 1.0, 'dkg': 10.0, 'kg': 1000.0}
 VOLUME_ML: Dict[str, float] = {'ml': 1.0, 'cl': 10.0, 'dl': 100.0, 'l': 1000.0,
                                'tsp': 5.0, 'tbsp': 15.0, 'cup': 250.0,
                                'konzerva': 400.0, 'sklenice': 300.0}
@@ -48,6 +49,8 @@ def normalize_unit(unit) -> str:
     if not unit:
         return ''
     key = str(unit).strip().lower()
+    if key not in ALIASES:
+        key = key.rstrip('.').strip()
     return ALIASES.get(key, key)
 
 
@@ -69,7 +72,8 @@ _UNPRICED_VOLUME = ('konzerva', 'sklenice')
 
 def to_base(value: float, unit) -> Tuple[float, Optional[str]]:
     """(base_value, dimension) for pricing: mass→g, volume→ml, count→ks.
-    Garnish units are volume-ish for pricing (a pinch ≈ 0.3 ml). Ingredient-
+    Only `špetka` bridges to pricing (a pinch ≈ 0.3 ml); `snítka` and `lístek`
+    are unpriced (dimension None), as before. Ingredient-
     specific pieces (stroužek, plátek, ...) are NOT convertible for pricing
     (dimension None) — only plain `ks` is a count."""
     code = normalize_unit(unit)
@@ -79,6 +83,6 @@ def to_base(value: float, unit) -> Tuple[float, Optional[str]]:
         return value * VOLUME_ML[code], 'volume'
     if code == 'ks':
         return value, 'count'
-    if code in GARNISH_G:
+    if code == 'špetka':
         return value * 0.3, 'volume'
     return value, None

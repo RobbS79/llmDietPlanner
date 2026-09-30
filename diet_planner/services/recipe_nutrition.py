@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 
 from diet_planner.services.line_mass import line_grams
-from diet_planner.services.nutrition_lookups import NutrientRow
+
+if TYPE_CHECKING:
+    from diet_planner.services.nutrition_lookups import NutrientRow
 
 
 @dataclass
@@ -26,7 +28,7 @@ class RecipeNutrition:
 
 
 def compute_recipe_nutrition(ingredients: Optional[List[Any]],
-                             table: Mapping[str, NutrientRow]) -> RecipeNutrition:
+                             table: "Mapping[str, NutrientRow]") -> RecipeNutrition:
     """Whole-recipe totals over every line with a quantity. A line with no
     quantity ("dle chuti") converts to 0 g and never needs a table row.
     `complete` is False when any NON-optional line could not convert;
@@ -45,7 +47,9 @@ def compute_recipe_nutrition(ingredients: Optional[List[Any]],
         if lm.method == 'to_taste':
             out.lines_converted += 1
             continue
-        if not slug:
+        if lm.reason == 'bad_quantity':
+            reason = 'bad_quantity'
+        elif not slug:
             reason = 'no_canonical'
         elif row is None:
             reason = 'no_nutrition'
