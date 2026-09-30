@@ -113,7 +113,7 @@
     protein: 0.0
     carbs: 0.0
     fat: 100.0
-    density: 0.9
+    density: 0.915
     source: usda:171413
 
 - name: sunflower oil
@@ -189,7 +189,7 @@
     carbs: 0.25
     fat: 16.6
     density: 0.58  # diced, USDA 1 cup chopped chicken ~140 g
-    piece_weight_g: 130
+    piece_weight_g: 200  # bone-in thigh with skin ~200 g
     source: usda:172385
   default_unit: g
   aliases:
@@ -283,12 +283,46 @@
   typical_package_sizes: [10, 15]
   aliases:
     - { alias: "vajíčka", language_code: cs }
+
+- name: egg yolk
+  slug: egg-yolk
+  name_cs: žloutek
+  category: eggs
+  default_unit: ks
+  aliases:
     - { alias: "žloutek", language_code: cs }
     - { alias: "žloutky", language_code: cs }
+    - { alias: "žloutků", language_code: cs }
     - { alias: "vaječný žloutek", language_code: cs }
-    - { alias: "vaječný bílek", language_code: cs }
+    - { alias: "vaječné žloutky", language_code: cs }
+  nutrition:
+    kcal: 322.0
+    protein: 15.9
+    carbs: 3.59
+    fat: 26.5
+    density: 1.012
+    piece_weight_g: 18  # yolk of a medium (M) egg
+    source: usda:172184
+
+- name: egg white
+  slug: egg-white
+  name_cs: bílek
+  category: eggs
+  default_unit: ks
+  aliases:
     - { alias: "bílek", language_code: cs }
+    - { alias: "bílky", language_code: cs }
+    - { alias: "bílků", language_code: cs }
+    - { alias: "vaječný bílek", language_code: cs }
     - { alias: "vaječné bílky", language_code: cs }
+  nutrition:
+    kcal: 52.0
+    protein: 10.9
+    carbs: 0.73
+    fat: 0.17
+    density: 1.012
+    piece_weight_g: 33  # white of a medium (M) egg
+    source: usda:172183
 
 - name: whole milk
   name_cs: mléko plnotučné
@@ -303,7 +337,7 @@
     protein: 3.15
     carbs: 4.8
     fat: 3.25
-    density: 1.0
+    density: 1.03
     source: usda:171265
 
 - name: semi-skimmed milk
@@ -463,15 +497,15 @@
     - { alias: "starší chléb", language_code: cs }
     - { alias: "starší pečivo", language_code: cs }
   nutrition:
-    kcal: 274.0
-    protein: 10.7
-    carbs: 47.5
-    fat: 4.53
+    kcal: 259.0
+    protein: 8.5
+    carbs: 48.3
+    fat: 3.3
     density: 0.25  # cubed bread
     piece_weight_g: 30  # slice ~30 g (toast 25-30 g)
     unit_weights: {plátek: 30}
-    usda_query: bread, wheat
-    source: usda:172686
+    usda_query: bread, rye
+    source: usda:172684
 
 - name: tomatoes
   name_cs: rajčata
@@ -695,7 +729,7 @@
     protein: 1.1
     carbs: 9.32
     fat: 0.3
-    density: 0.883
+    density: 1.03  # volume use = lemon juice
     piece_weight_g: 100
     unit_weights: {plátek: 7.0}
     source: usda:167746
@@ -900,13 +934,17 @@
     - { alias: "smetana na vaření", language_code: cs }
     - { alias: "šlehačka", language_code: cs }
     - { alias: "sladká smetana", language_code: cs }
+  # Generic "smetana" = 12 % cooking cream (smetana na vaření), far more common in CZ recipes than
+  # 31-33 % whipping cream; USDA half-and-half (11.5 % fat) is the closest SR row. The USDA
+  # "light (coffee/table)" row is 19 % fat, and "light whipping" 30.9 % (292 kcal) was the old value.
   nutrition:
-    kcal: 292.0
-    protein: 2.17
-    carbs: 2.96
-    fat: 30.9
+    kcal: 131.0
+    protein: 3.13
+    carbs: 4.3
+    fat: 11.5
     density: 1
-    source: usda:170858
+    usda_query: cream, fluid, half and half
+    source: usda:171255
 
 - name: sour cream
   name_cs: zakysaná smetana
@@ -917,14 +955,15 @@
     - { alias: "veganská zakysaná smetana", language_code: cs }
     - { alias: "crème fraîche", language_code: cs }
   nutrition:
-    kcal: 198.0
-    protein: 2.44
-    carbs: 4.63
-    fat: 19.4
-    density: 0.8
+    kcal: 135.0
+    protein: 2.94
+    carbs: 4.26
+    fat: 12.0
+    density: 1.0  # CZ zakysaná smetana 12 %
     piece_weight_g: 200  # cup 200 g
     unit_weights: {balení: 200}
-    source: usda:171257
+    usda_query: cream, sour, reduced fat, cultured
+    source: usda:171256
 
 # --- Meat ---
 - name: beef
@@ -1021,13 +1060,14 @@
     - { alias: "šunka vcelku", language_code: cs }  # batch-09
     - { alias: "šunka v celku", language_code: cs }  # batch-09
   nutrition:
-    kcal: 164.0
-    protein: 16.6
-    carbs: 3.63
-    fat: 8.8
+    kcal: 107.0
+    protein: 16.8
+    carbs: 0.7
+    fat: 4.04
     density: 0.6
     unit_weights: {plátek: 20}
-    source: usda:173864
+    usda_query: ham, sliced, pre-packaged, deli meat (96%fat free, water added)
+    source: usda:173863
 
 - name: lard
   name_cs: sádlo
@@ -1379,14 +1419,14 @@
   name_cs: nakládané okurky
   category: canned
   nutrition:
-    kcal: 11.0
-    protein: 0.33
-    carbs: 2.26
-    fat: 0.2
+    kcal: 21
+    protein: 0.5
+    carbs: 4.5
+    fat: 0.1
     density: 0.646
     piece_weight_g: 40
     unit_weights: {plátek: 7.0}
-    source: usda:169379
+    source: manual:CZ label, sterilované okurky (sweet-sour brine, typical)
   default_unit: g
   aliases:
     - { alias: "kyselé okurky", language_code: cs }
@@ -1840,7 +1880,7 @@
     protein: 1.52
     carbs: 6.64
     fat: 0.17
-    density: 1.2
+    density: 1.05
     source: usda:174524
 
 - name: tahini
@@ -1948,7 +1988,7 @@
     protein: 0.24
     carbs: 0.93
     fat: 0.07
-    density: 0.921
+    density: 1.0
     piece_weight_g: 10  # bouillon cube 10 g (makes 0.5 l)
     unit_weights: {balení: 10}
     usda_query: soup, vegetable broth, ready to serve
@@ -2134,7 +2174,7 @@
     protein: 0.4
     carbs: 1.31
     fat: 0.96
-    density: 1.092
+    density: 1.03
     source: usda:174832
 
 - name: almond butter
@@ -2379,7 +2419,7 @@
     carbs: 75.0
     fat: 0.15
     density: 0.62  # chopped, ~147 g per cup
-    piece_weight_g: 8
+    piece_weight_g: 20  # medjool date ~20 g
     source: usda:168191
   default_unit: g
   aliases:
@@ -2573,7 +2613,7 @@
     protein: 0.0
     carbs: 0.0
     fat: 100.0
-    density: 0.9
+    density: 0.915
     source: usda:173573
 
 - name: coconut oil
@@ -2588,7 +2628,7 @@
     protein: 0.0
     carbs: 0.0
     fat: 99.1
-    density: 0.9
+    density: 0.915
     source: usda:171412
 
 # --- Flours (distinct from plain wheat flour) ---
@@ -4058,13 +4098,12 @@
     - { alias: "hrubozrnná hořčice", language_code: cs }
     - { alias: "plnotučná hořčice", language_code: cs }
   nutrition:
-    kcal: 60.0
-    protein: 3.74
-    carbs: 5.83
-    fat: 3.34
+    kcal: 117
+    protein: 6.4
+    carbs: 7.1
+    fat: 6.6
     density: 1.0
-    usda_query: mustard, prepared, yellow
-    source: usda:172234
+    source: manual:CZ label, plnotučná hořčice (Kand/Bzenecká, typical)
 
 - name: balsamic vinegar
   name_cs: balzamikový ocet
@@ -4255,7 +4294,7 @@
     protein: 14.6
     carbs: 70.2
     fat: 2.43
-    density: 0.725
+    density: 0.53  # flour, not whole grain
     source: usda:169745
 
 - name: tapioca starch
@@ -4801,7 +4840,7 @@
     protein: 0.0
     carbs: 0.0
     fat: 100.0
-    density: 0.9
+    density: 0.915
     usda_query: oil, canola
     source: usda:172336
 
@@ -4892,14 +4931,15 @@
     - { alias: "instantní nudle", language_code: cs }
     - { alias: "čínské instantní nudle", language_code: cs }
   nutrition:
-    kcal: 471.0
-    protein: 10.9
-    carbs: 63.6
-    fat: 21.2
+    kcal: 384.0
+    protein: 14.2
+    carbs: 71.3
+    fat: 4.44
     density: 0.233
     piece_weight_g: 60
     unit_weights: {balení: 60}
-    source: usda:168905
+    usda_query: noodles, egg, dry, unenriched
+    source: usda:169755
 
 - name: lasagne sheets
   name_cs: pláty na lasagne
@@ -5108,12 +5148,12 @@
     - { alias: "vepřové kolínko", language_code: cs }
     - { alias: "bravčové koleno", language_code: sk }
   nutrition:
-    kcal: 190
-    protein: 19
+    kcal: 133
+    protein: 13.3
     carbs: 0
-    fat: 12.5
-    piece_weight_g: 1200  # knuckle ~1.2 kg
-    source: manual:Souci-Fachmann-Kraut, Schweinshaxe raw (edible portion)
+    fat: 8.8
+    piece_weight_g: 1200  # knuckle ~1.2 kg as bought, bone included; values are per 100 g as bought
+    source: manual:Souci-Fachmann-Kraut Schweinshaxe, scaled to as-bought incl. ~30 % bone
 
 - name: tripe
   name_cs: hovězí dršťky

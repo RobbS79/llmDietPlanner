@@ -331,3 +331,5 @@ SETTLED,7,mint,máta,vegetables,findable,owner,OWNER: fresh mint bigger stores/R
 ,0,sardines-canned,sardinky,canned,common,high,batch-09: canned fish shelf everywhere,,
 ,0,bamboo-shoots,bambusové výhonky,canned,findable,high,batch-09: Asian shelf in bigger stores,,
 ,0,olomouc-cheese,olomoucké tvarůžky,dairy,common,high,batch-09: dairy aisle everywhere,,
+,0,egg-yolk,žloutek,eggs,common,high,split from eggs (separate yolk),,
+,0,egg-white,bílek,eggs,common,high,split from eggs (separate white),,
