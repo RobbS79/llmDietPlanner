@@ -4691,6 +4691,7 @@
     carbs: 38
     fat: 5
     density: 0.6
+    unit_weights: {balení: 30}  # one sachet
     source: manual:salt-based CZ seasoning blend, typical label (Kotanyi/Avokado)
 
 - name: ricotta
@@ -6029,6 +6030,7 @@
     carbs: 64.1
     fat: 15.2
     density: 0.25
+    piece_weight_g: 2  # 1 ks = sprig
     unit_weights: {snítka: 2}
     usda_query: spices, rosemary, dried
     source: usda:171333
@@ -6191,6 +6193,7 @@
     carbs: 63.9
     fat: 7.43
     density: 0.3
+    piece_weight_g: 1  # 1 ks = sprig (prod corpus uses "3 ks tymiánu")
     unit_weights: {snítka: 1}
     usda_query: spices, thyme, dried
     source: usda:170938
