@@ -8,7 +8,7 @@ an SR Legacy food, extracts kcal/protein/carbs/fat per 100 g, density from a
 tbsp/tsp/cup portion and piece/unit weights from medium/each/clove/slice
 portions, and writes a `nutrition:` block into data/canonical_ingredients.yaml
 for rows with confidence >= MIN_CONFIDENCE. Rows already tagged `manual:` /
-`frida:` are never overwritten; hand-set piece_weight_g / unit_weights win over
+`frida:` are never overwritten; hand-set density / piece_weight_g / unit_weights win over
 USDA portions; unmatched rows are left untouched (the --report CSV is the
 worklist). Idempotent.
 
@@ -491,8 +491,8 @@ class Command(BaseCommand):
             block: Dict[str, Any] = dict(existing)        # keeps unknown keys
             block.update({k: nutr[k] for k in ('kcal', 'protein', 'carbs', 'fat')})
             density = derive_density(match)
-            if density is not None:
-                block['density'] = density
+            if existing.get('density') is None and density is not None:
+                block['density'] = density                # an existing (hand-set) density wins
             pw = derive_piece_weights(match)
             piece = hand.get('piece_weight_g', pw['piece_weight_g'])
             if piece is not None:
@@ -507,6 +507,8 @@ class Command(BaseCommand):
 
             counts['matched'] += 1
             notes = []
+            if existing.get('density') is not None and density not in (None, existing['density']):
+                notes.append(f'usda density {density} ignored')
             if 'piece_weight_g' in hand and pw['piece_weight_g'] not in (None, hand['piece_weight_g']):
                 notes.append(f"usda piece {pw['piece_weight_g']} g ignored")
             row.update(status='matched', density=_num(block.get('density')),

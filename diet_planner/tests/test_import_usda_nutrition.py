@@ -189,6 +189,20 @@ class CommandTest(SimpleTestCase):
         self.assertEqual(b['nutrition']['usda_query'], 'wheat flour all-purpose')
         self.assertEqual(list(a['nutrition'])[-1], 'source')
 
+    def test_existing_density_wins_and_is_noted(self):
+        y = self._yaml("- name: olive oil\n  category: oils\n  nutrition:\n    density: 0.92  # hand-corrected\n")
+        rep = y.with_suffix('.csv')
+        call_command('import_usda_nutrition', sr_legacy=str(FIX), yaml=str(y), report=str(rep),
+                     write_yaml=True, stdout=StringIO())
+        text = y.read_text(encoding='utf-8')
+        self.assertIn('density: 0.92  # hand-corrected', text)
+        n = yaml.safe_load(text)[0]['nutrition']
+        self.assertEqual(n['density'], 0.92)
+        self.assertEqual(n['source'], 'usda:171413')
+        row = next(csv.DictReader(rep.open(encoding='utf-8')))
+        self.assertEqual(row['density'], '0.92')
+        self.assertIn('usda density 0.9 ignored', row['notes'])
+
     def test_refuses_to_append_duplicate_nutrition_key(self):
         text = "- name: garlic\n  category: vegetables\n# a column-0 comment inside the entry\n  nutrition:\n    piece_weight_g: 5\n"
         y = self._yaml(text)
