@@ -930,9 +930,7 @@
   category: dairy
   default_unit: ml
   aliases:
-    - { alias: "smetana ke šlehání", language_code: cs }
     - { alias: "smetana na vaření", language_code: cs }
-    - { alias: "šlehačka", language_code: cs }
     - { alias: "sladká smetana", language_code: cs }
   # Generic "smetana" = 12 % cooking cream (smetana na vaření), far more common in CZ recipes than
   # 31-33 % whipping cream; USDA half-and-half (11.5 % fat) is the closest SR row. The USDA
@@ -945,6 +943,29 @@
     density: 1
     usda_query: cream, fluid, half and half
     source: usda:171255
+
+- name: whipping cream
+  slug: whipping-cream
+  name_cs: smetana ke šlehání
+  category: dairy
+  default_unit: ml
+  aliases:
+    - { alias: "smetana ke šlehání", language_code: cs }
+    - { alias: "šlehačka", language_code: cs }
+    - { alias: "šlehačková smetana", language_code: cs }
+    - { alias: "smetana 33%", language_code: cs }
+    - { alias: "smetana 31%", language_code: cs }
+    - { alias: "smetana 30%", language_code: cs }
+    - { alias: "smetana ke šlehání 33%", language_code: cs }
+    - { alias: "smetana ke šlehání 31%", language_code: cs }
+  nutrition:
+    kcal: 340.0
+    protein: 2.84
+    carbs: 2.84
+    fat: 36.1
+    density: 1.0
+    usda_query: cream, fluid, heavy whipping
+    source: usda:170859
 
 - name: sour cream
   name_cs: zakysaná smetana

@@ -1297,6 +1297,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: whipping-cream
+  availability: common
+  confidence: high
+  note: split from cream (31-33 % whipping)
 - slug: white-pepper
   availability: common
   confidence: high
