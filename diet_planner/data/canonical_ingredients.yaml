@@ -35,12 +35,25 @@
     - { alias: "hrubozrnná sůl", language_code: cs }
     - { alias: "jemnozrnná sůl", language_code: cs }
     - { alias: "sůl a pepř", language_code: cs }  # batch-03: bare "salt & pepper" line — buyable as salt; pepper alongside resolved elsewhere
+  nutrition:
+    kcal: 0.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 0.0
+    density: 1.2
+    source: usda:173468
 
 - name: black pepper
   name_cs: pepř černý mletý
   category: spices
   nutrition:
+    kcal: 251.0
+    protein: 10.4
+    carbs: 64.0
+    fat: 3.26
+    density: 0.47  # ground, USDA 1 tbsp = 7 g
     piece_weight_g: 0.05  # one peppercorn
+    source: usda:170931
   default_unit: g
   is_pantry_staple: true
   aliases:
@@ -61,6 +74,14 @@
     - { alias: "cukr krystal", language_code: cs }
     - { alias: "krystalový cukr", language_code: cs }
     - { alias: "sladidlo dle chuti", language_code: cs }
+  nutrition:
+    kcal: 387.0
+    protein: 0.0
+    carbs: 100.0
+    fat: 0.0
+    density: 0.84
+    usda_query: sugars, granulated
+    source: usda:169655
 
 - name: plain flour
   name_cs: mouka hladká
@@ -72,6 +93,13 @@
   aliases:
     - { alias: "hrubá mouka", language_code: cs }
     - { alias: "polohrubá mouka", language_code: cs }
+  nutrition:
+    kcal: 364.0
+    protein: 10.3
+    carbs: 76.3
+    fat: 0.98
+    density: 0.521
+    source: usda:169761
 
 - name: olive oil
   name_cs: olivový olej
@@ -80,6 +108,13 @@
   is_pantry_staple: true
   estimated_price_czk: 80.0
   estimated_price_eur: 3.50
+  nutrition:
+    kcal: 884.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 100.0
+    density: 0.9
+    source: usda:171413
 
 - name: sunflower oil
   name_cs: slunečnicový olej
@@ -93,6 +128,13 @@
     - { alias: "rostlinný olej", language_code: cs }
     - { alias: "neutrální olej", language_code: cs }
     - { alias: "řepkový olej", language_code: cs }
+  nutrition:
+    kcal: 884.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 100.0
+    density: 0.907
+    source: usda:171025
 
 - name: butter
   name_cs: máslo
@@ -103,12 +145,27 @@
   aliases:
     - { alias: "máslo nesolené", language_code: cs }
     - { alias: "nesolené máslo", language_code: cs }
+  nutrition:
+    kcal: 717.0
+    protein: 0.85
+    carbs: 0.06
+    fat: 81.1
+    density: 0.947
+    unit_weights: {plátek: 10}
+    usda_query: butter, without salt
+    source: usda:173430
 
 - name: chicken breast
   name_cs: kuřecí prsa
   category: meat
   nutrition:
+    kcal: 120.0
+    protein: 22.5
+    carbs: 0.0
+    fat: 2.62
+    density: 0.58  # diced, USDA 1 cup chopped chicken ~140 g
     piece_weight_g: 170
+    source: usda:171077
   default_unit: g
   typical_package_sizes: [500, 1000]
   aliases:
@@ -127,7 +184,13 @@
   name_cs: kuřecí stehna
   category: meat
   nutrition:
+    kcal: 221.0
+    protein: 16.5
+    carbs: 0.25
+    fat: 16.6
+    density: 0.58  # diced, USDA 1 cup chopped chicken ~140 g
     piece_weight_g: 130
+    source: usda:172385
   default_unit: g
   aliases:
     - { alias: "kuřecí stehna bez kosti a kůže", language_code: cs }
@@ -141,17 +204,41 @@
   name_cs: hovězí mleté
   category: meat
   default_unit: g
+  nutrition:
+    kcal: 215.0
+    protein: 18.6
+    carbs: 0.0
+    fat: 15.0
+    density: 0.9  # packed raw mince
+    usda_query: beef, ground, 85% lean meat / 15% fat, raw (includes foods for usda's food distribution program)
+    source: usda:171796
 
 - name: pork loin
   name_cs: vepřová pečeně
   category: meat
   default_unit: g
+  nutrition:
+    kcal: 198.0
+    protein: 19.7
+    carbs: 0.0
+    fat: 12.6
+    density: 0.58  # diced meat
+    unit_weights: {plátek: 120}
+    usda_query: pork, fresh, loin, whole, separable lean and fat, raw
+    source: usda:167818
 
 - name: salmon fillet
   name_cs: losos filé
   category: fish
   nutrition:
+    kcal: 208.0
+    protein: 20.4
+    carbs: 0.0
+    fat: 13.4
+    density: 0.58  # diced fish
     piece_weight_g: 150
+    usda_query: fish, salmon, atlantic, farmed, raw
+    source: usda:175167
   default_unit: g
   typical_package_sizes: [200, 400]
   aliases:
@@ -171,12 +258,27 @@
     - { alias: "tuňák ve vlastní šťávě", language_code: cs }  # batch-07
     - { alias: "tuňák v oleji", language_code: cs }
     - { alias: "tuňák v rostlinném oleji", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 128.0
+    protein: 23.6
+    carbs: 0.0
+    fat: 2.97
+    density: 0.7
+    piece_weight_g: 130  # 1 can drained ~130 g (160 g can)
+    unit_weights: {balení: 130}
+    source: usda:175158
 
 - name: eggs
   name_cs: vejce
   category: eggs
   nutrition:
+    kcal: 143.0
+    protein: 12.6
+    carbs: 0.72
+    fat: 9.51
+    density: 1.012
     piece_weight_g: 55
+    source: usda:171287
   default_unit: ks
   typical_package_sizes: [10, 15]
   aliases:
@@ -196,12 +298,26 @@
   aliases:
     - { alias: "mléko", language_code: cs }
     - { alias: "teplé mléko", language_code: cs }
+  nutrition:
+    kcal: 61.0
+    protein: 3.15
+    carbs: 4.8
+    fat: 3.25
+    density: 1.0
+    source: usda:171265
 
 - name: semi-skimmed milk
   name_cs: mléko polotučné
   category: dairy
   default_unit: ml
   typical_package_sizes: [1000]
+  nutrition:
+    kcal: 46
+    protein: 3.4
+    carbs: 4.8
+    fat: 1.5
+    density: 1.03
+    source: manual:CZ label, polotucne mleko 1.5 % (Madeta/Tatra)
 
 - name: white yogurt
   name_cs: jogurt bílý
@@ -211,6 +327,15 @@
   aliases:
     - { alias: "jogurt", language_code: cs }
     - { alias: "bílý jogurt", language_code: cs }
+  nutrition:
+    kcal: 61.0
+    protein: 3.47
+    carbs: 4.66
+    fat: 3.25
+    density: 1.021
+    piece_weight_g: 150  # cup 150 g
+    unit_weights: {balení: 150}
+    source: usda:171284
 
 - name: cottage cheese
   name_cs: tvaroh
@@ -229,6 +354,15 @@
     - { alias: "netučný tvaroh", language_code: cs }  # batch-09
     - { alias: "nízkotučný tvaroh", language_code: cs }  # batch-09
     - { alias: "tučný tvaroh", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 102
+    protein: 12
+    carbs: 3.5
+    fat: 4.5
+    density: 0.95  # soft quark
+    piece_weight_g: 250  # tub 250 g
+    unit_weights: {balení: 250}
+    source: manual:CZ label, měkký tvaroh polotučný (Madeta/Pilos)
 
 - name: rice basmati
   name_cs: rýže basmati
@@ -240,23 +374,53 @@
     - { alias: "rýže se středně dlouhými zrny", language_code: cs }
     - { alias: "rýže dlouhozrnná", language_code: cs }
     - { alias: "rýže kulatozrnná", language_code: cs }
+  nutrition:
+    kcal: 365.0
+    protein: 7.13
+    carbs: 80.0
+    fat: 0.66
+    density: 0.771
+    usda_query: rice, white, long-grain, regular, raw, unenriched
+    source: usda:169756
 
 - name: rice jasmine
   name_cs: rýže jasmínová
   category: grains
   default_unit: g
+  nutrition:
+    kcal: 365.0
+    protein: 7.13
+    carbs: 80.0
+    fat: 0.66
+    density: 0.771
+    usda_query: rice, white, long-grain, regular, raw, unenriched
+    source: usda:169756
 
 - name: pasta spaghetti
   name_cs: špagety
   category: grains
   default_unit: g
   typical_package_sizes: [500]
+  nutrition:
+    kcal: 371.0
+    protein: 13.0
+    carbs: 74.7
+    fat: 1.51
+    density: 0.4  # dry short pasta ~100 g per cup
+    source: usda:168927
 
 - name: pasta penne
   name_cs: penne
   category: grains
   default_unit: g
   typical_package_sizes: [500]
+  nutrition:
+    kcal: 371.0
+    protein: 13.0
+    carbs: 74.7
+    fat: 1.51
+    density: 0.4
+    source: usda:168927
 
 - name: oats
   name_cs: ovesné vločky
@@ -269,6 +433,14 @@
     - { alias: "ovesné vločky jemné", language_code: cs }
     - { alias: "ovesná zrna", language_code: cs }
     - { alias: "celozrnné ovesné vločky", language_code: cs }
+  nutrition:
+    kcal: 379.0
+    protein: 13.2
+    carbs: 67.7
+    fat: 6.52
+    density: 0.338
+    usda_query: cereals, oats, regular and quick, not fortified, dry
+    source: usda:173904
 
 - name: bread loaf
   name_cs: chléb
@@ -290,12 +462,30 @@
     - { alias: "briošky", language_code: cs }
     - { alias: "starší chléb", language_code: cs }
     - { alias: "starší pečivo", language_code: cs }
+  nutrition:
+    kcal: 274.0
+    protein: 10.7
+    carbs: 47.5
+    fat: 4.53
+    density: 0.25  # cubed bread
+    piece_weight_g: 30  # slice ~30 g (toast 25-30 g)
+    unit_weights: {plátek: 30}
+    usda_query: bread, wheat
+    source: usda:172686
 
 - name: tomatoes
   name_cs: rajčata
   category: vegetables
   nutrition:
+    kcal: 18.0
+    protein: 0.88
+    carbs: 3.89
+    fat: 0.2
+    density: 0.621
     piece_weight_g: 120
+    unit_weights: {plátek: 20}
+    usda_query: tomatoes, red, ripe, raw, year round average
+    source: usda:170457
   default_unit: g
   aliases:
     - { alias: "rajče", language_code: cs }
@@ -311,7 +501,15 @@
   name_cs: okurka
   category: vegetables
   nutrition:
+    kcal: 15.0
+    protein: 0.65
+    carbs: 3.63
+    fat: 0.11
+    density: 0.433
     piece_weight_g: 300
+    unit_weights: {plátek: 5}
+    usda_query: cucumber, with peel, raw
+    source: usda:168409
   default_unit: ks
   aliases:
     - { alias: "okurka perská", language_code: cs }
@@ -323,7 +521,13 @@
   name_cs: paprika
   category: vegetables
   nutrition:
+    kcal: 26.0
+    protein: 0.99
+    carbs: 6.03
+    fat: 0.3
+    density: 0.62  # chopped, USDA 1 cup = 149 g
     piece_weight_g: 150
+    source: usda:170108
   default_unit: ks
   aliases:
     - { alias: "červená paprika", language_code: cs }
@@ -346,24 +550,55 @@
   aliases:
     - { alias: "baby špenát", language_code: cs }
     - { alias: "listový špenát", language_code: cs }
+  nutrition:
+    kcal: 23.0
+    protein: 2.86
+    carbs: 3.63
+    fat: 0.39
+    density: 0.125  # raw leaves, USDA 1 cup = 30 g
+    unit_weights: {balení: 200, hrst: 30, lístek: 10.0, svazek: 340.0}
+    source: usda:168462
 
 - name: broccoli
   name_cs: brokolice
   category: vegetables
   default_unit: g
+  nutrition:
+    kcal: 34.0
+    protein: 2.82
+    carbs: 6.64
+    fat: 0.37
+    density: 0.38  # chopped, USDA 1 cup = 91 g
+    piece_weight_g: 350  # head ~350 g
+    unit_weights: {svazek: 608.0}
+    source: usda:170379
 
 - name: carrots
   name_cs: mrkev
   category: vegetables
   nutrition:
+    kcal: 41.0
+    protein: 0.93
+    carbs: 9.58
+    fat: 0.24
+    density: 0.508
     piece_weight_g: 80
+    unit_weights: {plátek: 3.0}
+    source: usda:170393
   default_unit: g
 
 - name: potatoes
   name_cs: brambory
   category: vegetables
   nutrition:
+    kcal: 77.0
+    protein: 2.05
+    carbs: 17.5
+    fat: 0.09
+    density: 0.65
     piece_weight_g: 150
+    usda_query: potatoes, flesh and skin, raw
+    source: usda:170026
   default_unit: g
   aliases:
     - { alias: "brambor", language_code: cs }
@@ -378,7 +613,14 @@
   name_cs: cibule
   category: vegetables
   nutrition:
+    kcal: 40.0
+    protein: 1.1
+    carbs: 9.34
+    fat: 0.1
+    density: 0.67  # chopped, USDA 1 cup = 160 g
     piece_weight_g: 110
+    unit_weights: {plátek: 14.0}
+    source: usda:170000
   default_unit: ks
   is_pantry_staple: true
   estimated_price_czk: 5.0
@@ -395,8 +637,14 @@
   name_cs: česnek
   category: vegetables
   nutrition:
+    kcal: 149.0
+    protein: 6.36
+    carbs: 33.1
+    fat: 0.5
+    density: 0.56
     piece_weight_g: 5  # one clove (stroužek); a recipe "ks" usually counts cloves, a whole head is ~50 g - revisit if the corpus counts heads
     unit_weights: {stroužek: 5}
+    source: usda:169230
   default_unit: ks
   is_pantry_staple: true
   estimated_price_czk: 10.0
@@ -410,7 +658,13 @@
   name_cs: banány
   category: fruits
   nutrition:
+    kcal: 89.0
+    protein: 1.09
+    carbs: 22.8
+    fat: 0.33
+    density: 0.63  # sliced, USDA 1 cup = 150 g
     piece_weight_g: 120
+    source: usda:173944
   default_unit: g
   aliases:
     - { alias: "banán", language_code: cs }
@@ -421,7 +675,14 @@
   name_cs: jablka
   category: fruits
   nutrition:
+    kcal: 52.0
+    protein: 0.26
+    carbs: 13.8
+    fat: 0.17
+    density: 0.454
     piece_weight_g: 180
+    usda_query: apples, raw, with skin (includes foods for usda's food distribution program)
+    source: usda:171688
   default_unit: g
   aliases:
     - { alias: "jablko", language_code: cs }
@@ -430,7 +691,14 @@
   name_cs: citrony
   category: fruits
   nutrition:
+    kcal: 29.0
+    protein: 1.1
+    carbs: 9.32
+    fat: 0.3
+    density: 0.883
     piece_weight_g: 100
+    unit_weights: {plátek: 7.0}
+    source: usda:167746
   default_unit: ks
   aliases:
     - { alias: "citron", language_code: cs }
@@ -445,7 +713,13 @@
   name_cs: avokádo
   category: fruits
   nutrition:
+    kcal: 167.0
+    protein: 1.96
+    carbs: 8.64
+    fat: 15.4
+    density: 0.63  # cubed, ~150 g per cup
     piece_weight_g: 170
+    source: usda:171706
   default_unit: ks
 
 - name: chickpeas canned
@@ -453,18 +727,45 @@
   category: canned
   default_unit: g
   typical_package_sizes: [400]
+  nutrition:
+    kcal: 139.0
+    protein: 7.05
+    carbs: 22.5
+    fat: 2.77
+    density: 0.66
+    piece_weight_g: 240  # 400 g can drained ~240 g
+    unit_weights: {balení: 240}
+    source: usda:173800
 
 - name: red beans canned
   name_cs: fazole červené v konzervě
   category: canned
   default_unit: g
   typical_package_sizes: [400]
+  nutrition:
+    kcal: 124.0
+    protein: 7.98
+    carbs: 21.5
+    fat: 1.05
+    density: 0.7
+    piece_weight_g: 240  # 400 g can drained ~240 g
+    unit_weights: {balení: 240}
+    usda_query: beans, kidney, red, mature seeds, canned, drained solids
+    source: usda:174285
 
 - name: peanut butter
   name_cs: arašídové máslo
   category: condiments
   default_unit: g
   typical_package_sizes: [340, 500]
+  nutrition:
+    kcal: 598.0
+    protein: 22.2
+    carbs: 22.3
+    fat: 51.4
+    density: 1.067
+    usda_query: peanut butter, smooth style, without salt
+    source: usda:172470
 
 - name: honey
   name_cs: med
@@ -473,6 +774,13 @@
   is_pantry_staple: true
   estimated_price_czk: 60.0
   estimated_price_eur: 2.50
+  nutrition:
+    kcal: 304.0
+    protein: 0.3
+    carbs: 82.4
+    fat: 0.0
+    density: 1.4
+    source: usda:169640
 
 # ---------------------------------------------------------------------------
 # Recipe-grounding expansion (B0 pilot, 2026-06-12).
@@ -495,6 +803,15 @@
     - { alias: "mozzarella kuličky", language_code: cs }
     - { alias: "mini mozzarella", language_code: cs }
     - { alias: "burrata", language_code: cs }
+  nutrition:
+    kcal: 299.0
+    protein: 22.2
+    carbs: 2.4
+    fat: 22.1
+    density: 0.45  # grated/torn
+    piece_weight_g: 125  # ball 125 g
+    unit_weights: {balení: 125, plátek: 28.3}
+    source: usda:170845
 
 - name: parmesan
   name_cs: parmazán
@@ -508,6 +825,13 @@
     - { alias: "tvrdý sýr", language_code: cs }
     - { alias: "strouhaný sýr", language_code: cs }
     - { alias: "parmazán sýr", language_code: cs }
+  nutrition:
+    kcal: 392.0
+    protein: 35.8
+    carbs: 3.22
+    fat: 25.0
+    density: 0.4  # grated
+    source: usda:170848
 
 - name: cheese
   name_cs: sýr
@@ -539,6 +863,15 @@
     - { alias: "sýr gruyère", language_code: cs }
     - { alias: "tvrdý sýr vcelku", language_code: cs }  # batch-09
     - { alias: "tvrdý sýr v celku", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 357.0
+    protein: 25.0
+    carbs: 1.43
+    fat: 28.6
+    density: 0.4  # grated
+    unit_weights: {plátek: 20}
+    usda_query: cheese, edam
+    source: usda:173419
 
 - name: feta cheese
   name_cs: sýr feta
@@ -548,6 +881,15 @@
     - { alias: "feta", language_code: cs }
     - { alias: "balkánský sýr", language_code: cs }
     - { alias: "brynza", language_code: cs }
+  nutrition:
+    kcal: 265.0
+    protein: 14.2
+    carbs: 3.88
+    fat: 21.5
+    density: 0.6
+    piece_weight_g: 200  # block 200 g
+    unit_weights: {balení: 200}
+    source: usda:173420
 
 - name: cream
   name_cs: smetana
@@ -558,6 +900,13 @@
     - { alias: "smetana na vaření", language_code: cs }
     - { alias: "šlehačka", language_code: cs }
     - { alias: "sladká smetana", language_code: cs }
+  nutrition:
+    kcal: 292.0
+    protein: 2.17
+    carbs: 2.96
+    fat: 30.9
+    density: 1
+    source: usda:170858
 
 - name: sour cream
   name_cs: zakysaná smetana
@@ -567,6 +916,15 @@
     - { alias: "kysaná smetana", language_code: cs }
     - { alias: "veganská zakysaná smetana", language_code: cs }
     - { alias: "crème fraîche", language_code: cs }
+  nutrition:
+    kcal: 198.0
+    protein: 2.44
+    carbs: 4.63
+    fat: 19.4
+    density: 0.8
+    piece_weight_g: 200  # cup 200 g
+    unit_weights: {balení: 200}
+    source: usda:171257
 
 # --- Meat ---
 - name: beef
@@ -591,6 +949,14 @@
     - { alias: "newyorský steak", language_code: cs }
     - { alias: "hovězí falešná svíčková", language_code: cs }  # batch-09
     - { alias: "falešná svíčková", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 239.0
+    protein: 19.3
+    carbs: 0.0
+    fat: 17.4
+    density: 0.6  # diced meat
+    usda_query: beef, chuck, arm pot roast, separable lean and fat, trimmed to 1/8" fat, select, raw
+    source: usda:168670
 
 - name: pork
   name_cs: vepřové maso
@@ -613,6 +979,15 @@
     - { alias: "vepřové kotlety", language_code: cs }
     - { alias: "vepřová kotleta", language_code: cs }
     - { alias: "vepřová krkovice s kostí v celku", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 236.0
+    protein: 17.2
+    carbs: 0.0
+    fat: 18.0
+    density: 0.6  # diced meat
+    unit_weights: {plátek: 120}
+    usda_query: pork, fresh, shoulder, whole, separable lean and fat, raw
+    source: usda:167843
 
 - name: bacon
   name_cs: slanina
@@ -623,6 +998,15 @@
     - { alias: "uzená slanina", language_code: cs }
     - { alias: "špek", language_code: cs }
     - { alias: "uzený špek", language_code: cs }
+  nutrition:
+    kcal: 393.0
+    protein: 13.7
+    carbs: 0.0
+    fat: 37.1
+    density: 0.6  # diced
+    unit_weights: {plátek: 15}
+    usda_query: pork, cured, bacon, unprepared
+    source: usda:168277
 
 - name: ham
   name_cs: šunka
@@ -636,6 +1020,14 @@
     - { alias: "plátky šunky", language_code: cs }
     - { alias: "šunka vcelku", language_code: cs }  # batch-09
     - { alias: "šunka v celku", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 164.0
+    protein: 16.6
+    carbs: 3.63
+    fat: 8.8
+    density: 0.6
+    unit_weights: {plátek: 20}
+    source: usda:173864
 
 - name: lard
   name_cs: sádlo
@@ -646,13 +1038,27 @@
   estimated_price_eur: 1.60
   aliases:
     - { alias: "vepřové sádlo", language_code: cs }
+  nutrition:
+    kcal: 902.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 100.0
+    density: 0.853
+    source: usda:171401
 
 # --- Vegetables ---
 - name: spring onion
   name_cs: jarní cibulka
   category: vegetables
   nutrition:
+    kcal: 32.0
+    protein: 1.83
+    carbs: 7.34
+    fat: 0.19
+    density: 0.4
     piece_weight_g: 15
+    unit_weights: {svazek: 100}  # bunch ~100 g
+    source: usda:170005
   default_unit: ks
   aliases:
     - { alias: "jarní cibule", language_code: cs }
@@ -663,14 +1069,28 @@
   name_cs: cuketa
   category: vegetables
   nutrition:
+    kcal: 17.0
+    protein: 1.21
+    carbs: 3.11
+    fat: 0.32
+    density: 0.52  # chopped, USDA 1 cup = 124 g
     piece_weight_g: 250
+    unit_weights: {plátek: 9.9}
+    usda_query: squash, summer, zucchini, includes skin, raw
+    source: usda:169291
   default_unit: ks
 
 - name: eggplant
   name_cs: lilek
   category: vegetables
   nutrition:
+    kcal: 25.0
+    protein: 0.98
+    carbs: 5.88
+    fat: 0.18
+    density: 0.34  # cubed, USDA 1 cup = 82 g
     piece_weight_g: 250
+    source: usda:169228
   default_unit: ks
   aliases:
     - { alias: "baklažán", language_code: cs }
@@ -679,7 +1099,15 @@
   name_cs: žampiony
   category: vegetables
   nutrition:
+    kcal: 22.0
+    protein: 3.09
+    carbs: 3.26
+    fat: 0.34
+    density: 0.29  # sliced, USDA 1 cup = 70 g
     piece_weight_g: 20
+    unit_weights: {plátek: 6}
+    usda_query: mushrooms, white, raw
+    source: usda:169251
   default_unit: g
   aliases:
     - { alias: "houby", language_code: cs }
@@ -700,7 +1128,14 @@
   name_cs: celer
   category: vegetables
   nutrition:
+    kcal: 42.0
+    protein: 1.5
+    carbs: 9.2
+    fat: 0.3
+    density: 0.65
     piece_weight_g: 300  # a whole root; rows saying "1/4 celeru" store 0.25
+    usda_query: celeriac, raw
+    source: usda:170400
   default_unit: g
   aliases:
     - { alias: "bulvový celer", language_code: cs }
@@ -712,7 +1147,14 @@
   name_cs: petrželka
   category: vegetables
   nutrition:
+    kcal: 36.0
+    protein: 2.97
+    carbs: 6.33
+    fat: 0.79
+    density: 0.253
     piece_weight_g: 30  # a bunch/sprigs, not the root
+    unit_weights: {hrst: 10, snítka: 1.0, svazek: 30}
+    source: usda:170416
   default_unit: svazek
   aliases:
     - { alias: "petržel", language_code: cs }
@@ -740,11 +1182,30 @@
     - { alias: "listy salátu", language_code: cs }  # batch-09
     - { alias: "salátové listy", language_code: cs }  # batch-09
     - { alias: "list salátu", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 13.0
+    protein: 1.35
+    carbs: 2.23
+    fat: 0.22
+    density: 0.12
+    piece_weight_g: 250  # head ~250 g
+    unit_weights: {hrst: 20, lístek: 15}
+    usda_query: lettuce, butterhead (includes boston and bibb types), raw
+    source: usda:168429
 
 - name: arugula
   name_cs: rukola
   category: vegetables
   default_unit: g
+  nutrition:
+    kcal: 25.0
+    protein: 2.58
+    carbs: 3.65
+    fat: 0.66
+    density: 0.083  # raw leaves, USDA 1 cup = 20 g
+    piece_weight_g: 100  # bag 100 g, handful 20 g
+    unit_weights: {balení: 100, hrst: 20, lístek: 2.0}
+    source: usda:169387
 
 - name: cabbage
   name_cs: zelí
@@ -756,6 +1217,15 @@
     - { alias: "červené zelí", language_code: cs }
     - { alias: "hlávkové bílé zelí", language_code: cs }  # batch-09
     - { alias: "bílé hlávkové zelí", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 25.0
+    protein: 1.28
+    carbs: 5.8
+    fat: 0.1
+    density: 0.37  # chopped, USDA 1 cup = 89 g
+    piece_weight_g: 1000  # head ~1 kg
+    unit_weights: {lístek: 25}
+    source: usda:169975
 
 - name: kale
   # name_cs is deliberately "kadeřávek", NOT "kapusta": bare "kapusta" is savoy
@@ -771,6 +1241,15 @@
     - { alias: "kadeřávkové listy", language_code: cs }
     - { alias: "listy kadeřávku", language_code: cs }
     - { alias: "listy kadeřávek", language_code: cs }
+  nutrition:
+    kcal: 35.0
+    protein: 2.92
+    carbs: 4.42
+    fat: 1.49
+    density: 0.088  # raw leaves, USDA 1 cup = 21 g
+    piece_weight_g: 15  # leaf ~15 g
+    unit_weights: {hrst: 30, lístek: 15}
+    source: usda:168421
 
 - name: peas
   name_cs: hrášek
@@ -780,17 +1259,40 @@
     - { alias: "zelený hrášek", language_code: cs }
     - { alias: "mražený hrášek", language_code: cs }
     - { alias: "sterilovaný hrášek", language_code: cs }
+  nutrition:
+    kcal: 81.0
+    protein: 5.42
+    carbs: 14.4
+    fat: 0.4
+    density: 0.604
+    source: usda:170419
 
 - name: snap peas
   name_cs: cukrový hrášek
   category: vegetables
   default_unit: g
+  nutrition:
+    kcal: 42.0
+    protein: 2.8
+    carbs: 7.55
+    fat: 0.2
+    density: 0.26
+    piece_weight_g: 4
+    unit_weights: {hrst: 40}
+    usda_query: peas, edible-podded, raw
+    source: usda:170010
 
 - name: chili pepper
   name_cs: chilli paprička
   category: vegetables
   nutrition:
+    kcal: 40.0
+    protein: 1.87
+    carbs: 8.81
+    fat: 0.44
+    density: 0.63  # chopped, USDA 1 cup = 150 g
     piece_weight_g: 15
+    source: usda:170106
   default_unit: ks
   aliases:
     - { alias: "chilli papričky", language_code: cs }
@@ -825,6 +1327,15 @@
   default_unit: g
   aliases:
     - { alias: "zázvor čerstvý", language_code: cs }
+  nutrition:
+    kcal: 80.0
+    protein: 1.82
+    carbs: 17.8
+    fat: 0.75
+    density: 0.4
+    piece_weight_g: 20  # thumb-size piece ~20 g
+    unit_weights: {plátek: 2.2}
+    source: usda:169231
 
 - name: sweet potato
   name_cs: batáty
@@ -834,6 +1345,14 @@
     - { alias: "batát", language_code: cs }
     - { alias: "sladké brambory", language_code: cs }
     - { alias: "sladká brambora", language_code: cs }
+  nutrition:
+    kcal: 86.0
+    protein: 1.57
+    carbs: 20.1
+    fat: 0.05
+    density: 0.55  # cubed, USDA 1 cup = 133 g
+    piece_weight_g: 200
+    source: usda:168482
 
 # --- Canned / preserved ---
 - name: corn
@@ -845,12 +1364,29 @@
     - { alias: "kukuřice z konzervy", language_code: cs }
     - { alias: "konzervovaná kukuřice", language_code: cs }  # batch-07
     - { alias: "sterilovaná kukuřice", language_code: cs }
+  nutrition:
+    kcal: 67.0
+    protein: 2.29
+    carbs: 14.3
+    fat: 1.22
+    density: 0.683
+    piece_weight_g: 100  # 1 cob ~100 g kernels; can 340 g -> 285 g drained
+    unit_weights: {balení: 285}
+    usda_query: corn, sweet, yellow, canned, whole kernel, drained solids
+    source: usda:169214
 
 - name: pickles
   name_cs: nakládané okurky
   category: canned
   nutrition:
+    kcal: 11.0
+    protein: 0.33
+    carbs: 2.26
+    fat: 0.2
+    density: 0.646
     piece_weight_g: 40
+    unit_weights: {plátek: 7.0}
+    source: usda:169379
   default_unit: g
   aliases:
     - { alias: "kyselé okurky", language_code: cs }
@@ -866,7 +1402,13 @@
   name_cs: olivy
   category: canned
   nutrition:
+    kcal: 145.0
+    protein: 1.03
+    carbs: 3.84
+    fat: 15.3
+    density: 0.6
     piece_weight_g: 4
+    source: usda:169096
   default_unit: g
   aliases:
     - { alias: "kalamata", language_code: cs }
@@ -886,6 +1428,13 @@
   default_unit: g
   aliases:
     - { alias: "kyselé zelí", language_code: cs }
+  nutrition:
+    kcal: 19.0
+    protein: 0.91
+    carbs: 4.28
+    fat: 0.14
+    density: 0.592
+    source: usda:169279
 
 - name: coconut milk
   name_cs: kokosové mléko
@@ -893,6 +1442,15 @@
   default_unit: ml
   aliases:
     - { alias: "plnotučné kokosové mléko", language_code: cs }
+  nutrition:
+    kcal: 197
+    protein: 2.02
+    carbs: 2.81
+    fat: 21.3
+    density: 0.98
+    piece_weight_g: 400  # can 400 ml
+    unit_weights: {balení: 400}
+    source: manual:= USDA SR Legacy 170173 coconut milk canned (matcher cannot cross nut class to canned category)
 
 - name: chopped tomatoes canned
   name_cs: konzervovaná rajčata
@@ -927,13 +1485,29 @@
     - { alias: "rajčata loupaná celá v plechovce", language_code: cs }  # 2026-09-15 remap audit
     - { alias: "celá loupaná rajčata", language_code: cs }  # 2026-09-15 remap audit
     - { alias: "drcená nebo celá loupaná rajčata z konzervy", language_code: cs }  # 2026-09-15 remap audit
+  nutrition:
+    kcal: 16.0
+    protein: 0.79
+    carbs: 3.47
+    fat: 0.25
+    density: 1
+    piece_weight_g: 400  # can 400 g
+    unit_weights: {balení: 400}
+    usda_query: tomatoes, red, ripe, canned, packed in tomato juice
+    source: usda:170051
 
 # --- Fruits ---
 - name: lime
   name_cs: limetka
   category: fruits
   nutrition:
+    kcal: 30.0
+    protein: 0.7
+    carbs: 10.5
+    fat: 0.2
+    density: 1.03  # volume use = lime juice
     piece_weight_g: 67
+    source: usda:168155
   default_unit: ks
   aliases:
     - { alias: "limetková šťáva", language_code: cs }
@@ -949,11 +1523,27 @@
   name_cs: maliny
   category: fruits
   default_unit: g
+  nutrition:
+    kcal: 52.0
+    protein: 1.2
+    carbs: 11.9
+    fat: 0.65
+    density: 0.512
+    unit_weights: {hrst: 50}
+    source: usda:167755
 
 - name: blueberries
   name_cs: borůvky
   category: fruits
   default_unit: g
+  nutrition:
+    kcal: 57.0
+    protein: 0.74
+    carbs: 14.5
+    fat: 0.33
+    density: 0.617
+    unit_weights: {hrst: 50}
+    source: usda:171711
 
 - name: cranberries
   name_cs: brusinky
@@ -961,6 +1551,14 @@
   default_unit: g
   aliases:
     - { alias: "sušené brusinky", language_code: cs }
+  nutrition:
+    kcal: 46.0
+    protein: 0.46
+    carbs: 12.0
+    fat: 0.13
+    density: 0.42
+    unit_weights: {hrst: 40}
+    source: usda:171722
 
 # --- Grains ---
 - name: pasta
@@ -976,12 +1574,26 @@
     - { alias: "soba nudle", language_code: cs }
     - { alias: "vaječné nudle", language_code: cs }
     - { alias: "barevné těstoviny", language_code: cs }  # batch-07
+  nutrition:
+    kcal: 371.0
+    protein: 13.0
+    carbs: 74.7
+    fat: 1.51
+    density: 0.4
+    source: usda:168927
 
 - name: tortilla
   name_cs: tortilly
   category: grains
   nutrition:
+    kcal: 306.0
+    protein: 8.2
+    carbs: 49.4
+    fat: 7.99
     piece_weight_g: 45
+    unit_weights: {plátek: 45}
+    usda_query: tortillas, ready-to-bake or -fry, flour, refrigerated
+    source: usda:175037
   default_unit: ks
   aliases:
     - { alias: "tortilla", language_code: cs }
@@ -1002,6 +1614,13 @@
     - { alias: "chléb naan", language_code: cs }
     - { alias: "naan", language_code: cs }
     - { alias: "placka naan", language_code: cs }
+  nutrition:
+    kcal: 275.0
+    protein: 9.1
+    carbs: 55.7
+    fat: 1.2
+    piece_weight_g: 60
+    source: usda:172816
 
 - name: breadcrumbs
   name_cs: strouhanka
@@ -1012,6 +1631,13 @@
   estimated_price_eur: 0.80
   aliases:
     - { alias: "italská strouhanka", language_code: cs }
+  nutrition:
+    kcal: 395.0
+    protein: 13.4
+    carbs: 72.0
+    fat: 5.3
+    density: 0.45
+    source: usda:174928
 
 # --- Legumes ---
 - name: lentils
@@ -1024,6 +1650,13 @@
     - { alias: "hnědá čočka", language_code: cs }
     - { alias: "černá čočka", language_code: cs }
     - { alias: "čočka beluga", language_code: cs }
+  nutrition:
+    kcal: 352.0
+    protein: 24.6
+    carbs: 63.4
+    fat: 1.06
+    density: 0.8
+    source: usda:172420
 
 - name: chickpeas
   name_cs: cizrna
@@ -1032,6 +1665,13 @@
   aliases:
     - { alias: "sušená cizrna", language_code: cs }
     - { alias: "vařená cizrna", language_code: cs }
+  nutrition:
+    kcal: 378.0
+    protein: 20.5
+    carbs: 63.0
+    fat: 6.04
+    density: 0.833
+    source: usda:173756
 
 # NOTE: beans deliberately has NO piece_weight_g: "1 ks" is a can in some rows and a pod
 # in others, so any value would over-count mass (the one direction that could wave a
@@ -1055,6 +1695,14 @@
     - { alias: "barevné fazole", language_code: cs }
     - { alias: "ledvinové fazole", language_code: cs }
     - { alias: "tmavé ledvinové fazole", language_code: cs }
+  nutrition:
+    kcal: 337.0
+    protein: 22.5
+    carbs: 61.3
+    fat: 1.06
+    density: 0.813
+    usda_query: beans, kidney, red, mature seeds, raw
+    source: usda:173744
 
 - name: tofu
   name_cs: tofu
@@ -1065,11 +1713,30 @@
     - { alias: "uzené tofu", language_code: cs }
     - { alias: "tofu sofritas", language_code: cs }
     - { alias: "hedvábné tofu", language_code: cs }
+  nutrition:
+    kcal: 144.0
+    protein: 17.3
+    carbs: 2.78
+    fat: 8.72
+    density: 1.05
+    piece_weight_g: 180  # block 180 g
+    unit_weights: {balení: 180}
+    usda_query: tofu, raw, firm, prepared with calcium sulfate
+    source: usda:172475
 
 - name: tempeh
   name_cs: tempeh
   category: legumes
   default_unit: g
+  nutrition:
+    kcal: 192.0
+    protein: 20.3
+    carbs: 7.64
+    fat: 10.8
+    density: 0.692
+    piece_weight_g: 200
+    unit_weights: {balení: 200}
+    source: usda:174272
 
 # --- Nuts & seeds ---
 - name: cashews
@@ -1079,6 +1746,15 @@
   aliases:
     - { alias: "kešu", language_code: cs }
     - { alias: "kešu oříšky", language_code: cs }
+  nutrition:
+    kcal: 553.0
+    protein: 18.2
+    carbs: 30.2
+    fat: 43.8
+    density: 0.55
+    piece_weight_g: 1.5
+    unit_weights: {hrst: 30}
+    source: usda:170162
 
 - name: sesame seeds
   name_cs: sezamová semínka
@@ -1087,6 +1763,13 @@
   aliases:
     - { alias: "sezam", language_code: cs }
     - { alias: "sezamové semínko", language_code: cs }
+  nutrition:
+    kcal: 573.0
+    protein: 17.7
+    carbs: 23.4
+    fat: 49.7
+    density: 0.6
+    source: usda:170150
 
 - name: chia seeds
   name_cs: chia semínka
@@ -1094,6 +1777,13 @@
   default_unit: g
   aliases:
     - { alias: "chia", language_code: cs }
+  nutrition:
+    kcal: 486.0
+    protein: 16.5
+    carbs: 42.1
+    fat: 30.7
+    density: 0.8  # 1 tbsp ~12 g
+    source: usda:170554
 
 # --- Condiments & sauces ---
 - name: vinegar
@@ -1111,6 +1801,13 @@
     - { alias: "vinný ocet", language_code: cs }
     - { alias: "sherry ocet", language_code: cs }
     - { alias: "rýžový ocet", language_code: cs }
+  nutrition:
+    kcal: 18.0
+    protein: 0.0
+    carbs: 0.04
+    fat: 0.0
+    density: 0.993
+    source: usda:172237
 
 - name: tomato sauce
   name_cs: rajčatová omáčka
@@ -1121,6 +1818,14 @@
     - { alias: "marinara", language_code: cs }
     - { alias: "marinára", language_code: cs }
     - { alias: "passata", language_code: cs }
+  nutrition:
+    kcal: 24.0
+    protein: 1.2
+    carbs: 5.31
+    fat: 0.3
+    density: 1.021
+    usda_query: tomato products, canned, sauce
+    source: usda:170054
 
 - name: salsa
   name_cs: salsa
@@ -1130,6 +1835,13 @@
     - { alias: "avokádová salsa", language_code: cs }
     - { alias: "salsa verde", language_code: cs }
     - { alias: "červená salsa", language_code: cs }
+  nutrition:
+    kcal: 29.0
+    protein: 1.52
+    carbs: 6.64
+    fat: 0.17
+    density: 1.2
+    source: usda:174524
 
 - name: tahini
   name_cs: tahini
@@ -1139,6 +1851,13 @@
     - { alias: "tahini omáčka", language_code: cs }
     - { alias: "tahini pasta", language_code: cs }
     - { alias: "sezamová pasta", language_code: cs }
+  nutrition:
+    kcal: 595
+    protein: 17
+    carbs: 21.2
+    fat: 53.8
+    density: 1  # 1 tbsp ~15 g
+    source: manual:= USDA SR Legacy 170189 tahini from roasted kernels (matcher cannot cross seed class to condiments)
 
 - name: green curry paste
   # Green and red paste are not interchangeable; name_cs was the generic
@@ -1148,6 +1867,13 @@
   default_unit: g
   aliases:
     - { alias: "thajská zelená kari pasta", language_code: cs }
+  nutrition:
+    kcal: 100
+    protein: 2
+    carbs: 13
+    fat: 4
+    density: 1.1
+    source: manual:Thai green curry paste, typical label (Mae Ploy/Thai Kitchen)
 
 - name: red curry paste
   name_cs: červená kari pasta
@@ -1156,11 +1882,26 @@
   aliases:
     - { alias: "červená kari pasta", language_code: cs }
     - { alias: "thajská červená kari pasta", language_code: cs }
+  nutrition:
+    kcal: 110
+    protein: 2.5
+    carbs: 14
+    fat: 4.5
+    density: 1.1
+    source: manual:Thai red curry paste, typical label (Mae Ploy/Thai Kitchen)
 
 - name: mayonnaise
   name_cs: majonéza
   category: condiments
   default_unit: g
+  nutrition:
+    kcal: 680.0
+    protein: 0.96
+    carbs: 0.57
+    fat: 74.8
+    density: 0.92
+    usda_query: salad dressing, mayonnaise, regular
+    source: usda:171009
 
 - name: jam
   name_cs: marmeláda
@@ -1172,6 +1913,14 @@
     - { alias: "švestková povidla", language_code: cs }
     - { alias: "meruňková marmeláda", language_code: cs }
     - { alias: "ovocná zavařenina", language_code: cs }
+  nutrition:
+    kcal: 278.0
+    protein: 0.37
+    carbs: 68.9
+    fat: 0.07
+    density: 1.333
+    usda_query: jams and preserves
+    source: usda:169641
 
 - name: tamari
   name_cs: tamari
@@ -1179,6 +1928,14 @@
   default_unit: ml
   aliases:
     - { alias: "tamari omáčka", language_code: cs }
+  nutrition:
+    kcal: 60.0
+    protein: 10.5
+    carbs: 5.57
+    fat: 0.1
+    density: 1.2
+    usda_query: soy sauce made from soy (tamari)
+    source: usda:174278
 
 - name: vegetable stock
   name_cs: zeleninový vývar
@@ -1186,6 +1943,16 @@
   default_unit: ml
   aliases:
     - { alias: "zeleninový bujón", language_code: cs }
+  nutrition:
+    kcal: 5.0
+    protein: 0.24
+    carbs: 0.93
+    fat: 0.07
+    density: 0.921
+    piece_weight_g: 10  # bouillon cube 10 g (makes 0.5 l)
+    unit_weights: {balení: 10}
+    usda_query: soup, vegetable broth, ready to serve
+    source: usda:171583
 
 - name: chicken stock
   name_cs: kuřecí vývar
@@ -1195,6 +1962,15 @@
     - { alias: "kuřecí bujón", language_code: cs }
     - { alias: "drůbeží vývar", language_code: cs }
     - { alias: "drůbeží bujón", language_code: cs }
+  nutrition:
+    kcal: 36.0
+    protein: 2.52
+    carbs: 3.53
+    fat: 1.2
+    density: 1
+    piece_weight_g: 10
+    unit_weights: {balení: 10}
+    source: usda:172884
 
 - name: beef stock
   name_cs: hovězí vývar
@@ -1203,13 +1979,28 @@
   aliases:
     - { alias: "hovězí bujón", language_code: cs }
     - { alias: "masový vývar", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 13.0
+    protein: 1.97
+    carbs: 1.2
+    fat: 0.09
+    density: 1
+    piece_weight_g: 10
+    unit_weights: {balení: 10}
+    source: usda:172883
 
 # --- Spices & seasonings (pantry staples) ---
 - name: allspice
   name_cs: nové koření
   category: spices
   nutrition:
+    kcal: 263.0
+    protein: 6.09
+    carbs: 72.1
+    fat: 8.69
+    density: 0.38
     piece_weight_g: 0.1
+    source: usda:171315
   default_unit: g
   is_pantry_staple: true
   estimated_price_czk: 25.0
@@ -1222,6 +2013,13 @@
   is_pantry_staple: true
   estimated_price_czk: 25.0
   estimated_price_eur: 1.00
+  nutrition:
+    kcal: 271.0
+    protein: 12.7
+    carbs: 60.6
+    fat: 7.04
+    density: 0.2
+    source: usda:170928
 
 - name: cloves
   name_cs: hřebíček
@@ -1235,6 +2033,14 @@
     - { alias: "celé hřebíčky", language_code: cs }  # 2026-09-15 remap audit
     - { alias: "celý hřebíček", language_code: cs }  # 2026-09-15 remap audit
     - { alias: "mletý hřebíček", language_code: cs }  # 2026-09-15 remap audit
+  nutrition:
+    kcal: 274.0
+    protein: 5.97
+    carbs: 65.5
+    fat: 13.0
+    density: 0.42
+    piece_weight_g: 0.1
+    source: usda:171321
 
 - name: chives
   name_cs: pažitka
@@ -1242,6 +2048,14 @@
   default_unit: svazek
   aliases:
     - { alias: "čerstvá pažitka", language_code: cs }
+  nutrition:
+    kcal: 30.0
+    protein: 3.27
+    carbs: 4.35
+    fat: 0.73
+    density: 0.2
+    unit_weights: {hrst: 10, svazek: 20}
+    source: usda:169994
 
 - name: dill
   name_cs: kopr
@@ -1249,6 +2063,15 @@
   default_unit: svazek
   aliases:
     - { alias: "čerstvý kopr", language_code: cs }
+  nutrition:
+    kcal: 43.0
+    protein: 3.46
+    carbs: 7.02
+    fat: 1.12
+    density: 0.2
+    unit_weights: {hrst: 10, snítka: 0.2, svazek: 20}
+    usda_query: dill weed, fresh
+    source: usda:172233
 
 - name: soup seasoning
   name_cs: polévkové koření
@@ -1259,6 +2082,13 @@
   estimated_price_eur: 1.20
   aliases:
     - { alias: "maggi", language_code: cs }
+  nutrition:
+    kcal: 25
+    protein: 5
+    carbs: 1.5
+    fat: 0
+    density: 1.2
+    source: manual:Maggi Würze liquid seasoning, label approx.
 
 # --- Other ---
 - name: water
@@ -1277,6 +2107,13 @@
     - { alias: "perlivá voda", language_code: cs }
     - { alias: "filtrovaná voda", language_code: cs }
     - { alias: "led", language_code: cs }
+  nutrition:
+    kcal: 0.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 0.0
+    density: 0.988
+    source: usda:174158
 
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-01 dictionary growth (2026-06-18) — new canonicals surfaced by the
@@ -1292,11 +2129,25 @@
   aliases:
     - { alias: "neslazené mandlové mléko", language_code: cs }
     - { alias: "mandlový nápoj", language_code: cs }
+  nutrition:
+    kcal: 15.0
+    protein: 0.4
+    carbs: 1.31
+    fat: 0.96
+    density: 1.092
+    source: usda:174832
 
 - name: almond butter
   name_cs: mandlové máslo
   category: nuts
   default_unit: g
+  nutrition:
+    kcal: 614.0
+    protein: 21.0
+    carbs: 18.8
+    fat: 55.5
+    density: 1.067
+    source: usda:168588
 
 - name: almond flour
   name_cs: mandlová mouka
@@ -1304,6 +2155,14 @@
   default_unit: g
   aliases:
     - { alias: "mleté mandle", language_code: cs }
+  nutrition:
+    kcal: 590.0
+    protein: 21.4
+    carbs: 18.7
+    fat: 52.5
+    density: 0.607
+    usda_query: nuts, almonds, blanched
+    source: usda:170568
 
 - name: almonds
   name_cs: mandle
@@ -1314,6 +2173,15 @@
     - { alias: "plátky mandlí", language_code: cs }
     - { alias: "mandlové plátky", language_code: cs }
     - { alias: "loupané mandle", language_code: cs }
+  nutrition:
+    kcal: 579.0
+    protein: 21.2
+    carbs: 21.6
+    fat: 49.9
+    density: 0.6
+    piece_weight_g: 1.2
+    unit_weights: {hrst: 30}
+    source: usda:170567
 
 - name: pecans
   name_cs: pekanové ořechy
@@ -1321,6 +2189,15 @@
   default_unit: g
   aliases:
     - { alias: "pekany", language_code: cs }
+  nutrition:
+    kcal: 691.0
+    protein: 9.17
+    carbs: 13.9
+    fat: 72.0
+    density: 0.45
+    piece_weight_g: 4
+    unit_weights: {hrst: 30}
+    source: usda:170182
 
 - name: hemp seeds
   name_cs: konopná semínka
@@ -1329,6 +2206,13 @@
   aliases:
     - { alias: "loupaná konopná semínka", language_code: cs }
     - { alias: "konopné semínko", language_code: cs }
+  nutrition:
+    kcal: 553.0
+    protein: 31.6
+    carbs: 8.67
+    fat: 48.8
+    density: 0.667
+    source: usda:170148
 
 - name: flaxseed
   name_cs: lněné semínko
@@ -1337,6 +2221,13 @@
   aliases:
     - { alias: "lněná semínka", language_code: cs }
     - { alias: "mleté lněné semínko", language_code: cs }
+  nutrition:
+    kcal: 534.0
+    protein: 18.3
+    carbs: 28.9
+    fat: 42.2
+    density: 0.65
+    source: usda:169414
 
 - name: quinoa
   name_cs: quinoa
@@ -1345,6 +2236,13 @@
   aliases:
     - { alias: "uvařená quinoa", language_code: cs }
     - { alias: "vařená quinoa", language_code: cs }
+  nutrition:
+    kcal: 368.0
+    protein: 14.1
+    carbs: 64.2
+    fat: 6.07
+    density: 0.708
+    source: usda:168874
 
 - name: greek yogurt
   name_cs: řecký jogurt
@@ -1353,6 +2251,16 @@
   aliases:
     - { alias: "řecký jogurt bílý", language_code: cs }
     - { alias: "bílý řecký jogurt", language_code: cs }
+  nutrition:
+    kcal: 97.0
+    protein: 9.0
+    carbs: 3.98
+    fat: 5.0
+    density: 1.05
+    piece_weight_g: 140
+    unit_weights: {balení: 140}
+    usda_query: yogurt, greek, plain, whole milk
+    source: usda:171304
 
 - name: buttermilk
   name_cs: podmáslí
@@ -1361,6 +2269,14 @@
   aliases:
     - { alias: "podmáslí nízkotučné", language_code: cs }
     - { alias: "nízkotučné podmáslí", language_code: cs }
+  nutrition:
+    kcal: 40.0
+    protein: 3.31
+    carbs: 4.79
+    fat: 1.07
+    density: 1.021
+    usda_query: milk, buttermilk, fluid, cultured, lowfat
+    source: usda:170874
 
 - name: hummus
   name_cs: hummus
@@ -1368,17 +2284,39 @@
   default_unit: g
   aliases:
     - { alias: "humus", language_code: cs }
+  nutrition:
+    kcal: 237.0
+    protein: 7.78
+    carbs: 15.0
+    fat: 17.8
+    density: 1
+    source: usda:174289
 
 - name: brussels sprouts
   name_cs: růžičková kapusta
   category: vegetables
   default_unit: g
+  nutrition:
+    kcal: 43.0
+    protein: 3.38
+    carbs: 8.95
+    fat: 0.3
+    density: 0.367
+    piece_weight_g: 15
+    source: usda:170383
 
 - name: radishes
   name_cs: ředkvičky
   category: vegetables
   nutrition:
+    kcal: 16.0
+    protein: 0.68
+    carbs: 3.4
+    fat: 0.1
+    density: 0.483
     piece_weight_g: 15
+    unit_weights: {plátek: 1.0, svazek: 150}
+    source: usda:169276
   default_unit: g
   aliases:
     - { alias: "ředkev", language_code: cs }
@@ -1392,6 +2330,14 @@
   aliases:
     - { alias: "rajčata v oleji", language_code: cs }
     - { alias: "sušená rajčata v oleji", language_code: cs }
+  nutrition:
+    kcal: 258.0
+    protein: 14.1
+    carbs: 55.8
+    fat: 2.97
+    density: 0.225
+    piece_weight_g: 5
+    source: usda:168567
 
 - name: hot sauce
   name_cs: pálivá omáčka
@@ -1401,6 +2347,13 @@
     - { alias: "ostrá omáčka", language_code: cs }
     - { alias: "chilli pasta", language_code: cs }
     - { alias: "sriracha", language_code: cs }
+  nutrition:
+    kcal: 93.0
+    protein: 1.93
+    carbs: 19.2
+    fat: 0.93
+    density: 1.3
+    source: usda:171186
 
 - name: zaatar
   name_cs: za'atar
@@ -1409,12 +2362,25 @@
   aliases:
     - { alias: "koření za'atar", language_code: cs }
     - { alias: "zatar", language_code: cs }
+  nutrition:
+    kcal: 340
+    protein: 10
+    carbs: 47
+    fat: 21
+    density: 0.4
+    source: manual:composite 40% thyme + 30% sesame + 20% sumac + 10% salt (USDA components)
 
 - name: dates
   name_cs: datle
   category: fruits
   nutrition:
+    kcal: 277.0
+    protein: 1.81
+    carbs: 75.0
+    fat: 0.15
+    density: 0.62  # chopped, ~147 g per cup
     piece_weight_g: 8
+    source: usda:168191
   default_unit: g
   aliases:
     - { alias: "datle medjool", language_code: cs }
@@ -1428,6 +2394,14 @@
     - { alias: "zmrazené broskve", language_code: cs }
     - { alias: "mražené broskve", language_code: cs }
     - { alias: "broskev", language_code: cs }
+  nutrition:
+    kcal: 39.0
+    protein: 0.91
+    carbs: 9.54
+    fat: 0.25
+    density: 0.642
+    piece_weight_g: 150
+    source: usda:169928
 
 - name: cherries
   name_cs: třešně
@@ -1435,6 +2409,15 @@
   default_unit: g
   aliases:
     - { alias: "sušené třešně", language_code: cs }
+  nutrition:
+    kcal: 63.0
+    protein: 1.06
+    carbs: 16.0
+    fat: 0.2
+    density: 0.642
+    piece_weight_g: 8
+    unit_weights: {hrst: 60}
+    source: usda:171719
 
 - name: fruit
   name_cs: ovoce
@@ -1443,6 +2426,15 @@
   aliases:
     - { alias: "bobule", language_code: cs }
     - { alias: "lesní ovoce", language_code: cs }
+  nutrition:
+    kcal: 45
+    protein: 0.9
+    carbs: 10.5
+    fat: 0.4
+    density: 0.6
+    piece_weight_g: 100
+    unit_weights: {hrst: 50}
+    source: manual:mean of USDA strawberries/raspberries/blueberries raw (mixed berries)
 
 - name: dark chocolate
   name_cs: čokoláda
@@ -1452,6 +2444,15 @@
     - { alias: "čokoládové hoblinky", language_code: cs }
     - { alias: "čokoládové lupínky", language_code: cs }
     - { alias: "hořká čokoláda", language_code: cs }
+  nutrition:
+    kcal: 546.0
+    protein: 4.88
+    carbs: 61.2
+    fat: 31.3
+    density: 0.6
+    piece_weight_g: 100  # bar 100 g
+    unit_weights: {balení: 100, plátek: 5}
+    source: usda:170271
 
 - name: matcha
   name_cs: matcha
@@ -1460,6 +2461,13 @@
   aliases:
     - { alias: "matcha prášek", language_code: cs }
     - { alias: "matcha v prášku", language_code: cs }
+  nutrition:
+    kcal: 324
+    protein: 29.6
+    carbs: 39.5
+    fat: 5.3
+    density: 0.4
+    source: manual:MEXT Standard Tables of Food Composition in Japan 2020, matcha
 
 - name: coffee
   name_cs: káva
@@ -1468,6 +2476,14 @@
   aliases:
     - { alias: "koncentrát studené kávy", language_code: cs }
     - { alias: "studená káva", language_code: cs }
+  nutrition:
+    kcal: 1.0
+    protein: 0.12
+    carbs: 0.0
+    fat: 0.02
+    density: 0.988
+    usda_query: beverages, coffee, brewed, prepared with tap water
+    source: usda:171890
 
 - name: english muffins
   name_cs: anglické muffiny
@@ -1475,6 +2491,13 @@
   default_unit: ks
   aliases:
     - { alias: "anglický muffin", language_code: cs }
+  nutrition:
+    kcal: 235.0
+    protein: 7.7
+    carbs: 46.0
+    fat: 1.8
+    piece_weight_g: 57
+    source: usda:173238
 
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-02 dictionary growth (2026-06-19) — new distinct canonicals surfaced by
@@ -1495,6 +2518,13 @@
   estimated_price_eur: 1.20
   aliases:
     - { alias: "cukr moučka", language_code: cs }
+  nutrition:
+    kcal: 389.0
+    protein: 0.0
+    carbs: 99.8
+    fat: 0.0
+    density: 0.5
+    source: usda:169656
 
 - name: brown sugar
   name_cs: hnědý cukr
@@ -1507,6 +2537,13 @@
     - { alias: "třtinový cukr", language_code: cs }
     - { alias: "turbinado cukr", language_code: cs }
     - { alias: "surový třtinový cukr", language_code: cs }
+  nutrition:
+    kcal: 380.0
+    protein: 0.12
+    carbs: 98.1
+    fat: 0.0
+    density: 0.64
+    source: usda:168833
 
 - name: coconut sugar
   name_cs: kokosový cukr
@@ -1515,6 +2552,13 @@
   is_pantry_staple: true
   estimated_price_czk: 90.0
   estimated_price_eur: 3.60
+  nutrition:
+    kcal: 385
+    protein: 1
+    carbs: 95
+    fat: 0.5
+    density: 0.8
+    source: manual:coconut sugar typical label
 
 # --- Oils (distinct priced variants) ---
 - name: avocado oil
@@ -1524,6 +2568,13 @@
   is_pantry_staple: true
   estimated_price_czk: 200.0
   estimated_price_eur: 8.00
+  nutrition:
+    kcal: 884.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 100.0
+    density: 0.9
+    source: usda:173573
 
 - name: coconut oil
   name_cs: kokosový olej
@@ -1532,6 +2583,13 @@
   is_pantry_staple: true
   estimated_price_czk: 130.0
   estimated_price_eur: 5.20
+  nutrition:
+    kcal: 892.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 99.1
+    density: 0.9
+    source: usda:171412
 
 # --- Flours (distinct from plain wheat flour) ---
 - name: oat flour
@@ -1543,6 +2601,13 @@
   estimated_price_eur: 1.60
   aliases:
     - { alias: "bezlepková ovesná mouka", language_code: cs }
+  nutrition:
+    kcal: 404.0
+    protein: 14.7
+    carbs: 65.7
+    fat: 9.12
+    density: 0.433
+    source: usda:169741
 
 - name: whole wheat flour
   name_cs: celozrnná pšeničná mouka
@@ -1553,6 +2618,14 @@
   estimated_price_eur: 1.00
   aliases:
     - { alias: "celozrnná mouka", language_code: cs }
+  nutrition:
+    kcal: 340.0
+    protein: 13.2
+    carbs: 72.0
+    fat: 2.5
+    density: 0.5
+    usda_query: wheat flour, whole-grain (includes foods for usda's food distribution program)
+    source: usda:168893
 
 # --- Salt variant ---
 - name: sea salt
@@ -1565,6 +2638,13 @@
   aliases:
     - { alias: "vločková mořská sůl", language_code: cs }
     - { alias: "hrubá mořská sůl", language_code: cs }
+  nutrition:
+    kcal: 0.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 0.0
+    density: 1.2
+    source: usda:173468
 
 # --- Spices & blends ---
 - name: chili powder
@@ -1577,6 +2657,14 @@
   aliases:
     - { alias: "chilli koření", language_code: cs }
     - { alias: "mleté chilli", language_code: cs }
+  nutrition:
+    kcal: 318.0
+    protein: 12.0
+    carbs: 56.6
+    fat: 17.3
+    density: 0.353
+    usda_query: spices, pepper, red or cayenne
+    source: usda:170932
 
 - name: garam masala
   name_cs: garam masala
@@ -1585,6 +2673,13 @@
   is_pantry_staple: true
   estimated_price_czk: 40.0
   estimated_price_eur: 1.60
+  nutrition:
+    kcal: 300
+    protein: 11
+    carbs: 60
+    fat: 11
+    density: 0.5
+    source: manual:composite mean of USDA coriander, cumin, cardamom, pepper, cinnamon, cloves
 
 - name: grilling spice blend
   name_cs: grilovací koření
@@ -1593,6 +2688,13 @@
   is_pantry_staple: true
   estimated_price_czk: 30.0
   estimated_price_eur: 1.20
+  nutrition:
+    kcal: 230
+    protein: 8
+    carbs: 38
+    fat: 5
+    density: 0.6
+    source: manual:salt-based CZ seasoning blend, typical label (Kotanyi/Avokado)
 
 - name: baking powder
   name_cs: kypřicí prášek
@@ -1603,6 +2705,16 @@
   estimated_price_eur: 0.30
   aliases:
     - { alias: "prášek do pečiva", language_code: cs }
+  nutrition:
+    kcal: 53.0
+    protein: 0.0
+    carbs: 27.7
+    fat: 0.0
+    density: 0.92
+    piece_weight_g: 12  # sachet 12 g
+    unit_weights: {balení: 12}
+    usda_query: leavening agents, baking powder, double-acting, sodium aluminum sulfate
+    source: usda:172803
 
 # --- Nuts & seeds ---
 - name: pumpkin seeds
@@ -1614,6 +2726,14 @@
   estimated_price_eur: 2.40
   aliases:
     - { alias: "dýňové semínko", language_code: cs }
+  nutrition:
+    kcal: 559.0
+    protein: 30.2
+    carbs: 10.7
+    fat: 49.0
+    density: 0.537
+    unit_weights: {hrst: 30}
+    source: usda:170556
 
 - name: pine nuts
   name_cs: piniové oříšky
@@ -1624,6 +2744,13 @@
   estimated_price_eur: 4.80
   aliases:
     - { alias: "pinie", language_code: cs }
+  nutrition:
+    kcal: 673.0
+    protein: 13.7
+    carbs: 13.1
+    fat: 68.4
+    density: 0.562
+    source: usda:170591
 
 - name: coconut flakes
   name_cs: kokosové lupínky
@@ -1637,6 +2764,14 @@
     - { alias: "kokos strouhaný", language_code: cs }
     - { alias: "neslazený strouhaný kokos", language_code: cs }
     - { alias: "kokosové vločky", language_code: cs }
+  nutrition:
+    kcal: 660.0
+    protein: 6.88
+    carbs: 23.6
+    fat: 64.5
+    density: 0.35
+    usda_query: nuts, coconut meat, dried (desiccated), not sweetened
+    source: usda:170170
 
 - name: raisins
   name_cs: rozinky
@@ -1647,13 +2782,28 @@
   estimated_price_eur: 1.40
   aliases:
     - { alias: "zlaté rozinky", language_code: cs }
+  nutrition:
+    kcal: 299.0
+    protein: 3.3
+    carbs: 79.3
+    fat: 0.25
+    density: 0.65
+    unit_weights: {hrst: 40}
+    usda_query: raisins, dark, seedless (includes foods for usda's food distribution program)
+    source: usda:168165
 
 # --- Vegetables ---
 - name: cauliflower
   name_cs: květák
   category: vegetables
   nutrition:
+    kcal: 25.0
+    protein: 1.92
+    carbs: 4.97
+    fat: 0.28
+    density: 0.45  # chopped, USDA 1 cup = 107 g
     piece_weight_g: 600
+    source: usda:169986
   default_unit: g
   aliases:
     - { alias: "růžičky květáku", language_code: cs }
@@ -1663,14 +2813,27 @@
   name_cs: pórek
   category: vegetables
   nutrition:
+    kcal: 61.0
+    protein: 1.5
+    carbs: 14.2
+    fat: 0.3
+    density: 0.371
     piece_weight_g: 150
+    unit_weights: {plátek: 6.0}
+    source: usda:169246
   default_unit: ks
 
 - name: shallot
   name_cs: šalotka
   category: vegetables
   nutrition:
+    kcal: 72.0
+    protein: 2.5
+    carbs: 16.8
+    fat: 0.1
+    density: 0.67  # chopped, USDA 1 tbsp = 10 g
     piece_weight_g: 30
+    source: usda:170499
   default_unit: ks
 
 - name: mint
@@ -1679,13 +2842,28 @@
   default_unit: svazek
   aliases:
     - { alias: "lístky máty", language_code: cs }
+  nutrition:
+    kcal: 44.0
+    protein: 3.29
+    carbs: 8.41
+    fat: 0.73
+    density: 0.38
+    unit_weights: {hrst: 10, lístek: 0.1, snítka: 2, svazek: 20}
+    usda_query: spearmint, fresh
+    source: usda:173475
 
 # --- Fruits ---
 - name: mango
   name_cs: mango
   category: fruits
   nutrition:
+    kcal: 60.0
+    protein: 0.82
+    carbs: 15.0
+    fat: 0.38
+    density: 0.69  # pieces, USDA 1 cup = 165 g
     piece_weight_g: 200
+    source: usda:169910
   default_unit: ks
 
 # --- Meat ---
@@ -1700,6 +2878,15 @@
     - { alias: "ostrá klobása", language_code: cs }
     - { alias: "párek", language_code: cs }
     - { alias: "párky", language_code: cs }
+  nutrition:
+    kcal: 301.0
+    protein: 12.1
+    carbs: 1.98
+    fat: 26.6
+    density: 0.6
+    piece_weight_g: 100
+    usda_query: sausage, polish, pork and beef, smoked
+    source: usda:172954
 
 - name: czech sausage
   name_cs: špekáčky
@@ -1707,6 +2894,13 @@
   default_unit: g
   aliases:
     - { alias: "špekáček", language_code: cs }
+  nutrition:
+    kcal: 300
+    protein: 12
+    carbs: 2
+    fat: 27
+    piece_weight_g: 90  # spekacek ~90 g (360 g pack of 4)
+    source: manual:CZ label, spekacky (typical)
 
 # --- Condiments / prepared ---
 - name: nutritional yeast
@@ -1718,11 +2912,25 @@
   estimated_price_eur: 2.40
   aliases:
     - { alias: "vločky lahůdkového droždí", language_code: cs }
+  nutrition:
+    kcal: 350
+    protein: 50
+    carbs: 33
+    fat: 4
+    density: 0.2
+    source: manual:nutritional yeast flakes, typical label (Engevita)
 
 - name: pico de gallo
   name_cs: pico de gallo
   category: condiments
   default_unit: g
+  nutrition:
+    kcal: 22
+    protein: 0.9
+    carbs: 4.5
+    fat: 0.2
+    density: 0.7
+    source: manual:composite tomato/onion/chilli/lime (USDA components)
 
 - name: tortilla chips
   name_cs: tortillové chipsy
@@ -1732,6 +2940,14 @@
     - { alias: "nachos", language_code: cs }
     - { alias: "kukuřičné chipsy", language_code: cs }
     - { alias: "tortillové lupínky", language_code: cs }
+  nutrition:
+    kcal: 497.0
+    protein: 6.62
+    carbs: 67.4
+    fat: 22.3
+    density: 0.12
+    unit_weights: {hrst: 25}
+    source: usda:173143
 
 - name: pumpkin puree
   name_cs: dýňové pyré
@@ -1739,6 +2955,14 @@
   default_unit: g
   aliases:
     - { alias: "dýňová dřeň", language_code: cs }
+  nutrition:
+    kcal: 34.0
+    protein: 1.1
+    carbs: 8.09
+    fat: 0.28
+    density: 1.021
+    usda_query: pumpkin, canned, without salt
+    source: usda:168450
 
 - name: stock
   name_cs: vývar
@@ -1749,6 +2973,15 @@
     - { alias: "vývar v kostce", language_code: cs }
     - { alias: "vepřový vývar", language_code: cs }
     - { alias: "kostní vývar", language_code: cs }
+  nutrition:
+    kcal: 13.0
+    protein: 1.97
+    carbs: 1.2
+    fat: 0.09
+    density: 1
+    piece_weight_g: 10
+    unit_weights: {balení: 10}
+    source: usda:172883
 
 - name: rum
   name_cs: rum
@@ -1757,6 +2990,13 @@
   is_pantry_staple: true
   estimated_price_czk: 200.0
   estimated_price_eur: 8.00
+  nutrition:
+    kcal: 231.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 0.0
+    density: 0.95
+    source: usda:174817
 
 - name: bread roll
   name_cs: rohlík
@@ -1770,6 +3010,15 @@
     - { alias: "žemle", language_code: cs }
     - { alias: "starší žemle", language_code: cs }
     - { alias: "hamburgerová bulka", language_code: cs }
+  nutrition:
+    kcal: 293.0
+    protein: 9.9
+    carbs: 52.7
+    fat: 4.3
+    density: 0.2  # cubed
+    piece_weight_g: 43  # rohlik 43 g (houska ~50 g)
+    usda_query: rolls, hard (includes kaiser)
+    source: usda:175031
 
 - name: bread dumpling
   name_cs: houskový knedlík
@@ -1781,6 +3030,14 @@
     - { alias: "knedlíky", language_code: cs }
     - { alias: "kynutý knedlík", language_code: cs }
     - { alias: "kynuté knedlíky", language_code: cs }
+  nutrition:
+    kcal: 231
+    protein: 7.5
+    carbs: 45
+    fat: 2.3
+    piece_weight_g: 450  # loaf 400-500 g; slice ~35 g
+    unit_weights: {plátek: 35}
+    source: manual:CZ label, houskovy knedlik (typical, Penam/Mlyn)
 
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-03 dictionary growth (2026-06-20) — head of the post-batch-02 unmapped
@@ -1806,6 +3063,16 @@
     # conventionally means the blue-veined kind, while this cheese is normally
     # named directly ("hermelín") or as "sýr s bílou plísní". It was claimed by
     # BOTH entries, which made every re-seed flip its owner.
+  nutrition:
+    kcal: 300.0
+    protein: 19.8
+    carbs: 0.46
+    fat: 24.3
+    density: 1.025
+    piece_weight_g: 120
+    unit_weights: {balení: 120}
+    usda_query: cheese, camembert
+    source: usda:172178
 
 # --- Nuts ---
 - name: walnuts
@@ -1818,6 +3085,15 @@
     - { alias: "vlašský ořech", language_code: cs }
     - { alias: "vlašské jádra", language_code: cs }
     - { alias: "ořechy", language_code: cs }
+  nutrition:
+    kcal: 654.0
+    protein: 15.2
+    carbs: 13.7
+    fat: 65.2
+    density: 0.45
+    piece_weight_g: 5  # kernel (two halves) ~5 g
+    unit_weights: {hrst: 30}
+    source: usda:170187
 
 # --- Grains: brown rice (distinct from white basmati/jasmine pricing) ---
 - name: brown rice
@@ -1835,6 +3111,13 @@
     - { alias: "dlouhozrnná hnědá rýže", language_code: cs }
     - { alias: "hnědá jasmínová rýže", language_code: cs }
     - { alias: "hnědá basmati rýže", language_code: cs }
+  nutrition:
+    kcal: 367.0
+    protein: 7.54
+    carbs: 76.2
+    fat: 3.2
+    density: 0.771
+    source: usda:169703
 
 # --- Canned / preserved ---
 - name: capers
@@ -1846,6 +3129,13 @@
   estimated_price_eur: 2.40
   aliases:
     - { alias: "kapary v nálevu", language_code: cs }
+  nutrition:
+    kcal: 23.0
+    protein: 2.36
+    carbs: 4.89
+    fat: 0.86
+    density: 0.573
+    source: usda:172238
 
 - name: tomato paste
   name_cs: rajský protlak
@@ -1858,6 +3148,15 @@
     - { alias: "rajčatový protlak", language_code: cs }
     - { alias: "rajčatové pyré", language_code: cs }
     - { alias: "koncentrovaný rajský protlak", language_code: cs }
+  nutrition:
+    kcal: 82.0
+    protein: 4.32
+    carbs: 18.9
+    fat: 0.47
+    density: 1.067
+    piece_weight_g: 70  # tube/can 70 g
+    unit_weights: {balení: 70}
+    source: usda:170459
 
 # --- Vinegars (distinct from base `vinegar` for real-price accuracy) ---
 - name: white wine vinegar
@@ -1869,6 +3168,14 @@
   estimated_price_eur: 1.80
   aliases:
     - { alias: "bílý vinný ocet jemný", language_code: cs }
+  nutrition:
+    kcal: 19.0
+    protein: 0.04
+    carbs: 0.27
+    fat: 0.0
+    density: 0.993
+    usda_query: vinegar, red wine
+    source: usda:172240
 
 # --- Meat ---
 - name: ground meat
@@ -1885,6 +3192,14 @@
     - { alias: "mleté vepřovo-hovězí", language_code: cs }
     - { alias: "mleté maso mix", language_code: cs }
     - { alias: "mleté krůtí", language_code: cs }
+  nutrition:
+    kcal: 263.0
+    protein: 16.9
+    carbs: 0.0
+    fat: 21.2
+    density: 0.9
+    usda_query: pork, fresh, ground, raw
+    source: usda:167902
 
 # --- Baking ---
 - name: chocolate chips
@@ -1898,6 +3213,14 @@
     - { alias: "čokoládové kousky", language_code: cs }
     - { alias: "čokoládové pecky", language_code: cs }
     - { alias: "kousky čokolády", language_code: cs }
+  nutrition:
+    kcal: 546.0
+    protein: 4.88
+    carbs: 61.2
+    fat: 31.3
+    density: 0.7
+    usda_query: chocolate, dark, 45- 59% cacao solids
+    source: usda:170271
 
 - name: vanilla pudding powder
   name_cs: vanilkový pudinkový prášek
@@ -1910,6 +3233,15 @@
   aliases:
     - { alias: "vanilkový pudink v prášku", language_code: cs }
     - { alias: "pudink vanilkový", language_code: cs }
+  nutrition:
+    kcal: 348
+    protein: 0.3
+    carbs: 86
+    fat: 0.1
+    density: 0.6
+    piece_weight_g: 37
+    unit_weights: {balení: 37}
+    source: manual:Dr. Oetker vanilkovy pudink (powder) label
 
 # --- Spices ---
 - name: aleppo pepper flakes
@@ -1923,6 +3255,14 @@
     - { alias: "aleppské vločky", language_code: cs }
     - { alias: "aleppo vločky", language_code: cs }
     - { alias: "chilli vločky aleppo", language_code: cs }
+  nutrition:
+    kcal: 318.0
+    protein: 12.0
+    carbs: 56.6
+    fat: 17.3
+    density: 0.353
+    usda_query: spices, pepper, red or cayenne
+    source: usda:170932
 
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-04 dictionary growth (2026-06-20) — staples pass over the post-batch-03
@@ -1945,6 +3285,16 @@
   estimated_price_eur: 2.80
   aliases:
     - { alias: "kozí čerstvý sýr", language_code: cs }
+  nutrition:
+    kcal: 264.0
+    protein: 18.5
+    carbs: 0.0
+    fat: 21.1
+    density: 0.9
+    piece_weight_g: 100
+    unit_weights: {balení: 100}
+    usda_query: cheese, goat, soft type
+    source: usda:173435
 
 - name: cream cheese
   name_cs: smetanový sýr
@@ -1961,6 +3311,15 @@
     - { alias: "šlehaný krémový sýr", language_code: cs }
     - { alias: "gervais", language_code: cs }  # batch-09
     - { alias: "sýr gervais", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 350.0
+    protein: 6.15
+    carbs: 5.52
+    fat: 34.4
+    density: 0.667
+    piece_weight_g: 150
+    unit_weights: {balení: 150}
+    source: usda:173418
 
 # --- Meat (premium cut, distinct price from base beef) ---
 - name: beef tenderloin
@@ -1971,6 +3330,14 @@
   estimated_price_eur: 14.00
   aliases:
     - { alias: "svíčková", language_code: cs }
+  nutrition:
+    kcal: 148.0
+    protein: 22.1
+    carbs: 0.0
+    fat: 5.93
+    density: 0.6
+    usda_query: beef, tenderloin, steak, separable lean only, trimmed to 1/8" fat, select, raw
+    source: usda:171803
 
 - name: peanuts
   name_cs: arašídy
@@ -1980,6 +3347,15 @@
     - { alias: "burské oříšky", language_code: cs }
     - { alias: "nesolené arašídy", language_code: cs }
     - { alias: "pražené arašídy", language_code: cs }
+  nutrition:
+    kcal: 567.0
+    protein: 25.8
+    carbs: 16.1
+    fat: 49.2
+    density: 0.608
+    unit_weights: {hrst: 30}
+    usda_query: peanuts, all types, raw
+    source: usda:172430
 
 # --- Vegetables ---
 - name: green beans
@@ -1990,6 +3366,14 @@
     - { alias: "fazolky", language_code: cs }
     - { alias: "fazolové lusky", language_code: cs }
     - { alias: "zelené fazolové lusky", language_code: cs }
+  nutrition:
+    kcal: 31.0
+    protein: 1.83
+    carbs: 6.97
+    fat: 0.22
+    density: 0.42
+    piece_weight_g: 6
+    source: usda:169961
 
 - name: parsley root
   name_cs: kořen petržele
@@ -1999,6 +3383,15 @@
     - { alias: "kořenová petržel", language_code: cs }
     - { alias: "petržel kořenová", language_code: cs }
     - { alias: "petrželový kořen", language_code: cs }
+  nutrition:
+    kcal: 75.0
+    protein: 1.2
+    carbs: 18.0
+    fat: 0.3
+    density: 0.554
+    piece_weight_g: 100
+    usda_query: parsnips, raw
+    source: usda:170417
 
 - name: artichokes
   name_cs: artyčoky
@@ -2007,6 +3400,14 @@
   aliases:
     - { alias: "artyčoková srdíčka", language_code: cs }
     - { alias: "artyčok", language_code: cs }
+  nutrition:
+    kcal: 47.0
+    protein: 3.27
+    carbs: 10.5
+    fat: 0.15
+    density: 0.7  # hearts, ~170 g per cup
+    piece_weight_g: 128
+    source: usda:169205
 
 - name: okra
   name_cs: okra
@@ -2014,6 +3415,14 @@
   default_unit: g
   aliases:
     - { alias: "ibišek jedlý", language_code: cs }
+  nutrition:
+    kcal: 33.0
+    protein: 1.93
+    carbs: 7.45
+    fat: 0.19
+    density: 0.417
+    piece_weight_g: 12
+    source: usda:169260
 
 - name: sprouts
   name_cs: klíčky
@@ -2027,6 +3436,15 @@
     - { alias: "sójové výhonky", language_code: cs }  # batch-09
     - { alias: "fazolové výhonky", language_code: cs }  # batch-09
     - { alias: "výhonky", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 30.0
+    protein: 3.04
+    carbs: 5.94
+    fat: 0.18
+    density: 0.433
+    unit_weights: {hrst: 30}
+    usda_query: mung beans, mature seeds, sprouted, raw
+    source: usda:169957
 
 - name: mixed vegetables
   name_cs: zeleninová směs
@@ -2035,6 +3453,14 @@
   aliases:
     - { alias: "směs zeleniny", language_code: cs }
     - { alias: "zelenina mix", language_code: cs }
+  nutrition:
+    kcal: 72.0
+    protein: 3.33
+    carbs: 13.5
+    fat: 0.52
+    density: 0.55
+    usda_query: vegetables, mixed, frozen, unprepared
+    source: usda:170471
 
 - name: microgreens
   name_cs: mikrozelenina
@@ -2042,6 +3468,15 @@
   default_unit: g
   aliases:
     - { alias: "microgreens", language_code: cs }
+  nutrition:
+    kcal: 32.0
+    protein: 2.6
+    carbs: 5.5
+    fat: 0.7
+    density: 0.208
+    unit_weights: {balení: 50, hrst: 10, snítka: 1.0}
+    usda_query: cress, garden, raw
+    source: usda:168407
 
 # --- Fruit / prepared ---
 - name: applesauce
@@ -2052,6 +3487,16 @@
     - { alias: "jablečná přesnídávka", language_code: cs }
     - { alias: "jablečný mus", language_code: cs }
     - { alias: "mus z jablek", language_code: cs }
+  nutrition:
+    kcal: 42.0
+    protein: 0.17
+    carbs: 11.3
+    fat: 0.1
+    density: 1.017
+    piece_weight_g: 100  # kids pouch/cup 100 g
+    unit_weights: {balení: 100}
+    usda_query: applesauce, canned, unsweetened, without added ascorbic acid (includes foods for usda's food distribution program)
+    source: usda:171695
 
 - name: guacamole
   name_cs: guacamole
@@ -2059,6 +3504,13 @@
   default_unit: g
   aliases:
     - { alias: "avokádová pomazánka", language_code: cs }
+  nutrition:
+    kcal: 155
+    protein: 2
+    carbs: 8.5
+    fat: 13.5
+    density: 1
+    source: manual:composite ~85% avocado + tomato/onion/lime (USDA components)
 
 # --- Grains / breadcrumbs ---
 - name: popcorn
@@ -2069,6 +3521,14 @@
     - { alias: "kukuřičná zrna", language_code: cs }
     - { alias: "kukuřičná zrna na popcorn", language_code: cs }
     - { alias: "popcornová kukuřice", language_code: cs }
+  nutrition:
+    kcal: 387.0
+    protein: 12.9
+    carbs: 77.8
+    fat: 4.54
+    density: 0.75  # unpopped kernels ~180 g per cup
+    usda_query: snacks, popcorn, air-popped
+    source: usda:167959
 
 - name: panko breadcrumbs
   name_cs: panko strouhanka
@@ -2079,6 +3539,13 @@
   aliases:
     - { alias: "panko", language_code: cs }
     - { alias: "strouhanka panko", language_code: cs }
+  nutrition:
+    kcal: 395.0
+    protein: 13.4
+    carbs: 72.0
+    fat: 5.3
+    density: 0.45
+    source: usda:174928
 
 # --- Beverages (alcohol — distinct, real price) ---
 - name: white wine
@@ -2089,6 +3556,13 @@
   estimated_price_eur: 6.00
   aliases:
     - { alias: "suché bílé víno", language_code: cs }
+  nutrition:
+    kcal: 82.0
+    protein: 0.07
+    carbs: 2.6
+    fat: 0.0
+    density: 0.99
+    source: usda:174837
 
 # --- Condiments / prepared sauces ---
 - name: worcestershire sauce
@@ -2102,6 +3576,13 @@
     - { alias: "worcester", language_code: cs }
     - { alias: "worcesterová omáčka", language_code: cs }
     - { alias: "worcestrová omáčka", language_code: cs }
+  nutrition:
+    kcal: 77.0
+    protein: 0.0
+    carbs: 19.2
+    fat: 0.0
+    density: 1.133
+    source: usda:171610
 
 # --- Spices & blends (pantry staples) ---
 - name: protein powder
@@ -2115,6 +3596,14 @@
     - { alias: "čokoládový proteinový prášek", language_code: cs }
     - { alias: "syrovátkový protein", language_code: cs }
     - { alias: "protein v prášku", language_code: cs }
+  nutrition:
+    kcal: 359.0
+    protein: 58.1
+    carbs: 29.1
+    fat: 1.16
+    density: 0.4
+    unit_weights: {balení: 30}
+    source: usda:173177
 
 - name: cardamom
   name_cs: kardamom
@@ -2126,6 +3615,14 @@
   aliases:
     - { alias: "kardamom zelený mletý", language_code: cs }
     - { alias: "zelený kardamom", language_code: cs }
+  nutrition:
+    kcal: 311.0
+    protein: 10.8
+    carbs: 68.5
+    fat: 6.7
+    density: 0.5
+    piece_weight_g: 0.2
+    source: usda:170919
 
 - name: saffron
   name_cs: šafrán
@@ -2136,12 +3633,26 @@
   estimated_price_eur: 4.80
   aliases:
     - { alias: "šafránové nitky", language_code: cs }
+  nutrition:
+    kcal: 310.0
+    protein: 11.4
+    carbs: 65.4
+    fat: 5.85
+    density: 0.15
+    source: usda:170934
 
 - name: bay leaves
   name_cs: bobkový list
   category: spices
   nutrition:
+    kcal: 313.0
+    protein: 7.61
+    carbs: 75.0
+    fat: 8.36
+    density: 0.13  # crumbled, USDA 1 tbsp = 2 g
     piece_weight_g: 0.2
+    unit_weights: {lístek: 0.2}
+    source: usda:170917
   default_unit: g
   is_pantry_staple: true
   estimated_price_czk: 20.0
@@ -2158,6 +3669,14 @@
   estimated_price_eur: 1.20
   aliases:
     - { alias: "italské bylinky", language_code: cs }
+  nutrition:
+    kcal: 307.0
+    protein: 9.59
+    carbs: 65.6
+    fat: 7.53
+    density: 0.3
+    usda_query: spices, poultry seasoning
+    source: usda:171331
 
 - name: herbs de provence
   name_cs: provensálské koření
@@ -2168,6 +3687,14 @@
   estimated_price_eur: 1.20
   aliases:
     - { alias: "provensálské bylinky", language_code: cs }
+  nutrition:
+    kcal: 307.0
+    protein: 9.59
+    carbs: 65.6
+    fat: 7.53
+    density: 0.3
+    usda_query: spices, poultry seasoning
+    source: usda:171331
 
 - name: sumac
   name_cs: sumak
@@ -2178,6 +3705,13 @@
   estimated_price_eur: 1.60
   aliases:
     - { alias: "sumac", language_code: cs }
+  nutrition:
+    kcal: 300
+    protein: 4
+    carbs: 70
+    fat: 14
+    density: 0.5
+    source: manual:ground sumac, literature composite (Rhus coriaria)
 
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-05 dictionary growth (2026-06-20) — second staples pass toward the 372
@@ -2198,6 +3732,15 @@
     - { alias: "bazalkové lístky", language_code: cs }
     - { alias: "lístky bazalky", language_code: cs }
     - { alias: "bazalka čerstvá", language_code: cs }
+  nutrition:
+    kcal: 23.0
+    protein: 3.15
+    carbs: 2.65
+    fat: 0.64
+    density: 0.18
+    piece_weight_g: 25
+    unit_weights: {hrst: 10, lístek: 0.5, snítka: 3, svazek: 25}
+    source: usda:172232
 
 - name: coriander
   name_cs: koriandr
@@ -2208,6 +3751,15 @@
     - { alias: "koriandrová nať", language_code: cs }
     - { alias: "cilantro", language_code: cs }
     - { alias: "koriandr čerstvý", language_code: cs }
+  nutrition:
+    kcal: 23.0
+    protein: 2.13
+    carbs: 3.67
+    fat: 0.52
+    density: 0.1
+    piece_weight_g: 25
+    unit_weights: {hrst: 10, snítka: 2.2, svazek: 25}
+    source: usda:169997
 
 - name: sage
   name_cs: šalvěj
@@ -2216,6 +3768,14 @@
   is_pantry_staple: true
   estimated_price_czk: 25.0
   estimated_price_eur: 1.00
+  nutrition:
+    kcal: 315.0
+    protein: 10.6
+    carbs: 60.7
+    fat: 12.8
+    density: 0.15
+    unit_weights: {lístek: 0.5, svazek: 15}
+    source: usda:170935
 
 - name: vanilla
   name_cs: vanilka
@@ -2226,6 +3786,14 @@
   estimated_price_eur: 1.60
   aliases:
     - { alias: "vanilkový lusk", language_code: cs }
+  nutrition:
+    kcal: 288.0
+    protein: 0.06
+    carbs: 12.6
+    fat: 0.06
+    density: 0.84
+    piece_weight_g: 3  # vanilla pod ~3 g
+    source: usda:173471
 
 # Split out of `vanilla` 2026-08-16: this is the swap target for vanilkový
 # extrakt (37 recipes), so it must carry its own name_cs — rewriting through
@@ -2241,6 +3809,16 @@
     - { alias: "vanilkové aroma", language_code: cs }
     - { alias: "vanilková esence", language_code: cs }
     - { alias: "vanilkova esence", language_code: cs }
+  nutrition:
+    kcal: 288.0
+    protein: 0.06
+    carbs: 12.6
+    fat: 0.06
+    density: 0.84
+    piece_weight_g: 20  # Dr. Oetker vial 20 ml
+    unit_weights: {balení: 20}
+    usda_query: vanilla extract
+    source: usda:173471
 
 # Three DISTINCT products, previously conflated. `vanilkový cukr` is an ordinary
 # 8 g sáček in every Czech supermarket; `vanilkový extrakt` is not sold here at
@@ -2253,6 +3831,13 @@
   aliases:
     - { alias: "vanilla", language_code: en }
     - { alias: "vanilkový extrakt", language_code: cs }
+  nutrition:
+    kcal: 288.0
+    protein: 0.06
+    carbs: 12.6
+    fat: 0.06
+    density: 0.84
+    source: usda:173471
 
 - name: vanilla sugar
   name_cs: vanilkový cukr
@@ -2261,6 +3846,16 @@
   aliases:
     - { alias: "vanilkový cukr", language_code: cs }
     - { alias: "cukr vanilkový", language_code: cs }
+  nutrition:
+    kcal: 387.0
+    protein: 0.0
+    carbs: 100.0
+    fat: 0.0
+    density: 0.84
+    piece_weight_g: 20  # sachet 20 g
+    unit_weights: {balení: 20}
+    usda_query: sugars, granulated
+    source: usda:169655
 
 - name: juniper berries
   name_cs: jalovec
@@ -2273,13 +3868,28 @@
     - { alias: "jalovčinky", language_code: cs }
     - { alias: "jalovec kuličky", language_code: cs }
     - { alias: "jalovcové bobule", language_code: cs }
+  nutrition:
+    kcal: 263.0
+    protein: 6.09
+    carbs: 72.1
+    fat: 8.69
+    density: 0.38
+    piece_weight_g: 0.1
+    usda_query: spices, allspice, ground
+    source: usda:171315
 
 # --- Vegetables (missing base canonicals) ---
 - name: fennel
   name_cs: fenykl
   category: vegetables
   nutrition:
+    kcal: 31.0
+    protein: 1.24
+    carbs: 7.3
+    fat: 0.2
+    density: 0.36  # sliced, USDA 1 cup = 87 g
     piece_weight_g: 250
+    source: usda:169385
   default_unit: ks
   aliases:
     - { alias: "fenyklová cibule", language_code: cs }
@@ -2288,6 +3898,14 @@
   name_cs: pastinák
   category: vegetables
   default_unit: g
+  nutrition:
+    kcal: 75.0
+    protein: 1.2
+    carbs: 18.0
+    fat: 0.3
+    density: 0.554
+    piece_weight_g: 150
+    source: usda:170417
 
 - name: asparagus
   name_cs: chřest
@@ -2295,6 +3913,15 @@
   default_unit: g
   aliases:
     - { alias: "zelený chřest", language_code: cs }
+  nutrition:
+    kcal: 20.0
+    protein: 2.2
+    carbs: 3.88
+    fat: 0.12
+    density: 0.558
+    piece_weight_g: 20
+    unit_weights: {svazek: 500}
+    source: usda:168389
 
 - name: edamame
   name_cs: edamame
@@ -2304,12 +3931,25 @@
     - { alias: "mražené edamame", language_code: cs }
     - { alias: "vyloupané edamame", language_code: cs }
     - { alias: "edamame fazole", language_code: cs }
+  nutrition:
+    kcal: 109.0
+    protein: 11.2
+    carbs: 7.61
+    fat: 4.73
+    density: 0.492
+    source: usda:168410
 
 - name: beetroot
   name_cs: červená řepa
   category: vegetables
   nutrition:
+    kcal: 43.0
+    protein: 1.61
+    carbs: 9.56
+    fat: 0.17
+    density: 0.567
     piece_weight_g: 150
+    source: usda:169145
   default_unit: g
   aliases:
     - { alias: "řepa", language_code: cs }
@@ -2320,7 +3960,14 @@
   name_cs: radicchio
   category: vegetables
   nutrition:
+    kcal: 23.0
+    protein: 1.43
+    carbs: 4.48
+    fat: 0.25
+    density: 0.17  # shredded, USDA 1 cup = 40 g
     piece_weight_g: 250
+    unit_weights: {lístek: 8.0}
+    source: usda:168564
   default_unit: ks
   aliases:
     - { alias: "čekanka", language_code: cs }
@@ -2334,6 +3981,15 @@
   aliases:
     - { alias: "jahoda", language_code: cs }
     - { alias: "mražené jahody", language_code: cs }
+  nutrition:
+    kcal: 32.0
+    protein: 0.67
+    carbs: 7.68
+    fat: 0.3
+    density: 0.69  # sliced, USDA 1 cup = 166 g
+    piece_weight_g: 15
+    unit_weights: {hrst: 60}
+    source: usda:167762
 
 - name: pineapple
   name_cs: ananas
@@ -2342,6 +3998,16 @@
   aliases:
     - { alias: "ananasové kousky", language_code: cs }
     - { alias: "ananas v konzervě", language_code: cs }
+  nutrition:
+    kcal: 50.0
+    protein: 0.54
+    carbs: 13.1
+    fat: 0.12
+    density: 0.688
+    piece_weight_g: 900  # whole fruit, edible ~900 g
+    unit_weights: {plátek: 56.0}
+    usda_query: pineapple, raw, all varieties
+    source: usda:169124
 
 # --- Nuts ---
 - name: hazelnuts
@@ -2351,6 +4017,15 @@
   aliases:
     - { alias: "lískové oříšky", language_code: cs }
     - { alias: "lískový ořech", language_code: cs }
+  nutrition:
+    kcal: 628.0
+    protein: 15.0
+    carbs: 16.7
+    fat: 60.8
+    density: 0.5
+    piece_weight_g: 1.4
+    unit_weights: {hrst: 30}
+    source: usda:170581
 
 - name: poppy seeds
   name_cs: mák
@@ -2361,6 +4036,13 @@
   estimated_price_eur: 1.60
   aliases:
     - { alias: "makový", language_code: cs }
+  nutrition:
+    kcal: 525.0
+    protein: 18.0
+    carbs: 28.1
+    fat: 41.6
+    density: 0.56
+    source: usda:171330
 
 # --- Condiments / sauces (missing base canonicals) ---
 - name: mustard
@@ -2375,6 +4057,14 @@
     - { alias: "plnozrnná hořčice", language_code: cs }
     - { alias: "hrubozrnná hořčice", language_code: cs }
     - { alias: "plnotučná hořčice", language_code: cs }
+  nutrition:
+    kcal: 60.0
+    protein: 3.74
+    carbs: 5.83
+    fat: 3.34
+    density: 1.0
+    usda_query: mustard, prepared, yellow
+    source: usda:172234
 
 - name: balsamic vinegar
   name_cs: balzamikový ocet
@@ -2388,6 +4078,13 @@
     - { alias: "balzamikový krém", language_code: cs }
     - { alias: "balzamico", language_code: cs }
     - { alias: "aceto balsamico", language_code: cs }
+  nutrition:
+    kcal: 88.0
+    protein: 0.49
+    carbs: 17.0
+    fat: 0.0
+    density: 1.067
+    source: usda:172241
 
 - name: tartar sauce
   name_cs: tatarská omáčka
@@ -2395,6 +4092,13 @@
   default_unit: g
   aliases:
     - { alias: "tatarka", language_code: cs }
+  nutrition:
+    kcal: 400
+    protein: 1
+    carbs: 5
+    fat: 42
+    density: 0.95
+    source: manual:CZ label, tatarska omacka (typical ~40% fat)
 
 - name: molasses
   name_cs: melasa
@@ -2403,6 +4107,13 @@
   is_pantry_staple: true
   estimated_price_czk: 80.0
   estimated_price_eur: 3.20
+  nutrition:
+    kcal: 290.0
+    protein: 0.0
+    carbs: 74.7
+    fat: 0.1
+    density: 1.404
+    source: usda:168820
 
 - name: nori
   name_cs: nori
@@ -2412,6 +4123,14 @@
     - { alias: "sušené nori", language_code: cs }
     - { alias: "nori řasy", language_code: cs }
     - { alias: "řasa nori", language_code: cs }
+  nutrition:
+    kcal: 276
+    protein: 39.4
+    carbs: 38.7
+    fat: 3.7
+    piece_weight_g: 2.5  # sheet ~2.5 g
+    unit_weights: {plátek: 2.5}
+    source: manual:MEXT Japan 2020, asakusa-nori dried
 
 # --- Meat ---
 - name: salami
@@ -2431,6 +4150,14 @@
     - { alias: "pařížský salám", language_code: cs }  # batch-09
     - { alias: "pražský salám v celku", language_code: cs }  # batch-09b
     - { alias: "pražský salám vcelku", language_code: cs }  # batch-09b
+  nutrition:
+    kcal: 425.0
+    protein: 21.7
+    carbs: 1.2
+    fat: 37.0
+    density: 0.6
+    unit_weights: {plátek: 8}
+    source: usda:174603
 
 # --- Fats ---
 - name: margarine
@@ -2444,6 +4171,16 @@
     - { alias: "hera", language_code: cs }
     - { alias: "margarín", language_code: cs }
     - { alias: "rostlinný margarín", language_code: cs }
+  nutrition:
+    kcal: 713.0
+    protein: 0.22
+    carbs: 0.75
+    fat: 80.2
+    density: 0.947
+    piece_weight_g: 250  # Hera/Perla 250 g
+    unit_weights: {balení: 250}
+    usda_query: margarine, regular, 80% fat, composite, tub, with salt
+    source: usda:172347
 
 # --- Grains / flours / starches ---
 - name: semolina
@@ -2460,6 +4197,13 @@
     - { alias: "dětská krupička", language_code: cs }  # batch-09
     - { alias: "krupička", language_code: cs }  # batch-09
     - { alias: "pšeničná krupice", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 360.0
+    protein: 12.7
+    carbs: 72.8
+    fat: 1.05
+    density: 0.696
+    source: usda:168933
 
 - name: cornmeal
   name_cs: kukuřičná mouka
@@ -2471,6 +4215,14 @@
   aliases:
     - { alias: "kukuřičná krupice", language_code: cs }
     - { alias: "polenta", language_code: cs }
+  nutrition:
+    kcal: 370.0
+    protein: 7.11
+    carbs: 79.4
+    fat: 1.75
+    density: 0.654
+    usda_query: cornmeal, degermed, enriched, yellow
+    source: usda:168867
 
 - name: chickpea flour
   name_cs: cizrnová mouka
@@ -2481,6 +4233,13 @@
   estimated_price_eur: 2.00
   aliases:
     - { alias: "mouka z cizrny", language_code: cs }
+  nutrition:
+    kcal: 387.0
+    protein: 22.4
+    carbs: 57.8
+    fat: 6.69
+    density: 0.383
+    source: usda:174288
 
 - name: spelt flour
   name_cs: špaldová mouka
@@ -2491,6 +4250,13 @@
   estimated_price_eur: 1.60
   aliases:
     - { alias: "celozrnná špaldová mouka", language_code: cs }
+  nutrition:
+    kcal: 338.0
+    protein: 14.6
+    carbs: 70.2
+    fat: 2.43
+    density: 0.725
+    source: usda:169745
 
 - name: tapioca starch
   name_cs: tapiokový škrob
@@ -2501,6 +4267,14 @@
   estimated_price_eur: 2.40
   aliases:
     - { alias: "tapioka", language_code: cs }
+  nutrition:
+    kcal: 358.0
+    protein: 0.19
+    carbs: 88.7
+    fat: 0.02
+    density: 0.633
+    usda_query: tapioca, pearl, dry
+    source: usda:169717
 
 - name: rice noodles
   name_cs: rýžové nudle
@@ -2509,6 +4283,15 @@
   aliases:
     - { alias: "rýžové fettuccine", language_code: cs }
     - { alias: "široké rýžové nudle", language_code: cs }  # batch-07
+  nutrition:
+    kcal: 364.0
+    protein: 5.95
+    carbs: 80.2
+    fat: 0.56
+    density: 0.4
+    piece_weight_g: 50
+    unit_weights: {balení: 200}
+    source: usda:169742
 
 - name: rice paper
   name_cs: rýžový papír
@@ -2516,6 +4299,14 @@
   default_unit: ks
   aliases:
     - { alias: "rýžové papíry", language_code: cs }
+  nutrition:
+    kcal: 330
+    protein: 2.9
+    carbs: 79
+    fat: 0.2
+    piece_weight_g: 9
+    unit_weights: {plátek: 9}
+    source: manual:rice paper sheets, typical label (Blue Dragon)
 
 # --- Beverages / other ---
 - name: plant milk
@@ -2525,6 +4316,14 @@
   aliases:
     - { alias: "rostlinný nápoj", language_code: cs }
     - { alias: "rostlinný drink", language_code: cs }
+  nutrition:
+    kcal: 54.0
+    protein: 3.27
+    carbs: 6.28
+    fat: 1.75
+    density: 1.012
+    usda_query: soymilk, original and vanilla, unfortified
+    source: usda:172446
 
 # ───────────────────────────────────────────────────────────────────────────
 # Batch-06 dictionary growth (2026-06-20) — final pass to the 372 live target
@@ -2541,6 +4340,14 @@
     - { alias: "dýně", language_code: cs }
     - { alias: "dýně hokaido", language_code: cs }
     - { alias: "dýně butternut", language_code: cs }
+  nutrition:
+    kcal: 45.0
+    protein: 1.0
+    carbs: 11.7
+    fat: 0.1
+    density: 0.58
+    piece_weight_g: 1000
+    source: usda:169295
 
 - name: bok choy
   name_cs: bok choy
@@ -2549,6 +4356,16 @@
   aliases:
     - { alias: "baby bok choy", language_code: cs }
     - { alias: "pak choi", language_code: cs }
+  nutrition:
+    kcal: 13.0
+    protein: 1.5
+    carbs: 2.18
+    fat: 0.2
+    density: 0.29  # shredded, USDA 1 cup = 70 g
+    piece_weight_g: 150
+    unit_weights: {lístek: 15}
+    usda_query: cabbage, chinese (pak-choi), raw
+    source: usda:170390
 
 - name: cinnamon
   name_cs: skořice
@@ -2560,6 +4377,14 @@
   aliases:
     - { alias: "mletá skořice", language_code: cs }
     - { alias: "skořicové tyčinky", language_code: cs }
+  nutrition:
+    kcal: 247.0
+    protein: 3.99
+    carbs: 80.6
+    fat: 1.24
+    density: 0.52
+    piece_weight_g: 3  # stick ~3 g
+    source: usda:171320
 
 - name: spice blend
   name_cs: kořenicí směs
@@ -2572,6 +4397,13 @@
     - { alias: "koření na kuře", language_code: cs }
     - { alias: "koření na tacos", language_code: cs }
     - { alias: "koření na grilování", language_code: cs }
+  nutrition:
+    kcal: 230
+    protein: 8
+    carbs: 38
+    fat: 5
+    density: 0.6
+    source: manual:salt-based CZ seasoning blend, typical label (Kotanyi/Avokado)
 
 - name: gluten-free flour
   name_cs: bezlepková mouka
@@ -2582,6 +4414,13 @@
   estimated_price_eur: 2.80
   aliases:
     - { alias: "bezlepková směs na pečení", language_code: cs }
+  nutrition:
+    kcal: 350
+    protein: 3
+    carbs: 80
+    fat: 1.5
+    density: 0.55
+    source: manual:gluten-free flour blend, typical label (Schar Mix C/Jizerka)
 
 # --- Batch06 top-up (issue #49): meat cuts & fish for the meat-mains batch ---
 # Distinct canonicals (not aliases) where the store SKU genuinely differs;
@@ -2597,6 +4436,14 @@
     - { alias: "kuřecí maso s kostí", language_code: cs }  # batch-09
     - { alias: "kuře s kostí", language_code: cs }  # batch-09
     - { alias: "kuřecí maso na vývar", language_code: cs }  # batch-09
+  nutrition:
+    kcal: 215.0
+    protein: 18.6
+    carbs: 0.0
+    fat: 15.1
+    piece_weight_g: 1300  # whole bird ~1.3 kg
+    usda_query: chicken, broilers or fryers, meat and skin, raw
+    source: usda:171447
 
 - name: chicken drumsticks
   name_cs: kuřecí paličky
@@ -2605,6 +4452,13 @@
   aliases:
     - { alias: "kuřecí spodní stehna", language_code: cs }
     - { alias: "kuřecí paličky spodní", language_code: cs }
+  nutrition:
+    kcal: 161.0
+    protein: 18.1
+    carbs: 0.11
+    fat: 9.2
+    piece_weight_g: 110
+    source: usda:172373
 
 - name: turkey breast
   name_cs: krůtí prsa
@@ -2613,6 +4467,14 @@
   aliases:
     - { alias: "krůtí maso", language_code: cs }
     - { alias: "krůtí plátky", language_code: cs }
+  nutrition:
+    kcal: 114.0
+    protein: 23.7
+    carbs: 0.14
+    fat: 1.48
+    density: 0.58
+    unit_weights: {plátek: 120}
+    source: usda:171098
 
 - name: pork tenderloin
   name_cs: vepřová panenka
@@ -2621,6 +4483,14 @@
   aliases:
     - { alias: "panenka", language_code: cs }
     - { alias: "vepřová panenská svíčková", language_code: cs }
+  nutrition:
+    kcal: 109.0
+    protein: 21.0
+    carbs: 0.0
+    fat: 2.17
+    density: 0.6
+    piece_weight_g: 450  # whole tenderloin ~450 g
+    source: usda:168249
 
 - name: cod fillet
   name_cs: treska filé
@@ -2634,6 +4504,14 @@
     - { alias: "treska filety", language_code: cs }
     - { alias: "filet z tresky bez kůže", language_code: cs }
     - { alias: "rybí filé", language_code: cs }
+  nutrition:
+    kcal: 82.0
+    protein: 17.8
+    carbs: 0.0
+    fat: 0.67
+    density: 0.58  # diced fish
+    piece_weight_g: 150
+    source: usda:171955
 
 - name: trout
   name_cs: pstruh
@@ -2641,6 +4519,13 @@
   default_unit: g
   aliases:
     - { alias: "pstruh duhový", language_code: cs }
+  nutrition:
+    kcal: 141.0
+    protein: 19.9
+    carbs: 0.0
+    fat: 6.18
+    piece_weight_g: 300  # whole trout ~300 g
+    source: usda:173717
 
 - name: shrimp
   name_cs: krevety
@@ -2650,6 +4535,14 @@
   aliases:
     - { alias: "krevety loupané", language_code: cs }
     - { alias: "garnáty", language_code: cs }
+  nutrition:
+    kcal: 85.0
+    protein: 20.1
+    carbs: 0.0
+    fat: 0.51
+    density: 0.6
+    piece_weight_g: 15
+    source: usda:175179
 
 - name: soy sauce
   name_cs: sójová omáčka
@@ -2662,6 +4555,14 @@
     - { alias: "tmavá sójová omáčka", language_code: cs }
     - { alias: "sójová omáčka se sníženým obsahem soli", language_code: cs }
     - { alias: "světlá sójová omáčka", language_code: cs }
+  nutrition:
+    kcal: 53.0
+    protein: 8.14
+    carbs: 4.93
+    fat: 0.57
+    density: 1.067
+    usda_query: soy sauce made from soy and wheat (shoyu)
+    source: usda:174277
 
 - name: red wine
   name_cs: červené víno
@@ -2669,6 +4570,13 @@
   default_unit: ml
   aliases:
     - { alias: "suché červené víno", language_code: cs }
+  nutrition:
+    kcal: 85.0
+    protein: 0.07
+    carbs: 2.61
+    fat: 0.0
+    density: 0.99
+    source: usda:173190
 
 - name: blue cheese
   name_cs: niva
@@ -2677,6 +4585,15 @@
   aliases:
     - { alias: "sýr niva", language_code: cs }
     - { alias: "plísňový sýr", language_code: cs }
+  nutrition:
+    kcal: 353.0
+    protein: 21.4
+    carbs: 2.34
+    fat: 28.7
+    density: 0.5
+    piece_weight_g: 100
+    unit_weights: {balení: 100}
+    source: usda:172175
 
 - name: rabbit
   name_cs: králík
@@ -2684,6 +4601,14 @@
   default_unit: g
   aliases:
     - { alias: "králičí maso", language_code: cs }
+  nutrition:
+    kcal: 136.0
+    protein: 20.0
+    carbs: 0.0
+    fat: 5.55
+    piece_weight_g: 1500  # whole rabbit ~1.5 kg
+    usda_query: game meat, rabbit, domesticated, composite of cuts, raw
+    source: usda:172521
 
 - name: gyros seasoning
   name_cs: koření na gyros
@@ -2693,6 +4618,13 @@
   aliases:
     - { alias: "koření gyros směs", language_code: cs }
     - { alias: "gyros koření", language_code: cs }
+  nutrition:
+    kcal: 230
+    protein: 8
+    carbs: 38
+    fat: 5
+    density: 0.6
+    source: manual:salt-based CZ seasoning blend, typical label (Kotanyi/Avokado)
 
 - name: ricotta
   name_cs: ricotta
@@ -2700,6 +4632,15 @@
   default_unit: g
   aliases:
     - { alias: "sýr ricotta", language_code: cs }
+  nutrition:
+    kcal: 150.0
+    protein: 7.54
+    carbs: 7.27
+    fat: 10.2
+    density: 1.033
+    piece_weight_g: 250
+    unit_weights: {balení: 250}
+    source: usda:170851
 
 - name: pesto
   name_cs: bazalkové pesto
@@ -2708,6 +4649,13 @@
   aliases:
     - { alias: "pesto", language_code: cs }
     - { alias: "zelené pesto", language_code: cs }
+  nutrition:
+    kcal: 418.0
+    protein: 9.83
+    carbs: 10.1
+    fat: 37.6
+    density: 1.05
+    source: usda:171579
 
 - name: cauliflower rice
   name_cs: květáková rýže
@@ -2716,11 +4664,27 @@
   aliases:
     - { alias: "rýže z květáku", language_code: cs }
     - { alias: "uvařená rýže z květáku", language_code: cs }
+  nutrition:
+    kcal: 25.0
+    protein: 1.92
+    carbs: 4.97
+    fat: 0.28
+    density: 0.45
+    piece_weight_g: 400  # pack 400 g
+    unit_weights: {balení: 400}
+    source: usda:169986
 
 - name: hoisin sauce
   name_cs: hoisin omáčka
   category: condiments
   default_unit: ml
+  nutrition:
+    kcal: 220.0
+    protein: 3.31
+    carbs: 44.1
+    fat: 3.39
+    density: 1.067
+    source: usda:172886
 
 - name: sriracha
   name_cs: sriracha
@@ -2729,6 +4693,14 @@
   aliases:
     - { alias: "chilli omáčka", language_code: cs }
     - { alias: "chilli omáčka sriracha", language_code: cs }
+  nutrition:
+    kcal: 93.0
+    protein: 1.93
+    carbs: 19.2
+    fat: 0.93
+    density: 1.3
+    usda_query: sauce, hot chile, sriracha
+    source: usda:171186
 
 - name: fajita seasoning
   name_cs: koření fajitas
@@ -2736,6 +4708,13 @@
   default_unit: g
   aliases:
     - { alias: "koření na fajitas", language_code: cs }
+  nutrition:
+    kcal: 230
+    protein: 8
+    carbs: 38
+    fat: 5
+    density: 0.6
+    source: manual:salt-based CZ seasoning blend, typical label (Kotanyi/Avokado)
 
 - name: shredded cheese mix
   name_cs: strouhaná sýrová směs
@@ -2743,6 +4722,14 @@
   default_unit: g
   aliases:
     - { alias: "mexická sýrová směs", language_code: cs }
+  nutrition:
+    kcal: 384.0
+    protein: 23.5
+    carbs: 0.13
+    fat: 32.1
+    density: 0.4
+    usda_query: cheese, mexican blend
+    source: usda:171288
 
 - name: harissa
   name_cs: harissa
@@ -2751,6 +4738,13 @@
   aliases:
     - { alias: "harissa omáčka", language_code: cs }
     - { alias: "harissa pasta", language_code: cs }
+  nutrition:
+    kcal: 120
+    protein: 3
+    carbs: 10
+    fat: 7.5
+    density: 1.1
+    source: manual:harissa paste, typical label (Le Phare du Cap Bon)
 
 - name: smoked paprika
   name_cs: uzená paprika
@@ -2762,6 +4756,13 @@
   aliases:
     - { alias: "uzenou papriku", language_code: cs }
     - { alias: "paprika uzená", language_code: cs }
+  nutrition:
+    kcal: 282.0
+    protein: 14.1
+    carbs: 54.0
+    fat: 12.9
+    density: 0.453
+    source: usda:171329
 
 - name: chorizo
   name_cs: chorizo
@@ -2769,6 +4770,16 @@
   default_unit: g
   aliases:
     - { alias: "klobása chorizo", language_code: cs }
+  nutrition:
+    kcal: 296.0
+    protein: 13.6
+    carbs: 3.78
+    fat: 25.1
+    density: 0.6
+    piece_weight_g: 80
+    unit_weights: {plátek: 5}
+    usda_query: sausage, pork, chorizo, link or ground, raw
+    source: usda:173859
 
 - name: rapeseed oil
   slug: rapeseed-oil
@@ -2785,6 +4796,14 @@
   # a substitution target, so that name gets spliced into an ingredient line
   # mid-sentence and reads there as a proper noun. Carried into the YAML so the
   # seeder can correct it on every database, prod included.
+  nutrition:
+    kcal: 884.0
+    protein: 0.0
+    carbs: 0.0
+    fat: 100.0
+    density: 0.9
+    usda_query: oil, canola
+    source: usda:172336
 
 - name: potato starch
   slug: potato-starch
@@ -2803,6 +4822,13 @@
   # the tapioca-starch -> potato-starch availability swap target, which splices
   # name_cs into an ingredient line mid-sentence; lowercased so it reads as a
   # common noun. Mirrors the rapeseed-oil correction in #70.
+  nutrition:
+    kcal: 333
+    protein: 0.1
+    carbs: 83
+    fat: 0.1
+    density: 0.65
+    source: manual:potato starch label (Solamyl)
 
 # --- Batch 07 (2026-09-09): demand-driven Czech classics. Every item below is
 # ordinary supermarket stock in CZ/SK; the first run of batch 07 rejected 31 of
@@ -2815,6 +4841,15 @@
   default_unit: g
   aliases:
     - { alias: "italská slanina pancetta", language_code: cs }
+  nutrition:
+    kcal: 393.0
+    protein: 13.7
+    carbs: 0.0
+    fat: 37.1
+    density: 0.6
+    unit_weights: {plátek: 10}
+    usda_query: pork, cured, bacon, unprepared
+    source: usda:168277
 
 - name: pecorino
   name_cs: pecorino
@@ -2823,6 +4858,14 @@
   aliases:
     - { alias: "sýr pecorino", language_code: cs }
     - { alias: "pecorino romano", language_code: cs }
+  nutrition:
+    kcal: 387.0
+    protein: 31.8
+    carbs: 3.63
+    fat: 26.9
+    density: 0.4
+    usda_query: cheese, romano
+    source: usda:171249
 
 - name: carp
   name_cs: kapr
@@ -2833,6 +4876,13 @@
     - { alias: "kapří filety", language_code: cs }
     - { alias: "kapří podkovy", language_code: cs }
     - { alias: "kapor", language_code: sk }
+  nutrition:
+    kcal: 127.0
+    protein: 17.8
+    carbs: 0.0
+    fat: 5.6
+    unit_weights: {plátek: 150}
+    source: usda:171952
 
 - name: chinese noodles
   name_cs: čínské nudle
@@ -2841,6 +4891,15 @@
   aliases:
     - { alias: "instantní nudle", language_code: cs }
     - { alias: "čínské instantní nudle", language_code: cs }
+  nutrition:
+    kcal: 471.0
+    protein: 10.9
+    carbs: 63.6
+    fat: 21.2
+    density: 0.233
+    piece_weight_g: 60
+    unit_weights: {balení: 60}
+    source: usda:168905
 
 - name: lasagne sheets
   name_cs: pláty na lasagne
@@ -2850,6 +4909,16 @@
     - { alias: "lasagne pláty", language_code: cs }
     - { alias: "těstoviny na lasagne", language_code: cs }
     - { alias: "lasagne", language_code: cs }
+  nutrition:
+    kcal: 371.0
+    protein: 13.0
+    carbs: 74.7
+    fat: 1.51
+    density: 0.4
+    piece_weight_g: 18
+    unit_weights: {plátek: 18}
+    usda_query: pasta, dry, unenriched
+    source: usda:168927
 
 - name: star anise
   name_cs: badyán
@@ -2859,6 +4928,15 @@
   aliases:
     - { alias: "celý badyán", language_code: cs }
     - { alias: "hvězdičky badyánu", language_code: cs }
+  nutrition:
+    kcal: 337.0
+    protein: 17.6
+    carbs: 50.0
+    fat: 15.9
+    density: 0.47  # whole, USDA 1 tbsp = 7 g
+    piece_weight_g: 1
+    usda_query: spices, anise seed
+    source: usda:171316
 
 - name: beef marrow bones
   name_cs: hovězí morkové kosti
@@ -2867,6 +4945,13 @@
   aliases:
     - { alias: "morkové kosti", language_code: cs }
     - { alias: "hovězí kosti", language_code: cs }
+  nutrition:
+    kcal: 170
+    protein: 5
+    carbs: 0
+    fat: 17
+    piece_weight_g: 250  # one marrow bone piece ~250 g
+    source: manual:estimate, ~20% marrow (~84% fat) + trimmings per 100 g bone
 
 - name: smoked meat
   name_cs: uzené maso
@@ -2885,6 +4970,15 @@
     - { alias: "uzená krkovice v celku", language_code: cs }  # batch-09
     - { alias: "uzená žebra s masem", language_code: cs }  # batch-09b
     - { alias: "uzené žebírko", language_code: cs }  # batch-09b
+  nutrition:
+    kcal: 246.0
+    protein: 18.5
+    carbs: 0.06
+    fat: 18.5
+    density: 0.583
+    unit_weights: {plátek: 30}
+    usda_query: pork, cured, ham, whole, separable lean and fat, unheated
+    source: usda:167875
 
 - name: burger buns
   name_cs: burgerové bulky
@@ -2896,6 +4990,14 @@
     - { alias: "housky na hamburger", language_code: cs }
     - { alias: "burgerové housky", language_code: cs }  # batch-09b
     - { alias: "housky na burger", language_code: cs }  # batch-09b
+  nutrition:
+    kcal: 279.0
+    protein: 9.77
+    carbs: 50.1
+    fat: 3.91
+    piece_weight_g: 60
+    usda_query: rolls, hamburger or hotdog, plain
+    source: usda:172796
 
 - name: potato seasoning
   name_cs: koření na americké brambory
@@ -2904,6 +5006,13 @@
   is_pantry_staple: true
   aliases:
     - { alias: "koření na brambory", language_code: cs }
+  nutrition:
+    kcal: 230
+    protein: 8
+    carbs: 38
+    fat: 5
+    density: 0.6
+    source: manual:salt-based CZ seasoning blend, typical label (Kotanyi/Avokado)
 
 - name: bryndza
   name_cs: bryndza
@@ -2912,6 +5021,15 @@
   aliases:
     - { alias: "ovčí bryndza", language_code: cs }
     - { alias: "slovenská bryndza", language_code: cs }
+  nutrition:
+    kcal: 281
+    protein: 17
+    carbs: 1.5
+    fat: 23
+    density: 0.9
+    piece_weight_g: 125
+    unit_weights: {balení: 125}
+    source: manual:SK label, bryndza (typical)
 
 - name: couscous
   name_cs: kuskus
@@ -2920,6 +5038,13 @@
   aliases:
     - { alias: "celozrnný kuskus", language_code: cs }
     - { alias: "couscous", language_code: cs }
+  nutrition:
+    kcal: 376.0
+    protein: 12.8
+    carbs: 77.4
+    fat: 0.64
+    density: 0.721
+    source: usda:169699
 
 - name: bulgur
   name_cs: bulgur
@@ -2927,6 +5052,13 @@
   default_unit: g
   aliases:
     - { alias: "bulgur pšeničný", language_code: cs }
+  nutrition:
+    kcal: 342.0
+    protein: 12.3
+    carbs: 75.9
+    fat: 1.33
+    density: 0.583
+    source: usda:170688
 
 - name: beer
   name_cs: pivo
@@ -2937,6 +5069,16 @@
     - { alias: "tmavé pivo", language_code: cs }
     - { alias: "polotmavé pivo", language_code: cs }
     - { alias: "ležák", language_code: cs }
+  nutrition:
+    kcal: 43.0
+    protein: 0.46
+    carbs: 3.55
+    fat: 0.0
+    density: 1.01
+    piece_weight_g: 500  # bottle 0.5 l
+    unit_weights: {balení: 500}
+    usda_query: alcoholic beverage, beer, regular, all
+    source: usda:168746
 
 - name: dried peas
   name_cs: sušený hrách
@@ -2947,6 +5089,14 @@
     - { alias: "žlutý loupaný hrách", language_code: cs }
     - { alias: "loupaný hrách", language_code: cs }
     - { alias: "půlený hrách", language_code: cs }
+  nutrition:
+    kcal: 364.0
+    protein: 23.1
+    carbs: 61.6
+    fat: 3.89
+    density: 0.817
+    usda_query: peas, green, split, mature seeds, raw
+    source: usda:172428
 
 - name: pork knuckle
   name_cs: vepřové koleno
@@ -2957,6 +5107,13 @@
     - { alias: "vepřové koleno zadní", language_code: cs }
     - { alias: "vepřové kolínko", language_code: cs }
     - { alias: "bravčové koleno", language_code: sk }
+  nutrition:
+    kcal: 190
+    protein: 19
+    carbs: 0
+    fat: 12.5
+    piece_weight_g: 1200  # knuckle ~1.2 kg
+    source: manual:Souci-Fachmann-Kraut, Schweinshaxe raw (edible portion)
 
 - name: tripe
   name_cs: hovězí dršťky
@@ -2966,6 +5123,12 @@
     - { alias: "dršťky", language_code: cs }
     - { alias: "syrové hovězí dršťky", language_code: cs }
     - { alias: "předvařené dršťky", language_code: cs }
+  nutrition:
+    kcal: 85.0
+    protein: 12.1
+    carbs: 0.0
+    fat: 3.69
+    source: usda:170599
 
 - name: pork liver
   name_cs: vepřová játra
@@ -2973,6 +5136,13 @@
   default_unit: g
   aliases:
     - { alias: "vepřové játra", language_code: cs }
+  nutrition:
+    kcal: 134.0
+    protein: 21.4
+    carbs: 2.47
+    fat: 3.65
+    density: 0.95  # raw liver pieces
+    source: usda:167862
 
 - name: chicken liver
   name_cs: kuřecí játra
@@ -2982,6 +5152,14 @@
     - { alias: "drůbeží játra", language_code: cs }
     - { alias: "játra", language_code: cs }
     - { alias: "krůtí játra", language_code: cs }
+  nutrition:
+    kcal: 119.0
+    protein: 16.9
+    carbs: 0.73
+    fat: 4.83
+    density: 0.95  # raw livers, ~230 g per cup
+    piece_weight_g: 40
+    source: usda:171060
 
 - name: anchovies
   name_cs: sardelové filety
@@ -2991,6 +5169,16 @@
     - { alias: "sardele", language_code: cs }
     - { alias: "ančovičky", language_code: cs }
     - { alias: "sardelová pasta", language_code: cs }
+  nutrition:
+    kcal: 210.0
+    protein: 28.9
+    carbs: 0.0
+    fat: 9.71
+    density: 1.0  # volume use = anchovy paste
+    piece_weight_g: 4
+    unit_weights: {balení: 50}
+    usda_query: fish, anchovy, european, canned in oil, drained solids
+    source: usda:174183
 
 - name: spread butter
   name_cs: pomazánkové máslo
@@ -2998,6 +5186,15 @@
   default_unit: g
   aliases:
     - { alias: "pomazánkové", language_code: cs }
+  nutrition:
+    kcal: 321
+    protein: 6
+    carbs: 4.5
+    fat: 31
+    density: 1
+    piece_weight_g: 150
+    unit_weights: {balení: 150}
+    source: manual:CZ label, pomazankove maslo (typical ~31% fat)
 
 
 # --- batch-09 (2026-09-15): ordinary Czech items that rejected batches 07+08 at intake ---
@@ -3015,6 +5212,14 @@
     - { alias: "kachní maso", language_code: cs }
     - { alias: "kačica", language_code: sk }
     - { alias: "celá kačica", language_code: sk }
+  nutrition:
+    kcal: 404.0
+    protein: 11.5
+    carbs: 0.0
+    fat: 39.3
+    piece_weight_g: 2000  # whole duck ~2 kg
+    usda_query: duck, domesticated, meat and skin, raw
+    source: usda:172408
 
 - name: pork cracklings
   name_cs: škvarky
@@ -3028,6 +5233,13 @@
     - { alias: "domácí škvarky", language_code: cs }
     - { alias: "oškvarky", language_code: sk }
     - { alias: "bravčové oškvarky", language_code: sk }
+  nutrition:
+    kcal: 610
+    protein: 30
+    carbs: 0
+    fat: 54
+    density: 0.5
+    source: manual:CZ label, skvarky (typical)
 
 - name: processed cheese
   name_cs: tavený sýr
@@ -3041,6 +5253,15 @@
     - { alias: "tavený smetanový sýr", language_code: cs }
     - { alias: "tavený sýr trojúhelníčky", language_code: cs }
     - { alias: "tavený syr", language_code: sk }
+  nutrition:
+    kcal: 262
+    protein: 11
+    carbs: 5
+    fat: 22
+    density: 1
+    piece_weight_g: 17  # triangle ~17 g
+    unit_weights: {balení: 100}
+    source: manual:CZ label, taveny syr (typical, Apetito/Vesela krava)
 
 - name: beef cheeks
   name_cs: hovězí líčka
@@ -3053,6 +5274,14 @@
     - { alias: "hovězí líčko", language_code: cs }
     - { alias: "líčka", language_code: cs }
     - { alias: "hovädzie líčka", language_code: sk }
+  nutrition:
+    kcal: 239.0
+    protein: 19.3
+    carbs: 0.0
+    fat: 17.4
+    piece_weight_g: 300  # one cheek ~300 g
+    usda_query: beef, chuck, arm pot roast, separable lean and fat, trimmed to 1/8" fat, select, raw
+    source: usda:168670
 
 - name: savoy cabbage
   name_cs: kapusta
@@ -3066,6 +5295,15 @@
     - { alias: "kapusta hlávková", language_code: cs }
     - { alias: "kel", language_code: sk }
     - { alias: "hlávkový kel", language_code: sk }
+  nutrition:
+    kcal: 27.0
+    protein: 2.0
+    carbs: 6.1
+    fat: 0.1
+    density: 0.29  # shredded, USDA 1 cup = 70 g
+    piece_weight_g: 800
+    unit_weights: {lístek: 30}
+    source: usda:170388
 
 - name: pickled peppers
   name_cs: nakládaná kapie
@@ -3079,6 +5317,14 @@
     - { alias: "kapie v nálevu", language_code: cs }
     - { alias: "sterilované papriky", language_code: cs }
     - { alias: "nakladaná kápia", language_code: sk }
+  nutrition:
+    kcal: 22.0
+    protein: 0.8
+    carbs: 4.56
+    fat: 0.4
+    density: 0.567
+    piece_weight_g: 40
+    source: usda:169766
 
 - name: sardines canned
   name_cs: sardinky
@@ -3095,6 +5341,15 @@
     - { alias: "sardinky v tomatě", language_code: cs }
     - { alias: "rybičky v oleji", language_code: cs }
     - { alias: "sardinky v oleji", language_code: sk }
+  nutrition:
+    kcal: 208.0
+    protein: 24.6
+    carbs: 0.0
+    fat: 11.4
+    density: 0.621
+    piece_weight_g: 25  # fish ~25 g; can 125 g -> 90 g drained
+    unit_weights: {balení: 90}
+    source: usda:175139
 
 - name: bamboo shoots
   name_cs: bambusové výhonky
@@ -3107,6 +5362,13 @@
     - { alias: "bambus", language_code: cs }
     - { alias: "bambusové výhonky v konzervě", language_code: cs }
     - { alias: "bambusové výhonky", language_code: sk }
+  nutrition:
+    kcal: 27.0
+    protein: 2.6
+    carbs: 5.2
+    fat: 0.3
+    density: 0.629
+    source: usda:169210
 
 - name: olomouc cheese
   name_cs: olomoucké tvarůžky
@@ -3120,3 +5382,11 @@
     - { alias: "syrečky", language_code: cs }
     - { alias: "olomoucké syrečky", language_code: cs }
     - { alias: "olomoucké syrečky", language_code: sk }
+  nutrition:
+    kcal: 125
+    protein: 29.4
+    carbs: 0.5
+    fat: 0.6
+    piece_weight_g: 20
+    unit_weights: {balení: 125}
+    source: manual:CZ label, Olomoucke tvaruzky (A.W.)
