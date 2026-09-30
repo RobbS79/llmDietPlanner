@@ -1,11 +1,9 @@
 """Grams per "1 ks" for count-unit canonicals, read from CanonicalIngredient.
 avg_piece_weight_g (seeded from data/canonical_ingredients.yaml `nutrition.piece_weight_g`).
 Bridges recipe counts ("2 ks cibule") and weight-priced catalog rows."""
-from functools import lru_cache
 from typing import Dict
 
 
-@lru_cache(maxsize=1)
 def load_piece_weights() -> Dict[str, float]:
     from diet_planner.models.catalog import CanonicalIngredient
     out: Dict[str, float] = {}
@@ -22,4 +20,6 @@ def load_piece_weights() -> Dict[str, float]:
 
 
 def clear_cache() -> None:
-    load_piece_weights.cache_clear()
+    """No-op, kept for compatibility. load_piece_weights() is deliberately
+    uncached: seed_canonical_ingredients runs after the workers start on prod,
+    so a process-wide cache would freeze a stale/empty map."""

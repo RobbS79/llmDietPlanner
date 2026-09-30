@@ -130,10 +130,6 @@ class CanonicalIngredient(models.Model):
         help_text="usda:<fdc_id> | frida:<id> | manual:<note>",
     )
 
-    @property
-    def has_nutrition(self) -> bool:
-        return all(v is not None for v in (
-            self.kcal_per_100g, self.protein_per_100g, self.carbs_per_100g, self.fat_per_100g))
     typical_package_sizes = models.JSONField(
         default=list, blank=True,
         help_text="Common package sizes, e.g. [250, 500, 1000]"
@@ -165,6 +161,11 @@ class CanonicalIngredient(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def has_nutrition(self) -> bool:
+        return all(v is not None for v in (
+            self.kcal_per_100g, self.protein_per_100g, self.carbs_per_100g, self.fat_per_100g))
 
     class Meta:
         ordering = ['name']

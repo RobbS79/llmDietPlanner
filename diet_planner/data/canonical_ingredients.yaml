@@ -40,7 +40,7 @@
   name_cs: pepř černý mletý
   category: spices
   nutrition:
-    piece_weight_g: 0.05
+    piece_weight_g: 0.05  # one peppercorn
   default_unit: g
   is_pantry_staple: true
   aliases:
@@ -395,7 +395,7 @@
   name_cs: česnek
   category: vegetables
   nutrition:
-    piece_weight_g: 5
+    piece_weight_g: 5  # one clove (stroužek); a recipe "ks" usually counts cloves, a whole head is ~50 g - revisit if the corpus counts heads
     unit_weights: {stroužek: 5}
   default_unit: ks
   is_pantry_staple: true
@@ -700,7 +700,7 @@
   name_cs: celer
   category: vegetables
   nutrition:
-    piece_weight_g: 300
+    piece_weight_g: 300  # a whole root; rows saying "1/4 celeru" store 0.25
   default_unit: g
   aliases:
     - { alias: "bulvový celer", language_code: cs }
@@ -712,7 +712,7 @@
   name_cs: petrželka
   category: vegetables
   nutrition:
-    piece_weight_g: 30
+    piece_weight_g: 30  # a bunch/sprigs, not the root
   default_unit: svazek
   aliases:
     - { alias: "petržel", language_code: cs }
@@ -1033,6 +1033,9 @@
     - { alias: "sušená cizrna", language_code: cs }
     - { alias: "vařená cizrna", language_code: cs }
 
+# NOTE: beans deliberately has NO piece_weight_g: "1 ks" is a can in some rows and a pod
+# in others, so any value would over-count mass (the one direction that could wave a
+# bad nutrition-basis repair through).
 - name: beans
   name_cs: fazole
   category: legumes
@@ -1989,11 +1992,13 @@
     - { alias: "zelené fazolové lusky", language_code: cs }
 
 - name: parsley root
-  name_cs: petržel kořenová
+  name_cs: kořen petržele
   category: vegetables
   default_unit: g
   aliases:
     - { alias: "kořenová petržel", language_code: cs }
+    - { alias: "petržel kořenová", language_code: cs }
+    - { alias: "petrželový kořen", language_code: cs }
 
 - name: artichokes
   name_cs: artyčoky
@@ -2681,9 +2686,10 @@
     - { alias: "králičí maso", language_code: cs }
 
 - name: gyros seasoning
-  name_cs: koření gyros
+  name_cs: koření na gyros
   category: spices
   default_unit: g
+  is_pantry_staple: true
   aliases:
     - { alias: "koření gyros směs", language_code: cs }
     - { alias: "gyros koření", language_code: cs }
@@ -2915,14 +2921,6 @@
     - { alias: "celozrnný kuskus", language_code: cs }
     - { alias: "couscous", language_code: cs }
 
-- name: gyros seasoning
-  name_cs: koření na gyros
-  category: spices
-  default_unit: g
-  is_pantry_staple: true
-  aliases:
-    - { alias: "gyros koření", language_code: cs }
-
 - name: bulgur
   name_cs: bulgur
   category: grains
@@ -2968,15 +2966,6 @@
     - { alias: "dršťky", language_code: cs }
     - { alias: "syrové hovězí dršťky", language_code: cs }
     - { alias: "předvařené dršťky", language_code: cs }
-
-- name: parsley root
-  name_cs: kořen petržele
-  category: vegetables
-  default_unit: g
-  aliases:
-    - { alias: "kořenová petržel", language_code: cs }
-    - { alias: "petržel kořenová", language_code: cs }
-    - { alias: "petrželový kořen", language_code: cs }
 
 - name: pork liver
   name_cs: vepřová játra
