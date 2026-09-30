@@ -72,8 +72,10 @@ rewrite.
 
 Lookups: `nutrition_lookups.nutrition_table()` returns
 `{slug: NutrientRow(kcal, protein, carbs, fat, density, piece_weight_g,
-unit_weights)}` from the DB in one query, cached per request/process the same
-way `category_table()` is.
+unit_weights)}` from the DB in one query. No process-wide cache: on prod the
+seed runs in a background shell AFTER the workers start, so a cached table
+would be stale for the worker's lifetime. Callers load it once per operation
+and pass it down; `load_piece_weights()` is likewise uncached.
 
 ## 5. Building the tables
 
