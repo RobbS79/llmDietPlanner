@@ -36,7 +36,7 @@ class ComputeTest(SimpleTestCase):
     def test_missing_nutrients_block(self):
         n = compute_recipe_nutrition(RECIPE + [{'name': 'mystery', 'quantity': 50, 'unit': 'g', 'canonical': 'mystery'}], TABLE)
         self.assertFalse(n.complete)
-        self.assertEqual(n.unconverted, [{'name': 'mystery', 'canonical': 'mystery', 'unit': 'g', 'reason': 'no_nutrition'}])
+        self.assertEqual(n.unconverted, [{'name': 'mystery', 'canonical': 'mystery', 'unit': 'g', 'reason': 'no_nutrition', 'optional': False}])
 
     def test_unresolved_canonical_blocks(self):
         n = compute_recipe_nutrition([{'name': 'něco', 'quantity': 50, 'unit': 'g'}], TABLE)

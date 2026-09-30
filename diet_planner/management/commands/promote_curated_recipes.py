@@ -11,10 +11,12 @@ and §8.
     python manage.py promote_curated_recipes
     python manage.py promote_curated_recipes --dry-run
     python manage.py promote_curated_recipes --min-judge-verdict minor_issues
+    python manage.py promote_curated_recipes --ids 12,34,56
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from diet_planner.models import CuratedRecipe
+from diet_planner.services.recipe_curation import nutrition_publishable
 
 
 JUDGE_VERDICT_ORDER = {
@@ -41,19 +43,30 @@ class Command(BaseCommand):
                  "(coherent > minor_issues > unknown > incoherent).",
         )
 
+        parser.add_argument(
+            '--ids', default=None,
+            help="Comma-separated CuratedRecipe ids: only these drafts are considered.",
+        )
+
     def handle(self, *args, **options):
         dry_run = options['dry_run']
         min_verdict = options['min_judge_verdict']
         min_rank = JUDGE_VERDICT_ORDER[min_verdict] if min_verdict else None
 
         drafts = CuratedRecipe.objects.filter(status=CuratedRecipe.Status.DRAFT).order_by('id')
+        if options.get('ids'):
+            try:
+                ids = [int(x) for x in options['ids'].split(',') if x.strip()]
+            except ValueError:
+                raise CommandError(f"--ids must be comma-separated integers: {options['ids']!r}")
+            drafts = drafts.filter(pk__in=ids)
         promoted = skipped_unmapped = skipped_nutrition = skipped_judge = 0
 
         for r in drafts:
             if not r.is_catalog_mapped():
                 skipped_unmapped += 1
                 continue
-            if (r.nutrition_blockers or []) or (r.base_nutrition or {}).get('source') != 'computed':
+            if not nutrition_publishable(r):
                 skipped_nutrition += 1
                 continue
             if min_rank is not None:

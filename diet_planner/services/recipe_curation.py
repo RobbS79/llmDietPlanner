@@ -262,8 +262,7 @@ def apply_nutrition(fields: Dict[str, Any], *, dish_role: Optional[str] = None,
     weight, which the corpus tools fix. Returns the blockers."""
     result = compute_recipe_nutrition(fields.get("ingredients"),
                                       table if table is not None else nutrition_table())
-    blockers: List[Dict[str, Any]] = [u for u in result.unconverted
-                                      if not _is_optional(fields.get("ingredients"), u["name"])]
+    blockers: List[Dict[str, Any]] = [u for u in result.unconverted if not u.get("optional")]
     if result.complete:
         fields["base_nutrition"] = computed_base_nutrition(result)
         blocker = _implausible_blocker(fields["base_nutrition"], fields.get("base_servings"), dish_role)
@@ -275,17 +274,29 @@ def apply_nutrition(fields: Dict[str, Any], *, dish_role: Optional[str] = None,
     return blockers
 
 
+def nutrition_publishable(recipe: CuratedRecipe) -> bool:
+    """The publish rule shared by `promote_curated_recipes` and the admin
+    action: computed nutrition and no blockers. A legacy model-estimated
+    figure (no `source`) never publishes."""
+    return (not (recipe.nutrition_blockers or [])
+            and (recipe.base_nutrition or {}).get("source") == "computed")
+
+
 def _implausible_blocker(base_nutrition, base_servings, dish_role) -> Optional[Dict[str, Any]]:
+    """An `implausible` blocker for a computed total, or None. Zero kcal (an
+    empty recipe, or only to-taste lines) is never publishable. Only the
+    floor/ceiling reasons go in `detail`: the suspected-basis explanation is
+    about model-written totals, which computed nutrition cannot be."""
+    calories = (base_nutrition or {}).get("calories") or 0
+    if calories <= 0:
+        return {"reason": "implausible", "per_portion_kcal": 0.0,
+                "detail": "no quantified ingredients"}
     check = check_nutrition_plausibility(base_nutrition, base_servings, dish_role)
     if check.ok:
         return None
+    reasons = check.reasons[:1]   # floor or ceiling; the rest is basis commentary
     return {"reason": "implausible", "per_portion_kcal": check.per_portion_kcal,
-            "detail": "; ".join(check.reasons)}
-
-
-def _is_optional(ingredients, name) -> bool:
-    return any(isinstance(i, dict) and i.get("name") == name and i.get("optional")
-               for i in (ingredients or []))
+            "detail": "; ".join(reasons)}
 
 
 # ---------------------------------------------------------------------------

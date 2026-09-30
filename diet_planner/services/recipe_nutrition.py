@@ -64,7 +64,8 @@ def compute_recipe_nutrition(ingredients: Optional[List[Any]],
             out.lines_converted += 1
         if reason:
             out.unconverted.append({'name': line.get('name'), 'canonical': slug or None,
-                                    'unit': line.get('unit'), 'reason': reason})
+                                    'unit': line.get('unit'), 'reason': reason,
+                                    'optional': optional})
             if not optional:
                 out.complete = False
     return out

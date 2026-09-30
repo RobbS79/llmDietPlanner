@@ -6,9 +6,11 @@ the canonical-ingredient dictionary or the resolver improves (e.g. after
 `seed_canonical_ingredients`), already-curated recipes still carry the old,
 weaker mapping. This command re-runs the deterministic resolver over each
 stored recipe's ingredient names and rewrites the `canonical` links — no
-network, no LLM, idempotent. It also recomputes `base_nutrition` and
-`nutrition_blockers` from the nutrition table, so a table or mapping fix
-reaches stored recipes by re-running this command.
+network, no LLM, idempotent. It also recomputes nutrition from the table:
+drafts get the computed `base_nutrition` and `nutrition_blockers`; PUBLISHED
+rows only get `nutrition_blockers` (their served `base_nutrition` is never
+blanked or overwritten here). Published rows: use `recompute_nutrition
+--apply`, which has the reversal map.
 
     python manage.py remap_curated_recipes
     python manage.py remap_curated_recipes --dry-run
@@ -63,18 +65,23 @@ class Command(BaseCommand):
                 nutrition_blocked += 1
             if fields['base_nutrition'].get('source') == 'computed':
                 nutrition_computed += 1
-            nutrition_changed = (
-                _without_timestamp(fields['base_nutrition']) != _without_timestamp(r.base_nutrition)
-                or blockers != (r.nutrition_blockers or [])
-            )
+            published = r.status == CuratedRecipe.Status.PUBLISHED
+            blockers_changed = blockers != (r.nutrition_blockers or [])
+            nutrition_changed = (not published and _without_timestamp(fields['base_nutrition'])
+                                 != _without_timestamp(r.base_nutrition))
 
             if before != after:
                 changed += 1
-            if (before != after or nutrition_changed) and not dry_run:
-                r.ingredients = remapped
-                r.base_nutrition = fields['base_nutrition']
+            if (before != after or blockers_changed or nutrition_changed) and not dry_run:
+                update = ['nutrition_blockers', 'updated_at']
                 r.nutrition_blockers = blockers
-                r.save(update_fields=['ingredients', 'base_nutrition', 'nutrition_blockers', 'updated_at'])
+                if before != after:
+                    r.ingredients = remapped
+                    update.append('ingredients')
+                if not published:
+                    r.base_nutrition = fields['base_nutrition']
+                    update.append('base_nutrition')
+                r.save(update_fields=update)
 
             self.stdout.write(
                 f"[{r.pk}] {r.name_cs[:34]:34} {m}/{n} mapped"
