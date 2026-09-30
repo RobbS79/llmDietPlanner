@@ -3,7 +3,7 @@ from io import StringIO
 from pathlib import Path
 
 import yaml
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import SimpleTestCase
 
 from diet_planner.management.commands.import_usda_nutrition import (
@@ -178,6 +178,13 @@ class CommandTest(SimpleTestCase):
         self.assertEqual(b['nutrition']['source'], 'usda:169761')
         self.assertEqual(b['nutrition']['usda_query'], 'wheat flour all-purpose')
         self.assertEqual(list(a['nutrition'])[-1], 'source')
+
+    def test_refuses_to_append_duplicate_nutrition_key(self):
+        text = "- name: garlic\n  category: vegetables\n# a column-0 comment inside the entry\n  nutrition:\n    piece_weight_g: 5\n"
+        y = self._yaml(text)
+        with self.assertRaises(CommandError):
+            call_command('import_usda_nutrition', sr_legacy=str(FIX), yaml=str(y), write_yaml=True, stdout=StringIO())
+        self.assertEqual(y.read_text(encoding='utf-8'), text)
 
     def test_write_yaml_on_real_file_only_touches_nutrition_blocks(self):
         tmp = Path(tempfile.mkdtemp()) / 'canonical_ingredients.yaml'

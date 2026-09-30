@@ -377,7 +377,8 @@ def _render_block(block: Dict[str, Any], old_lines: List[str], indent: str) -> L
     return out
 
 
-def _write_blocks(text: str, blocks: Dict[int, Dict[str, Any]], names: List[str]) -> str:
+def _write_blocks(text: str, blocks: Dict[int, Dict[str, Any]], names: List[str],
+                  has_nutrition: frozenset = frozenset()) -> str:
     """Replace/append `nutrition:` blocks for list entries by index, editing text in place.
 
     Entries are the top-level `- name:` items; an entry runs until the next line
@@ -412,6 +413,9 @@ def _write_blocks(text: str, blocks: Dict[int, Dict[str, Any]], names: List[str]
                 nb_end += 1
             old = lines[nb_start:nb_end]
             lines[nb_start:nb_end] = _render_block(blocks[idx], old, indent)
+        elif idx in has_nutrition:   # a column-0 comment cut the entry short; appending would duplicate the key
+            raise CommandError(f'entry {names[idx]!r} has a nutrition: key outside its line range '
+                               f'(line {start + 1}); move the comment or fix the entry by hand')
         else:
             lines[end:end] = _render_block(blocks[idx], [], indent)
     return ''.join(lines)
@@ -512,7 +516,8 @@ class Command(BaseCommand):
                 w.writerows(rows)
 
         if opts.get('write_yaml') and blocks:
-            new_text = _write_blocks(text, blocks, [e.get('name') for e in entries])
+            new_text = _write_blocks(text, blocks, [e.get('name') for e in entries],
+                                     frozenset(i for i, e in enumerate(entries) if 'nutrition' in e))
             if new_text != text:
                 yaml_path.write_text(new_text, encoding='utf-8')
 
