@@ -552,3 +552,23 @@ class CandidateCardPortionTest(RefineTestBase):
         committed = plan.days[0]['lunch']['nutritional_info']['calories']
 
         self.assertEqual(card['calories'], committed)
+
+
+class CardCaloriesTest(TestCase):
+    def test_card_is_per_portion_of_main_plus_side(self):
+        from diet_planner.services.priloha import SIDES
+        from diet_planner.services.recipe_retrieval import scale_recipe_to_meal
+        from diet_planner.tests.factories import make_canonical
+        from diet_planner.views import _card_calories
+        make_canonical('Bread loaf', kcal_per_100g=250, protein_per_100g=9,
+                       carbs_per_100g=47, fat_per_100g=3)  # chleb 200 kcal/portion
+        r = make_recipe(name_cs='Lečo', base_servings=4,
+                        base_nutrition={'calories': 2000, 'protein': 80, 'carbs': 100, 'fat': 120})
+        meal = scale_recipe_to_meal(r, portions=2, side=SIDES['chleb'])
+        self.assertEqual(meal['nutritional_info']['calories'], 1400)   # (500 + 200) x 2
+        self.assertEqual(_card_calories(meal), 700)
+
+    def test_card_without_basis_is_passed_through(self):
+        from diet_planner.views import _card_calories
+        self.assertEqual(_card_calories({'servings': 2, 'nutritional_info': {'calories': 800}}), 800)
+        self.assertIsNone(_card_calories({'nutritional_info': {}}))

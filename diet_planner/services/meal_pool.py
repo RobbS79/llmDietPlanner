@@ -76,33 +76,40 @@ def _normalise_generated(meal: Any) -> Dict[str, Any]:
 def stamp_generated_nutrition(meal: Dict[str, Any], table) -> None:
     """Resolve canonicals for a Gemini meal and compute its nutrition when
     every line converts; otherwise keep Gemini's numbers, labelled estimated.
-    Either way `nutritional_info` is the TOTAL for `servings` portions."""
+
+    A gap meal is ONE portion (the slot prompt asks for a single portion), so
+    `servings` is forced to 1 whatever Gemini said. Never raises: any failure
+    in mapping or computing falls back to the estimated path — stamping must
+    not cost the pool a meal."""
     from diet_planner.services.recipe_curation import map_ingredients
     from diet_planner.services.recipe_nutrition import compute_recipe_nutrition
-    mapped: List[Dict[str, Any]] = []
-    for raw in meal.get('ingredients') or []:
-        rows = map_ingredients([raw])
-        if rows:  # keep any extra keys Gemini sent; map_ingredients' fields win
-            extra = ({k: v for k, v in raw.items() if k != 'canonical'}
-                     if isinstance(raw, dict) else {})
-            mapped.append({**extra, **rows[0]})
-    meal['ingredients'] = mapped
+    meal['servings'] = 1
     try:
-        servings = max(int(meal.get('servings') or 1), 1)
-    except (TypeError, ValueError):
-        servings = 1
-    n = compute_recipe_nutrition(meal['ingredients'], table)
+        mapped: List[Dict[str, Any]] = []
+        for raw in meal.get('ingredients') or []:
+            rows = map_ingredients([raw])
+            if rows:  # keep any extra keys Gemini sent; map_ingredients' fields win
+                extra = ({k: v for k, v in raw.items() if k != 'canonical'}
+                         if isinstance(raw, dict) else {})
+                mapped.append({**extra, **rows[0]})
+        n = compute_recipe_nutrition(mapped, table)
+    except Exception as exc:  # noqa: BLE001 — a bad line must not drop the meal
+        logger.warning("Gap meal %r: nutrition stamping failed (%s: %s) — keeping estimate",
+                       meal.get('name'), type(exc).__name__, exc)
+        n = None
+    else:
+        meal['ingredients'] = mapped
     # calories > 0: a meal whose only lines are to-taste "converts" to 0 kcal,
     # which is not a computation worth trusting over Gemini's estimate.
-    if n.complete and n.calories > 0:
+    if n is not None and n.complete and n.calories > 0:
         meal['nutritional_info'] = {
             'calories': int(round(n.calories)), 'protein': f'{int(round(n.protein))}g',
             'carbs': f'{int(round(n.carbs))}g', 'fat': f'{int(round(n.fat))}g',
-            'basis': 'total', 'servings': servings, 'nutrition_source': 'computed'}
+            'basis': 'total', 'servings': 1, 'nutrition_source': 'computed'}
     else:
         info = meal.get('nutritional_info')
         info = dict(info) if isinstance(info, dict) else {}
-        info.update({'basis': 'total', 'servings': servings, 'nutrition_source': 'estimated'})
+        info.update({'basis': 'total', 'servings': 1, 'nutrition_source': 'estimated'})
         meal['nutritional_info'] = info
 
 

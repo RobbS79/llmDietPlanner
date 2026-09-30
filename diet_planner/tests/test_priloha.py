@@ -116,6 +116,6 @@ class SideRenderTest(TestCase):
                          {'calories': 400, 'protein': 14.4, 'carbs': 75.2, 'fat': 4.8})
 
     def test_side_without_nutrition_row_counts_zero(self):
-        with self.assertLogs('diet_planner.services.priloha', level='WARNING'):
+        with self.assertLogs('diet_planner.services.priloha', level='INFO'):
             n = side_nutrition(SIDES['chleb'], portions=2, table={})
         self.assertEqual(n, {'calories': 0, 'protein': 0, 'carbs': 0, 'fat': 0})

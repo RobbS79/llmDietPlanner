@@ -22,36 +22,61 @@ from diet_planner.tests.test_recipe_replace import make_recipe
 
 
 class StalenessDetectionTest(TestCase):
-    """A row is consistent when its nutrition equals per-portion x servings —
-    the invariant the per-portion display now relies on."""
+    """A row is consistent when its nutrition equals the rebuilt meal's
+    per-portion calories (main + side) x the row's servings."""
+
+    @staticmethod
+    def _rebuilt(curated, portions=1, side=None):
+        return scale_recipe_to_meal(curated, portions=portions, side=side)
 
     def test_expected_calories_scales_per_portion_by_servings(self):
-        curated = make_recipe(base_servings=4, base_nutrition={'calories': 1233})
-        self.assertAlmostEqual(expected_calories(curated, 2), 616.5, places=1)
-        self.assertAlmostEqual(expected_calories(curated, 4), 1233.0, places=1)
+        curated = make_recipe(base_servings=4, base_nutrition={'calories': 1232})
+        rebuilt = self._rebuilt(curated, portions=4)
+        self.assertAlmostEqual(expected_calories(rebuilt, 2), 616.0, places=1)
+        self.assertAlmostEqual(expected_calories(rebuilt, 4), 1232.0, places=1)
 
     def test_expected_calories_is_none_without_usable_nutrition(self):
-        self.assertIsNone(expected_calories(make_recipe(base_nutrition={}), 2))
+        self.assertIsNone(expected_calories(self._rebuilt(make_recipe(base_nutrition={})), 2))
 
     def test_consistent_row_is_not_stale(self):
         curated = make_recipe(base_servings=4, base_nutrition={'calories': 1233})
         row = Recipe(servings=2, nutritional_info={'calories': 616})
-        self.assertFalse(is_stale(row, curated))
+        self.assertFalse(is_stale(row, self._rebuilt(curated)))
+
+    def test_row_portioned_to_other_servings_than_the_rebuild_is_not_stale(self):
+        curated = make_recipe(base_servings=4, base_nutrition={'calories': 1200})
+        row = Recipe(servings=3, nutritional_info={'calories': 900})
+        self.assertFalse(is_stale(row, self._rebuilt(curated, portions=1)))
 
     def test_row_holding_the_whole_base_for_fewer_servings_is_stale(self):
         # Prod recipe 36: servings=5 but nutrition 5286, the full 10-portion
         # base — cached when the corpus still said base_servings=5.
         curated = make_recipe(base_servings=10, base_nutrition={'calories': 5286})
         row = Recipe(servings=5, nutritional_info={'calories': 5286})
-        self.assertTrue(is_stale(row, curated))
+        self.assertTrue(is_stale(row, self._rebuilt(curated)))
 
     def test_small_rounding_differences_are_tolerated(self):
         curated = make_recipe(base_servings=4, base_nutrition={'calories': 1233})
-        self.assertFalse(is_stale(Recipe(servings=2, nutritional_info={'calories': 617}), curated))
+        self.assertFalse(is_stale(Recipe(servings=2, nutritional_info={'calories': 617}),
+                                  self._rebuilt(curated)))
 
     def test_row_without_stored_calories_is_not_flagged(self):
         curated = make_recipe(base_servings=4, base_nutrition={'calories': 1233})
-        self.assertFalse(is_stale(Recipe(servings=2, nutritional_info={}), curated))
+        self.assertFalse(is_stale(Recipe(servings=2, nutritional_info={}), self._rebuilt(curated)))
+
+    def test_row_equal_to_its_rebuild_with_side_is_not_stale(self):
+        from diet_planner.services.priloha import SIDES
+        from diet_planner.tests.factories import make_canonical
+        make_canonical('Bread loaf', kcal_per_100g=250, protein_per_100g=9,
+                       carbs_per_100g=47, fat_per_100g=3)
+        curated = make_recipe(base_servings=1, base_nutrition={'calories': 400},
+                              side_options=['chleb'])
+        rebuilt = self._rebuilt(curated, portions=1, side=SIDES['chleb'])
+        self.assertEqual(rebuilt['nutritional_info']['calories'], 600)
+        self.assertFalse(is_stale(Recipe(servings=1, nutritional_info={'calories': 600}), rebuilt))
+        # The old main-only invariant (400) is now drift, as is anything far off.
+        self.assertTrue(is_stale(Recipe(servings=1, nutritional_info={'calories': 400}), rebuilt))
+        self.assertTrue(is_stale(Recipe(servings=1, nutritional_info={'calories': 900}), rebuilt))
 
 
 class RefreshCommandTest(TestCase):
@@ -200,3 +225,29 @@ class RebuildMealSideTest(TestCase):
         self.assertIn('side', meal)
         # Side nutrients come from the table: chleb 80 g of bread-loaf = 200 kcal/portion.
         self.assertEqual(meal['nutritional_info']['calories'], meal['servings'] * 600)
+
+
+class SideRowNotStaleForeverTest(TestCase):
+    def test_row_equal_to_its_rebuild_with_side_is_not_rewritten(self):
+        from diet_planner.management.commands.refresh_stale_recipe_cache import rebuild_meal
+        from diet_planner.tests.factories import make_canonical
+        make_canonical('Bread loaf', kcal_per_100g=250, protein_per_100g=9,
+                       carbs_per_100g=47, fat_per_100g=3)
+        user = get_user_model().objects.create(username='sidefine')
+        goal = DietaryGoal.objects.create(user=user, prompt='x', num_days=1, country='CZ',
+                                          currency='CZK', language_code='cs')
+        curated = make_recipe(name_cs='Guláš', base_servings=1,
+                              base_nutrition={'calories': 400, 'protein': 20, 'carbs': 30, 'fat': 10},
+                              side_options=['chleb'])
+        ident = f'{goal.id}:1:lunch:0'
+        row = Recipe(meal_identifier=ident, dietary_goal=goal)
+        meal = rebuild_meal(curated, row, 'lunch')
+        DietaryPlan.objects.create(dietary_goal=goal, currency='CZK',
+                                   days=[{'day_number': 1, 'lunch': meal, 'small_meals': [], 'snacks': []}])
+        Recipe.objects.create(meal_identifier=ident, dietary_goal=goal, name='Guláš',
+                              servings=meal['servings'], nutritional_info=meal['nutritional_info'],
+                              ingredients=meal['ingredients'], instructions=['Uvař.'],
+                              curated_recipe_slug=curated.slug)
+        out = StringIO()
+        call_command('refresh_stale_recipe_cache', '--apply', stdout=out)
+        self.assertIn('stale 0', out.getvalue())

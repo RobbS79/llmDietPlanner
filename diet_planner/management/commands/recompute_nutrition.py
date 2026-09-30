@@ -21,6 +21,19 @@ from diet_planner.services.nutrition_lookups import nutrition_table
 from diet_planner.services.recipe_curation import apply_nutrition
 
 
+def _num(value):
+    """Legacy base_nutrition may hold '450' or '450 kcal'; float or None."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        f = float(str(value).lower().replace('kcal', '').replace(',', '.').strip())
+    except (TypeError, ValueError):
+        return None
+    return int(f) if f.is_integer() else f
+
+
 class Command(BaseCommand):
     help = 'Recompute base_nutrition from ingredient lines and the canonical nutrition table.'
 
@@ -40,7 +53,7 @@ class Command(BaseCommand):
         for r in qs:
             fields = {'ingredients': r.ingredients or [], 'base_servings': r.base_servings}
             blockers = apply_nutrition(fields, dish_role=r.dish_role or None, table=table)
-            old = (r.base_nutrition or {}).get('calories')
+            old = _num((r.base_nutrition or {}).get('calories'))
             new = (fields['base_nutrition'] or {}).get('calories')
             complete = bool(fields['base_nutrition']) and not blockers
             for b in blockers:

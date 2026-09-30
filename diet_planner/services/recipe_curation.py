@@ -176,10 +176,15 @@ def map_ingredients(raw_ingredients: Any) -> List[Dict[str, Any]]:
         name = str(ing.get("name") or "").strip()
         if not name:
             continue
+        quantity = ing.get("quantity")
+        if quantity is not None and not isinstance(quantity, (int, float, str)):
+            quantity = str(quantity)  # a list/dict from a sloppy LLM line
+        unit = ing.get("unit")
         item: Dict[str, Any] = {
             "name": name,
-            "quantity": ing.get("quantity"),
-            "unit": (ing.get("unit") or "").strip() or None,
+            "quantity": quantity,
+            # str(): an LLM sometimes sends a numeric unit (e.g. 2)
+            "unit": str(unit if unit is not None else "").strip() or None,
             "optional": bool(ing.get("optional", False)),
         }
         canonical = resolve_canonical(name)

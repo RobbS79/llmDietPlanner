@@ -40,6 +40,13 @@ class RecomputeNutritionTest(TestCase):
         self.ok.refresh_from_db()
         self.assertEqual(self.ok.base_nutrition['calories'], 900)
 
+    def test_legacy_string_calories_do_not_crash_the_report(self):
+        CuratedRecipe.objects.filter(pk=self.ok.pk).update(base_nutrition={'calories': '900 kcal'})
+        CuratedRecipe.objects.filter(pk=self.bad.pk).update(base_nutrition={'calories': 'hodně'})
+        out = StringIO()
+        call_command('recompute_nutrition', stdout=out)
+        self.assertIn('900 -> 1380', out.getvalue())
+
     def test_apply_refuses_while_a_published_recipe_is_incomplete(self):
         with self.assertRaises(CommandError):
             call_command('recompute_nutrition', apply=True, stdout=StringIO())

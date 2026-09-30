@@ -904,8 +904,9 @@ def render_curated_meal(
     from what accept writes. Returns (meal, gap_reason) where gap_reason is
     'side_unavailable' when the recipe wants a side and the diet forbids all
     of them (served bare — a corpus/diet gap worth counting), else None."""
-    table = table if table is not None else nutrition_table()
     side = pick_side(recipe, required_tags)
+    if side is not None and table is None:
+        table = nutrition_table()  # only a side needs it; loaded once for both uses
     gap = 'side_unavailable' if (side is None and (recipe.side_options or [])) else None
     meal = scale_recipe_to_meal(
         recipe, portions=portions_for_target(recipe, target_kcal, side=side, table=table),

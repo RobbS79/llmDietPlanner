@@ -85,7 +85,7 @@ def side_nutrition(side: Side, *, portions: int,
     the side is still served, it just adds nothing to the totals."""
     row = table.get(side.canonical)
     if row is None:
-        logger.warning("Side %s: canonical %s has no nutrition row — counted as 0",
+        logger.info("Side %s: canonical %s has no nutrition row — counted as 0",
                        side.key, side.canonical)
         return {'calories': 0.0, 'protein': 0.0, 'carbs': 0.0, 'fat': 0.0}
     factor = side.grams * portions / 100.0

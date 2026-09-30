@@ -10,6 +10,9 @@ Staleness is a broken invariant, not a timestamp: a healthy row satisfies
 
     nutritional_info.calories  ==  per-portion calories x servings
 
+where per-portion calories are those of the meal `rebuild_meal` renders now
+(main + příloha), so a row with a side is not flagged forever.
+
 which is exactly what the per-portion display relies on. Rows violating it were
 cached against different `base_servings`/`base_nutrition` than the corpus now
 holds, and no amount of dividing at display time can recover the right number.
@@ -28,7 +31,7 @@ along with its plan position (pool or legacy day grid) so the two cannot disagre
 
     python manage.py refresh_stale_recipe_cache --apply [--goal-id N]
 """
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -45,7 +48,6 @@ from diet_planner.services.meal_locator import (
 from diet_planner.services.nutrition_lookups import nutrition_table
 from diet_planner.services.recipe_retrieval import (
     _SLOT_DEFAULT_KCAL,
-    per_portion_calories,
     render_curated_meal,
     required_tags_for_goal,
 )
@@ -57,19 +59,29 @@ TOLERANCE = 0.02
 _TYPE_FOR_LIST_KEY = {v: k for k, v in LIST_KEY_FOR_TYPE.items()}
 
 
-def expected_calories(curated: CuratedRecipe, servings) -> Optional[float]:
-    """What a healthy row's stored calories would be: one portion x servings."""
-    per_portion = per_portion_calories(curated)
+def _per_portion(meal: Dict[str, Any]) -> Optional[float]:
+    calories = (meal.get('nutritional_info') or {}).get('calories')
+    if not isinstance(calories, (int, float)) or isinstance(calories, bool) or calories <= 0:
+        return None
+    return calories / max(int(meal.get('servings') or 1), 1)
+
+
+def expected_calories(rebuilt: Dict[str, Any], servings) -> Optional[float]:
+    """What a healthy row's stored calories would be: one portion of the
+    REBUILT meal (main + příloha, exactly as the serving path renders it)
+    x the row's servings. Per-portion so a row portioned to a different slot
+    target (a swap) is not mistaken for drift."""
+    per_portion = _per_portion(rebuilt)
     if per_portion is None:
         return None
     return per_portion * max(int(servings or 1), 1)
 
 
-def is_stale(row: Recipe, curated: CuratedRecipe, tolerance: float = TOLERANCE) -> bool:
-    """True when the row's nutrition can't be explained by the current corpus.
-    Rows with no stored or no curated calories are left alone — absent data is
-    not evidence of drift."""
-    expected = expected_calories(curated, row.servings)
+def is_stale(row: Recipe, rebuilt: Dict[str, Any], tolerance: float = TOLERANCE) -> bool:
+    """True when the row's nutrition can't be explained by the current corpus
+    as `rebuild_meal` renders it (side included). Rows with no stored or no
+    rebuilt calories are left alone — absent data is not evidence of drift."""
+    expected = expected_calories(rebuilt, row.servings)
     stored = (row.nutritional_info or {}).get('calories')
     if expected is None or not isinstance(stored, (int, float)) or stored <= 0:
         return False
@@ -137,10 +149,6 @@ class Command(BaseCommand):
                     f'  orphan  {row.meal_identifier}  "{row.name}"  '
                     f'-> no CuratedRecipe with slug {row.curated_recipe_slug!r}'))
                 continue
-            if not is_stale(row, curated):
-                continue
-
-            stale += 1
             try:
                 ref = parse_meal_identifier(row.meal_identifier)
             except ValueError:
@@ -149,6 +157,12 @@ class Command(BaseCommand):
                     f'  skip    {row.meal_identifier}  "{row.name}"  '
                     f'-> unparseable meal identifier'))
                 continue
+            # Rebuilt once: the staleness yardstick AND what --apply writes.
+            meal = rebuild_meal(curated, row, ref.slot, table)
+            if not is_stale(row, meal):
+                continue
+
+            stale += 1
 
             # The position may since hold a different dish (a swap, a
             # regenerated pool): never overwrite someone else's meal. Checked
@@ -161,7 +175,6 @@ class Command(BaseCommand):
                     f'-> plan position no longer holds {curated.slug!r}, skipped'))
                 continue
 
-            meal = rebuild_meal(curated, row, ref.slot, table)
             old_cal = (row.nutritional_info or {}).get('calories')
             new_cal = (meal.get('nutritional_info') or {}).get('calories')
             self.stdout.write(

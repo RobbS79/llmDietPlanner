@@ -576,6 +576,16 @@ class PrilohaOnMealTest(TestCase):
         self.assertEqual([i['name'] for i in meal['ingredients']], ['rýže'])
         self.assertEqual(meal['nutritional_info']['calories'], 500)
 
+    def test_meal_nutrition_states_its_basis(self):
+        meal = scale_recipe_to_meal(self._leco(), portions=2)
+        ni = meal['nutritional_info']
+        self.assertEqual((ni['basis'], ni['servings'], ni['nutrition_source']), ('total', 2, 'estimated'))
+        computed = scale_recipe_to_meal(
+            self._leco(name_cs='Lečo spočítané', base_nutrition={'calories': 2000, 'protein': 80, 'carbs': 100, 'fat': 120,
+                                       'source': 'computed'}), portions=1)
+        self.assertEqual(computed['nutritional_info']['nutrition_source'], 'computed')
+        self.assertEqual(computed['nutritional_info']['servings'], 1)
+
     def test_side_appended_as_role_side_ingredient(self):
         from diet_planner.services.priloha import SIDES
         r = self._leco()
