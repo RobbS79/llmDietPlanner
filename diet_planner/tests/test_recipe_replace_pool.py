@@ -161,8 +161,11 @@ class PoolResearchJobTest(PoolPlanBase):
         self.assertEqual(resp.status_code, 200, resp.content)
         cand = resp.json()['data']['candidate']
         expected, _ = render_curated_meal(big, target_kcal=1000, required_tags=frozenset())
-        self.assertEqual(cand['calories'], expected['nutritional_info']['calories'])
-        self.assertNotEqual(cand['calories'], 500)  # not the single-portion default
+        # Portioned to the slot (2 of 4 portions = 1000 kcal); the card shows
+        # per-portion kcal like the plan card does.
+        self.assertEqual(expected['servings'], 2)
+        self.assertEqual(cand['calories'],
+                         round(expected['nutritional_info']['calories'] / expected['servings']))
 
 
 class ResearchIdentifierHelpersTest(TestCase):

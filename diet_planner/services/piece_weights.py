@@ -1,34 +1,15 @@
-"""Typical edible piece weights (grams) for count-unit canonicals that stores
-sell by weight.
-
-Bridges the dimension gap between how recipes count an ingredient ("2 ks cibule")
-and how the catalog prices it ("Cibule žlutá, síť 1 kg @ 19.90"). Without a piece
-weight, build_price_book discards the weight-priced product (different dimension)
-and the ingredient silently falls out of pricing; the pricer likewise can't cost
-a count requirement against a weight-priced book entry. See the piece↔weight
-bridge in build_price_book and pricing_core.consumed_line_cost.
-"""
-from functools import lru_cache
-from pathlib import Path
+"""Grams per "1 ks" for count-unit canonicals, read from CanonicalIngredient.
+avg_piece_weight_g (seeded from data/canonical_ingredients.yaml `nutrition.piece_weight_g`).
+Bridges recipe counts ("2 ks cibule") and weight-priced catalog rows."""
 from typing import Dict
 
-import yaml
-from django.conf import settings
 
-WEIGHTS_PATH = (
-    Path(settings.BASE_DIR) / 'diet_planner' / 'data' / 'typical_unit_weights.yaml'
-)
-
-
-@lru_cache(maxsize=1)
 def load_piece_weights() -> Dict[str, float]:
-    """Map canonical slug -> typical edible grams per piece. Cached per process."""
-    try:
-        data = yaml.safe_load(WEIGHTS_PATH.read_text(encoding='utf-8')) or {}
-    except FileNotFoundError:
-        return {}
+    from diet_planner.models.catalog import CanonicalIngredient
     out: Dict[str, float] = {}
-    for slug, grams in (data.get('grams_per_piece') or {}).items():
+    rows = CanonicalIngredient.objects.exclude(avg_piece_weight_g=None).values_list(
+        'slug', 'avg_piece_weight_g')
+    for slug, grams in rows:
         try:
             g = float(grams)
         except (TypeError, ValueError):
@@ -39,5 +20,6 @@ def load_piece_weights() -> Dict[str, float]:
 
 
 def clear_cache() -> None:
-    """Drop the cached weights (call after editing the YAML in-process)."""
-    load_piece_weights.cache_clear()
+    """No-op, kept for compatibility. load_piece_weights() is deliberately
+    uncached: seed_canonical_ingredients runs after the workers start on prod,
+    so a process-wide cache would freeze a stale/empty map."""

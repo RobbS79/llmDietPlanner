@@ -552,6 +552,14 @@ class PrilohaOnMealTest(TestCase):
     """The side is written INTO ingredients + nutrition so every downstream
     reader (shopping list, deals, public recipe, social facts) sees it."""
 
+    def setUp(self):
+        from diet_planner.tests.factories import make_canonical
+        # chleb = 80 g/portion -> 200 kcal, 38 g carbs; brambory 250 g -> 190 kcal.
+        make_canonical('Bread loaf', kcal_per_100g=250, protein_per_100g=8.75,
+                       carbs_per_100g=47.5, fat_per_100g=2.5)
+        make_canonical('Potatoes', kcal_per_100g=76, protein_per_100g=2,
+                       carbs_per_100g=16.8, fat_per_100g=0)
+
     def _leco(self, **kw):
         defaults = dict(
             name_cs='Lečo', base_servings=4,
@@ -567,6 +575,16 @@ class PrilohaOnMealTest(TestCase):
         self.assertNotIn('side', meal)
         self.assertEqual([i['name'] for i in meal['ingredients']], ['rýže'])
         self.assertEqual(meal['nutritional_info']['calories'], 500)
+
+    def test_meal_nutrition_states_its_basis(self):
+        meal = scale_recipe_to_meal(self._leco(), portions=2)
+        ni = meal['nutritional_info']
+        self.assertEqual((ni['basis'], ni['servings'], ni['nutrition_source']), ('total', 2, 'estimated'))
+        computed = scale_recipe_to_meal(
+            self._leco(name_cs='Lečo spočítané', base_nutrition={'calories': 2000, 'protein': 80, 'carbs': 100, 'fat': 120,
+                                       'source': 'computed'}), portions=1)
+        self.assertEqual(computed['nutritional_info']['nutrition_source'], 'computed')
+        self.assertEqual(computed['nutritional_info']['servings'], 1)
 
     def test_side_appended_as_role_side_ingredient(self):
         from diet_planner.services.priloha import SIDES

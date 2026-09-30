@@ -12,6 +12,7 @@ import { WeekStrip } from '@/components/plan/WeekStrip';
 import { SlotSection } from '@/components/plan/SlotSection';
 import { SlotStrip } from '@/components/plan/SlotStrip';
 import { mealsLabel, poolSummary, type PoolCounts } from '@/lib/poolCounts';
+import { normalizeNutrition, nutritionBasisFor } from '@/lib/nutrition';
 import { AdRail } from '@/components/ads/AdRail';
 
 /** "3 večeře · 1 snack"; without usable counts, "N jídel" from the meals themselves. */
@@ -20,7 +21,7 @@ function poolHeading(counts: Partial<PoolCounts> | null | undefined, meals: unkn
   return hasCounts ? poolSummary(counts) : mealsLabel(meals.length);
 }
 
-function exportPlanAsText(goalDetail: any, plan: any) {
+export function exportPlanAsText(goalDetail: any, plan: any) {
   const lines: string[] = [];
   const isPool = Array.isArray(plan.meals);
   lines.push(`JÍDELNÍČEK — ${goalDetail.city}, ${isPool ? poolHeading(goalDetail.counts, plan.meals) : `${goalDetail.num_days} dní`}`);
@@ -29,8 +30,11 @@ function exportPlanAsText(goalDetail: any, plan: any) {
   const pushMeal = (label: string, meal: PlanMeal) => {
     lines.push(`  ${label.toUpperCase()}: ${meal.name}`);
     if (meal.description) lines.push(`    ${meal.description}`);
-    const ni = meal.nutritional_info;
-    if (ni) lines.push(`    ${Object.entries(ni).map(([k, v]) => `${k}: ${v}`).join(' | ')}`);
+    const ni = meal.nutritional_info as Record<string, unknown> | undefined;
+    const rows = ni
+      ? normalizeNutrition(ni, Number(ni.servings ?? (meal as any).servings) || null, nutritionBasisFor(meal as any))
+      : null;
+    if (rows) lines.push(`    ${rows.map((r) => `${r.label}: ${r.value} ${r.unit}`).join(' | ')}`);
   };
   if (isPool) {
     groupPoolMeals(plan.meals, goalDetail.id).forEach((section) => {

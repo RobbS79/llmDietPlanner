@@ -365,8 +365,18 @@ class CuratedRecipeAdmin(admin.ModelAdmin):
 
     @admin.action(description='Mark selected as published')
     def mark_published(self, request, queryset):
-        n = queryset.update(status=CuratedRecipe.Status.PUBLISHED)
-        self.message_user(request, f"{n} recipe(s) published.")
+        # Same rule as promote_curated_recipes: only computed, unblocked
+        # nutrition publishes.
+        from diet_planner.services.recipe_curation import nutrition_publishable
+        ok_ids = [r.pk for r in queryset if nutrition_publishable(r)]
+        skipped = queryset.count() - len(ok_ids)
+        n = CuratedRecipe.objects.filter(pk__in=ok_ids).update(status=CuratedRecipe.Status.PUBLISHED)
+        msg = f"{n} recipe(s) published."
+        if skipped:
+            msg += (f" {skipped} skipped: nutrition not computed or blocked "
+                    "(see nutrition_blockers).")
+        self.message_user(request, msg,
+                          level=messages.WARNING if skipped else messages.SUCCESS)
 
     @admin.action(description='Mark selected as draft')
     def mark_draft(self, request, queryset):

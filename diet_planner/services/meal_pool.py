@@ -27,6 +27,7 @@ except ImportError:  # pragma: no cover — billiard ships with celery
 
 from diet_planner.models import CuratedRecipe
 from diet_planner.services.meal_locator import MAIN_SLOTS, POOL_SLOTS, pool_identifier
+from diet_planner.services.nutrition_lookups import nutrition_table
 from diet_planner.services.prompt_facets import extract_prompt_facets
 from diet_planner.services.recipe_retrieval import (
     _SLOT_DEFAULT_KCAL,
@@ -72,6 +73,46 @@ def _normalise_generated(meal: Any) -> Dict[str, Any]:
     return out
 
 
+def stamp_generated_nutrition(meal: Dict[str, Any], table) -> None:
+    """Resolve canonicals for a Gemini meal and compute its nutrition when
+    every line converts; otherwise keep Gemini's numbers, labelled estimated.
+
+    A gap meal is ONE portion (the slot prompt asks for a single portion), so
+    `servings` is forced to 1 whatever Gemini said. Never raises: any failure
+    in mapping or computing falls back to the estimated path — stamping must
+    not cost the pool a meal."""
+    from diet_planner.services.recipe_curation import map_ingredients
+    from diet_planner.services.recipe_nutrition import compute_recipe_nutrition
+    meal['servings'] = 1
+    try:
+        mapped: List[Dict[str, Any]] = []
+        for raw in meal.get('ingredients') or []:
+            rows = map_ingredients([raw])
+            if rows:  # keep any extra keys Gemini sent; map_ingredients' fields win
+                extra = ({k: v for k, v in raw.items() if k != 'canonical'}
+                         if isinstance(raw, dict) else {})
+                mapped.append({**extra, **rows[0]})
+        n = compute_recipe_nutrition(mapped, table)
+    except Exception as exc:  # noqa: BLE001 — a bad line must not drop the meal
+        logger.warning("Gap meal %r: nutrition stamping failed (%s: %s) — keeping estimate",
+                       meal.get('name'), type(exc).__name__, exc)
+        n = None
+    else:
+        meal['ingredients'] = mapped
+    # calories > 0: a meal whose only lines are to-taste "converts" to 0 kcal,
+    # which is not a computation worth trusting over Gemini's estimate.
+    if n is not None and n.complete and n.calories > 0:
+        meal['nutritional_info'] = {
+            'calories': int(round(n.calories)), 'protein': f'{int(round(n.protein))}g',
+            'carbs': f'{int(round(n.carbs))}g', 'fat': f'{int(round(n.fat))}g',
+            'basis': 'total', 'servings': 1, 'nutrition_source': 'computed'}
+    else:
+        info = meal.get('nutritional_info')
+        info = dict(info) if isinstance(info, dict) else {}
+        info.update({'basis': 'total', 'servings': 1, 'nutrition_source': 'estimated'})
+        meal['nutritional_info'] = info
+
+
 @dataclass
 class PoolResult:
     meals: List[Dict[str, Any]]
@@ -114,10 +155,11 @@ def _protocol_prompt(goal: Any) -> str:
 
 
 def _render_curated(recipe: CuratedRecipe, slot: str, index: int, goal_id: Any,
-                    required_tags, gaps: List[Dict[str, Any]]) -> Dict[str, Any]:
+                    required_tags, gaps: List[Dict[str, Any]], table) -> Dict[str, Any]:
     """Step 3 for one position: curated recipe -> positioned meal dict."""
     meal, side_gap = render_curated_meal(
-        recipe, target_kcal=_SLOT_DEFAULT_KCAL.get(slot), required_tags=required_tags)
+        recipe, target_kcal=_SLOT_DEFAULT_KCAL.get(slot), required_tags=required_tags,
+        table=table)
     if side_gap:
         gaps.append({'slot': slot, 'index': index, 'reason': side_gap,
                      'required_tags': sorted(required_tags), 'unmatched_wanted': []})
@@ -156,9 +198,10 @@ def build_meal_pool(goal: Any, *, llm: Any = None,
     gaps: List[Dict[str, Any]] = list(selection['gaps'])
     meals: List[Dict[str, Any]] = []
     served_ids = set()
+    table = nutrition_table()  # once per pool: sides + gap-fill meals
     for entry in selection['meals']:
         slot, index, recipe = entry['slot'], entry['index'], entry['recipe']
-        meals.append(_render_curated(recipe, slot, index, goal_id, required_tags, gaps))
+        meals.append(_render_curated(recipe, slot, index, goal_id, required_tags, gaps, table))
         served_ids.add(recipe.id)
 
     # Gap fill: every requested position with no curated meal. Bounded by a
@@ -212,6 +255,7 @@ def build_meal_pool(goal: Any, *, llm: Any = None,
                     _normalise_generated(out['meal']), goal=goal, exclusions=exclusions,
                     llm=llm, meal_key=key, regenerate=_regen)
                 meal = _normalise_generated(meal)
+                stamp_generated_nutrition(meal, table)
             except SoftTimeLimitExceeded:
                 raise
             except RepairBudgetExhausted as exc:
@@ -252,7 +296,7 @@ def build_meal_pool(goal: Any, *, llm: Any = None,
                 recipe = by_pos.get((slot, index))
                 if recipe is None or recipe.id in served_ids:
                     continue
-                meal = _render_curated(recipe, slot, index, goal_id, required_tags, gaps)
+                meal = _render_curated(recipe, slot, index, goal_id, required_tags, gaps, table)
                 meal['source'] = 'curated'
                 meal['fallback'] = 'prompt_blind'
                 meals.append(meal)

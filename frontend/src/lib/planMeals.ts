@@ -75,22 +75,31 @@ export interface DayMealEntry {
 export interface Nutrition { kcal: number; protein: number; carbs: number; fat: number }
 
 /** Tolerant reader for the LLM's nutritional_info shapes ("46g", "742 kcal", 742). */
-export function parseNutrition(raw: unknown): Nutrition {
+export function parseNutrition(
+  raw: unknown,
+  meal?: { curated_recipe_slug?: unknown; servings?: unknown; [extra: string]: unknown } | null,
+): Nutrition {
   if (!raw || typeof raw !== 'object') return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const ni = raw as Record<string, unknown>;
-  const parse = (v: unknown) => parseInt(String(v).replace(/[^\d]/g, '')) || 0;
+  const parse = (v: unknown) => parseFloat(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+  const servings = Number(ni.servings ?? meal?.servings);
+  // Same basis rule as nutritionBasisFor: explicit basis wins, else a curated
+  // slug means whole-recipe totals.
+  const isTotal = ni.basis === 'total' || (ni.basis == null && !!meal?.curated_recipe_slug);
+  const div = isTotal && servings > 0 ? servings : 1;
+  const per = (n: number) => Math.round(div === 1 ? n : n / div);
   return {
-    kcal: parse(ni.calories || ni.kcal || ni.Calories || ni.energy || 0),
-    protein: parse(ni.protein || ni.Protein || 0),
-    carbs: parse(ni.carbs || ni.carbohydrates || ni.Carbs || 0),
-    fat: parse(ni.fat || ni.Fat || ni.fats || 0),
+    kcal: per(parse(ni.calories || ni.kcal || ni.Calories || ni.energy || 0)),
+    protein: per(parse(ni.protein || ni.Protein || 0)),
+    carbs: per(parse(ni.carbs || ni.carbohydrates || ni.Carbs || 0)),
+    fat: per(parse(ni.fat || ni.Fat || ni.fats || 0)),
   };
 }
 
 /** Whole-day totals over every slot, mains and small dishes alike. */
 export function dayTotals(day: PlanDay | null | undefined, goalId: string | number = ''): Nutrition {
   return dayMealEntries(day, goalId).reduce((acc, { meal }) => {
-    const n = parseNutrition(meal.nutritional_info);
+    const n = parseNutrition(meal.nutritional_info, meal);
     return { kcal: acc.kcal + n.kcal, protein: acc.protein + n.protein, carbs: acc.carbs + n.carbs, fat: acc.fat + n.fat };
   }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 }
@@ -164,7 +173,7 @@ export interface PoolTotals { cooked: number; total: number; avgMainKcal: number
 export function poolTotals(meals: PlanMeal[] | null | undefined, goalId: string | number, cookedSet: Set<string>): PoolTotals {
   const entries = poolEntries(meals, goalId);
   const mains = entries.filter(e => e.isMain);
-  const kcal = mains.map(e => parseNutrition(e.meal.nutritional_info).kcal);
+  const kcal = mains.map(e => parseNutrition(e.meal.nutritional_info, e.meal).kcal);
   const avg = kcal.length ? Math.round(kcal.reduce((a, b) => a + b, 0) / kcal.length) : 0;
   return { cooked: entries.filter(e => cookedSet.has(e.mealId)).length, total: entries.length, avgMainKcal: avg };
 }

@@ -47,3 +47,39 @@ class PublicRecipeSSRIngredientTest(TestCase):
         self.assertNotIn(f'(#{self.sp_id})', body)
         self.assertNotIn('pappudia', body.lower())
         self.assertIn('tofu', body)
+
+
+class PublicRecipeSSRNutritionTest(TestCase):
+    def _get(self, **kw):
+        user = get_user_model().objects.create_user('nut', password='x')
+        goal = DietaryGoal.objects.create(user=user, country='CZ')
+        recipe = Recipe.objects.create(
+            meal_identifier=f'g{goal.id}:1:lunch:0', dietary_goal=goal,
+            name='Nutri', servings=2, is_public=True,
+            ingredients=['rýže'], instructions=['Uvařte.'], **kw,
+        )
+        with patch('llm_diet_planner_project.views._get_index_template',
+                   return_value=_TEMPLATE):
+            resp = self.client.get(recipe.get_absolute_url())
+        self.assertEqual(resp.status_code, 200)
+        return resp.content.decode()
+
+    def test_total_basis_is_divided_per_portion(self):
+        body = self._get(nutritional_info={
+            'calories': 575, 'protein': '30g', 'carbs': '40g', 'fat': '20g',
+            'basis': 'total', 'servings': 2, 'nutrition_source': 'computed'})
+        self.assertIn('<dd>288 kcal</dd>', body)
+        self.assertIn('"calories": "288 kcal"', body)
+        self.assertIn('<dd>15 g</dd>', body)
+        for meta in ('basis', 'servings', 'nutrition_source'):
+            self.assertNotIn(f'<dt>{meta}</dt>', body)
+
+    def test_legacy_unlabeled_recipe_is_not_divided(self):
+        body = self._get(nutritional_info={
+            'calories': 600, 'protein': '30g', 'carbs': '40g', 'fat': '20g'})
+        self.assertIn('600 kcal', body)
+        self.assertNotIn('300 kcal', body)
+
+    def test_halves_round_up_like_js(self):
+        body = self._get(nutritional_info={'calories': 573, 'basis': 'total'})
+        self.assertIn('<dd>287 kcal</dd>', body)

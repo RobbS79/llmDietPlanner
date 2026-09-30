@@ -41,8 +41,10 @@ class EstimateMassTest(SimpleTestCase):
             {'name': 'česnek', 'quantity': 3, 'unit': 'stroužky'},
         ])
 
-        self.assertEqual(result.grams, 50.0)
-        self.assertEqual(result.known_lines, 3)
+        # stroužek now needs an ingredient unit weight -> unknown in the lower bound
+        self.assertEqual(result.grams, 35.0)
+        self.assertEqual(result.known_lines, 2)
+        self.assertEqual(result.unknown_lines, 1)
 
     def test_tolerates_czech_decimal_commas_and_junk_rows(self):
         result = estimate_mass_g([
