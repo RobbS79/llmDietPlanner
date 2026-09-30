@@ -3,7 +3,7 @@ from django.test import SimpleTestCase
 from diet_planner.services.ingredient_mass import estimate_mass_g
 from diet_planner.services.line_mass import line_grams
 from diet_planner.services.nutrition_lookups import NutrientRow
-from diet_planner.services.unit_vocab import normalize_unit, unit_kind
+from diet_planner.services.unit_vocab import normalize_unit, to_base, unit_kind
 
 
 def row(density=None, piece=None, unit_weights=None):
@@ -27,6 +27,13 @@ class UnitVocabTest(SimpleTestCase):
         self.assertEqual(unit_kind('ks'), 'count')
         self.assertEqual(unit_kind('stroužek'), 'count')
         self.assertIsNone(unit_kind('furlong'))
+
+
+class ToBaseTest(SimpleTestCase):
+    def test_konzerva_and_sklenice_stay_unpriced(self):
+        self.assertEqual(to_base(1, 'konzerva'), (1, None))
+        self.assertEqual(to_base(1, 'sklenice'), (1, None))
+        self.assertEqual(to_base(1, 'cl'), (10, 'volume'))
 
 
 class LineGramsTest(SimpleTestCase):

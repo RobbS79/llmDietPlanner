@@ -63,6 +63,10 @@ def unit_kind(code: str) -> Optional[str]:
     return None
 
 
+# Volume units for nutrition only; pricing leaves them unconvertible (as before).
+_UNPRICED_VOLUME = ('konzerva', 'sklenice')
+
+
 def to_base(value: float, unit) -> Tuple[float, Optional[str]]:
     """(base_value, dimension) for pricing: mass→g, volume→ml, count→ks.
     Garnish units are volume-ish for pricing (a pinch ≈ 0.3 ml). Ingredient-
@@ -71,7 +75,7 @@ def to_base(value: float, unit) -> Tuple[float, Optional[str]]:
     code = normalize_unit(unit)
     if code in MASS_G:
         return value * MASS_G[code], 'mass'
-    if code in VOLUME_ML:
+    if code in VOLUME_ML and code not in _UNPRICED_VOLUME:
         return value * VOLUME_ML[code], 'volume'
     if code == 'ks':
         return value, 'count'
