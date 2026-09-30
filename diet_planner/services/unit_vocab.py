@@ -28,20 +28,28 @@ ALIASES: Dict[str, str] = {
     'piece': 'ks', 'pieces': 'ks', 'pcs': 'ks', 'pc': 'ks', 'szt': 'ks', 'sztuk': 'ks', 'sztuki': 'ks',
     'stroužek': 'stroužek', 'stroužky': 'stroužek', 'stroužků': 'stroužek', 'strouzek': 'stroužek',
     'plátek': 'plátek', 'plátky': 'plátek', 'plátků': 'plátek', 'platek': 'plátek',
-    'svazek': 'svazek', 'svazky': 'svazek', 'svazků': 'svazek',
+    'svazek': 'svazek', 'svazky': 'svazek', 'svazků': 'svazek', 'svazku': 'svazek',
+    'hlava': 'hlava', 'hlavy': 'hlava', 'hlávka': 'hlava', 'hlávky': 'hlava', 'hlávek': 'hlava',
+    'hlavička': 'hlava', 'hlavičky': 'hlava',
+    'cm': 'cm',
+    'dávka': 'dávka', 'dávky': 'dávka', 'dávek': 'dávka', 'odměrka': 'dávka', 'odměrky': 'dávka',
+    'scoop': 'dávka',
     'hrst': 'hrst', 'hrstka': 'hrst', 'malá hrst': 'hrst',
     'balení': 'balení', 'sáček': 'balení', 'balíček': 'balení',
     # garnish
     'špetka': 'špetka', 'špetky': 'špetka', 'spetka': 'špetka', 'pinch': 'špetka',
-    'snítka': 'snítka', 'snítky': 'snítka',
-    'lístek': 'lístek', 'lístky': 'lístek', 'lístků': 'lístek',
+    'snítka': 'snítka', 'snítky': 'snítka', 'snítek': 'snítka', 'větvička': 'snítka',
+    'větvičky': 'snítka', 'větviček': 'snítka', 'vetvicka': 'snítka',
+    'lístek': 'lístek', 'lístky': 'lístek', 'lístků': 'lístek', 'lístku': 'lístek',
+    'listy': 'lístek', 'list': 'lístek',
 }
 
 MASS_G: Dict[str, float] = {'mg': 0.001, 'g': 1.0, 'dkg': 10.0, 'kg': 1000.0}
 VOLUME_ML: Dict[str, float] = {'ml': 1.0, 'cl': 10.0, 'dl': 100.0, 'l': 1000.0,
                                'tsp': 5.0, 'tbsp': 15.0, 'cup': 250.0,
                                'konzerva': 400.0, 'sklenice': 300.0}
-COUNT_UNITS = ('ks', 'stroužek', 'plátek', 'svazek', 'hrst', 'balení')
+COUNT_UNITS = ('ks', 'stroužek', 'plátek', 'svazek', 'hrst', 'balení',
+               'hlava', 'cm', 'dávka')
 GARNISH_G: Dict[str, float] = {'špetka': 1.0, 'snítka': 2.0, 'lístek': 1.0}
 
 

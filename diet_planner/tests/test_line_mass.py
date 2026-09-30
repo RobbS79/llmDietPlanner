@@ -41,6 +41,24 @@ class ToBaseTest(SimpleTestCase):
         self.assertEqual(to_base(1, 'lístek'), (1, None))
 
 
+class NewUnitsTest(SimpleTestCase):
+    def test_new_aliases(self):
+        for raw, code in [('svazku', 'svazek'), ('snítek', 'snítka'), ('větvička', 'snítka'),
+                          ('větvičky', 'snítka'), ('větviček', 'snítka'), ('vetvicka', 'snítka'),
+                          ('listy', 'lístek'), ('list', 'lístek'), ('lístku', 'lístek'),
+                          ('hlava', 'hlava'), ('hlávky', 'hlava'), ('hlavičky', 'hlava'),
+                          ('cm', 'cm'), ('dávky', 'dávka'), ('odměrka', 'dávka'), ('scoop', 'dávka')]:
+            self.assertEqual(normalize_unit(raw), code, raw)
+
+    def test_count_kinds_unpriced_and_weighed_via_unit_weights(self):
+        for code in ('hlava', 'cm', 'dávka'):
+            self.assertEqual(unit_kind(code), 'count')
+            self.assertEqual(to_base(2, code), (2, None))
+        ginger = row(unit_weights={'cm': 6})
+        self.assertEqual(line_grams({'quantity': 3, 'unit': 'cm'}, ginger).grams, 18)
+        self.assertEqual(line_grams({'quantity': 1, 'unit': 'hlava'}, row(piece=50)).reason, 'no_unit_weight')
+
+
 class LineGramsTest(SimpleTestCase):
     def test_mass_units(self):
         self.assertEqual(line_grams({'quantity': 300, 'unit': 'g'}, row()).grams, 300)
