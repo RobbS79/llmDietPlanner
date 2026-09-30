@@ -9,8 +9,12 @@ tbsp/tsp/cup portion and piece/unit weights from medium/each/clove/slice
 portions, and writes a `nutrition:` block into data/canonical_ingredients.yaml
 for rows with confidence >= MIN_CONFIDENCE. Rows already tagged `manual:` /
 `frida:` are never overwritten; hand-set piece_weight_g / unit_weights win over
-USDA portions; unmatched rows get `{source: needs_review}`. Idempotent.
-The YAML's leading comment block is preserved on write.
+USDA portions; unmatched rows are left untouched (the --report CSV is the
+worklist). Idempotent.
+
+The YAML is edited as TEXT, in place (see `_write_blocks`): only `nutrition:`
+blocks are replaced or appended, so comments, flow-style aliases and key order
+elsewhere in the file survive byte-for-byte.
 """
 import csv
 import json
@@ -26,21 +30,41 @@ from django.utils.text import slugify
 NUTRIENT_IDS = {1008: 'kcal', 1003: 'protein', 1005: 'carbs', 1004: 'fat'}
 MIN_CONFIDENCE = 0.6
 USDA_ML = {'tbsp': 15.0, 'tsp': 5.0, 'cup': 240.0}
-PIECE_MODIFIERS = ('medium', 'each', 'whole', 'large', 'piece')
+# Portion modifiers that give "1 ks", best first (medium beats large for strawberries).
+PIECE_MODIFIERS = ('medium', 'each', 'piece', 'whole', 'large')
+# USDA count words -> Czech count units stored in unit_weights.
 UNIT_MODIFIERS = {'clove': 'stroužek', 'slice': 'plátek', 'bunch': 'svazek', 'sprig': 'snítka', 'leaf': 'lístek'}
-BAD_WORDS = ('breaded', 'batter', 'cooked', 'roasted', 'fried', 'boiled', 'braised', 'baked', 'canned', 'frozen', 'dried',
-             'dehydrated', 'juice', 'babyfood', 'fast foods', 'restaurant')
+# A portion measured in these is a volume/weight, never a piece ("oz (23 whole kernels)").
+MEASURE_WORDS = {'cup', 'tbsp', 'tsp', 'oz', 'lb', 'ml', 'fl'}
+# Cup qualifiers that describe a cut/packed form, whose weight is not the liquid density.
+CUP_FORM_WORDS = ('chopped', 'shredded', 'sliced', 'pureed', 'packed', 'leaves', 'whole', 'slivered',
+                  'diced', 'halves', 'crumbled', 'grated', 'cubes', 'mashed', 'pieces', 'flaked', 'ground')
+DENSITY_RANGE = (0.2, 2.0)   # g/ml outside this is a parsing artefact, not a food
+# Preparation/processing words: -0.5 each unless the query or category allows them
+# (a raw canonical must not pick "cooked"/"canned" rows).
+BAD_WORDS = ('breaded', 'batter', 'cooked', 'roasted', 'fried', 'boiled', 'braised', 'baked', 'canned',
+             'frozen', 'dried', 'microwaved', 'juice', 'babyfood', 'fast foods', 'restaurant')
+# Formulation variants: -0.4 unless the query asks for them (bacon != "Bacon, meatless").
+VARIANT_RE = re.compile(r'\bmeatless\b|\bimitation\b|freeze-dried|\bdehydrated\b|\blow ?fat\b|'
+                        r'\breduced fat\b|\bnonfat\b|\bskim\b|\bfat[- ]free\b|\bcandied\b|\b[12]%')
+# Colours that mark a non-default variety when the query names no colour (walnuts != black walnuts).
+ODD_COLORS = {'yellow', 'black', 'purple', 'golden'}
 DEFAULT_FILE = Path(__file__).resolve().parents[2] / 'data' / 'canonical_ingredients.yaml'
 MANUAL_PREFIXES = ('manual:', 'frida:')
-REPORT_COLUMNS = ['slug', 'name_cs', 'status', 'usda_description', 'fdc_id', 'confidence',
-                  'kcal', 'protein', 'carbs', 'fat', 'density', 'piece_weight_g']
+REPORT_COLUMNS = ['slug', 'name_cs', 'status', 'query', 'usda_description', 'fdc_id', 'confidence',
+                  'kcal', 'protein', 'carbs', 'fat', 'density', 'piece_weight_g', 'notes']
+# Written key order inside a `nutrition:` block; unknown keys go after usda_query.
+BLOCK_ORDER = ('kcal', 'protein', 'carbs', 'fat', 'density', 'piece_weight_g', 'unit_weights',
+               'usda_query', 'source')
 
 
-# Description tokens that exclude a food outright (restaurant/branded/processed).
+# Description tokens that exclude a food outright (restaurant, branded, snack, prepared dishes)
+# unless the query itself contains the token.
 EXCLUDE_TOKENS = {'restaurant', 'fast', 'school', 'candies', 'candy', 'snacks', 'snack', 'babyfood',
                   'formula', 'supplement', 'applebee', 'mcdonald', 'kfc', 'burger', 'pizza', 'taco',
                   'campbell', 'kraft', 'nestle', 'hershey', 'prepared', 'mix'}
-# Words that mark a different product when the query lacks them (walnuts -> walnut oil).
+# Words that mark a different product when the query lacks them (walnuts -> walnut oil):
+# -0.6 when the word is in the head, -0.3 elsewhere in the description.
 OTHER_PRODUCT_WORDS = ('oil', 'vinegar', 'bread', 'cake', 'sauce', 'dressing', 'juice', 'chocolate',
                        'soup', 'pudding', 'cookie', 'cereal', 'roll', 'bar', 'butter', 'flavored',
                        'flavor', 'giblet', 'liver', 'heart', 'gizzard', 'neck', 'feet',
@@ -68,7 +92,9 @@ SYNONYMS = [
     (r'\bchile\b', 'chili'), (r'\bcilantro\b', 'coriander'), (r'\bcourgettes?\b', 'zucchini'),
     (r'\baubergines?\b', 'eggplant'), (r'\b(green|spring) onions?\b', 'scallion'),
     (r'\bcapsicums?\b', 'sweet pepper'), (r'\bbell peppers?\b', 'sweet pepper'),
-    (r'\bbeetroots?\b', 'beets'), (r'\bhome-prepared\b', 'homemade'), (r'\bfilberts?\b', 'hazelnuts'), (r'\bmangetout\b', 'snow peas'), (r'\bmince[d]?\b', 'ground'), (r'\bfillets?\b', ''),
+    (r'\bbeetroots?\b', 'beets'), (r'\bhome-prepared\b', 'homemade'),
+    (r'\bfilberts?\b', 'hazelnuts'), (r'\bmangetout\b', 'snow peas'),
+    (r'\bmince[d]?\b', 'ground'), (r'\bfillets?\b', ''),
     (r'\bplain flour\b', 'wheat flour all-purpose'), (r'\bwhite yogurt\b', 'plain yogurt'),
     (r'\bpasta (spaghetti|penne|fusilli|farfalle|tagliatelle|linguine|rigatoni|macaroni)\b', 'pasta'),
     (r'\b(coconut flakes|desiccated coconut|shredded coconut)\b', 'coconut dried desiccated'),
@@ -80,8 +106,8 @@ PURE_CLASSES = {'spice', 'nut', 'seed', 'fish', 'beverage', 'alcoholic beverage'
                 'sweetener', 'sugar', 'soup', 'sauce'}
 # Qualifier segments skipped when picking a class head ("Chicken, broilers or fryers, breast").
 FILLER_TOKENS = {'broiler', 'fryer', 'fresh', 'roasting', 'young', 'domesticated', 'all', 'grade',
-                 'distilled', 'variety', 'meat', 'and', 'product'}
-COLORS = {'white', 'red', 'green', 'yellow', 'black', 'brown', 'orange', 'purple'}
+                 'distilled', 'variety', 'meat', 'and', 'product', 'cured'}
+COLORS = {'white', 'red', 'green', 'yellow', 'black', 'brown', 'orange', 'purple', 'golden'}
 # Modifiers that count half in the overlap and cannot alone satisfy the head rule.
 WEAK_TOKENS = {'white', 'red', 'green', 'fresh', 'smoked', 'sea', 'plain', 'whole', 'flake', 'meat',
                'dried', 'powder', 'leaf', 'fine', 'coarse', 'organic', 'light', 'dark'}
@@ -164,23 +190,29 @@ def _score(want: set, food: dict, category: str) -> float:
     weight = {t: (0.5 if t in WEAK_TOKENS and t not in strong else 1.0) for t in want}
     score = sum(weight[t] for t in want & have) / sum(weight.values())
     if strong <= head:
-        score += 0.25
+        score += 0.25                                         # the head names exactly this food
     class_tokens = set(klass.split()) if klass in PURE_CLASSES else set()
     score -= 0.1 * len(head - want - class_tokens)          # "Milk, buttermilk" is not "whole milk"
     want_colors, head_colors = want & COLORS, head & COLORS
     if want_colors and head_colors and not want_colors & head_colors:
         score -= 0.5                                          # white wine vinegar != red wine vinegar
+    elif not want_colors and have & ODD_COLORS:
+        score -= 0.2                                          # walnuts -> english, not black
     if klass and category and klass in CLASS_CATEGORIES and category not in CLASS_CATEGORIES[klass]:
-        score -= 0.5
+        score -= 0.5                                          # class serves another category
+    q_text = ' '.join(sorted(want))
+    for v in VARIANT_RE.findall(desc):
+        if v.replace('-', ' ') not in q_text and v not in q_text:
+            score -= 0.4
     if category in ('meat', 'fish') and 'ground' in have and 'ground' not in want:
-        score -= 0.3
+        score -= 0.3                                          # a cut, not mince
     if category in ('meat', 'fish') and 'skin' in have and 'skin' not in want:
         score -= 0.2                                          # chicken breast = meat only
     ok_states = STATE_OK.get(category, ())
     if category in ('meat', 'fish', 'eggs', 'vegetables', 'fruits', 'other', '') and 'raw' in have:
-        score += 0.15
+        score += 0.15                                         # as-bought form for fresh foods
     if any(re.search(rf'\b{s}\b', desc) for s in ok_states):
-        score += 0.1
+        score += 0.1                                          # category's as-bought state
     for bad in BAD_WORDS:
         if bad in want or any(re.fullmatch(s, bad) for s in ok_states):
             continue
@@ -189,14 +221,17 @@ def _score(want: set, food: dict, category: str) -> float:
         if re.search(rf'\b{bad}\b', desc):
             score -= 0.5
     for w in OTHER_PRODUCT_WORDS:
-        if w not in want and w in have and w != klass:      # "Soup, stock, chicken" is a stock
-            score -= 0.6 if w in head else 0.3
+        if w in want or w not in have:
+            continue
+        if w == klass and klass in PURE_CLASSES:              # "Soup, stock, chicken" is a stock
+            continue
+        score -= 0.6 if w in head else 0.3                    # olives != "Oil, olive"
     if 'with' in desc.split() and 'with' not in want and not re.search(
             r'\bwith(out)? (added|salt|skin|bone)', desc):
-        score -= 0.3
+        score -= 0.3                                          # "made with"/"with cheese" dishes
     if re.search(r'\((alaska native|navajo|hopi|apache|shoshone|[^)]*indians?)\)', desc):
         score -= 0.4                                          # regional/traditional variants
-    score -= 0.01 * max(0, len(have) - len(want))
+    score -= 0.01 * max(0, len(have) - len(want))            # prefer the plainest description
     return score
 
 
@@ -242,35 +277,57 @@ def _portions(food: dict):
             yield float(g) / float(amt), unit, mod
 
 
+def _measure(unit: str, mod: str) -> Tuple[Optional[str], str]:
+    """(tbsp|tsp|cup or None, remaining qualifier) for one portion."""
+    if unit in USDA_ML:
+        return unit, mod
+    m = re.match(r'(tbsp|tsp|cup)s?\b[,\s]*(.*)', mod)
+    return (m.group(1), m.group(2)) if m else (None, mod)
+
+
 def derive_density(food: dict) -> Optional[float]:
-    """g/ml from the first tbsp/tsp/cup portion (USDA cup = 240 ml), else None."""
+    """g/ml from a tbsp/tsp portion, else a plain cup (USDA cup = 240 ml); None if implausible.
+
+    Cut or packed forms ("cup, chopped", "tbsp chopped") are skipped: their weight
+    reflects air gaps, not the density of the food.
+    """
+    candidates = []
     for g, unit, mod in _portions(food):
-        key = unit if unit in USDA_ML else next((u for u in USDA_ML if re.search(rf'\b{u}\b', mod)), None)
-        if key:
-            return round(g / USDA_ML[key], 3)
+        key, rest = _measure(unit, mod)
+        if key is None or any(w in rest for w in CUP_FORM_WORDS):
+            continue
+        candidates.append((0 if key in ('tbsp', 'tsp') else 1, g / USDA_ML[key]))
+    for _, d in sorted(candidates, key=lambda c: c[0]):
+        if DENSITY_RANGE[0] <= d <= DENSITY_RANGE[1]:
+            return round(d, 3)
     return None
 
 
 def derive_piece_weights(food: dict) -> Dict[str, Any]:
-    piece = None
-    unit_weights: Dict[str, float] = {}
+    """{'piece_weight_g', 'unit_weights'} from count portions (medium/each/clove/leaf…).
+
+    Portions measured by volume/weight are ignored; a portion that names a count
+    unit (leaf, slice, clove…) only sets that unit, never the piece weight. Among
+    several portions for the same unit, the plain or `medium` one wins.
+    """
+    pieces: Dict[str, float] = {}
+    units: Dict[str, Tuple[int, float]] = {}
     for g, unit, mod in _portions(food):
-        words = set(re.split(r'[^a-z]+', f'{unit} {mod}'))
-        for usda_word, cz in UNIT_MODIFIERS.items():
-            if usda_word in words and cz not in unit_weights:
-                unit_weights[cz] = round(g, 1)
-        if piece is None and any(w in words for w in PIECE_MODIFIERS):
-            piece = round(g, 1)
-    return {'piece_weight_g': piece, 'unit_weights': unit_weights}
-
-
-def _split_header(text: str) -> Tuple[str, str]:
-    """(leading comment/blank lines, rest) so a rewrite keeps the file header."""
-    lines = text.splitlines(keepends=True)
-    i = 0
-    while i < len(lines) and (lines[i].startswith('#') or not lines[i].strip()):
-        i += 1
-    return ''.join(lines[:i]), ''.join(lines[i:])
+        words = {_singular(w) for w in re.split(r'[^a-z]+', f'{unit} {mod}') if w}
+        if words & MEASURE_WORDS:
+            continue
+        unit_hits = [cz for usda_word, cz in UNIT_MODIFIERS.items() if usda_word in words]
+        if unit_hits:
+            rank = 0 if len(words - {'undetermined'}) == 1 else (1 if 'medium' in words else 2)
+            for cz in unit_hits:
+                if cz not in units or rank < units[cz][0]:
+                    units[cz] = (rank, round(g, 1))
+            continue
+        for w in PIECE_MODIFIERS:
+            if w in words and w not in pieces:
+                pieces[w] = round(g, 1)
+    piece = next((pieces[w] for w in PIECE_MODIFIERS if w in pieces), None)
+    return {'piece_weight_g': piece, 'unit_weights': {cz: v for cz, (_, v) in units.items()}}
 
 
 def _hand_set(existing: dict) -> Dict[str, Any]:
@@ -281,6 +338,87 @@ def _hand_set(existing: dict) -> Dict[str, Any]:
     if existing.get('unit_weights'):
         kept['unit_weights'] = dict(existing['unit_weights'])
     return kept
+
+
+def _scalar(v: Any) -> str:
+    """One YAML value on one line (flow style for mappings)."""
+    out = yaml.safe_dump(v, default_flow_style=True, allow_unicode=True, width=10_000).strip()
+    return out[:-4].rstrip() if out.endswith('\n...') else out
+
+
+_KEY_LINE = re.compile(r'^(\s+)([A-Za-z_][\w-]*):\s*(.*?)(\s+#.*)?$')
+
+
+def _render_block(block: Dict[str, Any], old_lines: List[str], indent: str) -> List[str]:
+    """`nutrition:` lines in BLOCK_ORDER; an old key line whose value is unchanged is kept verbatim
+    (so its trailing `# comment` survives)."""
+    old: Dict[str, str] = {}
+    for line in old_lines[1:]:
+        m = _KEY_LINE.match(line.rstrip('\n'))
+        if m:
+            old[m.group(2)] = line
+    keys = [k for k in BLOCK_ORDER if k in block]
+    extra = [k for k in block if k not in BLOCK_ORDER]
+    pos = keys.index('source') if 'source' in keys else len(keys)
+    keys[pos:pos] = extra
+    out = [f'{indent}nutrition:\n']
+    for k in keys:
+        line = old.get(k)
+        if line is not None:
+            m = _KEY_LINE.match(line.rstrip('\n'))
+            try:
+                same = yaml.safe_load(m.group(3)) == block[k]
+            except yaml.YAMLError:
+                same = False
+            if same:
+                out.append(line if line.endswith('\n') else line + '\n')
+                continue
+        out.append(f'{indent}  {k}: {_scalar(block[k])}\n')
+    return out
+
+
+def _write_blocks(text: str, blocks: Dict[int, Dict[str, Any]], names: List[str]) -> str:
+    """Replace/append `nutrition:` blocks for list entries by index, editing text in place.
+
+    Entries are the top-level `- name:` items; an entry runs until the next line
+    that starts at column 0. An existing `nutrition:` block (the key line plus its
+    more-indented continuation lines, or an inline `nutrition: {...}`) is replaced
+    where it is; otherwise the block is inserted after the entry's last line.
+    """
+    lines = text.splitlines(keepends=True)
+    if lines and not lines[-1].endswith('\n'):
+        lines[-1] += '\n'
+    starts = [i for i, l in enumerate(lines) if l.startswith('- ')]
+    if len(starts) != len(names):
+        raise CommandError(f'found {len(starts)} "- " entries in the text but {len(names)} parsed')
+    for idx in sorted(blocks, reverse=True):              # bottom-up keeps earlier indexes valid
+        start = starts[idx]
+        head = yaml.safe_load(lines[start]) or [{}]
+        if not isinstance(head, list) or (head[0] or {}).get('name') != names[idx]:
+            raise CommandError(f'entry {idx} text/parse mismatch at line {start + 1}')
+        end = start + 1
+        while end < len(lines) and (not lines[end].strip() or lines[end][0] in ' \t'):
+            end += 1
+        while end > start + 1 and not lines[end - 1].strip():
+            end -= 1                                        # trailing blank lines stay outside
+        indent = '  '
+        nb_start = next((i for i in range(start + 1, end)
+                         if re.match(r'^\s+nutrition:', lines[i])), None)
+        if nb_start is not None:
+            indent = re.match(r'^(\s+)', lines[nb_start]).group(1)
+            nb_end = nb_start + 1
+            while nb_end < end and (lines[nb_end][:len(indent) + 1].strip() == ''
+                                    and len(lines[nb_end]) - len(lines[nb_end].lstrip()) > len(indent)):
+                nb_end += 1
+            old = lines[nb_start:nb_end]
+            lines[nb_start:nb_end] = _render_block(blocks[idx], old, indent)
+        else:
+            lines[end:end] = _render_block(blocks[idx], [], indent)
+    return ''.join(lines)
+
+
+def _num(v: Any) -> Any:
+    return '' if v is None else v
 
 
 class Command(BaseCommand):
@@ -301,42 +439,48 @@ class Command(BaseCommand):
             raise CommandError(f'YAML not found: {yaml_path}')
 
         foods = json.loads(sr_path.read_text(encoding='utf-8')).get('SRLegacyFoods') or []
-        header, body = _split_header(yaml_path.read_text(encoding='utf-8'))
-        entries = yaml.safe_load(body) or []
+        text = yaml_path.read_text(encoding='utf-8')
+        entries = yaml.safe_load(text) or []
         if not isinstance(entries, list):
             raise CommandError(f'{yaml_path} must contain a list of entries')
 
         counts = {'matched': 0, 'kept_manual': 0, 'needs_review': 0}
         rows = []
-        for e in entries:
+        blocks: Dict[int, Dict[str, Any]] = {}
+        for idx, e in enumerate(entries):
             name = e.get('name') or ''
             slug = e.get('slug') or slugify(name)
-            existing = e.get('nutrition') or {}
+            existing = dict(e.get('nutrition') or {})
+            query = existing.get('usda_query') or e.get('usda_query')
             row = {c: '' for c in REPORT_COLUMNS}
-            row.update(slug=slug, name_cs=e.get('name_cs') or '')
+            row.update(slug=slug, name_cs=e.get('name_cs') or '', query=query or '')
 
             source = str(existing.get('source') or '')
             if source.startswith(MANUAL_PREFIXES):
                 counts['kept_manual'] += 1
-                row['status'] = 'kept_manual'
+                row.update(status='kept_manual', notes=source,
+                           **{k: _num(existing.get(k)) for k in
+                              ('kcal', 'protein', 'carbs', 'fat', 'density', 'piece_weight_g')})
                 rows.append(row)
                 continue
 
-            match, conf = best_match(name, foods, category=e.get('category') or '', query=e.get('usda_query'))
+            match, conf = best_match(name, foods, category=e.get('category') or '', query=query)
             nutr = nutrients_of(match) if match is not None else {}
             if match is not None:
                 row.update(usda_description=match.get('description', ''), fdc_id=match.get('fdcId', ''),
                            confidence=conf)
-            hand = _hand_set(existing)
-
-            if match is None or conf < MIN_CONFIDENCE or any(k not in nutr for k in ('kcal', 'protein', 'carbs', 'fat')):
+            missing = [k for k in ('kcal', 'protein', 'carbs', 'fat') if k not in nutr]
+            if match is None or conf < MIN_CONFIDENCE or missing:
                 counts['needs_review'] += 1
-                row['status'] = 'needs_review'
+                row.update(status='needs_review', notes=(
+                    'no candidate' if match is None else
+                    f'below {MIN_CONFIDENCE}' if conf < MIN_CONFIDENCE else f'missing {",".join(missing)}'))
                 rows.append(row)
-                e['nutrition'] = {**hand, 'source': 'needs_review'}
-                continue
+                continue                                  # YAML left untouched; the CSV is the worklist
 
-            block: Dict[str, Any] = {k: nutr[k] for k in ('kcal', 'protein', 'carbs', 'fat')}
+            hand = _hand_set(existing)
+            block: Dict[str, Any] = dict(existing)        # keeps unknown keys
+            block.update({k: nutr[k] for k in ('kcal', 'protein', 'carbs', 'fat')})
             density = derive_density(match)
             if density is not None:
                 block['density'] = density
@@ -347,12 +491,17 @@ class Command(BaseCommand):
             unit_weights = {**pw['unit_weights'], **hand.get('unit_weights', {})}
             if unit_weights:
                 block['unit_weights'] = unit_weights
+            if query:
+                block['usda_query'] = query
             block['source'] = f"usda:{match['fdcId']}"
-            e['nutrition'] = block
+            blocks[idx] = block
 
             counts['matched'] += 1
-            row.update(status='matched', density=block.get('density', ''),
-                       piece_weight_g=block.get('piece_weight_g', ''),
+            notes = []
+            if 'piece_weight_g' in hand and pw['piece_weight_g'] not in (None, hand['piece_weight_g']):
+                notes.append(f"usda piece {pw['piece_weight_g']} g ignored")
+            row.update(status='matched', density=_num(block.get('density')),
+                       piece_weight_g=_num(block.get('piece_weight_g')), notes='; '.join(notes),
                        **{k: block[k] for k in ('kcal', 'protein', 'carbs', 'fat')})
             rows.append(row)
 
@@ -362,10 +511,10 @@ class Command(BaseCommand):
                 w.writeheader()
                 w.writerows(rows)
 
-        if opts.get('write_yaml'):
-            yaml_path.write_text(
-                header + yaml.safe_dump(entries, allow_unicode=True, sort_keys=False, width=100),
-                encoding='utf-8')
+        if opts.get('write_yaml') and blocks:
+            new_text = _write_blocks(text, blocks, [e.get('name') for e in entries])
+            if new_text != text:
+                yaml_path.write_text(new_text, encoding='utf-8')
 
         self.stdout.write(
             f"matched={counts['matched']} kept_manual={counts['kept_manual']} "

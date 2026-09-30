@@ -1,4 +1,4 @@
-import csv, json, tempfile
+import csv, difflib, json, re, shutil, tempfile
 from io import StringIO
 from pathlib import Path
 
@@ -11,6 +11,14 @@ from diet_planner.management.commands.import_usda_nutrition import (
 )
 
 FIX = Path(__file__).parent / 'fixtures' / 'usda_sr_legacy_slice.json'
+REAL_YAML = Path(__file__).resolve().parents[1] / 'data' / 'canonical_ingredients.yaml'
+
+
+def _food(desc, *portions, fdc=1):
+    """Inline SR-shaped food; portions are (gramWeight, modifier) with measureUnit 'undetermined'."""
+    return {'fdcId': fdc, 'description': desc, 'foodNutrients': [],
+            'foodPortions': [{'gramWeight': g, 'amount': 1.0, 'measureUnit': {'name': 'undetermined'},
+                              'modifier': m} for g, m in portions]}
 
 
 def foods():
@@ -38,7 +46,7 @@ class MatchingTest(SimpleTestCase):
 
 
     def test_query_token_must_be_in_head_segment(self):
-        pool = [{'fdcId': 1, 'description': 'Pork, cured, salt pork, raw'},
+        pool = [{'fdcId': 1, 'description': 'Tomatoes, red, ripe, canned, with salt added'},
                 {'fdcId': 2, 'description': 'Nuts, almond butter, plain, without salt added'},
                 {'fdcId': 3, 'description': 'Salt, table'},
                 {'fdcId': 4, 'description': 'Butter, salted'}]
@@ -57,6 +65,20 @@ class MatchingTest(SimpleTestCase):
         self.assertEqual(best_match('mozzarella', pool, category='dairy')[0]['fdcId'], 5)
         for name, cat in (('lasagna', 'grains'), ('tortilla', 'grains'), ('mint', 'vegetables')):
             self.assertEqual(best_match(name, pool, category=cat), (None, 0.0), name)
+
+    def test_variant_colour_and_oil_penalties(self):
+        pool = [{'fdcId': 1, 'description': 'Bacon, meatless'},
+                {'fdcId': 2, 'description': 'Pork, cured, bacon, unprepared'},
+                {'fdcId': 3, 'description': 'Oil, olive, salad or cooking'},
+                {'fdcId': 4, 'description': 'Olives, ripe, canned (small-extra large)'},
+                {'fdcId': 5, 'description': 'Nuts, walnuts, black, dried'},
+                {'fdcId': 6, 'description': 'Nuts, walnuts, english'},
+                {'fdcId': 7, 'description': 'Milk, reduced fat, fluid, 2% milkfat'},
+                {'fdcId': 8, 'description': 'Milk, whole, 3.25% milkfat'}]
+        self.assertEqual(best_match('bacon', pool, category='meat')[0]['fdcId'], 2)
+        self.assertEqual(best_match('olives', pool, category='canned')[0]['fdcId'], 4)
+        self.assertEqual(best_match('walnuts', pool, category='nuts')[0]['fdcId'], 6)
+        self.assertEqual(best_match('milk', pool, category='dairy')[0]['fdcId'], 8)
 
 
 class DerivationTest(SimpleTestCase):
@@ -79,6 +101,30 @@ class DerivationTest(SimpleTestCase):
         self.assertEqual(derive_piece_weights(garlic), {'piece_weight_g': None, 'unit_weights': {'stroužek': 3.0}})
         egg = next(f for f in foods() if f['fdcId'] == 171287)
         self.assertEqual(derive_piece_weights(egg)['piece_weight_g'], 50.0)
+
+    def test_piece_weights_skip_measures_and_prefer_medium(self):
+        almonds = _food('Nuts, almonds', (28.35, 'oz (23 whole kernels)'), (1.2, 'almond'), (143, 'cup, whole'))
+        self.assertIsNone(derive_piece_weights(almonds)['piece_weight_g'])          # not the 28.4 g ounce
+        cabbage = _food('Cabbage, raw', (33, 'leaf, large'), (908, 'head, medium (about 5-3/4" dia)'),
+                        (89, 'cup, chopped'), (23, 'leaf, medium'), (15, 'leaf'))
+        pw = derive_piece_weights(cabbage)
+        self.assertEqual(pw['piece_weight_g'], 908.0)                              # a head, not a leaf
+        self.assertEqual(pw['unit_weights'], {'lístek': 15.0})                     # plain "leaf" wins
+        berries = _food('Strawberries, raw', (232, 'cup, pureed'), (18, 'large (1-3/8" dia)'),
+                        (12, 'medium (1-1/4" dia)'), (27, 'extra large (1-5/8" dia)'))
+        self.assertEqual(derive_piece_weights(berries)['piece_weight_g'], 12.0)
+        romaine = _food('Lettuce, cos or romaine, raw', (47, 'cup shredded'), (6, 'leaf inner'), (28, 'leaves'))
+        self.assertIn('lístek', derive_piece_weights(romaine)['unit_weights'])      # leaves -> leaf
+
+    def test_density_skips_cut_forms_and_rejects_implausible(self):
+        cabbage = _food('Cabbage, raw', (89, 'cup, chopped'), (70, 'cup, shredded'))
+        self.assertIsNone(derive_density(cabbage))
+        onion = _food('Onions, raw', (10, 'tbsp chopped'), (160, 'cup, chopped'))
+        self.assertIsNone(derive_density(onion))
+        honey = _food('Honey', (339, 'cup'), (21, 'tbsp'))
+        self.assertAlmostEqual(derive_density(honey), 1.4, places=3)               # tbsp preferred
+        weird = _food('Spices, saffron', (0.7, 'tbsp'), (2000, 'cup'))
+        self.assertIsNone(derive_density(weird))                                   # 0.047 and 8.3 g/ml
 
 
 class CommandTest(SimpleTestCase):
@@ -116,13 +162,64 @@ class CommandTest(SimpleTestCase):
         self.assertEqual(data['onion']['nutrition']['piece_weight_g'], 110.0)
         self.assertEqual(data['bread dumpling']['nutrition']['source'], 'manual:czech table')
         self.assertIn('matched=3', out.getvalue())
+        self.assertIn('query', rows['olive-oil'])
+        self.assertEqual(rows['bread-dumpling']['kcal'], '200')                     # kept_manual carries values
+        self.assertEqual(rows['bread-dumpling']['notes'], 'manual:czech table')
+
+    def test_usda_query_read_from_block_or_top_level_and_written_into_block(self):
+        y = self._yaml("- name: flour\n  category: baking\n  nutrition:\n    usda_query: wheat flour all-purpose\n"
+                       "    note_x: keep me\n- name: flour two\n  category: baking\n"
+                       "  usda_query: wheat flour all-purpose\n")
+        call_command('import_usda_nutrition', sr_legacy=str(FIX), yaml=str(y), write_yaml=True, stdout=StringIO())
+        a, b = yaml.safe_load(y.read_text(encoding='utf-8'))
+        self.assertEqual(a['nutrition']['source'], 'usda:169761')
+        self.assertEqual(a['nutrition']['usda_query'], 'wheat flour all-purpose')
+        self.assertEqual(a['nutrition']['note_x'], 'keep me')
+        self.assertEqual(b['nutrition']['source'], 'usda:169761')
+        self.assertEqual(b['nutrition']['usda_query'], 'wheat flour all-purpose')
+        self.assertEqual(list(a['nutrition'])[-1], 'source')
+
+    def test_write_yaml_on_real_file_only_touches_nutrition_blocks(self):
+        tmp = Path(tempfile.mkdtemp()) / 'canonical_ingredients.yaml'
+        shutil.copy(REAL_YAML, tmp)
+        before = tmp.read_text(encoding='utf-8')
+        call_command('import_usda_nutrition', sr_legacy=str(FIX), yaml=str(tmp), write_yaml=True, stdout=StringIO())
+        after = tmp.read_text(encoding='utf-8')
+        self.assertNotEqual(before, after)
+        b_lines, a_lines = before.splitlines(), after.splitlines()
+        self.assertEqual(sum(l.lstrip().startswith('#') for l in a_lines),
+                         sum(l.lstrip().startswith('#') for l in b_lines))
+        inline = lambda ls: sum('#' in l and not l.lstrip().startswith('#') for l in ls)
+        self.assertEqual(inline(a_lines), inline(b_lines))
+        # Removed lines may only be key lines of nutrition blocks, one per replaced key.
+        in_block, block_lines = False, set()
+        for i, l in enumerate(b_lines):
+            if re.match(r'^  nutrition:', l):
+                in_block = True
+                continue
+            if in_block and l.startswith('    '):
+                block_lines.add(i)
+            else:
+                in_block = False
+        sm = difflib.SequenceMatcher(a=b_lines, b=a_lines, autojunk=False)
+        removed = [i for op, i1, i2, _, _ in sm.get_opcodes() if op in ('replace', 'delete') for i in range(i1, i2)]
+        self.assertTrue(set(removed) <= block_lines, [b_lines[i] for i in removed if i not in block_lines])
+        old, new = yaml.safe_load(before), yaml.safe_load(after)
+        self.assertEqual(len(old), len(new))
+        for o, n in zip(old, new):
+            self.assertEqual({k: v for k, v in o.items() if k != 'nutrition'},
+                             {k: v for k, v in n.items() if k != 'nutrition'})
+        garlic = next(e for e in new if e['name'] == 'garlic')['nutrition']
+        self.assertEqual(garlic['source'], 'usda:169230')
+        self.assertEqual(garlic['piece_weight_g'], 5)                               # hand-set kept
+        self.assertIn('# one clove', after)                                         # its comment too
+        self.assertIn('kcal', next(e for e in new if e['name'] == 'olive oil')['nutrition'])
 
     def test_low_confidence_rows_are_left_for_review(self):
         y = self._yaml("- name: dragon fruit\n  category: fruits\n")
         out = StringIO()
         call_command('import_usda_nutrition', sr_legacy=str(FIX), yaml=str(y), write_yaml=True, stdout=out)
-        data = yaml.safe_load(y.read_text(encoding='utf-8'))
-        self.assertEqual(data[0]['nutrition'], {'source': 'needs_review'})
+        self.assertEqual(y.read_text(encoding='utf-8'), "- name: dragon fruit\n  category: fruits\n")
 
     def test_existing_piece_weight_and_unit_weights_are_kept(self):
         y = self._yaml("- name: garlic\n  category: vegetables\n  nutrition: {piece_weight_g: 5, unit_weights: {stroužek: 5}}\n")
