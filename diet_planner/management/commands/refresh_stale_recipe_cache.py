@@ -14,8 +14,10 @@ which is exactly what the per-portion display relies on. Rows violating it were
 cached against different `base_servings`/`base_nutrition` than the corpus now
 holds, and no amount of dividing at display time can recover the right number.
 
-Repair re-portions the meal against the slot's DEFAULT calorie target, not the
-plan's own stored calories — those are the stale data being repaired.
+Repair re-renders the meal through `render_curated_meal` (the serving path:
+side dish, basis/servings keys and all) against the slot's DEFAULT calorie
+target, not the plan's own stored calories — those are the stale data being
+repaired.
 
 Dry-run by default; prints a table and changes nothing:
 
@@ -43,8 +45,8 @@ from diet_planner.services.meal_locator import (
 from diet_planner.services.recipe_retrieval import (
     _SLOT_DEFAULT_KCAL,
     per_portion_calories,
-    portions_for_target,
-    scale_recipe_to_meal,
+    render_curated_meal,
+    required_tags_for_goal,
 )
 
 # Rounding through int()/_fmt_grams means an exact match is not expected.
@@ -79,13 +81,17 @@ def slot_key_for(meal_type: str) -> str:
     return _TYPE_FOR_LIST_KEY.get(meal_type, meal_type)
 
 
-def rebuild_meal(curated: CuratedRecipe, meal_identifier: str, meal_type: str):
-    """The meal this position should hold given the current corpus. Portioned
-    to the slot-type default target: the plan's own calories are what we're
+def rebuild_meal(curated: CuratedRecipe, row: Recipe, meal_type: str):
+    """The meal this position should hold given the current corpus, rendered
+    exactly as the serving path renders it (side included). Portioned to the
+    slot-type default target: the plan's own calories are what we're
     repairing, so they cannot also be the yardstick."""
-    target = _SLOT_DEFAULT_KCAL.get(slot_key_for(meal_type))
-    meal = scale_recipe_to_meal(curated, portions=portions_for_target(curated, target))
-    meal['meal_identifier'] = meal_identifier
+    meal, _gap = render_curated_meal(
+        curated,
+        target_kcal=_SLOT_DEFAULT_KCAL.get(slot_key_for(meal_type)),
+        required_tags=required_tags_for_goal(row.dietary_goal),
+    )
+    meal['meal_identifier'] = row.meal_identifier
     return meal
 
 
@@ -152,7 +158,7 @@ class Command(BaseCommand):
                     f'-> plan position no longer holds {curated.slug!r}, skipped'))
                 continue
 
-            meal = rebuild_meal(curated, row.meal_identifier, ref.slot)
+            meal = rebuild_meal(curated, row, ref.slot)
             old_cal = (row.nutritional_info or {}).get('calories')
             new_cal = (meal.get('nutritional_info') or {}).get('calories')
             self.stdout.write(

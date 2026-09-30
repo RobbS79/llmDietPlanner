@@ -177,3 +177,15 @@ class RefreshCommandTest(TestCase):
         )
         output = self._run('--apply')
         self.assertIn('neexistujici-slug', output)
+
+
+class RebuildMealSideTest(RefreshCommandTest):
+    def test_rebuild_includes_the_side_like_the_serving_path(self):
+        from diet_planner.management.commands.refresh_stale_recipe_cache import rebuild_meal
+        curated = make_recipe(name_cs='Guláš s chlebem', base_servings=1,
+                              base_nutrition={'calories': 400, 'protein': 20, 'carbs': 30, 'fat': 10},
+                              side_options=['chleb'])
+        meal = rebuild_meal(curated, self.row, 'lunch')
+        self.assertIn('side', meal)
+        # At HEAD sides carry hardcoded kcal (chleb = 200/portion); Task 8 moves this to the table.
+        self.assertEqual(meal['nutritional_info']['calories'], meal['servings'] * 600)
