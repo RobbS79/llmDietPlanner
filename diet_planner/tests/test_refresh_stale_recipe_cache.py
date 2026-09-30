@@ -179,7 +179,15 @@ class RefreshCommandTest(TestCase):
         self.assertIn('neexistujici-slug', output)
 
 
-class RebuildMealSideTest(RefreshCommandTest):
+class RebuildMealSideTest(TestCase):
+    def setUp(self):
+        user = get_user_model().objects.create(username='sider')
+        goal = DietaryGoal.objects.create(
+            user=user, prompt='týden jídel', num_days=1,
+            country='CZ', currency='CZK', language_code='cs',
+        )
+        self.row = Recipe(meal_identifier=f'{goal.id}:1:lunch:0', dietary_goal=goal)
+
     def test_rebuild_includes_the_side_like_the_serving_path(self):
         from diet_planner.management.commands.refresh_stale_recipe_cache import rebuild_meal
         curated = make_recipe(name_cs='Guláš s chlebem', base_servings=1,
