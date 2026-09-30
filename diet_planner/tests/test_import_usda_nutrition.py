@@ -80,6 +80,16 @@ class MatchingTest(SimpleTestCase):
         self.assertEqual(best_match('walnuts', pool, category='nuts')[0]['fdcId'], 6)
         self.assertEqual(best_match('milk', pool, category='dairy')[0]['fdcId'], 8)
 
+    def test_variant_phrases_and_percent_tokens(self):
+        pool = [{'fdcId': 1, 'description': 'Milk, whole, 3.25% milkfat, with added vitamin D'},
+                {'fdcId': 2, 'description': 'Milk, reduced fat, fluid, 2% milkfat, with added vitamin A and vitamin D'},
+                {'fdcId': 3, 'description': 'Milk, lowfat, fluid, 1% milkfat, with added vitamin A and vitamin D'},
+                {'fdcId': 4, 'description': 'Beef, ground, 70% lean meat / 30% fat, raw'},
+                {'fdcId': 5, 'description': 'Beef, ground, 85% lean meat / 15% fat, raw'},
+                {'fdcId': 6, 'description': 'Beef, ground, 90% lean meat / 10% fat, raw'}]
+        self.assertEqual(best_match('milk', pool, category='dairy', query='milk reduced fat 2%')[0]['fdcId'], 2)
+        self.assertEqual(best_match('beef mince', pool, category='meat', query='beef ground 85% lean')[0]['fdcId'], 5)
+
 
 class DerivationTest(SimpleTestCase):
     def test_nutrients_of(self):

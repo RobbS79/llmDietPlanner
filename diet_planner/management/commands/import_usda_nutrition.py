@@ -147,8 +147,13 @@ def _norm(s: str) -> str:
     return s
 
 
+_PERCENT = re.compile(r'\d+(?:\.\d+)?%')
+
+
 def _tokens(s: str) -> set:
-    return {_singular(t) for t in re.split(r'[^a-z]+', _norm(s)) if len(t) > 2}
+    """Singular-folded words (3+ letters) plus percent tokens ("2%", "85%") so fat grades differ."""
+    n = _norm(s)
+    return {_singular(t) for t in re.split(r'[^a-z]+', n) if len(t) > 2} | set(_PERCENT.findall(n))
 
 
 def _head(desc: str) -> Tuple[set, Optional[str]]:
@@ -181,7 +186,7 @@ def _profile(desc_raw: str) -> Tuple[str, frozenset, frozenset, Optional[str]]:
     return desc, frozenset(_tokens(desc)), frozenset(head), klass
 
 
-def _score(want: set, food: dict, category: str) -> float:
+def _score(want: set, food: dict, category: str, q_norm: str = '') -> float:
     desc_raw = food.get('description') or ''
     desc, have, head, klass = _profile(desc_raw)
     strong = want - WEAK_TOKENS or want
@@ -200,9 +205,8 @@ def _score(want: set, food: dict, category: str) -> float:
         score -= 0.2                                          # walnuts -> english, not black
     if klass and category and klass in CLASS_CATEGORIES and category not in CLASS_CATEGORIES[klass]:
         score -= 0.5                                          # class serves another category
-    q_text = ' '.join(sorted(want))
-    for v in VARIANT_RE.findall(desc):
-        if v.replace('-', ' ') not in q_text and v not in q_text:
+    for v in VARIANT_RE.findall(desc):                        # phrase test on the query text, in order
+        if v not in q_norm and v.replace('-', ' ') not in q_norm:
             score -= 0.4
     if category in ('meat', 'fish') and 'ground' in have and 'ground' not in want:
         score -= 0.3                                          # a cut, not mince
@@ -246,11 +250,12 @@ def best_match(name: str, foods: List[dict], *, category: str = '',
     small length penalty. Ties go to the lower fdcId.
     """
     want = _tokens(query or name)
+    q_norm = _norm(query or name)
     if not want:
         return None, 0.0
     best, best_key = None, (0.0, 0)
     for f in foods:
-        s = _score(want, f, category)
+        s = _score(want, f, category, q_norm)
         key = (s, -int(f.get('fdcId') or 0))
         if s > 0 and (best is None or key > best_key):
             best, best_key = f, key
