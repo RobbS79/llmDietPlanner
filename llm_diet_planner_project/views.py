@@ -77,7 +77,8 @@ def _per_portion_nutrition(recipe):
         val = float(m.group(0))
         if divide and servings > 0:
             val /= servings
-        text = f'{int(round(val))}' if abs(val - round(val)) < 1e-9 else f'{val:.1f}'
+        # Same rule as the frontend roundValue: kcal integer; macros integer at >=10 else 1 dp.
+        text = str(int(round(val))) if key == 'calories' or val >= 10 else f'{round(val, 1):g}'
         rows.append((key, label, f'{text} {unit}'))
     return rows
 

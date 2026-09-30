@@ -66,10 +66,10 @@ class PublicRecipeSSRNutritionTest(TestCase):
 
     def test_total_basis_is_divided_per_portion(self):
         body = self._get(nutritional_info={
-            'calories': 600, 'protein': '30g', 'carbs': '40g', 'fat': '20g',
+            'calories': 575, 'protein': '30g', 'carbs': '40g', 'fat': '20g',
             'basis': 'total', 'servings': 2, 'nutrition_source': 'computed'})
-        self.assertIn('<dd>300 kcal</dd>', body)
-        self.assertIn('"calories": "300 kcal"', body)
+        self.assertIn('<dd>288 kcal</dd>', body)
+        self.assertIn('"calories": "288 kcal"', body)
         self.assertIn('<dd>15 g</dd>', body)
         for meta in ('basis', 'servings', 'nutrition_source'):
             self.assertNotIn(f'<dt>{meta}</dt>', body)

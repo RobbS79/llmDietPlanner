@@ -75,3 +75,14 @@ describe('pool helpers', () => {
     expect(poolTotals([pool[3]], '151', new Set()).avgMainKcal).toBe(0);
   });
 });
+
+describe('parseNutrition basis', () => {
+  it('divides whole-recipe totals by servings', () => {
+    expect(parseNutrition({ calories: 575, protein: '30g', carbs: '40g', fat: '20g', basis: 'total', servings: 2 }))
+      .toEqual({ kcal: 288, protein: 15, carbs: 20, fat: 10 });
+  });
+  it('leaves legacy and per-portion rows unchanged', () => {
+    expect(parseNutrition({ calories: 600, protein: '30g' }).kcal).toBe(600);
+    expect(parseNutrition({ calories: 600, basis: 'portion', servings: 2 }).kcal).toBe(600);
+  });
+});

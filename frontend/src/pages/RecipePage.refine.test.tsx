@@ -149,3 +149,36 @@ describe('RecipePage refine chat integration', () => {
     }, 10_000); // the 4.5 s wait plus setup sits right at vitest's 5 s default
   });
 });
+
+describe('RecipePage nutrition', () => {
+  const withNutrition = (nutritional_info: Record<string, unknown>) => {
+    vi.clearAllMocks();
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: { ...RECIPE, servings: 2, nutritional_info } },
+    });
+  };
+  const INFO = { calories: 600, protein: '30g', carbs: '40g', fat: '20g', basis: 'total', servings: 2 };
+
+  it('emits per-portion JSON-LD nutrition', async () => {
+    withNutrition({ ...INFO, nutrition_source: 'computed' });
+    renderPage();
+    await screen.findByText('Nutriční hodnoty', { exact: false });
+    const ld = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+      .map((n) => n.textContent || '').join('');
+    expect(ld).toContain('"calories":"300 kcal"');
+  });
+
+  it('shows the odhad badge only for estimated nutrition', async () => {
+    withNutrition({ ...INFO, nutrition_source: 'estimated' });
+    const first = renderPage();
+    expect(await screen.findByText(/· odhad/)).toBeInTheDocument();
+    first.qc.clear();
+  });
+
+  it('hides the odhad badge for computed nutrition', async () => {
+    withNutrition({ ...INFO, nutrition_source: 'computed' });
+    renderPage();
+    await screen.findByText('Nutriční hodnoty', { exact: false });
+    expect(screen.queryByText(/· odhad/)).not.toBeInTheDocument();
+  });
+});

@@ -117,3 +117,12 @@ describe('explicit basis and source', () => {
     expect(rows).toHaveLength(4);
   });
 });
+
+describe('basis portion', () => {
+  it('never divides, even when implausible as a portion', () => {
+    expect(normalizeNutrition({ calories: 1800, protein: '30g' }, 2, 'portion')).toBeNull();
+  });
+  it('shows plausible per-portion values as-is', () => {
+    expect(normalizeNutrition({ calories: 600 }, 2, 'portion')?.[0]).toMatchObject({ value: 600 });
+  });
+});

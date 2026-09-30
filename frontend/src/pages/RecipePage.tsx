@@ -353,7 +353,7 @@ export const RecipePage = () => {
                   <h3 className="text-sm font-black text-ink uppercase tracking-tighter italic mb-6">
                     Nutriční hodnoty <span className="text-muted font-bold normal-case not-italic tracking-normal">· na porci</span>
                     {nutritionSourceFor(recipe) === 'estimated' && (
-                      <span className="text-muted font-normal normal-case tracking-normal"> · odhad</span>
+                      <span className="text-muted font-bold normal-case not-italic tracking-normal"> · odhad</span>
                     )}
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -79,11 +79,14 @@ export function parseNutrition(raw: unknown): Nutrition {
   if (!raw || typeof raw !== 'object') return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const ni = raw as Record<string, unknown>;
   const parse = (v: unknown) => parseInt(String(v).replace(/[^\d]/g, '')) || 0;
+  const servings = Number(ni.servings);
+  const div = ni.basis === 'total' && servings > 0 ? servings : 1;
+  const per = (n: number) => (div === 1 ? n : Math.round(n / div));
   return {
-    kcal: parse(ni.calories || ni.kcal || ni.Calories || ni.energy || 0),
-    protein: parse(ni.protein || ni.Protein || 0),
-    carbs: parse(ni.carbs || ni.carbohydrates || ni.Carbs || 0),
-    fat: parse(ni.fat || ni.Fat || ni.fats || 0),
+    kcal: per(parse(ni.calories || ni.kcal || ni.Calories || ni.energy || 0)),
+    protein: per(parse(ni.protein || ni.Protein || 0)),
+    carbs: per(parse(ni.carbs || ni.carbohydrates || ni.Carbs || 0)),
+    fat: per(parse(ni.fat || ni.Fat || ni.fats || 0)),
   };
 }
 

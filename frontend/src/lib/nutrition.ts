@@ -129,6 +129,8 @@ export function normalizeNutrition(
     // Known basis wins over the guess: divide whether or not the total looked
     // plausible on its own.
     if (s) perPortion = divide();
+  } else if (basis === 'portion') {
+    // Known per-portion: never divide, never guess.
   } else if (!plausible(values)) {
     if (!s) return null;
     perPortion = divide();
