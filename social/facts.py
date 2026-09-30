@@ -100,7 +100,7 @@ def _recently_posted_recipe_ids() -> set:
     return {f.get('recipe_id') for f in rows if f}
 
 
-def _per_portion_kcal(nutritional_info, servings, curated: bool):
+def _per_portion_kcal(nutritional_info, servings, curated: bool = False):
     """kcal for ONE portion, or None when we cannot say honestly.
 
     A corpus-backed meal (`curated_recipe_slug` set) was rendered by
@@ -108,14 +108,16 @@ def _per_portion_kcal(nutritional_info, servings, curated: bool):
     `servings` portions — the site divides before showing "na porci"
     (frontend/src/lib/nutrition.ts `nutritionBasisFor`). For an LLM-authored
     meal the basis is unlabelled, so the frontend only guesses; a post may not
-    guess, so we publish no number at all.
+    guess, so we publish no number at all — unless the dict states its basis
+    (`basis: 'total'`, written by every renderer since the nutrition table).
     """
-    if not curated:
+    info = nutritional_info if isinstance(nutritional_info, dict) else {}
+    if not (curated or info.get('basis') == 'total'):
         return None
-    calories = (nutritional_info or {}).get('calories')
+    calories = info.get('calories')
     if not isinstance(calories, (int, float)) or isinstance(calories, bool) or calories <= 0:
         return None
-    return round(calories / max(int(servings or 1), 1))
+    return round(calories / max(int(servings or info.get('servings') or 1), 1))
 
 
 def recipe_facts(iso_week: str) -> dict:

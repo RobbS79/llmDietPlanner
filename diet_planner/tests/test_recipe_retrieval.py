@@ -552,6 +552,14 @@ class PrilohaOnMealTest(TestCase):
     """The side is written INTO ingredients + nutrition so every downstream
     reader (shopping list, deals, public recipe, social facts) sees it."""
 
+    def setUp(self):
+        from diet_planner.tests.factories import make_canonical
+        # chleb = 80 g/portion -> 200 kcal, 38 g carbs; brambory 250 g -> 190 kcal.
+        make_canonical('Bread loaf', kcal_per_100g=250, protein_per_100g=8.75,
+                       carbs_per_100g=47.5, fat_per_100g=2.5)
+        make_canonical('Potatoes', kcal_per_100g=76, protein_per_100g=2,
+                       carbs_per_100g=16.8, fat_per_100g=0)
+
     def _leco(self, **kw):
         defaults = dict(
             name_cs='Lečo', base_servings=4,

@@ -190,10 +190,13 @@ class RebuildMealSideTest(TestCase):
 
     def test_rebuild_includes_the_side_like_the_serving_path(self):
         from diet_planner.management.commands.refresh_stale_recipe_cache import rebuild_meal
+        from diet_planner.tests.factories import make_canonical
+        make_canonical('Bread loaf', kcal_per_100g=250, protein_per_100g=9,
+                       carbs_per_100g=47, fat_per_100g=3)  # chleb 80 g -> 200 kcal
         curated = make_recipe(name_cs='Guláš s chlebem', base_servings=1,
                               base_nutrition={'calories': 400, 'protein': 20, 'carbs': 30, 'fat': 10},
                               side_options=['chleb'])
         meal = rebuild_meal(curated, self.row, 'lunch')
         self.assertIn('side', meal)
-        # At HEAD sides carry hardcoded kcal (chleb = 200/portion); Task 8 moves this to the table.
+        # Side nutrients come from the table: chleb 80 g of bread-loaf = 200 kcal/portion.
         self.assertEqual(meal['nutritional_info']['calories'], meal['servings'] * 600)

@@ -10,14 +10,20 @@ the meal, so the shopping list, deals headline and every other reader pick it
 up without knowing sides exist.
 
 Quantities are the PURCHASED form per portion (raw potatoes, dry rice/pasta,
-bought bread/knedlík). Nutrients are standard food-table values rounded to
-10 kcal — labeled estimates, like every other number in the product. Keep
-this table the only place they live.
+bought bread/knedlík). Nutrients are NOT stored here: `side_nutrition`
+computes them from the canonical's per-100 g row in the nutrition table, the
+same table every curated recipe is computed from.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Any, Dict, FrozenSet, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterable, Mapping, Optional
+
+if TYPE_CHECKING:
+    from diet_planner.services.nutrition_lookups import NutrientRow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -28,24 +34,20 @@ class Side:
     canonical: str      # must resolve in data/canonical_ingredients.yaml
     grams: float        # purchased-form grams per portion
     display: str        # per-portion display: "2 krajíce"
-    calories: float     # per portion
-    protein: float      # g per portion
-    carbs: float
-    fat: float
     breaks_tags: FrozenSet[str]  # dietary_tags this side would violate
 
 
 SIDES: Dict[str, Side] = {
     'chleb': Side('chleb', 'chléb', 's chlebem', 'bread-loaf',
-                  80, '2 krajíce', 200, 7, 38, 2, frozenset({'gluten_free'})),
+                  80, '2 krajíce', frozenset({'gluten_free'})),
     'brambory': Side('brambory', 'vařené brambory', 's vařenými bramborami', 'potatoes',
-                     250, '250 g', 190, 5, 42, 0, frozenset()),
+                     250, '250 g', frozenset()),
     'ryze': Side('ryze', 'rýže', 's rýží', 'rice-basmati',
-                 60, '60 g suché rýže', 210, 4, 47, 0, frozenset()),
+                 60, '60 g suché rýže', frozenset()),
     'knedlik': Side('knedlik', 'houskový knedlík', 's houskovým knedlíkem', 'bread-dumpling',
-                    120, '3 plátky', 240, 8, 48, 2, frozenset({'gluten_free', 'vegan'})),
+                    120, '3 plátky', frozenset({'gluten_free', 'vegan'})),
     'testoviny': Side('testoviny', 'těstoviny', 's těstovinami', 'pasta',
-                      70, '70 g suchých těstovin', 250, 9, 50, 1, frozenset({'gluten_free'})),
+                      70, '70 g suchých těstovin', frozenset({'gluten_free'})),
 }
 SIDE_KEYS = tuple(SIDES)
 
@@ -76,12 +78,22 @@ def side_ingredient(side: Side, *, portions: int) -> Dict[str, Any]:
     }
 
 
-def side_nutrition(side: Side, *, portions: int) -> Dict[str, float]:
+def side_nutrition(side: Side, *, portions: int,
+                   table: "Mapping[str, NutrientRow]") -> Dict[str, float]:
+    """Nutrients of `portions` portions of the side, from the canonical's
+    per-100 g row. A canonical without nutrition contributes zeros (logged) —
+    the side is still served, it just adds nothing to the totals."""
+    row = table.get(side.canonical)
+    if row is None:
+        logger.warning("Side %s: canonical %s has no nutrition row — counted as 0",
+                       side.key, side.canonical)
+        return {'calories': 0.0, 'protein': 0.0, 'carbs': 0.0, 'fat': 0.0}
+    factor = side.grams * portions / 100.0
     return {
-        'calories': side.calories * portions,
-        'protein': side.protein * portions,
-        'carbs': side.carbs * portions,
-        'fat': side.fat * portions,
+        'calories': round(row.kcal * factor, 1),
+        'protein': round(row.protein * factor, 1),
+        'carbs': round(row.carbs * factor, 1),
+        'fat': round(row.fat * factor, 1),
     }
 
 

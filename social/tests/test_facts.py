@@ -57,6 +57,13 @@ class PerPortionKcalTests(TestCase):
         self.assertEqual(_per_portion_kcal({'calories': 840}, 2, True), 420)
         self.assertEqual(_per_portion_kcal({'calories': 835}, 2, True), 418)
 
+    def test_explicit_total_basis_is_divided_without_the_curated_flag(self):
+        self.assertEqual(_per_portion_kcal({'calories': 840, 'basis': 'total', 'servings': 2}, 2), 420)
+        self.assertEqual(_per_portion_kcal({'calories': 840, 'basis': 'total'}, 2, False), 420)
+
+    def test_legacy_curated_flag_still_divides(self):
+        self.assertEqual(_per_portion_kcal({'calories': 840}, 2, curated=True), 420)
+
     def test_uncurated_basis_is_unknown_so_no_number_is_published(self):
         self.assertIsNone(_per_portion_kcal({'calories': 840}, 2, False))
 

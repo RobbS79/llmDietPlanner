@@ -200,6 +200,9 @@ class PreviewTurnTest(RefineTestBase):
         self.assertEqual(resp.status_code, 404)
 
     def test_preview_candidate_calories_include_the_side(self):
+        from diet_planner.tests.factories import make_canonical
+        make_canonical('Potatoes', kcal_per_100g=76, protein_per_100g=2,
+                       carbs_per_100g=16.8, fat_per_100g=0)  # brambory 250 g -> 190 kcal
         current = make_recipe(name_cs='Kuře s rýží')
         chicken = make_recipe(
             name_cs='Kuřecí řízek', side_options=['brambory'],

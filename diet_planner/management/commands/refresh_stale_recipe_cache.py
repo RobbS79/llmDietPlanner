@@ -42,6 +42,7 @@ from diet_planner.services.meal_locator import (
     plan_meals_field,
     set_meal,
 )
+from diet_planner.services.nutrition_lookups import nutrition_table
 from diet_planner.services.recipe_retrieval import (
     _SLOT_DEFAULT_KCAL,
     per_portion_calories,
@@ -81,7 +82,7 @@ def slot_key_for(meal_type: str) -> str:
     return _TYPE_FOR_LIST_KEY.get(meal_type, meal_type)
 
 
-def rebuild_meal(curated: CuratedRecipe, row: Recipe, meal_type: str):
+def rebuild_meal(curated: CuratedRecipe, row: Recipe, meal_type: str, table=None):
     """The meal this position should hold given the current corpus, rendered
     exactly as the serving path renders it (side included). Portioned to the
     slot-type default target: the plan's own calories are what we're
@@ -90,6 +91,7 @@ def rebuild_meal(curated: CuratedRecipe, row: Recipe, meal_type: str):
         curated,
         target_kcal=_SLOT_DEFAULT_KCAL.get(slot_key_for(meal_type)),
         required_tags=required_tags_for_goal(row.dietary_goal),
+        table=table,
     )
     meal['meal_identifier'] = row.meal_identifier
     return meal
@@ -123,6 +125,7 @@ class Command(BaseCommand):
         by_slug = {c.slug: c for c in CuratedRecipe.objects.filter(
             slug__in=rows.values_list('curated_recipe_slug', flat=True))}
 
+        table = nutrition_table()  # once per run: side nutrients
         checked = stale = repaired = orphaned = unparseable = moved = 0
 
         for row in rows.select_related('dietary_goal').order_by('id'):
@@ -158,7 +161,7 @@ class Command(BaseCommand):
                     f'-> plan position no longer holds {curated.slug!r}, skipped'))
                 continue
 
-            meal = rebuild_meal(curated, row, ref.slot)
+            meal = rebuild_meal(curated, row, ref.slot, table)
             old_cal = (row.nutritional_info or {}).get('calories')
             new_cal = (meal.get('nutritional_info') or {}).get('calories')
             self.stdout.write(

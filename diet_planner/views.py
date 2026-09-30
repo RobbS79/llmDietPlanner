@@ -833,6 +833,20 @@ def _slot_calories(meal) -> float | None:
     return (meal.get('nutritional_info') or {}).get('calories')
 
 
+def _card_calories(meal: Dict[str, Any]):
+    """kcal the swap card shows: per portion, like the plan card. The meal's
+    `nutritional_info` is the total for `servings` portions (`basis: 'total'`);
+    divide so the card and the plan it lands in show the same number."""
+    info = meal.get('nutritional_info') or {}
+    calories = info.get('calories')
+    if not isinstance(calories, (int, float)) or isinstance(calories, bool):
+        return calories
+    servings = info.get('servings') or meal.get('servings')
+    if info.get('basis') == 'total' and isinstance(servings, (int, float)) and servings > 0:
+        return int(round(calories / servings))
+    return calories
+
+
 def _candidate_payload(recipe, facets, target_calories=None, *, required_tags=frozenset()) -> dict:
     """Card-sized preview of a candidate. Rendered from render_curated_meal so
     the fields match exactly what an accepted swap would write — which means
@@ -847,7 +861,7 @@ def _candidate_payload(recipe, facets, target_calories=None, *, required_tags=fr
         'description': meal['description'],
         'food_category': meal['food_category'],
         'preparation_time': meal['preparation_time'],
-        'calories': (meal.get('nutritional_info') or {}).get('calories'),
+        'calories': _card_calories(meal),
         'why': _candidate_why(recipe, facets),
     }
 

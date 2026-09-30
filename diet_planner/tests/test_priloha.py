@@ -55,9 +55,7 @@ class SideTableTest(TestCase):
         for side in SIDES.values():
             self.assertTrue(side.name_cs and side.with_cs and side.display, side.key)
             self.assertGreater(side.grams, 0)
-            for n in (side.calories, side.protein, side.carbs, side.fat):
-                self.assertGreaterEqual(n, 0)
-            self.assertGreater(side.calories, 0)
+            self.assertFalse(hasattr(side, 'calories'), 'nutrients live in the table, not the row')
 
     def test_dietary_breaks(self):
         self.assertIn('gluten_free', SIDES['chleb'].breaks_tags)
@@ -100,6 +98,24 @@ class SideRenderTest(TestCase):
         })
 
     def test_nutrition_scales_with_portions(self):
-        n = side_nutrition(SIDES['ryze'], portions=3)
-        self.assertEqual(n['calories'], 630.0)
-        self.assertEqual(n['carbs'], SIDES['ryze'].carbs * 3)
+        from diet_planner.services.nutrition_lookups import nutrition_table
+        from diet_planner.tests.factories import make_canonical
+        make_canonical('Rice basmati', kcal_per_100g=350, protein_per_100g=7,
+                       carbs_per_100g=78, fat_per_100g=1)
+        n = side_nutrition(SIDES['ryze'], portions=3, table=nutrition_table())
+        self.assertEqual(n['calories'], 630.0)   # 60 g x 3 = 180 g
+        self.assertEqual(n['carbs'], 140.4)
+
+    def test_side_nutrition_computes_from_table(self):
+        from diet_planner.services.nutrition_lookups import nutrition_table
+        from diet_planner.tests.factories import make_canonical
+        make_canonical('Bread loaf', kcal_per_100g=250, protein_per_100g=9,
+                       carbs_per_100g=47, fat_per_100g=3)
+        self.assertEqual(SIDES['chleb'].grams, 80)
+        self.assertEqual(side_nutrition(SIDES['chleb'], portions=2, table=nutrition_table()),
+                         {'calories': 400, 'protein': 14.4, 'carbs': 75.2, 'fat': 4.8})
+
+    def test_side_without_nutrition_row_counts_zero(self):
+        with self.assertLogs('diet_planner.services.priloha', level='WARNING'):
+            n = side_nutrition(SIDES['chleb'], portions=2, table={})
+        self.assertEqual(n, {'calories': 0, 'protein': 0, 'carbs': 0, 'fat': 0})
