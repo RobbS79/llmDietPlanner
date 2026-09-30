@@ -12,6 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
 
 from diet_planner.models import CanonicalIngredient, IngredientAlias
+from diet_planner.services import piece_weights
 
 
 DEFAULT_FILE = Path(__file__).resolve().parents[2] / 'data' / 'canonical_ingredients.yaml'
@@ -73,6 +74,18 @@ class Command(BaseCommand):
                 'estimated_price_eur': row.get('estimated_price_eur'),
                 'typical_package_sizes': row.get('typical_package_sizes') or [],
             }
+            nutrition = row.get('nutrition') or {}
+            defaults.update({
+                'kcal_per_100g': nutrition.get('kcal'),
+                'protein_per_100g': nutrition.get('protein'),
+                'carbs_per_100g': nutrition.get('carbs'),
+                'fat_per_100g': nutrition.get('fat'),
+                'density_g_per_ml': nutrition.get('density'),
+                'unit_weights': nutrition.get('unit_weights') or {},
+                'nutrition_source': nutrition.get('source') or '',
+            })
+            if nutrition.get('piece_weight_g') is not None:
+                defaults['avg_piece_weight_g'] = nutrition['piece_weight_g']
             if options['dry_run']:
                 self.stdout.write(f'[dry-run] would upsert {slug} ({name})')
                 continue
@@ -113,6 +126,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         f'  realias {alias_text!r} -> {obj.slug}')
 
+        piece_weights.clear_cache()
         self.stdout.write(
             self.style.SUCCESS(
                 f'Canonical ingredients: created={created} updated={updated} '

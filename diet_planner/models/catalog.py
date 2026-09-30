@@ -108,6 +108,32 @@ class CanonicalIngredient(models.Model):
         max_digits=8, decimal_places=2, null=True, blank=True,
         help_text="Average weight per piece for ks-based items"
     )
+
+    # --- Nutrition per 100 g of the AS-BOUGHT form (raw meat, dry pasta). Built
+    # from USDA SR Legacy / Frida by `import_usda_nutrition`, seeded from
+    # data/canonical_ingredients.yaml. NULL = not yet tabled; a recipe using
+    # such an ingredient cannot be published (nutrition_blockers).
+    kcal_per_100g = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    protein_per_100g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    carbs_per_100g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    fat_per_100g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    density_g_per_ml = models.DecimalField(
+        max_digits=5, decimal_places=3, null=True, blank=True,
+        help_text="Grams per millilitre; required only for ingredients used in volume units",
+    )
+    unit_weights = models.JSONField(
+        default=dict, blank=True,
+        help_text='Grams for ingredient-specific count units, e.g. {"stroužek": 5, "plátek": 20}',
+    )
+    nutrition_source = models.CharField(
+        max_length=64, blank=True,
+        help_text="usda:<fdc_id> | frida:<id> | manual:<note>",
+    )
+
+    @property
+    def has_nutrition(self) -> bool:
+        return all(v is not None for v in (
+            self.kcal_per_100g, self.protein_per_100g, self.carbs_per_100g, self.fat_per_100g))
     typical_package_sizes = models.JSONField(
         default=list, blank=True,
         help_text="Common package sizes, e.g. [250, 500, 1000]"

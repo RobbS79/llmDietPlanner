@@ -10,6 +10,13 @@
 #   estimated_price_czk / estimated_price_eur:
 #                          Fallback prices used when no PriceRecord exists.
 #   aliases:               Optional list of {alias, language_code} for matching.
+#   nutrition:             Optional block, per 100 g of the AS-BOUGHT form (raw meat, dry pasta):
+#                            kcal, protein, carbs, fat  - all four required for a usable row
+#                            density:         g per ml (only if used in volume units)
+#                            piece_weight_g:  grams per "1 ks"
+#                            unit_weights:    {unit: grams} for ingredient-specific count units
+#                            source:          usda:<fdc_id> | frida:<id> | manual:<note>
+#                            usda_query:      optional search hint for import_usda_nutrition
 #
 # Initial bootstrap is intentionally narrow (pantry staples + the highest-
 # turnover categories). Expand as new StoreProduct rows surface in Phase C
@@ -32,6 +39,8 @@
 - name: black pepper
   name_cs: pepř černý mletý
   category: spices
+  nutrition:
+    piece_weight_g: 0.05
   default_unit: g
   is_pantry_staple: true
   aliases:
@@ -98,6 +107,8 @@
 - name: chicken breast
   name_cs: kuřecí prsa
   category: meat
+  nutrition:
+    piece_weight_g: 170
   default_unit: g
   typical_package_sizes: [500, 1000]
   aliases:
@@ -115,6 +126,8 @@
 - name: chicken thigh
   name_cs: kuřecí stehna
   category: meat
+  nutrition:
+    piece_weight_g: 130
   default_unit: g
   aliases:
     - { alias: "kuřecí stehna bez kosti a kůže", language_code: cs }
@@ -137,6 +150,8 @@
 - name: salmon fillet
   name_cs: losos filé
   category: fish
+  nutrition:
+    piece_weight_g: 150
   default_unit: g
   typical_package_sizes: [200, 400]
   aliases:
@@ -160,6 +175,8 @@
 - name: eggs
   name_cs: vejce
   category: eggs
+  nutrition:
+    piece_weight_g: 55
   default_unit: ks
   typical_package_sizes: [10, 15]
   aliases:
@@ -277,6 +294,8 @@
 - name: tomatoes
   name_cs: rajčata
   category: vegetables
+  nutrition:
+    piece_weight_g: 120
   default_unit: g
   aliases:
     - { alias: "rajče", language_code: cs }
@@ -291,6 +310,8 @@
 - name: cucumber
   name_cs: okurka
   category: vegetables
+  nutrition:
+    piece_weight_g: 300
   default_unit: ks
   aliases:
     - { alias: "okurka perská", language_code: cs }
@@ -301,6 +322,8 @@
 - name: bell pepper
   name_cs: paprika
   category: vegetables
+  nutrition:
+    piece_weight_g: 150
   default_unit: ks
   aliases:
     - { alias: "červená paprika", language_code: cs }
@@ -332,11 +355,15 @@
 - name: carrots
   name_cs: mrkev
   category: vegetables
+  nutrition:
+    piece_weight_g: 80
   default_unit: g
 
 - name: potatoes
   name_cs: brambory
   category: vegetables
+  nutrition:
+    piece_weight_g: 150
   default_unit: g
   aliases:
     - { alias: "brambor", language_code: cs }
@@ -350,6 +377,8 @@
 - name: onion
   name_cs: cibule
   category: vegetables
+  nutrition:
+    piece_weight_g: 110
   default_unit: ks
   is_pantry_staple: true
   estimated_price_czk: 5.0
@@ -365,6 +394,9 @@
 - name: garlic
   name_cs: česnek
   category: vegetables
+  nutrition:
+    piece_weight_g: 5
+    unit_weights: {stroužek: 5}
   default_unit: ks
   is_pantry_staple: true
   estimated_price_czk: 10.0
@@ -377,6 +409,8 @@
 - name: bananas
   name_cs: banány
   category: fruits
+  nutrition:
+    piece_weight_g: 120
   default_unit: g
   aliases:
     - { alias: "banán", language_code: cs }
@@ -386,6 +420,8 @@
 - name: apples
   name_cs: jablka
   category: fruits
+  nutrition:
+    piece_weight_g: 180
   default_unit: g
   aliases:
     - { alias: "jablko", language_code: cs }
@@ -393,6 +429,8 @@
 - name: lemons
   name_cs: citrony
   category: fruits
+  nutrition:
+    piece_weight_g: 100
   default_unit: ks
   aliases:
     - { alias: "citron", language_code: cs }
@@ -406,6 +444,8 @@
 - name: avocado
   name_cs: avokádo
   category: fruits
+  nutrition:
+    piece_weight_g: 170
   default_unit: ks
 
 - name: chickpeas canned
@@ -611,6 +651,8 @@
 - name: spring onion
   name_cs: jarní cibulka
   category: vegetables
+  nutrition:
+    piece_weight_g: 15
   default_unit: ks
   aliases:
     - { alias: "jarní cibule", language_code: cs }
@@ -620,11 +662,15 @@
 - name: zucchini
   name_cs: cuketa
   category: vegetables
+  nutrition:
+    piece_weight_g: 250
   default_unit: ks
 
 - name: eggplant
   name_cs: lilek
   category: vegetables
+  nutrition:
+    piece_weight_g: 250
   default_unit: ks
   aliases:
     - { alias: "baklažán", language_code: cs }
@@ -632,6 +678,8 @@
 - name: mushrooms
   name_cs: žampiony
   category: vegetables
+  nutrition:
+    piece_weight_g: 20
   default_unit: g
   aliases:
     - { alias: "houby", language_code: cs }
@@ -651,6 +699,8 @@
 - name: celery root
   name_cs: celer
   category: vegetables
+  nutrition:
+    piece_weight_g: 300
   default_unit: g
   aliases:
     - { alias: "bulvový celer", language_code: cs }
@@ -661,6 +711,8 @@
 - name: parsley
   name_cs: petrželka
   category: vegetables
+  nutrition:
+    piece_weight_g: 30
   default_unit: svazek
   aliases:
     - { alias: "petržel", language_code: cs }
@@ -737,6 +789,8 @@
 - name: chili pepper
   name_cs: chilli paprička
   category: vegetables
+  nutrition:
+    piece_weight_g: 15
   default_unit: ks
   aliases:
     - { alias: "chilli papričky", language_code: cs }
@@ -795,6 +849,8 @@
 - name: pickles
   name_cs: nakládané okurky
   category: canned
+  nutrition:
+    piece_weight_g: 40
   default_unit: g
   aliases:
     - { alias: "kyselé okurky", language_code: cs }
@@ -809,6 +865,8 @@
 - name: olives
   name_cs: olivy
   category: canned
+  nutrition:
+    piece_weight_g: 4
   default_unit: g
   aliases:
     - { alias: "kalamata", language_code: cs }
@@ -874,6 +932,8 @@
 - name: lime
   name_cs: limetka
   category: fruits
+  nutrition:
+    piece_weight_g: 67
   default_unit: ks
   aliases:
     - { alias: "limetková šťáva", language_code: cs }
@@ -920,6 +980,8 @@
 - name: tortilla
   name_cs: tortilly
   category: grains
+  nutrition:
+    piece_weight_g: 45
   default_unit: ks
   aliases:
     - { alias: "tortilla", language_code: cs }
@@ -1143,6 +1205,8 @@
 - name: allspice
   name_cs: nové koření
   category: spices
+  nutrition:
+    piece_weight_g: 0.1
   default_unit: g
   is_pantry_staple: true
   estimated_price_czk: 25.0
@@ -1310,6 +1374,8 @@
 - name: radishes
   name_cs: ředkvičky
   category: vegetables
+  nutrition:
+    piece_weight_g: 15
   default_unit: g
   aliases:
     - { alias: "ředkev", language_code: cs }
@@ -1344,6 +1410,8 @@
 - name: dates
   name_cs: datle
   category: fruits
+  nutrition:
+    piece_weight_g: 8
   default_unit: g
   aliases:
     - { alias: "datle medjool", language_code: cs }
@@ -1581,6 +1649,8 @@
 - name: cauliflower
   name_cs: květák
   category: vegetables
+  nutrition:
+    piece_weight_g: 600
   default_unit: g
   aliases:
     - { alias: "růžičky květáku", language_code: cs }
@@ -1589,11 +1659,15 @@
 - name: leek
   name_cs: pórek
   category: vegetables
+  nutrition:
+    piece_weight_g: 150
   default_unit: ks
 
 - name: shallot
   name_cs: šalotka
   category: vegetables
+  nutrition:
+    piece_weight_g: 30
   default_unit: ks
 
 - name: mint
@@ -1607,6 +1681,8 @@
 - name: mango
   name_cs: mango
   category: fruits
+  nutrition:
+    piece_weight_g: 200
   default_unit: ks
 
 # --- Meat ---
@@ -2059,6 +2135,8 @@
 - name: bay leaves
   name_cs: bobkový list
   category: spices
+  nutrition:
+    piece_weight_g: 0.2
   default_unit: g
   is_pantry_staple: true
   estimated_price_czk: 20.0
@@ -2195,6 +2273,8 @@
 - name: fennel
   name_cs: fenykl
   category: vegetables
+  nutrition:
+    piece_weight_g: 250
   default_unit: ks
   aliases:
     - { alias: "fenyklová cibule", language_code: cs }
@@ -2223,6 +2303,8 @@
 - name: beetroot
   name_cs: červená řepa
   category: vegetables
+  nutrition:
+    piece_weight_g: 150
   default_unit: g
   aliases:
     - { alias: "řepa", language_code: cs }
@@ -2232,6 +2314,8 @@
 - name: radicchio
   name_cs: radicchio
   category: vegetables
+  nutrition:
+    piece_weight_g: 250
   default_unit: ks
   aliases:
     - { alias: "čekanka", language_code: cs }
