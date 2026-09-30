@@ -51,6 +51,37 @@ def health_check(request):
     return HttpResponse("OK", status=200)
 
 
+def _per_portion_nutrition(recipe):
+    """Return [(key, czech_label, text)] of per-portion nutrition for SSR.
+
+    Divides by servings only when the basis is known to be whole-recipe
+    (explicit `basis == 'total'` or a curated-sourced recipe); unlabeled
+    legacy values are shown as stored. Meta keys are never emitted.
+    """
+    info = recipe.nutritional_info or {}
+    if not isinstance(info, dict):
+        return []
+    divide = info.get('basis') == 'total' or (
+        'basis' not in info and bool(getattr(recipe, 'curated_recipe_slug', '')))
+    servings = recipe.servings or 0
+    spec = [('calories', 'Energie', 'kcal'), ('protein', 'Bílkoviny', 'g'),
+            ('carbs', 'Sacharidy', 'g'), ('fat', 'Tuky', 'g')]
+    rows = []
+    for key, label, unit in spec:
+        raw = info.get(key)
+        if raw is None:
+            continue
+        m = re.search(r'-?\d+(?:\.\d+)?', str(raw).replace(' ', '').replace(',', '.'))
+        if not m:
+            continue
+        val = float(m.group(0))
+        if divide and servings > 0:
+            val /= servings
+        text = f'{int(round(val))}' if abs(val - round(val)) < 1e-9 else f'{val:.1f}'
+        rows.append((key, label, f'{text} {unit}'))
+    return rows
+
+
 def public_recipe_view(request, pk, slug=None):
     from diet_planner.models import Recipe
     try:
@@ -82,9 +113,11 @@ def public_recipe_view(request, pk, slug=None):
     for step in (recipe.instructions or []):
         instructions_html += f'<li>{escape(step)}</li>'
 
-    nutrition_html = ''
-    for k, v in (recipe.nutritional_info or {}).items():
-        nutrition_html += f'<dt>{escape(k)}</dt><dd>{escape(str(v))}</dd>'
+    nutrition_rows = _per_portion_nutrition(recipe)
+    nutrition_html = ''.join(
+        f'<dt>{escape(label)}</dt><dd>{escape(text)}</dd>'
+        for _key, label, text in nutrition_rows
+    )
 
     from diet_planner.food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
     img_category = recipe.food_category if recipe.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
@@ -112,19 +145,12 @@ def public_recipe_view(request, pk, slug=None):
         schema_ld["cookTime"] = f"PT{recipe.cooking_time}M"
     if recipe.servings:
         schema_ld["recipeYield"] = str(recipe.servings)
-    if recipe.nutritional_info:
-        ni = recipe.nutritional_info
+    if nutrition_rows:
+        ld_keys = {'calories': 'calories', 'protein': 'proteinContent',
+                   'carbs': 'carbohydrateContent', 'fat': 'fatContent'}
         schema_ld["nutrition"] = {"@type": "NutritionInformation"}
-        for k, v in ni.items():
-            kl = k.lower()
-            if 'calor' in kl or kl == 'kcal':
-                schema_ld["nutrition"]["calories"] = str(v)
-            elif 'protein' in kl:
-                schema_ld["nutrition"]["proteinContent"] = str(v)
-            elif 'carb' in kl:
-                schema_ld["nutrition"]["carbohydrateContent"] = str(v)
-            elif 'fat' in kl:
-                schema_ld["nutrition"]["fatContent"] = str(v)
+        for key, _label, text in nutrition_rows:
+            schema_ld["nutrition"][ld_keys[key]] = text
 
     # CTA copy (EN): "Want more recipes like this, with a shopping list?" /
     # "Say how many lunches and dinners you want and Vařto picks the recipes; for each you'll see what is on sale this week."

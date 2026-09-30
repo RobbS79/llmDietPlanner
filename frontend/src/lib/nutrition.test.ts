@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeNutrition, nutritionBasisFor } from './nutrition';
+import { normalizeNutrition, nutritionBasisFor, nutritionSourceFor } from './nutrition';
 
 describe('nutritionBasisFor', () => {
   it('treats a curated-sourced recipe as whole-recipe totals', () => {
@@ -97,5 +97,23 @@ describe('normalizeNutrition', () => {
       const rows = normalizeNutrition({ calories: 1200 }, 3, 'total');
       expect(rows?.find((r) => r.key === 'calories')?.value).toBe(400);
     });
+  });
+});
+
+describe('explicit basis and source', () => {
+  it('reads basis from nutritional_info when present', () => {
+    expect(nutritionBasisFor({ curated_recipe_slug: '', nutritional_info: { basis: 'total' } })).toBe('total');
+    expect(nutritionBasisFor({ curated_recipe_slug: '', nutritional_info: { basis: 'portion' } })).toBe('portion');
+    expect(nutritionBasisFor({ curated_recipe_slug: 'x', nutritional_info: {} })).toBe('total');
+  });
+  it('nutritionSourceFor distinguishes computed from estimated', () => {
+    expect(nutritionSourceFor({ nutritional_info: { nutrition_source: 'computed' } })).toBe('computed');
+    expect(nutritionSourceFor({ nutritional_info: { nutrition_source: 'estimated' } })).toBe('estimated');
+    expect(nutritionSourceFor({ nutritional_info: {} })).toBeUndefined();
+  });
+  it('normalizeNutrition ignores the meta keys', () => {
+    const rows = normalizeNutrition({ calories: 600, protein: '30g', carbs: '40g', fat: '20g', basis: 'total', servings: 2, nutrition_source: 'computed' }, 2, 'total');
+    expect(rows?.[0]).toMatchObject({ key: 'calories', value: 300 });
+    expect(rows).toHaveLength(4);
   });
 });

@@ -30,6 +30,7 @@ const DISPLAY_ORDER: NutrientKey[] = ['calories', 'protein', 'carbs', 'fat'];
 
 function classifyKey(key: string): NutrientKey | null {
   const k = key.toLowerCase();
+  if (k === 'basis' || k === 'servings' || k === 'nutrition_source') return null;
   if (/kcal|calor|energ/.test(k)) return 'calories';
   if (/protein|b[ií]lkovin/.test(k)) return 'protein';
   if (/carb|sachar/.test(k)) return 'carbs';
@@ -74,9 +75,22 @@ export type NutritionBasis = 'total' | 'portion';
  * row, so this reads correctly for plans generated before the fix too.
  */
 export function nutritionBasisFor(
-  recipe: { curated_recipe_slug?: string | null } | null | undefined,
+  recipe:
+    | { curated_recipe_slug?: string | null; nutritional_info?: Record<string, unknown> | null }
+    | null
+    | undefined,
 ): NutritionBasis | undefined {
+  const b = recipe?.nutritional_info?.basis;
+  if (b === 'total' || b === 'portion') return b;
   return recipe?.curated_recipe_slug ? 'total' : undefined;
+}
+
+/** Whether the numbers were computed from ingredients or are an LLM estimate. */
+export function nutritionSourceFor(
+  recipe: { nutritional_info?: Record<string, unknown> | null } | null | undefined,
+): 'computed' | 'estimated' | undefined {
+  const src = recipe?.nutritional_info?.nutrition_source;
+  return src === 'computed' || src === 'estimated' ? src : undefined;
 }
 
 /**

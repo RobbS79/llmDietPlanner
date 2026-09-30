@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
-import { normalizeNutrition, nutritionBasisFor } from '@/lib/nutrition';
+import { normalizeNutrition, nutritionBasisFor, nutritionSourceFor } from '@/lib/nutrition';
 import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 
 export const PublicRecipePage = () => {
@@ -228,6 +228,9 @@ export const PublicRecipePage = () => {
                 <Card variant="paper" className="p-8 mt-12">
                   <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-6">
                     Nutriční hodnoty <span className="text-muted font-semibold normal-case tracking-normal">· na porci</span>
+                    {nutritionSourceFor(recipe) === 'estimated' && (
+                      <span className="text-muted font-normal normal-case tracking-normal"> · odhad</span>
+                    )}
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {nutrition.map((row) => (
