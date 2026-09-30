@@ -1,8 +1,10 @@
 """
 Promote draft CuratedRecipe rows to status=published.
 
-Only catalog-mapped drafts are promoted (is_catalog_mapped() == True);
-others remain draft and are never served by retrieval. Idempotent —
+Only catalog-mapped drafts with computed, unblocked nutrition are promoted:
+is_catalog_mapped() must be True, `nutrition_blockers` empty and
+`base_nutrition.source == 'computed'` (a legacy model-estimated figure never
+publishes). Others remain draft and are never served by retrieval. Idempotent —
 already-published rows are untouched. See docs/recipe-corpus-scaling.md §5
 and §8.
 
@@ -45,11 +47,14 @@ class Command(BaseCommand):
         min_rank = JUDGE_VERDICT_ORDER[min_verdict] if min_verdict else None
 
         drafts = CuratedRecipe.objects.filter(status=CuratedRecipe.Status.DRAFT).order_by('id')
-        promoted = skipped_unmapped = skipped_judge = 0
+        promoted = skipped_unmapped = skipped_nutrition = skipped_judge = 0
 
         for r in drafts:
             if not r.is_catalog_mapped():
                 skipped_unmapped += 1
+                continue
+            if (r.nutrition_blockers or []) or (r.base_nutrition or {}).get('source') != 'computed':
+                skipped_nutrition += 1
                 continue
             if min_rank is not None:
                 v = (r.quality_score or {}).get('verdict', 'unknown')
@@ -67,5 +72,5 @@ class Command(BaseCommand):
         prefix = '[dry-run] ' if dry_run else ''
         self.stdout.write(self.style.SUCCESS(
             f"{prefix}promoted={promoted} skipped_unmapped={skipped_unmapped} "
-            f"skipped_judge={skipped_judge} published_total={published_total}"
+            f"skipped_nutrition={skipped_nutrition} skipped_judge={skipped_judge} published_total={published_total}"
         ))

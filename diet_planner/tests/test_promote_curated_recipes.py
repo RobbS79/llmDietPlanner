@@ -22,7 +22,7 @@ def _recipe(**kw):
         ],
         instructions=[{'text': 'cook'}],
         base_servings=1,
-        base_nutrition={'calories': 500},
+        base_nutrition={'calories': 500, 'protein': 10, 'carbs': 100, 'fat': 5, 'source': 'computed'},
         source_url=kw.pop('source_url', 'https://example.test/r1'),
         source_name='Example',
     )

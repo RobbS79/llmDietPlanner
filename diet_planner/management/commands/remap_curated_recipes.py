@@ -6,7 +6,9 @@ the canonical-ingredient dictionary or the resolver improves (e.g. after
 `seed_canonical_ingredients`), already-curated recipes still carry the old,
 weaker mapping. This command re-runs the deterministic resolver over each
 stored recipe's ingredient names and rewrites the `canonical` links — no
-network, no LLM, idempotent.
+network, no LLM, idempotent. It also recomputes `base_nutrition` and
+`nutrition_blockers` from the nutrition table, so a table or mapping fix
+reaches stored recipes by re-running this command.
 
     python manage.py remap_curated_recipes
     python manage.py remap_curated_recipes --dry-run
@@ -17,7 +19,8 @@ from django.core.management.base import BaseCommand
 
 from diet_planner.models import CuratedRecipe
 from diet_planner.services.canonical_lookup import clear_cache
-from diet_planner.services.recipe_curation import map_ingredients
+from diet_planner.services.nutrition_lookups import nutrition_table
+from diet_planner.services.recipe_curation import apply_nutrition, map_ingredients
 
 
 class Command(BaseCommand):
@@ -34,7 +37,9 @@ class Command(BaseCommand):
         clear_cache()
 
         recipes = CuratedRecipe.objects.all().order_by('id')
+        table = nutrition_table()
         total_ing = mapped_ing = changed = fully = 0
+        nutrition_blocked = nutrition_computed = 0
 
         for r in recipes:
             before = [(i.get('name'), i.get('canonical')) for i in (r.ingredients or [])]
@@ -52,11 +57,24 @@ class Command(BaseCommand):
             if remapped and non_opt_mapped:
                 fully += 1
 
+            fields = {'ingredients': remapped, 'base_servings': r.base_servings}
+            blockers = apply_nutrition(fields, dish_role=r.dish_role or None, table=table)
+            if blockers:
+                nutrition_blocked += 1
+            if fields['base_nutrition'].get('source') == 'computed':
+                nutrition_computed += 1
+            nutrition_changed = (
+                _without_timestamp(fields['base_nutrition']) != _without_timestamp(r.base_nutrition)
+                or blockers != (r.nutrition_blockers or [])
+            )
+
             if before != after:
                 changed += 1
-                if not dry_run:
-                    r.ingredients = remapped
-                    r.save(update_fields=['ingredients', 'updated_at'])
+            if (before != after or nutrition_changed) and not dry_run:
+                r.ingredients = remapped
+                r.base_nutrition = fields['base_nutrition']
+                r.nutrition_blockers = blockers
+                r.save(update_fields=['ingredients', 'base_nutrition', 'nutrition_blockers', 'updated_at'])
 
             self.stdout.write(
                 f"[{r.pk}] {r.name_cs[:34]:34} {m}/{n} mapped"
@@ -68,5 +86,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"{'[dry-run] ' if dry_run else ''}recipes={recipes.count()} "
             f"changed={changed} fully_mapped={fully} "
+            f"nutrition_blocked={nutrition_blocked} nutrition_computed={nutrition_computed} "
             f"ingredient_mapping={mapped_ing}/{total_ing} ({pct}%)"
         ))
+
+
+def _without_timestamp(nutrition):
+    """base_nutrition minus `computed_at`, so a re-run that computes the same
+    numbers does not rewrite every row."""
+    return {k: v for k, v in (nutrition or {}).items() if k != 'computed_at'}

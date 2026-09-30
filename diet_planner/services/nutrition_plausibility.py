@@ -33,6 +33,11 @@ optimistic numbers. Those 47 are the ones `suspected_basis` names.
 Floors are deliberately set near each role's p25 rather than its median: the
 goal is to catch the wrong-basis population without flagging genuinely light
 dishes. Re-run `manage.py audit_nutrition_plausibility` before changing them.
+
+Since curation computes `base_nutrition` from the ingredient table (calories
+and macros from the same rows, so they cannot disagree), there is no Atwater
+drift check any more. The floors and the ceiling now catch wrong quantities,
+densities and piece weights. `atwater_kcal` stays as an audit field only.
 """
 from __future__ import annotations
 
@@ -61,8 +66,6 @@ PLAUSIBLE_PORTION_BAND = (250.0, 900.0)
 
 # Atwater factors: kcal per gram.
 _KCAL_PER_G = {'protein': 4.0, 'carbs': 4.0, 'fat': 9.0}
-# Stated calories may drift from the macro sum via rounding, fibre and alcohol.
-ATWATER_TOLERANCE = 0.30
 
 
 @dataclass(frozen=True)
@@ -142,13 +145,6 @@ def check_nutrition_plausibility(
         reasons.append(
             f'per-portion {per_portion:.0f} kcal is above the '
             f'{MAX_PORTION_KCAL:.0f} kcal ceiling')
-
-    if implied is not None and implied > 0:
-        drift = abs(total - implied) / implied
-        if drift > ATWATER_TOLERANCE:
-            reasons.append(
-                f'stated {total:.0f} kcal disagrees with macros '
-                f'({implied:.0f} kcal from protein/carbs/fat)')
 
     return NutritionCheck(
         ok=not reasons,

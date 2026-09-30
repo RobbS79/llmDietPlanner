@@ -102,12 +102,14 @@ class SuspectedBasisTest(TestCase):
 
 
 class AtwaterConsistencyTest(TestCase):
-    def test_macros_disagreeing_with_calories_are_reported(self):
-        # Claims 300 kcal but the macros add up to ~1200.
+    def test_macro_drift_is_no_longer_a_failure(self):
+        # Computed nutrition derives calories and macros from the same rows;
+        # drift is an audit field (atwater_kcal), never a reason.
         result = check_nutrition_plausibility(
             {'calories': 300, 'protein': 50, 'carbs': 200, 'fat': 20},
             base_servings=1, dish_role='main')
-        self.assertTrue(any('macros' in r for r in result.reasons))
+        self.assertTrue(result.ok)
+        self.assertEqual(result.atwater_kcal, 1180.0)
 
     def test_consistent_macros_are_not_reported(self):
         # Prod smazena-ryze-s-vejcem: 360 stated, 352 from macros.
