@@ -1,6 +1,7 @@
 # File: llm_diet_planner_project/views.py
 import json
 import logging
+import math
 import re
 from datetime import datetime, timezone, timedelta
 from functools import lru_cache
@@ -78,7 +79,9 @@ def _per_portion_nutrition(recipe):
         if divide and servings > 0:
             val /= servings
         # Same rule as the frontend roundValue: kcal integer; macros integer at >=10 else 1 dp.
-        text = str(int(round(val))) if key == 'calories' or val >= 10 else f'{round(val, 1):g}'
+        # floor(x+0.5) rounds halves up like JS Math.round (Python round() is banker's).
+        text = (str(math.floor(val + 0.5)) if key == 'calories' or val >= 10
+                else f'{math.floor(val * 10 + 0.5) / 10:g}')
         rows.append((key, label, f'{text} {unit}'))
     return rows
 

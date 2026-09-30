@@ -86,3 +86,16 @@ describe('parseNutrition basis', () => {
     expect(parseNutrition({ calories: 600, basis: 'portion', servings: 2 }).kcal).toBe(600);
   });
 });
+
+describe('parseNutrition curated fallback and decimals', () => {
+  it('treats a basis-less curated meal as whole-recipe totals', () => {
+    expect(parseNutrition({ calories: 600, protein: '30g' }, { curated_recipe_slug: 'x', servings: 2 }))
+      .toMatchObject({ kcal: 300, protein: 15 });
+  });
+  it('does not divide a basis-less meal without a curated slug', () => {
+    expect(parseNutrition({ calories: 600 }, { servings: 2 }).kcal).toBe(600);
+  });
+  it('reads decimal grams instead of dropping the point', () => {
+    expect(parseNutrition({ calories: 300, protein: '7.5g', fat: '2,5 g' })).toMatchObject({ protein: 8, fat: 3 });
+  });
+});

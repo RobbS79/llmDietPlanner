@@ -79,3 +79,7 @@ class PublicRecipeSSRNutritionTest(TestCase):
             'calories': 600, 'protein': '30g', 'carbs': '40g', 'fat': '20g'})
         self.assertIn('600 kcal', body)
         self.assertNotIn('300 kcal', body)
+
+    def test_halves_round_up_like_js(self):
+        body = self._get(nutritional_info={'calories': 573, 'basis': 'total'})
+        self.assertIn('<dd>287 kcal</dd>', body)
