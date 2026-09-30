@@ -109,10 +109,14 @@ def _per_portion_kcal(nutritional_info, servings, curated: bool = False):
     (frontend/src/lib/nutrition.ts `nutritionBasisFor`). For an LLM-authored
     meal the basis is unlabelled, so the frontend only guesses; a post may not
     guess, so we publish no number at all — unless the dict states its basis
-    (`basis: 'total'`, written by every renderer since the nutrition table).
+    AND was computed from the nutrition table (`basis: 'total'`,
+    `nutrition_source: 'computed'`).
     """
     info = nutritional_info if isinstance(nutritional_info, dict) else {}
-    if not (curated or info.get('basis') == 'total'):
+    # Without the curated flag only a COMPUTED total counts: an estimated
+    # (Gemini) number is still a guess, and a post may not guess.
+    if not (curated or (info.get('basis') == 'total'
+                        and info.get('nutrition_source') == 'computed')):
         return None
     calories = info.get('calories')
     if not isinstance(calories, (int, float)) or isinstance(calories, bool) or calories <= 0:
