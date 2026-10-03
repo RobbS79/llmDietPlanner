@@ -1,6 +1,6 @@
 from unittest import mock
 
-from django.test import SimpleTestCase
+from django.test import TestCase
 
 from diet_planner.services.recipe_pricing import price_recipe, price_recipe_lines, PACK_OVERHEAD
 
@@ -18,7 +18,7 @@ def ing(canonical, qty, unit, **kw):
             'quantity': qty, 'unit': unit, **kw}
 
 
-class PriceRecipeTotalsTest(SimpleTestCase):
+class PriceRecipeTotalsTest(TestCase):
     def test_low_is_sum_of_consumed_costs(self):
         # chicken 400 g * 0.30 = 120 ; rice 200 g * 0.05 = 10 ; low = 130
         r = price_recipe([ing('chicken', 400, 'g'), ing('rice', 200, 'g')], 4, book=BOOK)
@@ -40,7 +40,7 @@ class PriceRecipeTotalsTest(SimpleTestCase):
         self.assertEqual(r.low, 120.0)
 
 
-class PriceRecipeCoverageTest(SimpleTestCase):
+class PriceRecipeCoverageTest(TestCase):
     def test_unknown_ingredient_counts_toward_total_not_priced(self):
         r = price_recipe([ing('chicken', 400, 'g'), ing('mystery', 100, 'g')], 2, book=BOOK)
         self.assertEqual(r.priced_count, 1)
@@ -67,7 +67,7 @@ class PriceRecipeCoverageTest(SimpleTestCase):
         self.assertIsNone(price_recipe([ing('mystery', 100, 'g')], 2, book=BOOK))
 
 
-class PriceRecipeEdgeTest(SimpleTestCase):
+class PriceRecipeEdgeTest(TestCase):
     def test_eur_currency_scales_the_czk_book(self):
         # low 130 CZK / 25 = 5.2 EUR
         r = price_recipe([ing('chicken', 400, 'g'), ing('rice', 200, 'g')],
@@ -89,7 +89,7 @@ class PriceRecipeEdgeTest(SimpleTestCase):
         self.assertEqual(r.low, 120.0)
 
 
-class PriceRecipeLinesTest(SimpleTestCase):
+class PriceRecipeLinesTest(TestCase):
     """Per-line breakdown backing the priced shopping-list UI (Component 2)."""
 
     def test_line_shape_for_priced_ingredient(self):
@@ -168,7 +168,7 @@ class PriceRecipeLinesTest(SimpleTestCase):
         self.assertAlmostEqual(r.low, 120.0 / 25.0, places=4)
 
 
-class StringIngredientEntriesTest(SimpleTestCase):
+class StringIngredientEntriesTest(TestCase):
     """Curated recipes store ingredients as dicts; LLM-generated meals store
     them as plain strings ("pappudia tofu (#2153)"). Prod 2026-08-09: every
     recipe endpoint of plan 140 returned a raw 500 —

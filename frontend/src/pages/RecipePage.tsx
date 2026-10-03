@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { RecipeIngredients } from '@/components/recipe/RecipeIngredients';
 import { getRecipeDeals, getShoppingList } from '@/lib/pricing';
-import { normalizeNutrition, nutritionBasisFor } from '@/lib/nutrition';
+import { normalizeNutrition, nutritionBasisFor, nutritionSourceFor } from '@/lib/nutrition';
 import { czechPlural, PORTION_FORMS } from '@/lib/portions';
 import { useToast } from '@/components/ui/Toast';
 import { RecipeRefineChat } from '@/components/recipe/RecipeRefineChat';
@@ -129,21 +129,18 @@ export const RecipePage = () => {
         totalTime: `PT${recipe.preparation_time + recipe.cooking_time}M`,
       }),
       ...(recipe.servings && { recipeYield: `${recipe.servings}` }),
-      ...(recipe.nutritional_info && {
-        nutrition: {
-          '@type': 'NutritionInformation',
-          ...Object.fromEntries(
-            Object.entries(recipe.nutritional_info).map(([k, v]) => {
-              const key = k.toLowerCase();
-              if (key.includes('calor') || key === 'kcal') return ['calories', `${v}`];
-              if (key.includes('protein')) return ['proteinContent', `${v}`];
-              if (key.includes('carb')) return ['carbohydrateContent', `${v}`];
-              if (key.includes('fat')) return ['fatContent', `${v}`];
-              return [k, `${v}`];
-            })
-          ),
-        },
-      }),
+      ...(() => {
+        const rows = normalizeNutrition(recipe.nutritional_info, recipe.servings, nutritionBasisFor(recipe));
+        if (!rows) return {};
+        const nutrition: Record<string, string> = { '@type': 'NutritionInformation' };
+        for (const row of rows) {
+          if (row.key === 'calories') nutrition.calories = `${row.value} kcal`;
+          else if (row.key === 'protein') nutrition.proteinContent = `${row.value} g`;
+          else if (row.key === 'carbs') nutrition.carbohydrateContent = `${row.value} g`;
+          else if (row.key === 'fat') nutrition.fatContent = `${row.value} g`;
+        }
+        return { nutrition };
+      })(),
     };
     const script = document.createElement('script');
     script.type = 'application/ld+json';
@@ -355,6 +352,9 @@ export const RecipePage = () => {
                 <Card className="p-8 mt-12">
                   <h3 className="text-sm font-black text-ink uppercase tracking-tighter italic mb-6">
                     Nutriční hodnoty <span className="text-muted font-bold normal-case not-italic tracking-normal">· na porci</span>
+                    {nutritionSourceFor(recipe) === 'estimated' && (
+                      <span className="text-muted font-bold normal-case not-italic tracking-normal"> · odhad</span>
+                    )}
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {nutrition.map((row) => (

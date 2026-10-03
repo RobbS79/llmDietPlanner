@@ -454,6 +454,14 @@
   note: 'OWNER 2026-08-18: "probably never seen it myself, but I''m quite a conservative
     shopper" - not vouched for, so specialty stands by default. Revisit if the pool
     needs it.'
+- slug: egg-white
+  availability: common
+  confidence: high
+  note: split from eggs (separate white)
+- slug: egg-yolk
+  availability: common
+  confidence: high
+  note: split from eggs (separate yolk)
 - slug: eggplant
   availability: common
   confidence: high
@@ -1289,6 +1297,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: whipping-cream
+  availability: common
+  confidence: high
+  note: split from cream (31-33 % whipping)
 - slug: white-pepper
   availability: common
   confidence: high

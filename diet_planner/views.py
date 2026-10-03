@@ -47,6 +47,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .schemas import DietaryGoalCreateRequest
 from .services.recipe_coherence import filter_pre_prepared
+from .services.nutrition_lookups import nutrition_table
 from .services.recipe_retrieval import (
     required_tags_for_goal,
     plan_time_budget,
@@ -634,7 +635,7 @@ def _eligible_with_family_relax(slot, required_tags, *, pool, exclude_ids, facet
         slot, required_tags, pool=pool, exclude_ids=exclude_ids, facets=facets, **kw)
 
 
-def _commit_slot_swap(*, goal, plan, ref, meal_identifier, chosen, user):
+def _commit_slot_swap(*, goal, plan, ref, meal_identifier, chosen, user, table=None):
     """Atomically write `chosen` (a CuratedRecipe) at `ref`: rewrite the plan
     JSON, bump usage_count, refresh the cached Recipe row IN PLACE (same pk —
     a substantive row is auto-published at /recepty/<pk>/, recreating would
@@ -647,7 +648,8 @@ def _commit_slot_swap(*, goal, plan, ref, meal_identifier, chosen, user):
         old = locate_meal(plan, ref)
         old_cal = (old.get('nutritional_info') or {}).get('calories') if isinstance(old, dict) else None
         new_meal, _ = render_curated_meal(
-            chosen, target_kcal=old_cal, required_tags=required_tags_for_goal(goal))
+            chosen, target_kcal=old_cal, required_tags=required_tags_for_goal(goal),
+            table=table)
         if not set_meal(plan, ref, new_meal):
             raise ValueError(f"meal position {meal_identifier} vanished during swap")
         # Pool writes stamp the canonical identifier; keep the caller's string
@@ -833,21 +835,37 @@ def _slot_calories(meal) -> float | None:
     return (meal.get('nutritional_info') or {}).get('calories')
 
 
-def _candidate_payload(recipe, facets, target_calories=None, *, required_tags=frozenset()) -> dict:
+def _card_calories(meal: Dict[str, Any]):
+    """kcal the swap card shows: per portion, like the plan card. The meal's
+    `nutritional_info` is the total for `servings` portions (`basis: 'total'`);
+    divide so the card and the plan it lands in show the same number."""
+    info = meal.get('nutritional_info') or {}
+    calories = info.get('calories')
+    if not isinstance(calories, (int, float)) or isinstance(calories, bool):
+        return calories
+    servings = info.get('servings') or meal.get('servings')
+    if info.get('basis') == 'total' and isinstance(servings, (int, float)) and servings > 0:
+        return int(round(calories / servings))
+    return calories
+
+
+def _candidate_payload(recipe, facets, target_calories=None, *, required_tags=frozenset(),
+                       table=None) -> dict:
     """Card-sized preview of a candidate. Rendered from render_curated_meal so
     the fields match exactly what an accepted swap would write — which means
     portioning to the slot (main + příloha) the same way `_commit_slot_swap`
     does. Without that, the card advertises the whole pot (base_nutrition
     covers base_servings) and then accepting it commits a different, correctly
     portioned number."""
-    meal, _ = render_curated_meal(recipe, target_kcal=target_calories, required_tags=required_tags)
+    meal, _ = render_curated_meal(recipe, target_kcal=target_calories, required_tags=required_tags,
+                                  table=table)
     return {
         'curated_recipe_id': recipe.id,
         'name': meal['name'],
         'description': meal['description'],
         'food_category': meal['food_category'],
         'preparation_time': meal['preparation_time'],
-        'calories': (meal.get('nutritional_info') or {}).get('calories'),
+        'calories': _card_calories(meal),
         'why': _candidate_why(recipe, facets),
     }
 
@@ -904,17 +922,20 @@ class RecipeRefineView(APIView):
                     time_budget=time_budget,
                     exclude_families=used_families,
                 )
+                # One table load for every card in this response (sides need it).
+                table = nutrition_table()
                 return Response({
                     "status": "success",
                     "data": {
                         "reply_text": turn.reply_text,
                         "candidate": (
                             _candidate_payload(turn.candidate, None, slot_calories,
-                                               required_tags=required_tags)
+                                               required_tags=required_tags, table=table)
                             if turn.candidate else None
                         ),
                         "alternatives": [
-                            _candidate_payload(r, None, slot_calories, required_tags=required_tags)
+                            _candidate_payload(r, None, slot_calories, required_tags=required_tags,
+                                               table=table)
                             for r in turn.alternatives
                         ],
                         "research_job_id": turn.research_job_id,

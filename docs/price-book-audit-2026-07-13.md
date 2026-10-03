@@ -57,7 +57,7 @@ monthly field survey was discontinued end of 2025, so Dec 2025 is the last full 
 - **(a) Category band** — the per-kg / per-l / per-piece price falls outside a
   plausible shelf-price band for its *inferred category*. Bands are category-aware
   (a spice legitimately costs thousands of Kč/kg; a vegetable does not). Count-priced
-  (`ks`) items are converted to Kč/kg via `typical_unit_weights.yaml` so they hit the
+  (`ks`) items are converted to Kč/kg via `typical_unit_weights.yaml` (historical — folded into canonical_ingredients.yaml `nutrition.piece_weight_g` on 2026-09-30) so they hit the
   same band as their weight-sold shelf form.
 - **(b) Ratio sanity** — encoded intra-family expectations:
   - `chicken-breast / chicken-thigh` ∈ [1.2, 2.0] (breast is normally ~1.3–1.8× thigh)

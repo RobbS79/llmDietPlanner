@@ -56,7 +56,13 @@ echo "Scheduling deferred bootstrap (dictionary, superuser, QA, TOTP)..."
   # Lives in data/canonical_ingredients.yaml, not a migration, so a schema-only
   # deploy would miss dictionary growth. Idempotent (upsert by slug).
   echo "[deferred] Seeding canonical ingredient dictionary..."
-  python manage.py seed_canonical_ingredients || echo "WARN: canonical ingredient seed failed (dictionary may be stale)."
+  if python manage.py seed_canonical_ingredients; then
+    # Seeding only upserts; new canonicals stay unrated (which blocks curation
+    # intake) until availability is rated. Refuses when YAML and DB disagree.
+    python manage.py rate_ingredient_availability || echo "rate_ingredient_availability failed"
+  else
+    echo "WARN: canonical ingredient seed failed (dictionary may be stale)."
+  fi
 
   # 4b. Superuser upsert.
   # SECURITY (incident 2026-06-02-dbminer): the password must NEVER be hard-coded

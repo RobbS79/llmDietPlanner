@@ -24,7 +24,7 @@ export const DayCard = ({ day, goalId, cookedSet, onOpen, onToggleCooked }: DayC
   const totals = dayTotals(day, goalId);
   const cooked = entries.filter(e => cookedSet.has(e.mealId)).length;
 
-  const kcalOf = (meal: PlanMeal) => parseNutrition(meal.nutritional_info).kcal;
+  const kcalOf = (meal: PlanMeal) => parseNutrition(meal.nutritional_info, meal).kcal;
 
   return (
     <section id={`den-${day.day_number}`} className="scroll-mt-24 bg-card border border-line rounded-3xl p-5 sm:p-8 text-left">

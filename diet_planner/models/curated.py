@@ -203,6 +203,14 @@ class CuratedRecipe(models.Model):
         blank=True,
         help_text="Canonical slugs rated worse than common that set shopping_difficulty",
     )
+    nutrition_blockers = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Ingredient lines whose grams or nutrients could not be computed "
+            "[{name, canonical, unit, reason}]. Non-empty = cannot be promoted."
+        ),
+    )
     adaptation_note = models.CharField(
         max_length=300,
         blank=True,

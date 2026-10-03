@@ -17,7 +17,7 @@ const hideImg = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HT
 /** One meal, shared by the legacy DayCard and the pool SlotSection. */
 export const MealRow = ({ entry, variant, isCooked, onOpen, onToggleCooked }: MealRowProps) => {
   const { meal, mealId, label } = entry;
-  const kcal = parseNutrition(meal.nutritional_info).kcal;
+  const kcal = parseNutrition(meal.nutritional_info, meal).kcal;
 
   if (variant === 'small') {
     return (

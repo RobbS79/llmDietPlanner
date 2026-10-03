@@ -44,6 +44,7 @@ from django.conf import settings
 from diet_planner.models import CanonicalIngredient, CuratedRecipe, DietaryGoal
 from diet_planner.models.catalog import Availability
 from diet_planner.services.canonical_lookup import fold_diacritics, resolve_canonical
+from diet_planner.services.nutrition_lookups import nutrition_table
 from diet_planner.services.priloha import Side, pick_side, side_ingredient, side_meta, side_nutrition
 from diet_planner.services.prompt_facets import (
     ENFORCEABLE_DIETARY_TAGS,
@@ -773,6 +774,7 @@ def scale_recipe_to_meal(
     factor: float = 1.0,
     portions: Optional[int] = None,
     side: Optional[Side] = None,
+    table: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Render a CuratedRecipe into a meal object, scaling quantities/nutrition by
     `factor` (default 1.0 = base servings). `portions` overrides factor: serve
@@ -783,7 +785,13 @@ def scale_recipe_to_meal(
 
     `side` (a příloha row) is written INTO the meal: one more ingredient with
     `role: 'side'`, its nutrients added to the totals, and a `side` object for
-    the card — so nothing downstream has to know sides exist."""
+    the card — so nothing downstream has to know sides exist. The side's
+    nutrients come from `table` (the per-100 g nutrition table; loaded when
+    not passed).
+
+    `nutritional_info` is the TOTAL for `servings` portions and says so:
+    `basis: 'total'`, `servings`, and `nutrition_source` ('computed' when the
+    recipe's base_nutrition was computed from the table, else 'estimated')."""
     if portions is not None:
         factor = portions / max(int(recipe.base_servings or 1), 1)
     served = portions if portions is not None else recipe.base_servings
@@ -815,13 +823,18 @@ def scale_recipe_to_meal(
     if side is not None:
         side_portions = max(int(served or 1), 1)
         ingredients.append(side_ingredient(side, portions=side_portions))
-        for key, add in side_nutrition(side, portions=side_portions).items():
+        if table is None:
+            table = nutrition_table()
+        for key, add in side_nutrition(side, portions=side_portions, table=table).items():
             totals[key] = (totals[key] or 0) + add
     nutritional_info = {
         'calories': int(round(totals['calories'])) if totals['calories'] else None,
         'protein': _fmt_grams(totals['protein']) if totals['protein'] is not None else None,
         'carbs': _fmt_grams(totals['carbs']) if totals['carbs'] is not None else None,
         'fat': _fmt_grams(totals['fat']) if totals['fat'] is not None else None,
+        'basis': 'total',
+        'servings': served,
+        'nutrition_source': base.get('source') or 'estimated',
     }
 
     meal = {
@@ -859,6 +872,7 @@ def per_portion_calories(recipe: CuratedRecipe) -> Optional[float]:
 
 def portions_for_target(
     recipe: CuratedRecipe, target: Optional[float], side: Optional[Side] = None,
+    table: Optional[Mapping[str, Any]] = None,
 ) -> int:
     """How many of the recipe's portions fill the slot's calorie target.
     Without a target (or usable nutrition) serve ONE portion — never the whole
@@ -871,7 +885,9 @@ def portions_for_target(
     if not target or not per_portion:
         return 1
     if side is not None:
-        per_portion += side.calories
+        if table is None:
+            table = nutrition_table()
+        per_portion += side_nutrition(side, portions=1, table=table)['calories']
     return max(1, min(base, int(round(target / per_portion))))
 
 
@@ -880,6 +896,7 @@ def render_curated_meal(
     *,
     target_kcal: Optional[float],
     required_tags: Set[str],
+    table: Optional[Mapping[str, Any]] = None,
 ) -> tuple:
     """The ONE way a curated recipe becomes a plan meal: pick the příloha the
     diet allows, size the portions on main+side, render. Used by the meal
@@ -888,9 +905,12 @@ def render_curated_meal(
     'side_unavailable' when the recipe wants a side and the diet forbids all
     of them (served bare — a corpus/diet gap worth counting), else None."""
     side = pick_side(recipe, required_tags)
+    if side is not None and table is None:
+        table = nutrition_table()  # only a side needs it; loaded once for both uses
     gap = 'side_unavailable' if (side is None and (recipe.side_options or [])) else None
     meal = scale_recipe_to_meal(
-        recipe, portions=portions_for_target(recipe, target_kcal, side=side), side=side,
+        recipe, portions=portions_for_target(recipe, target_kcal, side=side, table=table),
+        side=side, table=table,
     )
     return meal, gap
 

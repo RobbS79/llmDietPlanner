@@ -29,13 +29,15 @@ from django.utils.text import slugify
 
 from diet_planner.llm_service import GeminiService
 from diet_planner.models import CuratedRecipe
+from diet_planner.services.canonical_lookup import clear_cache as clear_resolver_cache  # noqa: F401 (tests)
 from diet_planner.services.canonical_lookup import resolve_canonical
 from diet_planner.services.ingredient_availability import (
     compute_shopping_difficulty,
     unshoppable_ingredients,
 )
-from diet_planner.services.nutrition_basis_repair import plan_basis_repair
-from diet_planner.services.nutrition_lookups import category_table, piece_weight_table
+from diet_planner.services.nutrition_lookups import nutrition_table
+from diet_planner.services.nutrition_plausibility import check_nutrition_plausibility
+from diet_planner.services.recipe_nutrition import compute_recipe_nutrition, computed_base_nutrition
 from diet_planner.services.recipe_plausibility import check_portion_plausibility
 from diet_planner.services import recipe_human_judge
 
@@ -174,10 +176,15 @@ def map_ingredients(raw_ingredients: Any) -> List[Dict[str, Any]]:
         name = str(ing.get("name") or "").strip()
         if not name:
             continue
+        quantity = ing.get("quantity")
+        if quantity is not None and not isinstance(quantity, (int, float, str)):
+            quantity = str(quantity)  # a list/dict from a sloppy LLM line
+        unit = ing.get("unit")
         item: Dict[str, Any] = {
             "name": name,
-            "quantity": ing.get("quantity"),
-            "unit": (ing.get("unit") or "").strip() or None,
+            "quantity": quantity,
+            # str(): an LLM sometimes sends a numeric unit (e.g. 2)
+            "unit": str(unit if unit is not None else "").strip() or None,
             "optional": bool(ing.get("optional", False)),
         }
         canonical = resolve_canonical(name)
@@ -220,11 +227,10 @@ def build_recipe_fields(
     source_name: str,
     source_author: str = "",
 ) -> Dict[str, Any]:
-    """Map the LLM's curated dict + provenance into CuratedRecipe kwargs."""
-    nutrition = curated.get("base_nutrition") or {}
-    if not isinstance(nutrition, dict):
-        nutrition = {}
+    """Map the LLM's curated dict + provenance into CuratedRecipe kwargs.
 
+    `base_nutrition` starts empty: it is never taken from the model, only
+    computed from the ingredient lines by `apply_nutrition`."""
     difficulty = str(curated.get("difficulty", "")).strip().lower()
     if difficulty not in {c.value for c in CuratedRecipe.Difficulty}:
         difficulty = CuratedRecipe.Difficulty.EASY
@@ -240,7 +246,8 @@ def build_recipe_fields(
         "ingredients": map_ingredients(curated.get("ingredients")),
         "instructions": _normalize_instructions(curated.get("instructions")),
         "base_servings": max(1, _as_int(curated.get("base_servings")) or 1),
-        "base_nutrition": nutrition,
+        "base_nutrition": {},
+        "nutrition_blockers": [],
         "prep_time": _as_int(curated.get("prep_time")),
         "cook_time": _as_int(curated.get("cook_time")),
         "source_url": source_url,
@@ -251,33 +258,50 @@ def build_recipe_fields(
     }
 
 
-def correct_nutrition_basis(fields: Dict[str, Any]) -> Optional[str]:
-    """Rewrite `base_nutrition` in place when it holds ONE portion, not the total.
+def apply_nutrition(fields: Dict[str, Any], *, dish_role: Optional[str] = None,
+                    table: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Compute `base_nutrition` from the ingredient lines. Writes the computed
+    dict when every non-optional line converts, else leaves it empty; always
+    writes `nutrition_blockers` (empty = publishable). An implausible computed
+    portion is a blocker too — it means a wrong quantity, density or piece
+    weight, which the corpus tools fix. Returns the blockers."""
+    result = compute_recipe_nutrition(fields.get("ingredients"),
+                                      table if table is not None else nutrition_table())
+    blockers: List[Dict[str, Any]] = [u for u in result.unconverted if not u.get("optional")]
+    if result.complete:
+        fields["base_nutrition"] = computed_base_nutrition(result)
+        blocker = _implausible_blocker(fields["base_nutrition"], fields.get("base_servings"), dish_role)
+        if blocker:
+            blockers.append(blocker)
+    else:
+        fields["base_nutrition"] = {}
+    fields["nutrition_blockers"] = blockers
+    return blockers
 
-    The curation model writes a per-portion figure into this per-recipe field
-    often enough to have corrupted 96 published recipes before anyone noticed
-    (repaired 2026-08-25). The prompt now says so explicitly, but a prompt is
-    probabilistic and this bug is silent — the recipe looks fine, it just
-    understates itself 4x-16x and gets OVER-SERVED by `portions_for_target`.
 
-    So intake re-checks it with the same ingredient evidence the repair command
-    uses. Corrects only when the recipe's own ingredients carry the energy to
-    prove it; a piece-counted recipe (4 hard-boiled eggs) is left alone, as is
-    anything the evidence cannot settle. Returns the reason when it rewrote,
-    else None.
-    """
-    plan = plan_basis_repair(
-        fields.get("base_nutrition"),
-        fields.get("base_servings"),
-        None,  # dish_role is assigned later by retag_dish_roles
-        fields.get("ingredients"),
-        piece_weights=piece_weight_table(),
-        categories=category_table(),
-    )
-    if plan.action != "repair" or not plan.proposed:
+def nutrition_publishable(recipe: CuratedRecipe) -> bool:
+    """The publish rule shared by `promote_curated_recipes` and the admin
+    action: computed nutrition and no blockers. A legacy model-estimated
+    figure (no `source`) never publishes."""
+    return (not (recipe.nutrition_blockers or [])
+            and (recipe.base_nutrition or {}).get("source") == "computed")
+
+
+def _implausible_blocker(base_nutrition, base_servings, dish_role) -> Optional[Dict[str, Any]]:
+    """An `implausible` blocker for a computed total, or None. Zero kcal (an
+    empty recipe, or only to-taste lines) is never publishable. Only the
+    floor/ceiling reasons go in `detail`: the suspected-basis explanation is
+    about model-written totals, which computed nutrition cannot be."""
+    calories = (base_nutrition or {}).get("calories") or 0
+    if calories <= 0:
+        return {"reason": "implausible", "per_portion_kcal": 0.0,
+                "detail": "no quantified ingredients"}
+    check = check_nutrition_plausibility(base_nutrition, base_servings, dish_role)
+    if check.ok:
         return None
-    fields["base_nutrition"] = plan.proposed
-    return plan.reason
+    reasons = check.reasons[:1]   # floor or ceiling; the rest is basis commentary
+    return {"reason": "implausible", "per_portion_kcal": check.per_portion_kcal,
+            "detail": "; ".join(reasons)}
 
 
 # ---------------------------------------------------------------------------
@@ -387,12 +411,10 @@ def curate_from_source(
         result.error = "no instructions after curation"
         return result
 
-    corrected = correct_nutrition_basis(fields)
-    if corrected:
-        logger.info(
-            "recipe_curation: base_nutrition held one portion, corrected to the "
-            "whole recipe for %s (%s)", url, corrected,
-        )
+    # Nutrition is computed, never taken from the model. What cannot be
+    # computed (or computes to an implausible portion) is saved as a draft
+    # carrying `nutrition_blockers`, which promotion refuses.
+    apply_nutrition(fields)
 
     if enforce_plausibility:
         plausibility = check_portion_plausibility(
@@ -433,6 +455,22 @@ def curate_from_source(
                 recipe.meal_types = tagged.meal_types
     except Exception as exc:  # noqa: BLE001
         logger.warning("recipe_curation: dish classification failed for %s: %s", url, exc)
+
+    # The portion floor depends on the role, which only exists now: re-judge
+    # plausibility against it.
+    if recipe.dish_role and (recipe.base_nutrition or {}).get("source") == "computed":
+        recipe.nutrition_blockers = [b for b in (recipe.nutrition_blockers or [])
+                                     if b.get("reason") != "implausible"]
+        blocker = _implausible_blocker(recipe.base_nutrition, recipe.base_servings, recipe.dish_role)
+        if blocker:
+            recipe.nutrition_blockers.append(blocker)
+
+    if recipe.nutrition_blockers:
+        logger.info(
+            "recipe_curation: nutrition blocked for %s: %s", recipe.name_cs,
+            ", ".join(f"{b.get('name') or ''}:{b.get('reason')}".lstrip(":")
+                      for b in recipe.nutrition_blockers),
+        )
 
     if run_judge:
         # Judge needs the ingredient/instruction JSON; the in-memory instance
