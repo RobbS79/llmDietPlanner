@@ -58,6 +58,19 @@ class NewUnitsTest(SimpleTestCase):
         self.assertEqual(line_grams({'quantity': 3, 'unit': 'cm'}, ginger).grams, 18)
         self.assertEqual(line_grams({'quantity': 1, 'unit': 'hlava'}, row(piece=50)).reason, 'no_unit_weight')
 
+    def test_stalk_and_cube_units(self):
+        for raw, code in [('stonek', 'stonek'), ('stonky', 'stonek'), ('stonků', 'stonek'),
+                          ('řapík', 'stonek'), ('řapíky', 'stonek'),
+                          ('kostka', 'kostka'), ('kostky', 'kostka'), ('kostek', 'kostka')]:
+            self.assertEqual(normalize_unit(raw), code, raw)
+        for code in ('stonek', 'kostka'):
+            self.assertEqual(unit_kind(code), 'count')
+            self.assertEqual(to_base(2, code), (2, None))
+        celery = row(unit_weights={'stonek': 40})
+        self.assertEqual(line_grams({'quantity': 2, 'unit': 'řapíky'}, celery).grams, 80)
+        yeast = row(unit_weights={'kostka': 42})
+        self.assertEqual(line_grams({'quantity': 0.5, 'unit': 'kostky'}, yeast).grams, 21)
+
 
 class LineGramsTest(SimpleTestCase):
     def test_mass_units(self):

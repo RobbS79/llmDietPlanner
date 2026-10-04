@@ -334,3 +334,6 @@ SETTLED,7,mint,máta,vegetables,findable,owner,OWNER: fresh mint bigger stores/R
 ,0,egg-yolk,žloutek,eggs,common,high,split from eggs (separate yolk),,
 ,0,egg-white,bílek,eggs,common,high,split from eggs (separate white),,
 ,0,whipping-cream,smetana ke šlehání,dairy,common,high,split from cream (31-33 % whipping),,
+,0,celery-stalk,řapíkatý celer,vegetables,common,high,split from celery-root,,
+,0,cherry-tomatoes,cherry rajčata,vegetables,common,high,split from tomatoes,,
+,0,fresh-yeast,čerstvé droždí,baking,common,high,split from dry-yeast; kostka in every supermarket,,

@@ -1,7 +1,8 @@
 """The one unit vocabulary for recipes, pricing and nutrition.
 
 Codes: mass g/dkg/kg; volume ml/cl/dl/l/tsp/tbsp/cup/konzerva/sklenice;
-count ks + ingredient-specific pieces (stroužek, plátek, svazek, hrst, balení);
+count ks + ingredient-specific pieces (stroužek, plátek, svazek, hrst, balení, hlava, cm,
+dávka, stonek, kostka);
 garnish units with a fixed gram default (špetka, snítka, lístek).
 """
 from typing import Dict, Optional, Tuple
@@ -34,6 +35,8 @@ ALIASES: Dict[str, str] = {
     'cm': 'cm',
     'dávka': 'dávka', 'dávky': 'dávka', 'dávek': 'dávka', 'odměrka': 'dávka', 'odměrky': 'dávka',
     'scoop': 'dávka',
+    'stonek': 'stonek', 'stonky': 'stonek', 'stonků': 'stonek', 'řapík': 'stonek', 'řapíky': 'stonek',
+    'kostka': 'kostka', 'kostky': 'kostka', 'kostek': 'kostka',
     'hrst': 'hrst', 'hrstka': 'hrst', 'malá hrst': 'hrst',
     'balení': 'balení', 'sáček': 'balení', 'balíček': 'balení',
     # garnish
@@ -49,7 +52,7 @@ VOLUME_ML: Dict[str, float] = {'ml': 1.0, 'cl': 10.0, 'dl': 100.0, 'l': 1000.0,
                                'tsp': 5.0, 'tbsp': 15.0, 'cup': 250.0,
                                'konzerva': 400.0, 'sklenice': 300.0}
 COUNT_UNITS = ('ks', 'stroužek', 'plátek', 'svazek', 'hrst', 'balení',
-               'hlava', 'cm', 'dávka')
+               'hlava', 'cm', 'dávka', 'stonek', 'kostka')
 GARNISH_G: Dict[str, float] = {'špetka': 1.0, 'snítka': 2.0, 'lístek': 1.0}
 
 

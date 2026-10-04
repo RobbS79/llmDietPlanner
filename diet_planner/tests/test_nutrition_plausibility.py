@@ -168,3 +168,20 @@ class AuditCommandTest(TestCase):
                     base_servings=4, base_nutrition={'calories': 2400})
         output = self._run('--role', 'side')
         self.assertIn('Scanned 1 recipe(s)', output)
+
+
+class BoundFlagsTest(TestCase):
+    def test_floor_flag(self):
+        r = check_nutrition_plausibility({'calories': 100}, base_servings=1, dish_role='main')
+        self.assertTrue(r.failed_floor)
+        self.assertFalse(r.failed_ceiling)
+
+    def test_ceiling_flag(self):
+        r = check_nutrition_plausibility({'calories': 8000}, base_servings=1, dish_role='main')
+        self.assertTrue(r.failed_ceiling)
+        self.assertFalse(r.failed_floor)
+
+    def test_in_band_has_no_flags(self):
+        r = check_nutrition_plausibility({'calories': 600}, base_servings=1, dish_role='main')
+        self.assertFalse(r.failed_floor or r.failed_ceiling)
+

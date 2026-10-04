@@ -254,6 +254,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: celery-stalk
+  availability: common
+  confidence: high
+  note: split from celery-root
 - slug: cheese
   availability: common
   confidence: high
@@ -262,6 +266,10 @@
   availability: findable
   confidence: low
   note: tresne - seasonal
+- slug: cherry-tomatoes
+  availability: common
+  confidence: high
+  note: split from tomatoes
 - slug: chia-seeds
   availability: common
   confidence: high
@@ -494,6 +502,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: fresh-yeast
+  availability: common
+  confidence: high
+  note: split from dry-yeast; kostka in every supermarket
 - slug: fruit
   availability: common
   confidence: high

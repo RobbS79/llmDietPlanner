@@ -173,7 +173,6 @@
     - { alias: "kuřecí", language_code: cs }
     - { alias: "kuřecí prsíčka", language_code: cs }
     - { alias: "kuřecí řízek", language_code: cs }
-    - { alias: "kuře", language_code: cs }
     - { alias: "kuřecí stehna vykostěná", language_code: cs }
     - { alias: "kuřecí prsa bez kosti a kůže", language_code: cs }
     - { alias: "kuřecí prsa bez kůže a kostí", language_code: cs }
@@ -523,13 +522,32 @@
   default_unit: g
   aliases:
     - { alias: "rajče", language_code: cs }
-    - { alias: "cherry rajčata", language_code: cs }
-    - { alias: "cherry rajčátka", language_code: cs }
     - { alias: "rajčata krájená", language_code: cs }
     - { alias: "rajče roma", language_code: cs }
     - { alias: "rajčata roma", language_code: cs }
-    - { alias: "koktejlová rajčata", language_code: cs }
     - { alias: "hroznová rajčata", language_code: cs }
+
+- name: cherry tomatoes
+  slug: cherry-tomatoes
+  name_cs: cherry rajčata
+  category: vegetables
+  default_unit: g
+  aliases:
+    - { alias: "cherry rajčata", language_code: cs }
+    - { alias: "cherry rajčátka", language_code: cs }
+    - { alias: "koktejlová rajčata", language_code: cs }
+    - { alias: "rajčata cherry", language_code: cs }
+    - { alias: "cherry tomatoes", language_code: en }
+  nutrition:
+    kcal: 18.0
+    protein: 0.88
+    carbs: 3.89
+    fat: 0.2
+    density: 0.62  # whole cherry tomatoes, USDA 1 cup = 149 g
+    piece_weight_g: 15  # one cherry tomato
+    unit_weights: {plátek: 5}  # half a cherry tomato
+    usda_query: tomatoes, red, ripe, raw, year round average
+    source: usda:170457
 
 - name: cucumber
   name_cs: okurka
@@ -1202,9 +1220,32 @@
   default_unit: g
   aliases:
     - { alias: "bulvový celer", language_code: cs }
-    - { alias: "řapíkatý celer", language_code: cs }
     - { alias: "kořenový celer", language_code: cs }
     - { alias: "kořenová zelenina", language_code: cs }
+
+- name: celery stalk
+  slug: celery-stalk
+  name_cs: řapíkatý celer
+  category: vegetables
+  default_unit: ks
+  aliases:
+    - { alias: "řapíkatý celer", language_code: cs }
+    - { alias: "celer řapíkatý", language_code: cs }
+    - { alias: "řapíky celeru", language_code: cs }
+    - { alias: "stonkový celer", language_code: cs }
+    - { alias: "řapíkový celer", language_code: cs }
+    - { alias: "celery stalk", language_code: en }
+    - { alias: "celery", language_code: en }
+  nutrition:
+    kcal: 14.0
+    protein: 0.69
+    carbs: 2.97
+    fat: 0.17
+    density: 0.42  # chopped, USDA 1 cup = 101 g
+    piece_weight_g: 40  # one stalk
+    unit_weights: {stonek: 40}
+    usda_query: celery, raw
+    source: usda:169988
 
 - name: parsley
   name_cs: petrželka
@@ -1427,6 +1468,10 @@
     - { alias: "kukuřice z konzervy", language_code: cs }
     - { alias: "konzervovaná kukuřice", language_code: cs }  # batch-07
     - { alias: "sterilovaná kukuřice", language_code: cs }
+    - { alias: "kukuřičná zrna", language_code: cs }
+    - { alias: "kukuřice zrna", language_code: cs }
+    - { alias: "kukuřičná zrna z konzervy", language_code: cs }
+    - { alias: "zrna kukuřice", language_code: cs }
   nutrition:
     kcal: 67.0
     protein: 2.29
@@ -1758,15 +1803,18 @@
     - { alias: "barevné fazole", language_code: cs }
     - { alias: "ledvinové fazole", language_code: cs }
     - { alias: "tmavé ledvinové fazole", language_code: cs }
+  # Czech recipes mean canned/cooked beans ("propláchnuté a scezené"), so the row holds canned
+  # drained values; dry beans are a minority - a beans-dry canonical can be added if the corpus needs it.
   nutrition:
-    kcal: 337.0
-    protein: 22.5
-    carbs: 61.3
-    fat: 1.06
-    density: 0.813
+    kcal: 124.0
+    protein: 7.98
+    carbs: 21.5
+    fat: 1.05
+    density: 0.7  # drained canned beans
+    piece_weight_g: 240  # 1 ks = one drained 400 g can
     unit_weights: {hrst: 30}
-    usda_query: beans, kidney, red, mature seeds, raw
-    source: usda:173744
+    usda_query: beans, kidney, red, mature seeds, canned, drained solids
+    source: usda:174285
 
 - name: tofu
   name_cs: tofu
@@ -3584,7 +3632,6 @@
   category: grains
   default_unit: g
   aliases:
-    - { alias: "kukuřičná zrna", language_code: cs }
     - { alias: "kukuřičná zrna na popcorn", language_code: cs }
     - { alias: "popcornová kukuřice", language_code: cs }
   nutrition:
@@ -3805,7 +3852,7 @@
     carbs: 2.65
     fat: 0.64
     density: 0.18
-    piece_weight_g: 25
+    piece_weight_g: 0.5  # 1 ks = one leaf (corpus counts leaves: "24 ks bazalkové lístky")
     unit_weights: {hrst: 10, lístek: 0.5, snítka: 3, svazek: 25}
     source: usda:172232
 
@@ -4500,6 +4547,9 @@
   typical_package_sizes: [1200, 1500]
   aliases:
     - { alias: "celé kuře na pečení", language_code: cs }
+    - { alias: "celé kuře", language_code: cs }
+    - { alias: "kuře", language_code: cs }  # "1 ks kuře" is a whole bird
+    - { alias: "kuřátko", language_code: cs }
     - { alias: "kuřecí maso s kostí", language_code: cs }  # batch-09
     - { alias: "kuře s kostí", language_code: cs }  # batch-09
     - { alias: "kuřecí maso na vývar", language_code: cs }  # batch-09
@@ -4949,7 +4999,7 @@
     protein: 17.8
     carbs: 0.0
     fat: 5.6
-    piece_weight_g: 1500
+    piece_weight_g: 250  # 1 ks = one fillet/portion; whole carp is 1.5 kg but recipes count fillets
     unit_weights: {plátek: 150}
     source: usda:171952
 
@@ -5707,6 +5757,25 @@
     piece_weight_g: 7
     unit_weights: {balení: 7}
     source: manual:= USDA SR Legacy 175043 yeast, baker's, active dry (matcher excludes apostrophes)
+
+- name: "Fresh yeast"
+  slug: fresh-yeast
+  name_cs: čerstvé droždí
+  category: baking
+  default_unit: g
+  aliases:
+    - { alias: "čerstvé droždí", language_code: cs }
+    - { alias: "droždí", language_code: cs }
+    - { alias: "kvasnice", language_code: cs }
+    - { alias: "kostka droždí", language_code: cs }
+  nutrition:
+    kcal: 105
+    protein: 8.4
+    carbs: 18.1
+    fat: 1.9
+    piece_weight_g: 42  # one cube
+    unit_weights: {kostka: 42, balení: 42}
+    source: "manual:= USDA SR Legacy 175042 yeast, baker's, compressed (matcher excludes apostrophes)"
 
 - name: "Fish sauce"
   slug: fish-sauce
