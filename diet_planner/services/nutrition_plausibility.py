@@ -77,6 +77,9 @@ class NutritionCheck:
     atwater_kcal: Optional[float] = None
     # 'per_portion' when base_nutrition appears to hold one portion already.
     suspected_basis: Optional[str] = None
+    # Which bound failed. Callers branch on these, never on reason wording.
+    failed_floor: bool = False
+    failed_ceiling: bool = False
 
 
 def _num(value: Any) -> Optional[float]:
@@ -130,8 +133,10 @@ def check_nutrition_plausibility(
     floor = min_portion_kcal(dish_role)
     reasons: List[str] = []
     basis: Optional[str] = None
+    failed_floor = per_portion < floor
+    failed_ceiling = per_portion > MAX_PORTION_KCAL
 
-    if per_portion < floor:
+    if failed_floor:
         reasons.append(
             f'per-portion {per_portion:.0f} kcal is below the {floor:.0f} kcal '
             f'floor for role {dish_role or "unknown"}')
@@ -141,7 +146,7 @@ def check_nutrition_plausibility(
             reasons.append(
                 f'stored total {total:.0f} kcal reads as ONE portion — '
                 f'base_nutrition looks per-portion, not per {servings} servings')
-    elif per_portion > MAX_PORTION_KCAL:
+    elif failed_ceiling:
         reasons.append(
             f'per-portion {per_portion:.0f} kcal is above the '
             f'{MAX_PORTION_KCAL:.0f} kcal ceiling')
@@ -153,4 +158,6 @@ def check_nutrition_plausibility(
         total_kcal=total,
         atwater_kcal=round(implied, 1) if implied is not None else None,
         suspected_basis=basis,
+        failed_floor=failed_floor,
+        failed_ceiling=failed_ceiling,
     )

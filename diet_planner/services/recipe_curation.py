@@ -36,7 +36,7 @@ from diet_planner.services.ingredient_availability import (
     unshoppable_ingredients,
 )
 from diet_planner.services.nutrition_lookups import nutrition_table
-from diet_planner.services.nutrition_plausibility import check_nutrition_plausibility
+from diet_planner.services.nutrition_plausibility import MAX_PORTION_KCAL, check_nutrition_plausibility
 from diet_planner.services.recipe_nutrition import compute_recipe_nutrition, computed_base_nutrition
 from diet_planner.services.recipe_plausibility import check_portion_plausibility
 from diet_planner.services import recipe_human_judge
@@ -262,9 +262,10 @@ def apply_nutrition(fields: Dict[str, Any], *, dish_role: Optional[str] = None,
                     table: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Compute `base_nutrition` from the ingredient lines. Writes the computed
     dict when every non-optional line converts, else leaves it empty; always
-    writes `nutrition_blockers` (empty = publishable). An implausible computed
-    portion is a blocker too — it means a wrong quantity, density or piece
-    weight, which the corpus tools fix. Returns the blockers."""
+    writes `nutrition_blockers` (empty = publishable). Zero kcal or a portion
+    above the ceiling is a blocker too — it means a wrong quantity, density or
+    piece weight, which the corpus tools fix; a portion below the role floor
+    is only logged. Returns the blockers."""
     result = compute_recipe_nutrition(fields.get("ingredients"),
                                       table if table is not None else nutrition_table())
     blockers: List[Dict[str, Any]] = [u for u in result.unconverted if not u.get("optional")]
@@ -288,20 +289,27 @@ def nutrition_publishable(recipe: CuratedRecipe) -> bool:
 
 
 def _implausible_blocker(base_nutrition, base_servings, dish_role) -> Optional[Dict[str, Any]]:
-    """An `implausible` blocker for a computed total, or None. Zero kcal (an
-    empty recipe, or only to-taste lines) is never publishable. Only the
-    floor/ceiling reasons go in `detail`: the suspected-basis explanation is
-    about model-written totals, which computed nutrition cannot be."""
+    """An `implausible` blocker for a computed total, or None.
+
+    Only two things block: zero kcal (an empty recipe, or only to-taste lines)
+    and a portion above the ceiling (a wrong quantity, density or piece
+    weight). The per-role FLOOR is advisory: it existed to catch model-written
+    per-portion totals, which computed nutrition cannot be, and a low computed
+    figure is a genuinely small portion (12 egg muffins at 85 kcal each). A
+    floor miss is logged, never blocked."""
     calories = (base_nutrition or {}).get("calories") or 0
     if calories <= 0:
         return {"reason": "implausible", "per_portion_kcal": 0.0,
                 "detail": "no quantified ingredients"}
     check = check_nutrition_plausibility(base_nutrition, base_servings, dish_role)
-    if check.ok:
-        return None
-    reasons = check.reasons[:1]   # floor or ceiling; the rest is basis commentary
-    return {"reason": "implausible", "per_portion_kcal": check.per_portion_kcal,
-            "detail": "; ".join(reasons)}
+    if check.failed_ceiling:
+        return {"reason": "implausible", "per_portion_kcal": check.per_portion_kcal,
+                "detail": f"per-portion {check.per_portion_kcal:.0f} kcal is above the "
+                          f"{MAX_PORTION_KCAL:.0f} kcal ceiling"}
+    if check.failed_floor:
+        logger.info("recipe_curation: low computed portion (advisory, not blocked): "
+                    "%s kcal/portion, role %s", check.per_portion_kcal, dish_role or "unknown")
+    return None
 
 
 # ---------------------------------------------------------------------------

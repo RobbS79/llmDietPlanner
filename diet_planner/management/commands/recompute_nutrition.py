@@ -5,7 +5,8 @@ that cannot convert grouped by (canonical, unit, reason), and a summary.
 `--apply` writes computed rows (incomplete rows only get their blockers
 updated, nutrition untouched) and prints a REVERSAL map; it refuses while
 any PUBLISHED recipe is incomplete unless `--skip-incomplete`.
-A computed-but-implausible recipe counts as incomplete: an implausible number
+A computed-but-implausible recipe (zero kcal, or a portion above the ceiling;
+the per-portion floor is advisory) counts as incomplete: an implausible number
 never silently overwrites a published row.
 After applying run `refresh_stale_recipe_cache --apply`.
 """

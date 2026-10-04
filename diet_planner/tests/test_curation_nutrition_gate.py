@@ -89,15 +89,23 @@ class ApplyNutritionTest(TestCase):
         self.assertEqual([(b['reason'], b['optional']) for b in blockers], [('no_canonical', False)])
         self.assertEqual(fields['base_nutrition'], {})
 
-    def test_implausible_detail_omits_basis_commentary(self):
-        # 2 servings, 400 kcal total: below the main floor and inside the
-        # "reads as one portion" band, which would add a basis reason.
-        fields = {"base_servings": 2, "ingredients": [
-            {"name": "kuřecí prsa", "quantity": 242, "unit": "g", "canonical": "chicken-breast"}]}
+    def test_low_computed_portion_is_advisory_not_blocked(self):
+        # 12 egg muffins, 1021 kcal total = 85 kcal each: below the breakfast
+        # floor, but a real small portion, not a basis error.
+        _canon('Egg', 'egg', 'vejce', kcal=143, protein=12.6, carbs=0.7, fat=9.5, category='eggs')
+        fields = {"base_servings": 12, "ingredients": [
+            {"name": "vejce", "quantity": 714, "unit": "g", "canonical": "egg"}]}
+        blockers = apply_nutrition(fields, dish_role='breakfast')
+        self.assertEqual(blockers, [])
+        self.assertEqual(fields['base_nutrition']['calories'], 1021)
+        self.assertEqual(fields['base_nutrition']['source'], 'computed')
+
+    def test_ceiling_blocker_detail_names_the_ceiling(self):
+        fields = {"base_servings": 1, "ingredients": [
+            {"name": "kuřecí prsa", "quantity": 5000, "unit": "g", "canonical": "chicken-breast"}]}
         blockers = apply_nutrition(fields, dish_role='main')
         self.assertEqual(blockers[0]['reason'], 'implausible')
-        self.assertIn('floor', blockers[0]['detail'])
-        self.assertNotIn('ONE portion', blockers[0]['detail'])
+        self.assertIn('ceiling', blockers[0]['detail'])
 
 
 class CurateFromSourceTest(TestCase):
