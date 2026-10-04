@@ -337,3 +337,7 @@ SETTLED,7,mint,máta,vegetables,findable,owner,OWNER: fresh mint bigger stores/R
 ,0,celery-stalk,řapíkatý celer,vegetables,common,high,split from celery-root,,
 ,0,cherry-tomatoes,cherry rajčata,vegetables,common,high,split from tomatoes,,
 ,0,fresh-yeast,čerstvé droždí,baking,common,high,split from dry-yeast; kostka in every supermarket,,
+,0,rice-cooked,vařená rýže,grains,common,high,cooked state of a dry staple,,
+,0,brown-rice-cooked,vařená hnědá rýže,grains,common,high,cooked state of a dry staple,,
+,0,pasta-cooked,vařené těstoviny,grains,common,high,cooked state of a dry staple,,
+,0,quinoa-cooked,uvařená quinoa,grains,common,high,cooked state of a dry staple,,

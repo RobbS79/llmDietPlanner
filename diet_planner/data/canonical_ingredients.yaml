@@ -429,6 +429,28 @@
     usda_query: rice, white, long-grain, regular, raw, unenriched
     source: usda:169756
 
+- name: rice cooked
+  slug: rice-cooked
+  name_cs: vařená rýže
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "vařená rýže", language_code: cs }
+    - { alias: "uvařená rýže", language_code: cs }
+    - { alias: "rýže vařená", language_code: cs }
+    - { alias: "předvařená rýže", language_code: cs }
+    - { alias: "vařená jasmínová rýže", language_code: cs }
+    - { alias: "vařená basmati rýže", language_code: cs }
+    - { alias: "cooked rice", language_code: en }
+  nutrition:
+    kcal: 130.0
+    protein: 2.69
+    carbs: 28.2
+    fat: 0.28
+    density: 0.8  # cooked rice, ~200 g per cup
+    usda_query: rice, white, long-grain, regular, enriched, cooked
+    source: usda:168878
+
 - name: pasta spaghetti
   name_cs: špagety
   category: grains
@@ -779,6 +801,10 @@
   category: canned
   default_unit: g
   typical_package_sizes: [400]
+  aliases:  # cooked chickpeas ~ canned drained
+    - { alias: "cizrna vařená", language_code: cs }
+    - { alias: "vařená cizrna", language_code: cs }
+    - { alias: "uvařená cizrna", language_code: cs }
   nutrition:
     kcal: 139.0
     protein: 7.05
@@ -1690,6 +1716,28 @@
     density: 0.4
     source: usda:168927
 
+- name: pasta cooked
+  slug: pasta-cooked
+  name_cs: vařené těstoviny
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "vařené těstoviny", language_code: cs }
+    - { alias: "uvařené těstoviny", language_code: cs }
+    - { alias: "těstoviny vařené", language_code: cs }
+    - { alias: "vařené špagety", language_code: cs }
+    - { alias: "uvařené špagety", language_code: cs }
+    - { alias: "vařené penne", language_code: cs }
+    - { alias: "cooked pasta", language_code: en }
+  nutrition:
+    kcal: 158.0
+    protein: 5.8
+    carbs: 30.9
+    fat: 0.93
+    density: 0.6  # cooked pasta, ~140 g per cup
+    usda_query: pasta, cooked, enriched, without added salt
+    source: usda:169737
+
 - name: tortilla
   name_cs: tortilly
   category: grains
@@ -1772,7 +1820,6 @@
   default_unit: g
   aliases:
     - { alias: "sušená cizrna", language_code: cs }
-    - { alias: "vařená cizrna", language_code: cs }
   nutrition:
     kcal: 378.0
     protein: 20.5
@@ -2347,8 +2394,6 @@
   category: grains
   default_unit: g
   aliases:
-    - { alias: "uvařená quinoa", language_code: cs }
-    - { alias: "vařená quinoa", language_code: cs }
   nutrition:
     kcal: 368.0
     protein: 14.1
@@ -2356,6 +2401,24 @@
     fat: 6.07
     density: 0.708
     source: usda:168874
+
+- name: quinoa cooked
+  slug: quinoa-cooked
+  name_cs: uvařená quinoa
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "uvařená quinoa", language_code: cs }
+    - { alias: "vařená quinoa", language_code: cs }
+    - { alias: "quinoa vařená", language_code: cs }
+  nutrition:
+    kcal: 120.0
+    protein: 4.4
+    carbs: 21.3
+    fat: 1.92
+    density: 0.75  # cooked quinoa, ~185 g per cup
+    usda_query: quinoa, cooked
+    source: usda:168917
 
 - name: greek yogurt
   name_cs: řecký jogurt
@@ -3234,6 +3297,24 @@
     source: usda:169703
 
 # --- Canned / preserved ---
+- name: brown rice cooked
+  slug: brown-rice-cooked
+  name_cs: vařená hnědá rýže
+  category: grains
+  default_unit: g
+  aliases:
+    - { alias: "vařená hnědá rýže", language_code: cs }
+    - { alias: "uvařená hnědá rýže", language_code: cs }
+    - { alias: "vařená natural rýže", language_code: cs }
+  nutrition:
+    kcal: 123.0
+    protein: 2.74
+    carbs: 25.6
+    fat: 0.97
+    density: 0.8  # cooked rice, ~200 g per cup
+    usda_query: rice, brown, long-grain, cooked
+    source: usda:169704
+
 - name: capers
   name_cs: kapary
   category: canned
