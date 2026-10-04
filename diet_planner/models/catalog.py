@@ -126,7 +126,7 @@ class CanonicalIngredient(models.Model):
         help_text='Grams for ingredient-specific count units, e.g. {"stroužek": 5, "plátek": 20}',
     )
     nutrition_source = models.CharField(
-        max_length=64, blank=True,
+        max_length=255, blank=True,
         help_text="usda:<fdc_id> | frida:<id> | manual:<note>",
     )
 

@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe
 from diet_planner.services.nutrition_lookups import nutrition_table
@@ -86,3 +86,19 @@ class SeedNutritionTest(TestCase):
         self.assertEqual(row.piece_weight_g, 110.0)
         self.assertIsNone(row.density)
         self.assertEqual(load_piece_weights()['onion'], 110.0)
+
+
+class YamlFitsColumnsTest(SimpleTestCase):
+    """SQLite ignores CharField max_length; Postgres does not. The prod boot seed
+    aborted on 2026-10-03 with 'value too long for type character varying(64)'."""
+
+    def test_every_yaml_source_fits_the_column(self):
+        import yaml
+        from pathlib import Path
+        from diet_planner.models.catalog import CanonicalIngredient
+        limit = CanonicalIngredient._meta.get_field('nutrition_source').max_length
+        data = yaml.safe_load(Path('diet_planner/data/canonical_ingredients.yaml').read_text(encoding='utf-8'))
+        entries = data['ingredients'] if isinstance(data, dict) else data
+        too_long = [(e['name'], len(e['nutrition']['source'])) for e in entries
+                    if (e.get('nutrition') or {}).get('source') and len(e['nutrition']['source']) > limit]
+        self.assertEqual(too_long, [])
