@@ -93,6 +93,7 @@ _MODIFIER_WORDS = {
     "maso", "koření",
     # bare connectors that survive a list ("rýže vařená a vychlazená")
     "a", "i", "s", "se", "z",
+    "al", "dente",  # "těstoviny uvařené al dente" — a doneness note
     # english fall-throughs
     "fresh", "dried", "ground", "whole", "chopped", "sliced", "minced", "grated",
     "large", "small", "extra", "virgin", "fine", "frozen", "cooked",
@@ -126,6 +127,34 @@ _TAIL_MARKERS = re.compile(
     r"\s+(?:na\s|ke\s|ku\s|k\s|z\s+konzervy|z\s+plechovky"
     r"|v\s+konzervě|v\s+plechovce|v\s+nálevu|do\s)",
 )
+
+
+# Cooked-state words that tier 3 discards. When one was dropped and the resolved
+# canonical has a cooked sibling, the cooked row is the right one (its per-100 g
+# nutrition differs a lot from the dry product's).
+_COOKED_WORD = re.compile(r"\b(?:před)?u?vařen\w*", re.IGNORECASE)
+
+# Explicit base -> cooked/canned slug map, used when the sibling is not simply
+# `<slug>-cooked`. The catalog has no parent/sibling field to drive this.
+COOKED_SIBLINGS = {
+    'rice-basmati': 'rice-cooked', 'rice-jasmine': 'rice-cooked',
+    'brown-rice': 'brown-rice-cooked',
+    'pasta': 'pasta-cooked', 'pasta-spaghetti': 'pasta-cooked', 'pasta-penne': 'pasta-cooked',
+    'quinoa': 'quinoa-cooked', 'chickpeas': 'chickpeas-canned',
+}
+
+
+def _prefer_cooked_sibling(ci: CanonicalIngredient, raw: str) -> CanonicalIngredient:
+    """Tier-3 only: swap to the cooked sibling when a cooked descriptor was stripped."""
+    if not _COOKED_WORD.search(raw):
+        return ci
+    slug = getattr(ci, 'slug', '') or ''
+    for sib in (COOKED_SIBLINGS.get(slug), f"{slug}-cooked"):
+        if sib and sib != slug:
+            hit = CanonicalIngredient.objects.filter(slug=sib).first()
+            if hit is not None:
+                return hit
+    return ci
 
 
 def _strip_descriptors(raw: str) -> str:
@@ -269,7 +298,8 @@ def resolve_canonical(name: str) -> Optional[CanonicalIngredient]:
         if ci_id is None:
             ci_id = _normalized_index().get(fold_diacritics(k))
         if ci_id is not None:
-            return CanonicalIngredient.objects.filter(pk=ci_id).first()
+            ci = CanonicalIngredient.objects.filter(pk=ci_id).first()
+            return _prefer_cooked_sibling(ci, needle) if ci is not None else None
     return None
 
 
