@@ -73,3 +73,37 @@ class ComputeTest(SimpleTestCase):
         n = compute_recipe_nutrition([{'name': 'rýže', 'canonical': 'rice-basmati', 'quantity': '1/2', 'unit': 'kg'}], TABLE)
         self.assertEqual(n.unconverted[0]['reason'], 'bad_quantity')
         self.assertFalse(n.complete)
+
+
+class FryingOilTest(SimpleTestCase):
+    T = dict(TABLE, **{'sunflower-oil': NutrientRow(884, 0, 0, 100, 0.92, None, {}),
+                       'butter': NutrientRow(717, 0.9, 0.1, 81, 0.911, None, {})})
+
+    def _kcal(self, line):
+        n = compute_recipe_nutrition([line], self.T)
+        return n, n.calories
+
+    def test_deep_fry_oil_counts_quarter(self):
+        n, kcal = self._kcal({'name': 'olej na smažení', 'quantity': 200, 'unit': 'ml',
+                              'canonical': 'sunflower-oil'})
+        self.assertAlmostEqual(kcal, 200 * 0.92 * 0.25 * 8.84, places=1)
+        self.assertEqual(n.absorbed_lines, 1)
+        self.assertEqual(computed_base_nutrition(n)['frying_oil_factor'], 0.25)
+
+    def test_shallow_fry_counts_full(self):
+        n, kcal = self._kcal({'name': 'Olej na smažení', 'quantity': 2, 'unit': 'lžíce',
+                              'canonical': 'sunflower-oil'})
+        self.assertAlmostEqual(kcal, 27.6 * 8.84, places=1)
+        self.assertEqual(n.absorbed_lines, 0)
+        self.assertNotIn('frying_oil_factor', computed_base_nutrition(n))
+
+    def test_butter_without_marker_full(self):
+        n, kcal = self._kcal({'name': 'máslo', 'quantity': 200, 'unit': 'g', 'canonical': 'butter'})
+        self.assertAlmostEqual(kcal, 200 * 7.17, places=1)
+        self.assertEqual(n.absorbed_lines, 0)
+
+    def test_non_fat_with_marker_full(self):
+        n, kcal = self._kcal({'name': 'rýže na smažení', 'quantity': 200, 'unit': 'g',
+                              'canonical': 'rice-basmati'})
+        self.assertAlmostEqual(kcal, 720, places=1)
+        self.assertEqual(n.absorbed_lines, 0)
