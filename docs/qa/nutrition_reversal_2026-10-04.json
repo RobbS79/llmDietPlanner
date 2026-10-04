@@ -1,0 +1,3080 @@
+{
+"15": {
+"fat": 84,
+"carbs": 172,
+"protein": 124,
+"calories": 1932
+},
+"16": {
+"fat": 84.8,
+"carbs": 88.8,
+"protein": 39.2,
+"calories": 1208
+},
+"17": {
+"fat": 8,
+"carbs": 48,
+"protein": 10,
+"calories": 302
+},
+"18": {
+"fat": 77,
+"carbs": 100,
+"protein": 67,
+"calories": 1296
+},
+"19": {
+"fat": 122.4,
+"carbs": 107.2,
+"protein": 28.8,
+"calories": 1512
+},
+"20": {
+"fat": 91.2,
+"carbs": 33.6,
+"protein": 93.6,
+"calories": 2232
+},
+"22": {
+"fat": 48,
+"carbs": 208,
+"protein": 36,
+"calories": 1440
+},
+"23": {
+"fat": 62,
+"carbs": 191.2,
+"protein": 58,
+"calories": 1468
+},
+"24": {
+"fat": 144,
+"carbs": 100,
+"protein": 104,
+"calories": 2092
+},
+"25": {
+"fat": 120,
+"carbs": 68,
+"protein": 32,
+"calories": 1408
+},
+"26": {
+"fat": 84,
+"carbs": 132,
+"protein": 176,
+"calories": 2008
+},
+"27": {
+"fat": 55.2,
+"carbs": 201,
+"protein": 36.6,
+"calories": 1452
+},
+"28": {
+"fat": 36,
+"carbs": 24,
+"protein": 168,
+"calories": 1080
+},
+"29": {
+"fat": 15,
+"carbs": 5,
+"protein": 13,
+"calories": 204
+},
+"30": {
+"fat": 20,
+"carbs": 2,
+"protein": 18,
+"calories": 250
+},
+"31": {
+"fat": 78.0,
+"carbs": 18.72,
+"protein": 73.0,
+"calories": 1069.6
+},
+"32": {
+"fat": 36,
+"carbs": 12,
+"protein": 60,
+"calories": 576
+},
+"33": {
+"fat": 90,
+"carbs": 41,
+"protein": 39,
+"calories": 1100
+},
+"34": {
+"fat": 116,
+"carbs": 34,
+"protein": 127,
+"calories": 1680
+},
+"35": {
+"fat": 73,
+"carbs": 39,
+"protein": 36,
+"calories": 918
+},
+"37": {
+"fat": 14,
+"carbs": 9,
+"protein": 16,
+"calories": 212
+},
+"38": {
+"fat": 28,
+"carbs": 160,
+"protein": 36,
+"calories": 1016
+},
+"39": {
+"fat": 120,
+"carbs": 192,
+"protein": 88,
+"calories": 2152
+},
+"41": {
+"fat": 10,
+"carbs": 100,
+"protein": 20,
+"calories": 600
+},
+"43": {
+"fat": 4,
+"carbs": 46,
+"protein": 5,
+"calories": 210
+},
+"44": {
+"fat": 12.9,
+"carbs": 62.6,
+"protein": 8.5,
+"calories": 393
+},
+"45": {
+"fat": 66,
+"carbs": 125,
+"protein": 57,
+"calories": 1275
+},
+"46": {
+"fat": 24,
+"carbs": 43,
+"protein": 8,
+"calories": 400
+},
+"47": {
+"fat": 9,
+"carbs": 249,
+"protein": 45,
+"calories": 1281
+},
+"48": {
+"fat": 53,
+"carbs": 260,
+"protein": 58,
+"calories": 1760
+},
+"49": {
+"fat": 14.3,
+"carbs": 92.5,
+"protein": 30.2,
+"calories": 641
+},
+"50": {
+"fat": 62.5,
+"carbs": 7.13,
+"protein": 56.22,
+"calories": 816
+},
+"51": {
+"fat": 42,
+"carbs": 318,
+"protein": 60,
+"calories": 1836
+},
+"52": {
+"fat": 52,
+"carbs": 232,
+"protein": 48,
+"calories": 1560
+},
+"53": {
+"fat": 222.4,
+"carbs": 417.6,
+"protein": 150.4,
+"calories": 4320
+},
+"54": {
+"fat": 45,
+"carbs": 240,
+"protein": 60,
+"calories": 1665
+},
+"55": {
+"fat": 205.62,
+"carbs": 29.3,
+"protein": 280,
+"calories": 2006
+},
+"57": {
+"fat": 93.6,
+"carbs": 428.4,
+"protein": 58.8,
+"calories": 2622
+},
+"60": {
+"fat": 65,
+"carbs": 150,
+"protein": 30,
+"calories": 1200
+},
+"61": {
+"fat": 57,
+"carbs": 135,
+"protein": 15,
+"calories": 1040
+},
+"62": {
+"fat": 96,
+"carbs": 64,
+"protein": 144,
+"calories": 1648
+},
+"63": {
+"fat": 60,
+"carbs": 232,
+"protein": 100,
+"calories": 1832
+},
+"64": {
+"fat": 10,
+"carbs": 22,
+"protein": 8,
+"calories": 196
+},
+"65": {
+"fat": 25,
+"carbs": 500,
+"protein": 125,
+"calories": 2425
+},
+"67": {
+"fat": 256,
+"carbs": 49,
+"protein": 204,
+"calories": 3360
+},
+"68": {
+"fat": 30,
+"carbs": 32,
+"protein": 59,
+"calories": 630
+},
+"69": {
+"fat": 160,
+"carbs": 76,
+"protein": 160,
+"calories": 2532
+},
+"70": {
+"fat": 69.52,
+"carbs": 143,
+"protein": 462.36,
+"calories": 3184
+},
+"71": {
+"fat": 29.4,
+"carbs": 116.03,
+"protein": 114.85,
+"calories": 1204
+},
+"72": {
+"fat": 142,
+"carbs": 26,
+"protein": 147,
+"calories": 1975
+},
+"73": {
+"fat": 36.6,
+"carbs": 336,
+"protein": 112.2,
+"calories": 2052
+},
+"76": {
+"fat": 7,
+"carbs": 30,
+"protein": 9,
+"calories": 202
+},
+"77": {
+"fat": 36,
+"carbs": 294,
+"protein": 72,
+"calories": 1680
+},
+"78": {
+"fat": 96,
+"carbs": 120.32,
+"protein": 44.52,
+"calories": 1496
+},
+"79": {
+"fat": 30.28,
+"carbs": 197.2,
+"protein": 104.01,
+"calories": 1623
+},
+"80": {
+"fat": 15.12,
+"carbs": 1.4,
+"protein": 17.36,
+"calories": 211
+},
+"81": {
+"fat": 30.56,
+"carbs": 18.7,
+"protein": 63.68,
+"calories": 605
+},
+"82": {
+"fat": 172.23,
+"carbs": 127.0,
+"protein": 115.19,
+"calories": 2574
+},
+"83": {
+"fat": 9,
+"carbs": 115,
+"protein": 23,
+"calories": 620
+},
+"86": {
+"fat": 81.36,
+"carbs": 61.7,
+"protein": 52.26,
+"calories": 1221
+},
+"87": {
+"fat": 87.98,
+"carbs": 168.2,
+"protein": 81.93,
+"calories": 1991
+},
+"90": {
+"fat": 84.97,
+"carbs": 138.7,
+"protein": 60.89,
+"calories": 1629
+},
+"91": {
+"fat": 67.2,
+"carbs": 177,
+"protein": 60,
+"calories": 1494
+},
+"93": {
+"fat": 22,
+"carbs": 36,
+"protein": 12,
+"calories": 370
+},
+"95": {
+"fat": 14,
+"carbs": 26,
+"protein": 5,
+"calories": 245
+},
+"96": {
+"fat": 76,
+"carbs": 169,
+"protein": 59,
+"calories": 1523
+},
+"97": {
+"fat": 17.5,
+"carbs": 161,
+"protein": 54.5,
+"calories": 990
+},
+"99": {
+"fat": 30,
+"carbs": 110,
+"protein": 10,
+"calories": 750
+},
+"100": {
+"fat": 10.7,
+"carbs": 28.9,
+"protein": 4.1,
+"calories": 221
+},
+"101": {
+"fat": 29.35,
+"carbs": 142.84,
+"protein": 19.17,
+"calories": 954
+},
+"102": {
+"fat": 34.98,
+"carbs": 66.06,
+"protein": 11.3,
+"calories": 658
+},
+"105": {
+"fat": 14,
+"carbs": 8,
+"protein": 7,
+"calories": 180
+},
+"106": {
+"fat": 9,
+"carbs": 14,
+"protein": 5,
+"calories": 152
+},
+"107": {
+"fat": 218,
+"carbs": 405,
+"protein": 37,
+"calories": 3536
+},
+"108": {
+"fat": 116,
+"carbs": 60,
+"protein": 62,
+"calories": 1540
+},
+"109": {
+"fat": 31,
+"carbs": 19,
+"protein": 22,
+"calories": 449
+},
+"110": {
+"fat": 66,
+"carbs": 78,
+"protein": 30,
+"calories": 996
+},
+"112": {
+"fat": 49.2,
+"carbs": 117.6,
+"protein": 38.4,
+"calories": 1008
+},
+"113": {
+"fat": 2,
+"carbs": 72,
+"protein": 4,
+"calories": 296
+},
+"114": {
+"fat": 22,
+"carbs": 15,
+"protein": 3,
+"calories": 275
+},
+"115": {
+"fat": 16,
+"carbs": 32,
+"protein": 15,
+"calories": 325
+},
+"118": {
+"fat": 4,
+"carbs": 15,
+"protein": 5,
+"calories": 115
+},
+"119": {
+"fat": 145,
+"carbs": 725,
+"protein": 120,
+"calories": 4793
+},
+"120": {
+"fat": 8,
+"carbs": 31,
+"protein": 7,
+"calories": 225
+},
+"121": {
+"fat": 158.99,
+"carbs": 347.45,
+"protein": 51.02,
+"calories": 3041
+},
+"122": {
+"fat": 94,
+"carbs": 12,
+"protein": 94,
+"calories": 1269
+},
+"123": {
+"fat": 336,
+"carbs": 592,
+"protein": 80,
+"calories": 5600
+},
+"124": {
+"fat": 180,
+"carbs": 384,
+"protein": 60,
+"calories": 3276
+},
+"126": {
+"fat": 7.7,
+"carbs": 31.6,
+"protein": 13.6,
+"calories": 242
+},
+"127": {
+"fat": 5,
+"carbs": 5,
+"protein": 6,
+"calories": 85
+},
+"128": {
+"fat": 38,
+"carbs": 154,
+"protein": 42,
+"calories": 1105
+},
+"130": {
+"fat": 43.2,
+"carbs": 3.6,
+"protein": 38.8,
+"calories": 568
+},
+"131": {
+"fat": 56.4,
+"carbs": 14.4,
+"protein": 55.2,
+"calories": 804
+},
+"132": {
+"fat": 20.8,
+"carbs": 94.4,
+"protein": 36,
+"calories": 706
+},
+"133": {
+"fat": 57,
+"carbs": 27,
+"protein": 35,
+"calories": 745
+},
+"134": {
+"fat": 60,
+"carbs": 12,
+"protein": 84,
+"calories": 936
+},
+"135": {
+"fat": 208,
+"carbs": 144,
+"protein": 224,
+"calories": 3368
+},
+"136": {
+"fat": 35.97,
+"carbs": 5.05,
+"protein": 39.26,
+"calories": 501
+},
+"137": {
+"fat": 11,
+"carbs": 107,
+"protein": 22,
+"calories": 620
+},
+"138": {
+"fat": 28,
+"carbs": 60,
+"protein": 18,
+"calories": 520
+},
+"139": {
+"fat": 10,
+"carbs": 14,
+"protein": 5,
+"calories": 161
+},
+"140": {
+"fat": 40.8,
+"carbs": 87.2,
+"protein": 19.6,
+"calories": 732
+},
+"141": {
+"fat": 124,
+"carbs": 228,
+"protein": 44,
+"calories": 2100
+},
+"144": {
+"fat": 30.66,
+"carbs": 130.37,
+"protein": 67.61,
+"calories": 1079
+},
+"145": {
+"fat": 14.6,
+"carbs": 62,
+"protein": 11.5,
+"calories": 427
+},
+"146": {
+"fat": 8.2,
+"carbs": 42.6,
+"protein": 17.7,
+"calories": 331
+},
+"147": {
+"fat": 12,
+"carbs": 43,
+"protein": 16,
+"calories": 340
+},
+"148": {
+"fat": 112,
+"carbs": 220,
+"protein": 48,
+"calories": 2080
+},
+"150": {
+"fat": 25.6,
+"carbs": 89.6,
+"protein": 28.8,
+"calories": 712
+},
+"151": {
+"fat": 150.5,
+"carbs": 27.77,
+"protein": 251.18,
+"calories": 2474
+},
+"152": {
+"fat": 240.5,
+"carbs": 1.0,
+"protein": 163.88,
+"calories": 2824
+},
+"154": {
+"fat": 64,
+"carbs": 284,
+"protein": 68,
+"calories": 1884
+},
+"155": {
+"fat": 22.1,
+"carbs": 48.7,
+"protein": 8.6,
+"calories": 400
+},
+"158": {
+"fat": 56,
+"carbs": 34,
+"protein": 14,
+"calories": 660
+},
+"159": {
+"fat": 132,
+"carbs": 160,
+"protein": 60,
+"calories": 1936
+},
+"162": {
+"fat": 48,
+"carbs": 172,
+"protein": 60,
+"calories": 1288
+},
+"163": {
+"fat": 153,
+"carbs": 25,
+"protein": 123,
+"calories": 2021
+},
+"164": {
+"fat": 32.25,
+"carbs": 5.08,
+"protein": 124.91,
+"calories": 810
+},
+"165": {
+"fat": 102.76,
+"carbs": 48.6,
+"protein": 173.87,
+"calories": 1831
+},
+"166": {
+"fat": 220,
+"carbs": 50,
+"protein": 170,
+"calories": 2950
+},
+"168": {
+"fat": 72.8,
+"carbs": 323.2,
+"protein": 70.8,
+"calories": 2100
+},
+"170": {
+"fat": 112,
+"carbs": 184,
+"protein": 68,
+"calories": 2000
+},
+"172": {
+"fat": 52,
+"carbs": 92,
+"protein": 32,
+"calories": 932
+},
+"173": {
+"fat": 124,
+"carbs": 196,
+"protein": 76,
+"calories": 2088
+},
+"174": {
+"fat": 15,
+"carbs": 58,
+"protein": 24,
+"calories": 484
+},
+"175": {
+"fat": 10.01,
+"carbs": 237.15,
+"protein": 39.18,
+"calories": 1233
+},
+"176": {
+"fat": 32.07,
+"carbs": 42.3,
+"protein": 68.7,
+"calories": 786
+},
+"177": {
+"fat": 110,
+"carbs": 140,
+"protein": 56,
+"calories": 1840
+},
+"178": {
+"fat": 33.66,
+"carbs": 154.94,
+"protein": 28.89,
+"calories": 1066
+},
+"181": {
+"fat": 10.16,
+"carbs": 340,
+"protein": 87.84,
+"calories": 2072
+},
+"182": {
+"fat": 24.67,
+"carbs": 35.06,
+"protein": 14.11,
+"calories": 424
+},
+"183": {
+"fat": 71.07,
+"carbs": 37.3,
+"protein": 48.48,
+"calories": 1017
+},
+"184": {
+"fat": 4,
+"carbs": 94,
+"protein": 49,
+"calories": 686
+},
+"185": {
+"fat": 14,
+"carbs": 35.9,
+"protein": 10.4,
+"calories": 298
+},
+"186": {
+"fat": 6,
+"carbs": 37,
+"protein": 5,
+"calories": 217
+},
+"187": {
+"fat": 68,
+"carbs": 144,
+"protein": 48,
+"calories": 1400
+},
+"188": {
+"fat": 62,
+"carbs": 73,
+"protein": 16,
+"calories": 845
+},
+"189": {
+"fat": 42,
+"carbs": 140,
+"protein": 49,
+"calories": 1135
+},
+"191": {
+"fat": 2.6,
+"carbs": 6.7,
+"protein": 1,
+"calories": 52
+},
+"193": {
+"fat": 14,
+"carbs": 39,
+"protein": 5,
+"calories": 295
+},
+"194": {
+"fat": 24,
+"carbs": 42,
+"protein": 12,
+"calories": 414
+},
+"195": {
+"fat": 60,
+"carbs": 200,
+"protein": 24,
+"calories": 1432
+},
+"196": {
+"fat": 36,
+"carbs": 172,
+"protein": 44,
+"calories": 1200
+},
+"197": {
+"fat": 23.12,
+"carbs": 74.7,
+"protein": 12.63,
+"calories": 577
+},
+"199": {
+"fat": 13.2,
+"carbs": 5.6,
+"protein": 9.4,
+"calories": 177
+},
+"200": {
+"fat": 15,
+"carbs": 14,
+"protein": 14,
+"calories": 240
+},
+"201": {
+"fat": 60,
+"carbs": 18,
+"protein": 67,
+"calories": 850
+},
+"202": {
+"fat": 33.89,
+"carbs": 18.15,
+"protein": 66.46,
+"calories": 648
+},
+"204": {
+"fat": 69,
+"carbs": 78,
+"protein": 34,
+"calories": 1060
+},
+"206": {
+"fat": 90,
+"carbs": 60,
+"protein": 10,
+"calories": 1010
+},
+"208": {
+"fat": 27,
+"carbs": 191,
+"protein": 26,
+"calories": 1060
+},
+"209": {
+"fat": 17,
+"carbs": 5,
+"protein": 1,
+"calories": 180
+},
+"210": {
+"fat": 14,
+"carbs": 4,
+"protein": 8,
+"calories": 168
+},
+"213": {
+"fat": 8,
+"carbs": 13,
+"protein": 3,
+"calories": 135
+},
+"214": {
+"fat": 59,
+"carbs": 311,
+"protein": 64,
+"calories": 2058
+},
+"215": {
+"fat": 58.51,
+"carbs": 356.15,
+"protein": 63.53,
+"calories": 2233
+},
+"216": {
+"fat": 16.15,
+"carbs": 465.79,
+"protein": 42.36,
+"calories": 2199
+},
+"218": {
+"fat": 12,
+"carbs": 6,
+"protein": 13,
+"calories": 181
+},
+"220": {
+"fat": 156,
+"carbs": 336,
+"protein": 48,
+"calories": 2916
+},
+"221": {
+"fat": 11,
+"carbs": 15,
+"protein": 5,
+"calories": 172
+},
+"222": {
+"fat": 28,
+"carbs": 248,
+"protein": 32,
+"calories": 1268
+},
+"224": {
+"fat": 64,
+"carbs": 28,
+"protein": 44,
+"calories": 828
+},
+"225": {
+"fat": 68,
+"carbs": 114,
+"protein": 39,
+"calories": 1195
+},
+"226": {
+"fat": 114,
+"carbs": 68.8,
+"protein": 92.4,
+"calories": 1680
+},
+"228": {
+"fat": 51,
+"carbs": 22,
+"protein": 70,
+"calories": 833
+},
+"229": {
+"fat": 132,
+"carbs": 30,
+"protein": 114,
+"calories": 1740
+},
+"230": {
+"fat": 92,
+"carbs": 12,
+"protein": 56,
+"calories": 1092
+},
+"232": {
+"fat": 30.36,
+"carbs": 6.4,
+"protein": 35.26,
+"calories": 442
+},
+"233": {
+"fat": 64,
+"carbs": 95,
+"protein": 41,
+"calories": 1077
+},
+"234": {
+"fat": 9,
+"carbs": 45,
+"protein": 11,
+"calories": 276
+},
+"235": {
+"fat": 7.5,
+"carbs": 58,
+"protein": 12,
+"calories": 340
+},
+"236": {
+"fat": 13.4,
+"carbs": 29.8,
+"protein": 13.7,
+"calories": 295
+},
+"237": {
+"fat": 5,
+"carbs": 23,
+"protein": 4,
+"calories": 152
+},
+"239": {
+"fat": 30.12,
+"carbs": 299.65,
+"protein": 77.49,
+"calories": 1802
+},
+"240": {
+"fat": 48.29,
+"carbs": 154.72,
+"protein": 32.79,
+"calories": 1210
+},
+"241": {
+"fat": 41.58,
+"carbs": 3.85,
+"protein": 47.74,
+"calories": 581
+},
+"242": {
+"fat": 54,
+"carbs": 390,
+"protein": 54,
+"calories": 2226
+},
+"243": {
+"fat": 186,
+"carbs": 270,
+"protein": 48,
+"calories": 2820
+},
+"244": {
+"fat": 44,
+"carbs": 66,
+"protein": 37,
+"calories": 810
+},
+"245": {
+"fat": 119,
+"carbs": 197,
+"protein": 62,
+"calories": 2160
+},
+"246": {
+"fat": 40,
+"carbs": 41,
+"protein": 336,
+"calories": 1886
+},
+"247": {
+"fat": 136,
+"carbs": 32,
+"protein": 254,
+"calories": 2464
+},
+"248": {
+"fat": 74,
+"carbs": 18,
+"protein": 115,
+"calories": 1206
+},
+"249": {
+"fat": 108.8,
+"carbs": 475.6,
+"protein": 83.2,
+"calories": 3136
+},
+"250": {
+"fat": 6.4,
+"carbs": 37.6,
+"protein": 10.9,
+"calories": 236
+},
+"252": {
+"fat": 96,
+"carbs": 96,
+"protein": 24,
+"calories": 1240
+},
+"253": {
+"fat": 15,
+"carbs": 150,
+"protein": 35,
+"calories": 1400
+},
+"254": {
+"fat": 92,
+"carbs": 196,
+"protein": 36,
+"calories": 1692
+},
+"255": {
+"fat": 105,
+"carbs": 120,
+"protein": 65,
+"calories": 1580
+},
+"257": {
+"fat": 80,
+"carbs": 37,
+"protein": 259,
+"calories": 1941
+},
+"258": {
+"fat": 82,
+"carbs": 95,
+"protein": 113,
+"calories": 1660
+},
+"259": {
+"fat": 186,
+"carbs": 35,
+"protein": 145,
+"calories": 2500
+},
+"260": {
+"fat": 205.74,
+"carbs": 165.42,
+"protein": 373.54,
+"calories": 4015
+},
+"261": {
+"fat": 126,
+"carbs": 32,
+"protein": 134,
+"calories": 1809
+},
+"262": {
+"fat": 26.3,
+"carbs": 215.63,
+"protein": 88.76,
+"calories": 1470
+},
+"263": {
+"fat": 15,
+"carbs": 11.6,
+"protein": 6.7,
+"calories": 193
+},
+"264": {
+"fat": 28,
+"carbs": 180,
+"protein": 35,
+"calories": 1330
+},
+"265": {
+"fat": 168,
+"carbs": 126,
+"protein": 30,
+"calories": 2400
+},
+"269": {
+"fat": 8.89,
+"carbs": 81.6,
+"protein": 21.11,
+"calories": 511
+},
+"270": {
+"fat": 3,
+"carbs": 3,
+"protein": 1,
+"calories": 48
+},
+"271": {
+"fat": 128.2,
+"carbs": 799.52,
+"protein": 205.73,
+"calories": 5286
+},
+"272": {
+"fat": 216.11,
+"carbs": 595.1,
+"protein": 108.12,
+"calories": 4834
+},
+"273": {
+"fat": 514.6,
+"carbs": 465,
+"protein": 88,
+"calories": 7081
+},
+"274": {
+"fat": 25.1,
+"carbs": 58.05,
+"protein": 46.81,
+"calories": 658
+},
+"275": {
+"fat": 60,
+"carbs": 16,
+"protein": 16,
+"calories": 628
+},
+"276": {
+"fat": 36,
+"carbs": 75,
+"protein": 34,
+"calories": 750
+},
+"280": {
+"fat": 114,
+"carbs": 131,
+"protein": 67,
+"calories": 1830
+},
+"282": {
+"fat": 68,
+"carbs": 216,
+"protein": 56,
+"calories": 1668
+},
+"283": {
+"fat": 0,
+"carbs": 9,
+"protein": 1,
+"calories": 37
+},
+"284": {
+"fat": 100,
+"carbs": 196,
+"protein": 22,
+"calories": 1720
+},
+"285": {
+"fat": 5,
+"carbs": 33,
+"protein": 7,
+"calories": 205
+},
+"286": {
+"fat": 7,
+"carbs": 277,
+"protein": 92,
+"calories": 1484
+},
+"288": {
+"fat": 16,
+"carbs": 150,
+"protein": 14,
+"calories": 820
+},
+"289": {
+"fat": 72,
+"carbs": 48,
+"protein": 12,
+"calories": 852
+},
+"290": {
+"fat": 11,
+"carbs": 41,
+"protein": 5,
+"calories": 274
+},
+"291": {
+"fat": 37.99,
+"carbs": 78.8,
+"protein": 32.24,
+"calories": 804
+},
+"292": {
+"fat": 166.8,
+"carbs": 201.6,
+"protein": 28.6,
+"calories": 2472
+},
+"293": {
+"fat": 134.8,
+"carbs": 67.98,
+"protein": 32.9,
+"calories": 1667
+},
+"296": {
+"fat": 38.4,
+"carbs": 34.8,
+"protein": 34.8,
+"calories": 584
+},
+"298": {
+"fat": 20,
+"carbs": 2,
+"protein": 25,
+"calories": 300
+},
+"300": {
+"fat": 401.92,
+"carbs": 212,
+"protein": 291.2,
+"calories": 5692
+},
+"302": {
+"fat": 5.1,
+"carbs": 14.5,
+"protein": 4.5,
+"calories": 118
+},
+"305": {
+"fat": 88,
+"carbs": 60,
+"protein": 12,
+"calories": 1004
+},
+"306": {
+"fat": 55,
+"carbs": 153,
+"protein": 18,
+"calories": 1180
+},
+"307": {
+"fat": 162,
+"carbs": 396,
+"protein": 72,
+"calories": 3132
+},
+"309": {
+"fat": 17,
+"carbs": 30,
+"protein": 10,
+"calories": 305
+},
+"312": {
+"fat": 27,
+"carbs": 88,
+"protein": 18,
+"calories": 764
+},
+"316": {
+"fat": 11,
+"carbs": 30,
+"protein": 6,
+"calories": 241
+},
+"319": {
+"fat": 12,
+"carbs": 43,
+"protein": 8,
+"calories": 300
+},
+"320": {
+"fat": 11,
+"carbs": 5,
+"protein": 11,
+"calories": 165
+},
+"321": {
+"fat": 172.2,
+"carbs": 354,
+"protein": 70.5,
+"calories": 3157
+},
+"322": {
+"fat": 21.2,
+"carbs": 98.4,
+"protein": 35.6,
+"calories": 700
+},
+"323": {
+"fat": 82,
+"carbs": 34,
+"protein": 62,
+"calories": 1090
+},
+"324": {
+"fat": 5,
+"carbs": 23,
+"protein": 4,
+"calories": 152
+},
+"325": {
+"fat": 20,
+"carbs": 1,
+"protein": 17,
+"calories": 260
+},
+"328": {
+"fat": 15,
+"carbs": 70,
+"protein": 22,
+"calories": 480
+},
+"329": {
+"fat": 10,
+"carbs": 80,
+"protein": 16,
+"calories": 445
+},
+"330": {
+"fat": 144,
+"carbs": 96,
+"protein": 160,
+"calories": 2080
+},
+"333": {
+"fat": 8,
+"carbs": 102,
+"protein": 18,
+"calories": 552
+},
+"336": {
+"fat": 41.9,
+"carbs": 342.75,
+"protein": 101.7,
+"calories": 2179
+},
+"337": {
+"fat": 7.15,
+"carbs": 46.25,
+"protein": 15.1,
+"calories": 320
+},
+"338": {
+"fat": 75.36,
+"carbs": 7.2,
+"protein": 54.48,
+"calories": 925
+},
+"340": {
+"fat": 160,
+"carbs": 390,
+"protein": 50,
+"calories": 3070
+},
+"341": {
+"fat": 120,
+"carbs": 278,
+"protein": 99,
+"calories": 2520
+},
+"343": {
+"fat": 8,
+"carbs": 48,
+"protein": 13,
+"calories": 315
+},
+"346": {
+"fat": 141.53,
+"carbs": 70.53,
+"protein": 198.34,
+"calories": 2362
+},
+"350": {
+"fat": 40,
+"carbs": 170,
+"protein": 50,
+"calories": 1200
+},
+"351": {
+"fat": 18,
+"carbs": 89,
+"protein": 21,
+"calories": 575
+},
+"352": {
+"fat": 32.72,
+"carbs": 335.72,
+"protein": 71.32,
+"calories": 1976.52
+},
+"353": {
+"fat": 96,
+"carbs": 360,
+"protein": 108,
+"calories": 2712
+},
+"354": {
+"fat": 120,
+"carbs": 378,
+"protein": 90,
+"calories": 2808
+},
+"356": {
+"fat": 343,
+"carbs": 162,
+"protein": 232,
+"calories": 5010
+},
+"357": {
+"fat": 95,
+"carbs": 55,
+"protein": 145,
+"calories": 1650
+},
+"358": {
+"fat": 9.16,
+"carbs": 0.7,
+"protein": 16.68,
+"calories": 152
+},
+"361": {
+"fat": 28.48,
+"carbs": 80,
+"protein": 458.88,
+"calories": 2468
+},
+"362": {
+"fat": 146.4,
+"carbs": 130.2,
+"protein": 70.2,
+"calories": 1980
+},
+"365": {
+"fat": 30,
+"carbs": 102,
+"protein": 12,
+"calories": 702
+},
+"369": {
+"fat": 48.96,
+"carbs": 184.9,
+"protein": 60.18,
+"calories": 1435
+},
+"371": {
+"fat": 17.06,
+"carbs": 324.75,
+"protein": 62.28,
+"calories": 1733
+},
+"372": {
+"fat": 2.5,
+"carbs": 271.5,
+"protein": 35,
+"calories": 1302
+},
+"374": {
+"fat": 178.86,
+"carbs": 14.32,
+"protein": 40.3,
+"calories": 1830
+},
+"375": {
+"fat": 61.78,
+"carbs": 85.13,
+"protein": 75.56,
+"calories": 1219
+},
+"377": {
+"fat": 15.27,
+"carbs": 9.3,
+"protein": 101.48,
+"calories": 587
+},
+"383": {
+"fat": 29,
+"carbs": 138,
+"protein": 15,
+"calories": 830
+},
+"384": {
+"fat": 108.8,
+"carbs": 424,
+"protein": 132,
+"calories": 3096
+},
+"385": {
+"fat": 64.8,
+"carbs": 45.2,
+"protein": 8,
+"calories": 740
+},
+"386": {
+"fat": 5,
+"carbs": 40,
+"protein": 13,
+"calories": 267
+},
+"387": {
+"fat": 4,
+"carbs": 8,
+"protein": 3,
+"calories": 71
+},
+"388": {
+"fat": 14,
+"carbs": 67,
+"protein": 8,
+"calories": 414
+},
+"389": {
+"fat": 9,
+"carbs": 25,
+"protein": 10,
+"calories": 232
+},
+"390": {
+"fat": 15,
+"carbs": 6,
+"protein": 4,
+"calories": 170
+},
+"391": {
+"fat": 108.6,
+"carbs": 155.4,
+"protein": 52.8,
+"calories": 1758
+},
+"392": {
+"fat": 16,
+"carbs": 4,
+"protein": 8,
+"calories": 180
+},
+"393": {
+"fat": 114,
+"carbs": 239,
+"protein": 60,
+"calories": 2800
+},
+"394": {
+"fat": 25,
+"carbs": 8,
+"protein": 63,
+"calories": 542
+},
+"396": {
+"fat": 77,
+"carbs": 34,
+"protein": 32,
+"calories": 1190
+},
+"398": {
+"fat": 22.8,
+"carbs": 11.9,
+"protein": 3.3,
+"calories": 248
+},
+"399": {
+"fat": 51.2,
+"carbs": 28.8,
+"protein": 18.4,
+"calories": 600
+},
+"401": {
+"fat": 29,
+"carbs": 160,
+"protein": 16,
+"calories": 940
+},
+"402": {
+"fat": 115,
+"carbs": 280,
+"protein": 40,
+"calories": 2300
+},
+"404": {
+"fat": 104,
+"carbs": 116,
+"protein": 52,
+"calories": 1519
+},
+"406": {
+"fat": 129.06,
+"carbs": 595.41,
+"protein": 99.5,
+"calories": 3986
+},
+"407": {
+"fat": 229,
+"carbs": 385,
+"protein": 90,
+"calories": 4000
+},
+"408": {
+"fat": 112,
+"carbs": 296,
+"protein": 72,
+"calories": 2488
+},
+"409": {
+"fat": 181.24,
+"carbs": 497.44,
+"protein": 95.27,
+"calories": 4035
+},
+"410": {
+"fat": 132,
+"carbs": 468,
+"protein": 60,
+"calories": 3336
+},
+"411": {
+"fat": 91,
+"carbs": 396,
+"protein": 54,
+"calories": 2496
+},
+"413": {
+"fat": 56,
+"carbs": 20,
+"protein": 50,
+"calories": 805
+},
+"414": {
+"fat": 75,
+"carbs": 46,
+"protein": 65,
+"calories": 1110
+},
+"419": {
+"fat": 93.6,
+"carbs": 143.4,
+"protein": 36.6,
+"calories": 1554
+},
+"422": {
+"fat": 3,
+"carbs": 27,
+"protein": 5,
+"calories": 150
+},
+"424": {
+"fat": 24,
+"carbs": 80,
+"protein": 14,
+"calories": 534
+},
+"425": {
+"fat": 16.2,
+"carbs": 37.6,
+"protein": 10,
+"calories": 304
+},
+"427": {
+"fat": 204,
+"carbs": 300,
+"protein": 72,
+"calories": 3168
+},
+"428": {
+"fat": 50.87,
+"carbs": 436.25,
+"protein": 83.36,
+"calories": 2566
+},
+"429": {
+"fat": 31.18,
+"carbs": 167.8,
+"protein": 59.24,
+"calories": 1201
+},
+"432": {
+"fat": 4,
+"carbs": 51,
+"protein": 7,
+"calories": 254
+},
+"433": {
+"fat": 60.36,
+"carbs": 5.7,
+"protein": 53.28,
+"calories": 779
+},
+"434": {
+"fat": 56,
+"carbs": 160,
+"protein": 36,
+"calories": 1224
+},
+"436": {
+"fat": 32,
+"carbs": 143.2,
+"protein": 27.2,
+"calories": 936
+},
+"437": {
+"fat": 120,
+"carbs": 246,
+"protein": 48,
+"calories": 2298
+},
+"438": {
+"fat": 108,
+"carbs": 30.4,
+"protein": 488.4,
+"calories": 3048
+},
+"445": {
+"fat": 44,
+"carbs": 76,
+"protein": 12,
+"calories": 684
+},
+"446": {
+"fat": 11,
+"carbs": 11,
+"protein": 4,
+"calories": 146
+},
+"448": {
+"fat": 43,
+"carbs": 319,
+"protein": 60,
+"calories": 1805
+},
+"449": {
+"fat": 39.57,
+"carbs": 251.62,
+"protein": 127.14,
+"calories": 1887
+},
+"450": {
+"fat": 198.76,
+"carbs": 77.2,
+"protein": 246.53,
+"calories": 3142
+},
+"454": {
+"fat": 34.08,
+"carbs": 51.35,
+"protein": 121.59,
+"calories": 1031
+},
+"462": {
+"fat": 65,
+"carbs": 160,
+"protein": 50,
+"calories": 1400
+},
+"463": {
+"fat": 8,
+"carbs": 18,
+"protein": 4,
+"calories": 145
+},
+"464": {
+"fat": 80,
+"carbs": 316,
+"protein": 52,
+"calories": 2048
+},
+"465": {
+"fat": 49.19,
+"carbs": 161.85,
+"protein": 93.72,
+"calories": 1560
+},
+"466": {
+"fat": 155.77,
+"carbs": 69.41,
+"protein": 31.79,
+"calories": 1810
+},
+"467": {
+"fat": 13.08,
+"carbs": 273.2,
+"protein": 40.68,
+"calories": 1428
+},
+"469": {
+"fat": 18.81,
+"carbs": 441.6,
+"protein": 77.88,
+"calories": 2290
+},
+"471": {
+"fat": 75,
+"carbs": 110,
+"protein": 68,
+"calories": 1440
+},
+"472": {
+"fat": 63.52,
+"carbs": 140.2,
+"protein": 64,
+"calories": 1416
+},
+"474": {
+"fat": 31.86,
+"carbs": 188.46,
+"protein": 79.63,
+"calories": 1484
+},
+"475": {
+"fat": 65.26,
+"carbs": 28.77,
+"protein": 24.39,
+"calories": 804
+},
+"476": {
+"fat": 17,
+"carbs": 35,
+"protein": 8,
+"calories": 300
+},
+"478": {
+"fat": 6,
+"carbs": 30,
+"protein": 6,
+"calories": 180
+},
+"479": {
+"fat": 14,
+"carbs": 62,
+"protein": 8,
+"calories": 390
+},
+"480": {
+"fat": 51,
+"carbs": 82,
+"protein": 19,
+"calories": 830
+},
+"481": {
+"fat": 93.6,
+"carbs": 72,
+"protein": 37.8,
+"calories": 1188
+},
+"483": {
+"fat": 10,
+"carbs": 8,
+"protein": 3,
+"calories": 128
+},
+"484": {
+"fat": 4,
+"carbs": 5,
+"protein": 4,
+"calories": 80
+},
+"486": {
+"fat": 15.8,
+"carbs": 21.4,
+"protein": 6.1,
+"calories": 237
+},
+"488": {
+"fat": 45.56,
+"carbs": 36.6,
+"protein": 56.08,
+"calories": 790
+},
+"491": {
+"fat": 82,
+"carbs": 26.8,
+"protein": 29.2,
+"calories": 928
+},
+"492": {
+"fat": 42,
+"carbs": 36,
+"protein": 30,
+"calories": 600
+},
+"493": {
+"fat": 19,
+"carbs": 16,
+"protein": 25,
+"calories": 320
+},
+"494": {
+"fat": 291.6,
+"carbs": 637.2,
+"protein": 118.8,
+"calories": 5481
+},
+"497": {
+"fat": 7,
+"carbs": 28,
+"protein": 13,
+"calories": 224
+},
+"498": {
+"fat": 8,
+"carbs": 18,
+"protein": 3,
+"calories": 150
+},
+"500": {
+"fat": 1,
+"carbs": 28,
+"protein": 5,
+"calories": 120
+},
+"501": {
+"fat": 49,
+"carbs": 15,
+"protein": 7,
+"calories": 514
+},
+"502": {
+"fat": 8,
+"carbs": 13,
+"protein": 3,
+"calories": 130
+},
+"504": {
+"fat": 5.6,
+"carbs": 8.6,
+"protein": 3,
+"calories": 86.6
+},
+"507": {
+"fat": 109.88,
+"carbs": 439.8,
+"protein": 74.4,
+"calories": 3080
+},
+"508": {
+"fat": 163.96,
+"carbs": 388.09,
+"protein": 69.15,
+"calories": 3338
+},
+"510": {
+"fat": 63.98,
+"carbs": 806.3,
+"protein": 115.5,
+"calories": 4354
+},
+"513": {
+"fat": 160,
+"carbs": 416,
+"protein": 96,
+"calories": 3376
+},
+"514": {
+"fat": 29,
+"carbs": 71,
+"protein": 18,
+"calories": 613
+},
+"515": {
+"fat": 168,
+"carbs": 20,
+"protein": 184,
+"calories": 2312
+},
+"516": {
+"fat": 120,
+"carbs": 80,
+"protein": 144,
+"calories": 1940
+},
+"518": {
+"fat": 180,
+"carbs": 84,
+"protein": 162,
+"calories": 2568
+},
+"519": {
+"fat": 224.8,
+"carbs": 64.8,
+"protein": 160.8,
+"calories": 2503.2
+},
+"520": {
+"fat": 57,
+"carbs": 156,
+"protein": 20.4,
+"calories": 1166.4
+},
+"521": {
+"fat": 130,
+"carbs": 325,
+"protein": 245,
+"calories": 3440
+},
+"522": {
+"fat": 72,
+"carbs": 12,
+"protein": 136,
+"calories": 1256
+},
+"523": {
+"fat": 160,
+"carbs": 4,
+"protein": 184,
+"calories": 2168
+},
+"524": {
+"fat": 80,
+"carbs": 24,
+"protein": 128,
+"calories": 1356
+},
+"525": {
+"fat": 196,
+"carbs": 136,
+"protein": 168,
+"calories": 2948
+},
+"526": {
+"fat": 108,
+"carbs": 4,
+"protein": 140,
+"calories": 1640
+},
+"527": {
+"fat": 9,
+"carbs": 1,
+"protein": 35,
+"calories": 231
+},
+"528": {
+"fat": 114,
+"carbs": 48,
+"protein": 168,
+"calories": 1860
+},
+"529": {
+"fat": 64,
+"carbs": 28,
+"protein": 192,
+"calories": 1508
+},
+"531": {
+"fat": 108,
+"carbs": 72,
+"protein": 200,
+"calories": 2100
+},
+"533": {
+"fat": 52,
+"carbs": 32,
+"protein": 112,
+"calories": 1064
+},
+"534": {
+"fat": 44,
+"carbs": 8,
+"protein": 152,
+"calories": 1328
+},
+"535": {
+"fat": 272,
+"carbs": 24,
+"protein": 304,
+"calories": 3848
+},
+"536": {
+"fat": 102,
+"carbs": 6,
+"protein": 138,
+"calories": 1524
+},
+"537": {
+"fat": 138,
+"carbs": 18,
+"protein": 228,
+"calories": 2208
+},
+"539": {
+"fat": 80.8,
+"carbs": 4.8,
+"protein": 100.8,
+"calories": 1160
+},
+"541": {
+"fat": 97.2,
+"carbs": 12,
+"protein": 139.2,
+"calories": 1518
+},
+"542": {
+"fat": 124.8,
+"carbs": 13.6,
+"protein": 203.2,
+"calories": 2020
+},
+"543": {
+"fat": 122,
+"carbs": 26,
+"protein": 153.6,
+"calories": 1832
+},
+"544": {
+"fat": 156,
+"carbs": 88,
+"protein": 124,
+"calories": 2160
+},
+"545": {
+"fat": 64.8,
+"carbs": 10,
+"protein": 63.2,
+"calories": 876
+},
+"546": {
+"fat": 116.4,
+"carbs": 49.2,
+"protein": 118.8,
+"calories": 1698
+},
+"548": {
+"fat": 102.6,
+"carbs": 97.8,
+"protein": 141.6,
+"calories": 1824
+},
+"549": {
+"fat": 102.6,
+"carbs": 86.4,
+"protein": 69.6,
+"calories": 1530
+},
+"550": {
+"fat": 107.6,
+"carbs": 16,
+"protein": 199.2,
+"calories": 1532
+},
+"551": {
+"fat": 80,
+"carbs": 64,
+"protein": 208,
+"calories": 1920
+},
+"552": {
+"fat": 66,
+"carbs": 90,
+"protein": 114,
+"calories": 1344
+},
+"553": {
+"fat": 104,
+"carbs": 68,
+"protein": 112,
+"calories": 1576
+},
+"554": {
+"fat": 208,
+"carbs": 36,
+"protein": 192,
+"calories": 2768
+},
+"556": {
+"fat": 210,
+"carbs": 60,
+"protein": 156,
+"calories": 2724
+},
+"557": {
+"fat": 312,
+"carbs": 84,
+"protein": 300,
+"calories": 4344
+},
+"558": {
+"fat": 22.5,
+"carbs": 9,
+"protein": 63,
+"calories": 495
+},
+"559": {
+"fat": 8,
+"carbs": 7,
+"protein": 25,
+"calories": 197
+},
+"560": {
+"fat": 46,
+"carbs": 20.8,
+"protein": 176,
+"calories": 1228
+},
+"561": {
+"fat": 17.5,
+"carbs": 13,
+"protein": 28.5,
+"calories": 313
+},
+"563": {
+"fat": 88,
+"carbs": 14,
+"protein": 57,
+"calories": 1170
+},
+"564": {
+"fat": 157,
+"carbs": 3,
+"protein": 195,
+"calories": 2250
+},
+"565": {
+"fat": 49,
+"carbs": 19,
+"protein": 75,
+"calories": 800
+},
+"566": {
+"fat": 40,
+"carbs": 50,
+"protein": 251,
+"calories": 1372
+},
+"567": {
+"fat": 116.18,
+"carbs": 46.3,
+"protein": 14.59,
+"calories": 1304
+},
+"568": {
+"fat": 30,
+"carbs": 13,
+"protein": 45,
+"calories": 502
+},
+"569": {
+"fat": 10.5,
+"carbs": 0,
+"protein": 244.65,
+"calories": 1073
+},
+"570": {
+"fat": 90,
+"carbs": 10,
+"protein": 200,
+"calories": 1700
+},
+"571": {
+"fat": 30,
+"carbs": 190,
+"protein": 145,
+"calories": 1550
+},
+"572": {
+"fat": 219.88,
+"carbs": 37.7,
+"protein": 179.36,
+"calories": 2858
+},
+"573": {
+"fat": 105.1,
+"carbs": 26.55,
+"protein": 142.61,
+"calories": 1651
+},
+"574": {
+"fat": 29.37,
+"carbs": 6.76,
+"protein": 100.64,
+"calories": 698
+},
+"576": {
+"fat": 15.36,
+"carbs": 0,
+"protein": 100.8,
+"calories": 542
+},
+"577": {
+"fat": 214,
+"carbs": 31,
+"protein": 205,
+"calories": 2875
+},
+"578": {
+"fat": 33,
+"carbs": 38,
+"protein": 126,
+"calories": 1005
+},
+"579": {
+"fat": 109,
+"carbs": 23,
+"protein": 240,
+"calories": 2180
+},
+"580": {
+"fat": 165.8,
+"carbs": 12.35,
+"protein": 173.27,
+"calories": 2238
+},
+"581": {
+"fat": 75.25,
+"carbs": 10.15,
+"protein": 81.74,
+"calories": 1049
+},
+"582": {
+"fat": 100,
+"carbs": 27,
+"protein": 160,
+"calories": 1029
+},
+"583": {
+"fat": 115,
+"carbs": 5,
+"protein": 95,
+"calories": 1450
+},
+"584": {
+"fat": 19,
+"carbs": 0,
+"protein": 60,
+"calories": 440
+},
+"585": {
+"fat": 15.78,
+"carbs": 17.78,
+"protein": 148.36,
+"calories": 816
+},
+"587": {
+"fat": 116,
+"carbs": 100,
+"protein": 36,
+"calories": 1600
+},
+"589": {
+"fat": 48,
+"carbs": 198,
+"protein": 90,
+"calories": 1626
+},
+"591": {
+"fat": 32,
+"carbs": 73,
+"protein": 28,
+"calories": 685
+},
+"592": {
+"fat": 45,
+"carbs": 7,
+"protein": 30,
+"calories": 546
+},
+"594": {
+"fat": 44,
+"carbs": 14,
+"protein": 34,
+"calories": 572
+},
+"595": {
+"fat": 132,
+"carbs": 48,
+"protein": 144,
+"calories": 1962
+},
+"596": {
+"fat": 305.6,
+"carbs": 33.6,
+"protein": 205.6,
+"calories": 3704
+},
+"597": {
+"fat": 28.4,
+"carbs": 1.4,
+"protein": 37.5,
+"calories": 419
+},
+"598": {
+"fat": 7,
+"carbs": 9.5,
+"protein": 21.5,
+"calories": 186
+},
+"599": {
+"fat": 8,
+"carbs": 19,
+"protein": 25,
+"calories": 221
+},
+"600": {
+"fat": 69,
+"carbs": 156,
+"protein": 132,
+"calories": 1734
+},
+"601": {
+"fat": 21,
+"carbs": 3,
+"protein": 35,
+"calories": 346
+},
+"602": {
+"fat": 17,
+"carbs": 23,
+"protein": 28,
+"calories": 315
+},
+"603": {
+"fat": 49,
+"carbs": 31,
+"protein": 44,
+"calories": 743
+},
+"605": {
+"fat": 90.92,
+"carbs": 186.8,
+"protein": 101.32,
+"calories": 1986.52
+},
+"606": {
+"fat": 128,
+"carbs": 288,
+"protein": 168,
+"calories": 2984
+},
+"607": {
+"fat": 22,
+"carbs": 2,
+"protein": 22,
+"calories": 290
+},
+"612": {
+"fat": 98,
+"carbs": 136,
+"protein": 146,
+"calories": 2000
+},
+"613": {
+"fat": 200,
+"carbs": 130,
+"protein": 160,
+"calories": 2950
+},
+"614": {
+"fat": 71,
+"carbs": 174,
+"protein": 20,
+"calories": 1400
+},
+"615": {
+"fat": 189,
+"carbs": 121,
+"protein": 182,
+"calories": 2900
+},
+"616": {
+"fat": 110,
+"carbs": 12,
+"protein": 39,
+"calories": 1180
+},
+"617": {
+"fat": 48,
+"carbs": 189,
+"protein": 115,
+"calories": 1640
+},
+"618": {
+"fat": 151,
+"carbs": 177,
+"protein": 148,
+"calories": 2697
+},
+"620": {
+"fat": 90,
+"carbs": 180,
+"protein": 45,
+"calories": 1780
+},
+"621": {
+"fat": 70,
+"carbs": 46,
+"protein": 132,
+"calories": 1400
+},
+"622": {
+"fat": 53,
+"carbs": 280,
+"protein": 35,
+"calories": 1745
+},
+"623": {
+"fat": 150,
+"carbs": 43,
+"protein": 151,
+"calories": 2160
+},
+"624": {
+"fat": 60,
+"carbs": 39,
+"protein": 134,
+"calories": 1350
+},
+"625": {
+"fat": 55,
+"carbs": 60,
+"protein": 22,
+"calories": 850
+},
+"626": {
+"fat": 52,
+"carbs": 58,
+"protein": 9,
+"calories": 771
+},
+"627": {
+"fat": 26,
+"carbs": 104,
+"protein": 23,
+"calories": 735
+},
+"628": {
+"fat": 178,
+"carbs": 115,
+"protein": 155,
+"calories": 2620
+},
+"629": {
+"fat": 206,
+"carbs": 164,
+"protein": 22,
+"calories": 2640
+},
+"630": {
+"fat": 121,
+"carbs": 306,
+"protein": 134,
+"calories": 2815
+},
+"631": {
+"fat": 112,
+"carbs": 140,
+"protein": 185,
+"calories": 2350
+},
+"632": {
+"fat": 203,
+"carbs": 236,
+"protein": 185,
+"calories": 3520
+},
+"634": {
+"fat": 121,
+"carbs": 52,
+"protein": 79,
+"calories": 1690
+},
+"635": {
+"fat": 63,
+"carbs": 200,
+"protein": 90,
+"calories": 1750
+},
+"636": {
+"fat": 135,
+"carbs": 144,
+"protein": 56,
+"calories": 2048
+},
+"637": {
+"fat": 158,
+"carbs": 453,
+"protein": 127,
+"calories": 3785
+},
+"638": {
+"fat": 26,
+"carbs": 180,
+"protein": 35,
+"calories": 1080
+},
+"639": {
+"fat": 37,
+"carbs": 109,
+"protein": 59,
+"calories": 1046
+},
+"640": {
+"fat": 60,
+"carbs": 158,
+"protein": 124,
+"calories": 1665
+},
+"641": {
+"fat": 54,
+"carbs": 322,
+"protein": 127,
+"calories": 2349
+},
+"642": {
+"fat": 17,
+"carbs": 110,
+"protein": 18,
+"calories": 630
+},
+"643": {
+"fat": 145,
+"carbs": 50,
+"protein": 180,
+"calories": 2200
+},
+"644": {
+"fat": 25,
+"carbs": 165,
+"protein": 63,
+"calories": 1130
+},
+"645": {
+"fat": 31,
+"carbs": 80,
+"protein": 50,
+"calories": 824
+},
+"647": {
+"fat": 24,
+"carbs": 150,
+"protein": 52,
+"calories": 1040
+},
+"648": {
+"fat": 135,
+"carbs": 15,
+"protein": 140,
+"calories": 1850
+},
+"649": {
+"fat": 7,
+"carbs": 84,
+"protein": 85,
+"calories": 779
+},
+"650": {
+"fat": 133,
+"carbs": 142,
+"protein": 212,
+"calories": 2643
+},
+"651": {
+"fat": 57,
+"carbs": 44,
+"protein": 75,
+"calories": 1005
+},
+"652": {
+"fat": 53,
+"carbs": 84,
+"protein": 131,
+"calories": 1380
+},
+"653": {
+"fat": 52,
+"carbs": 281,
+"protein": 123,
+"calories": 2203
+},
+"654": {
+"fat": 118,
+"carbs": 34,
+"protein": 179,
+"calories": 1933
+},
+"655": {
+"fat": 102,
+"carbs": 80,
+"protein": 98,
+"calories": 1645
+},
+"656": {
+"fat": 50,
+"carbs": 174,
+"protein": 66,
+"calories": 1417
+},
+"657": {
+"fat": 285,
+"carbs": 34,
+"protein": 76,
+"calories": 3008
+},
+"658": {
+"fat": 81,
+"carbs": 230,
+"protein": 27,
+"calories": 1770
+},
+"659": {
+"fat": 55,
+"carbs": 57,
+"protein": 23,
+"calories": 852
+},
+"660": {
+"fat": 44,
+"carbs": 25,
+"protein": 10,
+"calories": 525
+},
+"661": {
+"fat": 106,
+"carbs": 72,
+"protein": 43,
+"calories": 1411
+},
+"662": {
+"fat": 31,
+"carbs": 133,
+"protein": 15,
+"calories": 850
+},
+"663": {
+"fat": 11,
+"carbs": 52,
+"protein": 14,
+"calories": 379
+},
+"664": {
+"fat": 141,
+"carbs": 19,
+"protein": 77,
+"calories": 1640
+},
+"665": {
+"fat": 76,
+"carbs": 31,
+"protein": 6,
+"calories": 810
+},
+"666": {
+"fat": 91,
+"carbs": 72,
+"protein": 38,
+"calories": 1265
+},
+"667": {
+"fat": 40,
+"carbs": 105,
+"protein": 29,
+"calories": 900
+},
+"668": {
+"fat": 70,
+"carbs": 220,
+"protein": 60,
+"calories": 1750
+},
+"669": {
+"fat": 75,
+"carbs": 345,
+"protein": 147,
+"calories": 2600
+},
+"670": {
+"fat": 26,
+"carbs": 44,
+"protein": 20,
+"calories": 533
+},
+"671": {
+"fat": 155,
+"carbs": 411,
+"protein": 197,
+"calories": 3854
+},
+"672": {
+"fat": 130,
+"carbs": 413,
+"protein": 70,
+"calories": 3070
+},
+"673": {
+"fat": 195,
+"carbs": 285,
+"protein": 179,
+"calories": 3540
+},
+"674": {
+"fat": 76,
+"carbs": 65,
+"protein": 93,
+"calories": 1325
+},
+"675": {
+"fat": 14,
+"carbs": 1,
+"protein": 9,
+"calories": 165
+},
+"676": {
+"fat": 83,
+"carbs": 14,
+"protein": 36,
+"calories": 946
+},
+"677": {
+"fat": 215,
+"carbs": 65,
+"protein": 240,
+"calories": 3185
+},
+"678": {
+"fat": 30,
+"carbs": 8,
+"protein": 12,
+"calories": 350
+},
+"680": {
+"fat": 82,
+"carbs": 7,
+"protein": 67,
+"calories": 1025
+},
+"681": {
+"fat": 79,
+"carbs": 48,
+"protein": 129,
+"calories": 1431
+},
+"682": {
+"fat": 51,
+"carbs": 20,
+"protein": 8,
+"calories": 594
+},
+"689": {
+"fat": 70,
+"carbs": 35,
+"protein": 105,
+"calories": 1250
+},
+"690": {
+"fat": 190,
+"carbs": 12,
+"protein": 38,
+"calories": 1914
+},
+"692": {
+"fat": 82,
+"carbs": 155,
+"protein": 23,
+"calories": 1365
+},
+"695": {
+"fat": 17,
+"carbs": 12,
+"protein": 31,
+"calories": 345
+},
+"696": {
+"fat": 125,
+"carbs": 110,
+"protein": 80,
+"calories": 1910
+},
+"699": {
+"fat": 64,
+"carbs": 250,
+"protein": 103,
+"calories": 1980
+},
+"702": {
+"fat": 81,
+"carbs": 50,
+"protein": 78,
+"calories": 1240
+},
+"705": {
+"fat": 80,
+"carbs": 56,
+"protein": 53,
+"calories": 1165
+},
+"706": {
+"fat": 43,
+"carbs": 86,
+"protein": 22,
+"calories": 800
+},
+"709": {
+"fat": 58,
+"carbs": 35,
+"protein": 215,
+"calories": 1520
+},
+"712": {
+"fat": 170,
+"carbs": 295,
+"protein": 200,
+"calories": 3100
+},
+"714": {
+"fat": 56,
+"carbs": 29,
+"protein": 20,
+"calories": 707
+},
+"718": {
+"fat": 145,
+"carbs": 20,
+"protein": 72,
+"calories": 1681
+},
+"720": {
+"fat": 190,
+"carbs": 65,
+"protein": 200,
+"calories": 2823
+},
+"721": {
+"fat": 20,
+"carbs": 19,
+"protein": 29,
+"calories": 378
+},
+"724": {
+"fat": 127,
+"carbs": 18,
+"protein": 70,
+"calories": 1475
+},
+"726": {
+"fat": 28,
+"carbs": 185,
+"protein": 105,
+"calories": 1450
+},
+"729": {
+"fat": 98,
+"carbs": 9,
+"protein": 30,
+"calories": 1020
+},
+"734": {
+"fat": 171,
+"carbs": 21,
+"protein": 25,
+"calories": 1734
+},
+"735": {
+"fat": 95,
+"carbs": 25,
+"protein": 108,
+"calories": 1400
+},
+"736": {
+"fat": 58,
+"carbs": 121,
+"protein": 45,
+"calories": 1212
+},
+"737": {
+"fat": 35,
+"carbs": 390,
+"protein": 126,
+"calories": 2414
+},
+"738": {
+"fat": 146,
+"carbs": 36,
+"protein": 285,
+"calories": 2616
+},
+"739": {
+"fat": 220,
+"carbs": 160,
+"protein": 145,
+"calories": 3200
+}
+}
