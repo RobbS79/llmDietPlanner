@@ -99,3 +99,41 @@ class WantedCategoryFoldTests(TestCase):
         )
         self.assertEqual(WantedIngredientMatcher.build(['orechy']).hits(recipe), 1)
         self.assertEqual(WantedIngredientMatcher.build(['ořechy']).hits(recipe), 1)
+
+
+class CookedSiblingTests(TestCase):
+    """Tier 3 strips vařen*/uvařen* but must not lose the cooked identity."""
+
+    def setUp(self):
+        from diet_planner.tests.factories import make_canonical
+        self.c = {
+            'rice-basmati': make_canonical('rýže', slug='rice-basmati'),
+            'rice-cooked': make_canonical('rýže uvařená natural', slug='rice-cooked'),
+            'pasta': make_canonical('těstoviny', slug='pasta'),
+            'pasta-cooked': make_canonical('těstoviny uvařené natural', slug='pasta-cooked'),
+            'chickpeas': make_canonical('cizrna', slug='chickpeas'),
+            'chickpeas-canned': make_canonical('cizrna natural konzervovaná', slug='chickpeas-canned'),
+        }
+        clear_cache()
+
+    def slug(self, name):
+        ci = resolve_canonical(name)
+        return ci.slug if ci else None
+
+    def test_cooked_descriptor_prefers_cooked_sibling(self):
+        self.assertEqual(self.slug('rýže vařená a vychlazená'), 'rice-cooked')
+        self.assertEqual(self.slug('těstoviny uvařené al dente'), 'pasta-cooked')
+
+    def test_plain_names_keep_base(self):
+        self.assertEqual(self.slug('rýže'), 'rice-basmati')
+
+    def test_dried_chickpeas_have_no_cooked_descriptor(self):
+        self.assertEqual(self.slug('sušená cizrna, předem namočená'), 'chickpeas')
+
+    def test_cooked_chickpeas_map_to_canned(self):
+        self.assertEqual(self.slug('vařená cizrna (konzerva)'), 'chickpeas-canned')
+
+    def test_missing_sibling_falls_back_to_base(self):
+        self.c['rice-cooked'].delete()
+        clear_cache()
+        self.assertEqual(self.slug('rýže vařená a vychlazená'), 'rice-basmati')

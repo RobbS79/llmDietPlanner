@@ -178,6 +178,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: brown-rice-cooked
+  availability: common
+  confidence: high
+  note: cooked state of a dry staple
 - slug: brown-sugar
   availability: common
   confidence: high
@@ -812,6 +816,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: pasta-cooked
+  availability: common
+  confidence: high
+  note: cooked state of a dry staple
 - slug: pasta-penne
   availability: common
   confidence: high
@@ -949,6 +957,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: quinoa-cooked
+  availability: common
+  confidence: high
+  note: cooked state of a dry staple
 - slug: rabbit
   availability: findable
   confidence: low
@@ -991,6 +1003,10 @@
   availability: common
   confidence: high
   note: ''
+- slug: rice-cooked
+  availability: common
+  confidence: high
+  note: cooked state of a dry staple
 - slug: rice-jasmine
   availability: common
   confidence: high

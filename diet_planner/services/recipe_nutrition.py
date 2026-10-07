@@ -1,6 +1,18 @@
-"""Recipe nutrition from ingredient lines and the per-100 g table. Pure."""
+"""Recipe nutrition from ingredient lines and the per-100 g table. Pure.
+
+Frying oil rule: a recipe that deep-fries lists the whole pan of oil
+("200 ml oleje na smažení"), but most of it stays in the pan. A line is
+"frying fat" when its canonical is in FRYING_FATS and its name matches
+FRYING_MARKERS. When such a line weighs DEEP_FRY_MIN_G or more, only
+FRYING_OIL_ABSORPTION of its grams counts toward nutrition. 25 % is a typical
+deep-frying absorption share and is tunable. Below the threshold (shallow
+frying, "2 lžíce oleje na smažení") the oil counts in full. Lines where the
+factor applied are counted in `absorbed_lines`, and `computed_base_nutrition`
+records `frying_oil_factor` so the stored data says so.
+"""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
@@ -9,6 +21,14 @@ from diet_planner.services.line_mass import line_grams
 
 if TYPE_CHECKING:
     from diet_planner.services.nutrition_lookups import NutrientRow
+
+FRYING_FATS = {'sunflower-oil', 'rapeseed-oil', 'olive-oil', 'avocado-oil', 'coconut-oil',
+               'sesame-oil', 'lard', 'butter', 'ghee', 'margarine'}
+FRYING_MARKERS = (r'na smažení|na fritování|k smažení|na osmažení|na opečení|'
+                  r'na pánev|na fritézu')
+_FRYING_RE = re.compile(FRYING_MARKERS, re.IGNORECASE)
+DEEP_FRY_MIN_G = 60
+FRYING_OIL_ABSORPTION = 0.25
 
 
 @dataclass
@@ -21,6 +41,7 @@ class RecipeNutrition:
     lines_converted: int = 0
     unconverted: List[Dict[str, Any]] = field(default_factory=list)
     complete: bool = True
+    absorbed_lines: int = 0
 
     @property
     def coverage(self) -> float:
@@ -56,7 +77,12 @@ def compute_recipe_nutrition(ingredients: Optional[List[Any]],
         elif lm.grams is None:
             reason = lm.reason or 'unknown_unit'
         else:
-            factor = lm.grams / 100.0
+            grams = lm.grams
+            if (slug in FRYING_FATS and grams >= DEEP_FRY_MIN_G
+                    and _FRYING_RE.search(str(line.get('name') or ''))):
+                grams *= FRYING_OIL_ABSORPTION
+                out.absorbed_lines += 1
+            factor = grams / 100.0
             out.calories += row.kcal * factor
             out.protein += row.protein * factor
             out.carbs += row.carbs * factor
@@ -73,7 +99,7 @@ def compute_recipe_nutrition(ingredients: Optional[List[Any]],
 
 def computed_base_nutrition(n: RecipeNutrition) -> Dict[str, Any]:
     """The `base_nutrition` dict written to CuratedRecipe (whole recipe for base_servings)."""
-    return {
+    base = {
         'calories': int(round(n.calories)),
         'protein': round(n.protein, 1),
         'carbs': round(n.carbs, 1),
@@ -81,3 +107,6 @@ def computed_base_nutrition(n: RecipeNutrition) -> Dict[str, Any]:
         'source': 'computed',
         'computed_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
     }
+    if n.absorbed_lines > 0:
+        base['frying_oil_factor'] = FRYING_OIL_ABSORPTION
+    return base
