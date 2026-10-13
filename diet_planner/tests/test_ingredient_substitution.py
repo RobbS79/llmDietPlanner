@@ -6,6 +6,8 @@ from django.test import TestCase
 
 from diet_planner.models import CanonicalIngredient, CuratedRecipe, IngredientAlias
 from diet_planner.models.catalog import IngredientSubstitute
+from diet_planner.services.ingredient_substitution import (
+    IngredientChange, diff_applied_changes, disclosed_swaps)
 
 
 class SubstitutePurposeFieldTests(TestCase):
@@ -556,3 +558,106 @@ class OptionalIngredientSwapTests(TestCase):
             plan.summary(),
             'vanilkový extrakt → vanilkové aroma, '
             'javorový sirup na podávání → med')
+
+
+class DiffAppliedChangesTests(TestCase):
+    """Reconstructing the swaps a row already carries, from its own snapshot."""
+
+    def test_reports_a_renamed_entry_with_its_index(self):
+        original = [
+            {'name': 'sůl', 'canonical': 'salt', 'quantity': 5, 'unit': 'g'},
+            {'name': 'javorový sirup', 'canonical': 'maple-syrup',
+             'quantity': 2, 'unit': 'lžíce'},
+        ]
+        current = [
+            {'name': 'sůl', 'canonical': 'salt', 'quantity': 5, 'unit': 'g'},
+            {'name': 'med', 'canonical': 'honey', 'quantity': 2, 'unit': 'lžíce'},
+        ]
+        changes = diff_applied_changes(original, current)
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].index, 1)
+        self.assertEqual(changes[0].old_name, 'javorový sirup')
+        self.assertEqual(changes[0].old_slug, 'maple-syrup')
+        self.assertEqual(changes[0].new_name, 'med')
+        self.assertEqual(changes[0].new_canonical, 'honey')
+        self.assertEqual(changes[0].new_quantity, 2)
+        self.assertEqual(changes[0].new_unit, 'lžíce')
+
+    def test_ignores_entries_whose_name_did_not_change(self):
+        original = [{'name': 'sůl', 'canonical': 'salt'}]
+        current = [{'name': 'sůl', 'canonical': 'salt'}]
+        self.assertEqual(diff_applied_changes(original, current), [])
+
+    def test_length_mismatch_yields_nothing_rather_than_guessing(self):
+        # Misaligned lists cannot be diffed positionally; refusing beats
+        # inventing a swap between two unrelated ingredients.
+        self.assertEqual(
+            diff_applied_changes(
+                [{'name': 'a'}, {'name': 'b'}], [{'name': 'a'}]),
+            [])
+
+    def test_missing_snapshot_yields_nothing(self):
+        self.assertEqual(diff_applied_changes(None, [{'name': 'med'}]), [])
+        self.assertEqual(diff_applied_changes([], [{'name': 'med'}]), [])
+
+    def test_skips_non_dict_entries(self):
+        # Generated (non-corpus) meals carry bare strings.
+        changes = diff_applied_changes(
+            ['javorový sirup', {'name': 'sůl', 'canonical': 'salt'}],
+            ['med', {'name': 'sůl', 'canonical': 'salt'}])
+        self.assertEqual(changes, [])
+
+    def test_blank_name_on_either_side_is_not_a_swap(self):
+        self.assertEqual(
+            diff_applied_changes([{'name': ''}], [{'name': 'med'}]), [])
+        self.assertEqual(
+            diff_applied_changes([{'name': 'med'}], [{'name': ''}]), [])
+
+
+class DisclosedSwapsTests(TestCase):
+    """Which (old -> new) pairs a row has already published."""
+
+    def test_reads_pairs_out_of_the_note(self):
+        note = ('Upraveno pro dostupnost v českých obchodech: '
+                'javorový sirup → med, avokádový olej → řepkový olej')
+        self.assertEqual(
+            disclosed_swaps(note, []),
+            {('javorový sirup', 'med'), ('avokádový olej', 'řepkový olej')})
+
+    def test_reads_pairs_out_of_the_applied_diff(self):
+        changes = [IngredientChange(
+            index=0, old_name='javorový sirup', old_slug='maple-syrup',
+            new_name='med', new_canonical='honey',
+            new_quantity=2, new_unit='lžíce')]
+        self.assertEqual(
+            disclosed_swaps('', changes), {('javorový sirup', 'med')})
+
+    def test_comparison_is_case_insensitive(self):
+        # The note preserves whatever case the rule carried: prod holds
+        # 'avokádový olej → Řepkový olej' with a capitalised replacement.
+        note = 'Upraveno pro dostupnost v českých obchodech: Javorový Sirup → Med'
+        self.assertIn(('javorový sirup', 'med'), disclosed_swaps(note, []))
+
+    def test_empty_note_and_no_changes_disclose_nothing(self):
+        self.assertEqual(disclosed_swaps('', []), set())
+
+    def test_note_without_the_prefix_is_still_parsed(self):
+        self.assertEqual(
+            disclosed_swaps('javorový sirup → med', []),
+            {('javorový sirup', 'med')})
+
+    def test_chunk_without_an_arrow_is_skipped(self):
+        self.assertEqual(disclosed_swaps('nějaká poznámka', []), set())
+
+    def test_unions_both_sources(self):
+        # The reason this function takes two arguments: a row can carry a swap
+        # in its note and another in its ingredients, and both are disclosed.
+        note = ('Upraveno pro dostupnost v českých obchodech: '
+                'javorový sirup → med')
+        changes = [IngredientChange(
+            index=0, old_name='tamari', old_slug='tamari',
+            new_name='sójová omáčka', new_canonical='soy-sauce',
+            new_quantity=1, new_unit='lžíce')]
+        self.assertEqual(
+            disclosed_swaps(note, changes),
+            {('javorový sirup', 'med'), ('tamari', 'sójová omáčka')})

@@ -1,4 +1,5 @@
-"""Deciding whether an unshoppable recipe can be rewritten into a shoppable one.
+"""Deciding whether an unshoppable recipe can be rewritten into a shoppable
+one, and reading back what a past rewrite already changed.
 
 Pure: no LLM, no writes. The command in
 `management/commands/apply_availability_substitutions.py` owns the side
@@ -9,7 +10,7 @@ See docs/superpowers/specs/2026-08-11-ingredient-obtainability-design.md §6
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 from diet_planner.models.catalog import Availability, IngredientSubstitute
 from diet_planner.services.ingredient_availability import (
@@ -51,6 +52,12 @@ class IngredientChange:
     new_unit: str
 
 
+#: The separators `SubstitutionPlan.summary()` writes into the note body.
+#: Shared with the reader below so the two cannot drift apart.
+_NOTE_ARROW = '→'
+_NOTE_JOIN = ', '
+
+
 @dataclass
 class SubstitutionPlan:
     saveable: bool = False
@@ -73,8 +80,8 @@ class SubstitutionPlan:
         Optional swaps are disclosed too — the note is what the reader is told
         we changed, and what a later audit reads back.
         """
-        return ', '.join(
-            f'{c.old_name} → {c.new_name}'
+        return _NOTE_JOIN.join(
+            f'{c.old_name} {_NOTE_ARROW} {c.new_name}'
             for c in list(self.changes) + list(self.optional_changes))
 
 
@@ -112,6 +119,8 @@ def plan_substitutions(
     recipe,
     table: Dict[str, SubstitutionRule],
     index: Optional[Dict[str, str]] = None,
+    *,
+    gate: bool = True,
 ) -> SubstitutionPlan:
     """What it would take to make `recipe` shoppable.
 
@@ -126,6 +135,14 @@ def plan_substitutions(
     Demanding full coverage of both tiers was the original rule and it recovered
     nothing: measured against the prod corpus on 2026-08-18, 0 of 252 eligible
     recipes cleared it, 149 of them missing by exactly one findable item.
+
+    `gate` (default True) clears `changes`/`optional_changes` whenever the plan
+    is not `saveable` — the rescue command relies on this: it must never touch
+    a credited recipe over an optional-only plan (`OptionalIngredientSwapTests
+    .test_optional_only_recipe_is_not_adapted` locks this in). Pass
+    `gate=False` to read the raw per-entry plan regardless of `saveable` — for
+    a caller like `backfill_adaptation_prose` that has its own, narrower
+    permission (a disclosed optional swap) and never applies `changes` at all.
     """
     if index is None:
         index = availability_index()
@@ -179,7 +196,7 @@ def plan_substitutions(
     # `changes` alone decides saveability: an optional-only plan would
     # rewrite a credited recipe for a garnish and rescue nothing.
     plan.saveable = bool(plan.changes) and not plan.blocking
-    if not plan.saveable:
+    if gate and not plan.saveable:
         plan.changes = []
         plan.optional_changes = []
     return plan
@@ -204,3 +221,80 @@ def apply_changes_to_ingredients(ingredients, plan: SubstitutionPlan) -> List[di
         # Points at a StoreProduct for the ingredient we just replaced.
         entry.pop('catalog_id', None)
     return out
+
+
+def diff_applied_changes(original, current) -> List[IngredientChange]:
+    """The swaps a row already carries: entries renamed since the snapshot.
+
+    Ground truth for what THIS row contains. Re-planning from
+    `original_ingredients` would instead report what the swap *would be today*,
+    and the table has drifted since these rows were adapted (the PR #72
+    oat-flour/tamari re-rating, the PR #75 tapioca swap) — so a re-plan can name
+    an ingredient the list does not hold. Prose has to describe the actual food.
+
+    `apply_changes_to_ingredients` edits entries positionally and preserves
+    length, so the two lists align by index. That alignment is the assumption
+    here; equal length is the cheap check for it. A mismatch means the
+    invariant was broken by something else, and diffing on would pair unrelated
+    ingredients into a fictional swap: return nothing and let the caller report
+    the row instead.
+
+    Values are taken verbatim from the stored row and are not normalised the
+    way `plan_substitutions` normalises them: `new_quantity` keeps whatever
+    JSON type it had, and `old_slug` is the stored canonical, which may be
+    blank.
+    """
+    changes: List[IngredientChange] = []
+    original = original or []
+    current = current or []
+    if not original or len(original) != len(current):
+        return changes
+
+    for position, (old, new) in enumerate(zip(original, current)):
+        if not isinstance(old, dict) or not isinstance(new, dict):
+            continue
+        old_name = (old.get('name') or '').strip()
+        new_name = (new.get('name') or '').strip()
+        if not old_name or not new_name or old_name == new_name:
+            continue
+        changes.append(IngredientChange(
+            index=position,
+            old_name=old_name,
+            old_slug=(old.get('canonical') or '').strip(),
+            new_name=new_name,
+            new_canonical=(new.get('canonical') or '').strip(),
+            new_quantity=new.get('quantity'),
+            new_unit=(new.get('unit') or '').strip(),
+        ))
+    return changes
+
+
+def disclosed_swaps(
+        note: str, applied: List[IngredientChange]) -> Set[Tuple[str, str]]:
+    """The (old_name, new_name) pairs this row has already published, lowered.
+
+    Two sources, unioned: the `adaptation_note` — what the reader was told —
+    and the diff of what was actually applied. A swap present in either is one
+    the recipe already claims, so finishing it in an unreached optional entry
+    completes a disclosure rather than making a new editorial change.
+
+    Note parsing is best-effort: a truncated note (`adaptation_note` is
+    `max_length=300` and the writer truncates) or an ingredient name
+    containing a comma yields fewer pairs, never a wrong one. That
+    under-disclosure is the safe direction, because the gate then declines to
+    act.
+    """
+    pairs = {(c.old_name.strip().lower(), c.new_name.strip().lower())
+             for c in applied}
+
+    body = note or ''
+    if ': ' in body:
+        body = body.split(': ', 1)[1]
+    for chunk in body.split(_NOTE_JOIN):
+        if _NOTE_ARROW not in chunk:
+            continue
+        old, new = chunk.split(_NOTE_ARROW, 1)
+        old, new = old.strip().lower(), new.strip().lower()
+        if old and new:
+            pairs.add((old, new))
+    return pairs
