@@ -604,6 +604,17 @@ class PrilohaOnMealTest(TestCase):
         self.assertEqual(meal['nutritional_info']['calories'], 1000 + 400)
         self.assertEqual(meal['nutritional_info']['carbs'], '126g')  # 50 + 76
 
+    def test_unknown_main_nutrition_is_not_reported_as_the_side_alone(self):
+        # QA 2026-10-04 WARN-4: a main with no base nutrition plus a 120 g
+        # knedlík rendered 277 kcal, the side's numbers posing as the dish's.
+        from diet_planner.services.priloha import SIDES
+        meal = scale_recipe_to_meal(self._leco(base_nutrition={}), portions=1,
+                                    side=SIDES['chleb'])
+        ni = meal['nutritional_info']
+        self.assertEqual((ni['calories'], ni['protein'], ni['carbs'], ni['fat']),
+                         (None, None, None, None))
+        self.assertEqual(meal['ingredients'][-1]['role'], 'side')  # still served
+
     def test_meal_carries_side_meta(self):
         from diet_planner.services.priloha import SIDES
         meal = scale_recipe_to_meal(self._leco(), portions=1, side=SIDES['chleb'])

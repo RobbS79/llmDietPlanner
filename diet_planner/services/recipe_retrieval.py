@@ -825,8 +825,11 @@ def scale_recipe_to_meal(
         ingredients.append(side_ingredient(side, portions=side_portions))
         if table is None:
             table = nutrition_table()
+        # Only onto what the main has: unknown + side is still unknown, never
+        # the side's numbers posing as the whole dish (QA 2026-10-04).
         for key, add in side_nutrition(side, portions=side_portions, table=table).items():
-            totals[key] = (totals[key] or 0) + add
+            if totals[key] is not None:
+                totals[key] += add
     nutritional_info = {
         'calories': int(round(totals['calories'])) if totals['calories'] else None,
         'protein': _fmt_grams(totals['protein']) if totals['protein'] is not None else None,
