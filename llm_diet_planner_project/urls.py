@@ -20,7 +20,7 @@ Strict separation of concerns:
 1. /health/      -> Platform health checks
 2. /admin/       -> Django Administrative interface
 3. /api/         -> All backend logic (Login, Diet Planning, Shopify)
-4. /sitemap.xml  -> SEO sitemap for search engines
+4. /sitemap.xml  -> SEO sitemap for search engines (+ /robots.txt)
 5. Catch-all     -> Serves the React SPA
 """
 
@@ -46,6 +46,8 @@ urlpatterns = [
         {"sitemaps": sitemaps},
         name="django.contrib.sitemaps.views.sitemap",
     ),
+
+    path("robots.txt", views.robots_txt_view, name="robots-txt"),
 
     # 5. Public recipe pages (Django-rendered HTML for SEO)
     path("recepty/", views.public_recipe_index_view, name="public-recipe-index"),

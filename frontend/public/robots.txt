@@ -1,7 +1,0 @@
-User-agent: *
-Allow: /
-
-User-agent: SeznamBot
-Allow: /
-
-Sitemap: https://eatalnicek.eu/sitemap.xml

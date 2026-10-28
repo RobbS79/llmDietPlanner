@@ -258,6 +258,19 @@ def security_txt_view(request):
     return HttpResponse(body, content_type="text/plain")
 
 
+def robots_txt_view(request):
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "\n"
+        "User-agent: SeznamBot\n"
+        "Allow: /\n"
+        "\n"
+        "Sitemap: https://eatalnicek.eu/sitemap.xml\n"
+    )
+    return HttpResponse(body, content_type="text/plain")
+
+
 def react_app_view(request):
     path_str = request.path.lstrip('/')
 
