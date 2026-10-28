@@ -52,6 +52,12 @@ def health_check(request):
     return HttpResponse("OK", status=200)
 
 
+def _ingredient_amount(ing: dict) -> str:
+    """`0.25 l` / `špetka` / `` — quantity-less lines store None, never print it."""
+    parts = (ing.get('quantity'), ing.get('unit'))
+    return ' '.join(str(p) for p in parts if p not in (None, ''))
+
+
 def _per_portion_nutrition(recipe):
     """Return [(key, czech_label, text)] of per-portion nutrition for SSR.
 
@@ -109,7 +115,9 @@ def public_recipe_view(request, pk, slug=None):
     ingredients_html = ''
     for ing in display_ings:
         if isinstance(ing, dict):
-            ingredients_html += f'<li>{escape(ing.get("name", ""))} — {escape(str(ing.get("quantity", "")))} {escape(ing.get("unit", ""))}</li>'
+            amount = _ingredient_amount(ing)
+            name = escape(ing.get("name") or "")
+            ingredients_html += f'<li>{name} — {escape(amount)}</li>' if amount else f'<li>{name}</li>'
         else:
             ingredients_html += f'<li>{escape(str(ing))}</li>'
 
@@ -134,7 +142,7 @@ def public_recipe_view(request, pk, slug=None):
         "description": recipe.description or "",
         "image": img_url,
         "recipeIngredient": [
-            f"{ing.get('quantity', '')} {ing.get('unit', '')} {ing.get('name', '')}".strip()
+            f"{_ingredient_amount(ing)} {ing.get('name') or ''}".strip()
             if isinstance(ing, dict) else str(ing)
             for ing in display_ings
         ],

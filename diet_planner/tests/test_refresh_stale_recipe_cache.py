@@ -15,6 +15,7 @@ from django.test import TestCase
 from diet_planner.management.commands.refresh_stale_recipe_cache import (
     expected_calories,
     is_stale,
+    lacks_provenance,
 )
 from diet_planner.models import DietaryGoal, DietaryPlan, MealInstance, Recipe
 from diet_planner.services.recipe_retrieval import scale_recipe_to_meal
@@ -63,6 +64,22 @@ class StalenessDetectionTest(TestCase):
     def test_row_without_stored_calories_is_not_flagged(self):
         curated = make_recipe(base_servings=4, base_nutrition={'calories': 1233})
         self.assertFalse(is_stale(Recipe(servings=2, nutritional_info={}), self._rebuilt(curated)))
+
+    def test_stored_calories_the_corpus_cannot_back_are_stale(self):
+        # QA 2026-10-04 WARN-4 (public recipe 77): the main has no nutrition,
+        # the row still shows the side's 277 kcal as the dish's.
+        curated = make_recipe(base_servings=1, base_nutrition={})
+        self.assertTrue(is_stale(Recipe(servings=1, nutritional_info={'calories': 277}),
+                                 self._rebuilt(curated)))
+
+    def test_row_without_provenance_keys_lacks_provenance(self):
+        # Public recipe 90: cached before the nutrition table, so no basis /
+        # nutrition_source; its calories happen to match the corpus.
+        self.assertTrue(lacks_provenance(Recipe(nutritional_info={'calories': 497})))
+        self.assertFalse(lacks_provenance(Recipe(nutritional_info={
+            'calories': 497, 'basis': 'total', 'servings': 1,
+            'nutrition_source': 'computed'})))
+        self.assertFalse(lacks_provenance(Recipe(nutritional_info={})))
 
     def test_row_equal_to_its_rebuild_with_side_is_not_stale(self):
         from diet_planner.services.priloha import SIDES
@@ -251,3 +268,31 @@ class SideRowNotStaleForeverTest(TestCase):
         out = StringIO()
         call_command('refresh_stale_recipe_cache', '--apply', stdout=out)
         self.assertIn('stale 0', out.getvalue())
+
+
+class ProvenanceLabelTest(TestCase):
+    """Public recipe 90: consistent numbers, cached before the nutrition table."""
+
+    def test_apply_labels_the_row_without_reportioning_it(self):
+        user = get_user_model().objects.create(username='labeller')
+        goal = DietaryGoal.objects.create(user=user, prompt='x', num_days=1, country='CZ',
+                                          currency='CZK', language_code='cs')
+        curated = make_recipe(name_cs='Kuře', base_servings=1,
+                              base_nutrition={'calories': 497, 'source': 'computed'})
+        row = Recipe.objects.create(
+            meal_identifier=f'{goal.id}:dinner:1', dietary_goal=goal, name='Kuře',
+            servings=1, nutritional_info={'calories': 497, 'protein': '49g'},
+            ingredients=[], instructions=['x'], curated_recipe_slug=curated.slug)
+
+        out = StringIO()
+        call_command('refresh_stale_recipe_cache', stdout=out)
+        row.refresh_from_db()
+        self.assertNotIn('basis', row.nutritional_info)  # dry run writes nothing
+        self.assertIn('unlabelled 1', out.getvalue())
+
+        call_command('refresh_stale_recipe_cache', '--apply', stdout=StringIO())
+        row.refresh_from_db()
+        self.assertEqual(row.nutritional_info, {
+            'calories': 497, 'protein': '49g', 'basis': 'total', 'servings': 1,
+            'nutrition_source': 'computed'})
+        self.assertEqual(row.servings, 1)

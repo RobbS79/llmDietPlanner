@@ -83,3 +83,28 @@ class PublicRecipeSSRNutritionTest(TestCase):
     def test_halves_round_up_like_js(self):
         body = self._get(nutritional_info={'calories': 573, 'basis': 'total'})
         self.assertIn('<dd>287 kcal</dd>', body)
+
+
+class PublicRecipeSSRQuantitylessLineTest(TestCase):
+    """QA 2026-10-04 WARN-2: quantity-less lines rendered as `None špetka sůl`."""
+
+    def test_missing_quantity_never_renders_none(self):
+        user = get_user_model().objects.create_user('qty', password='x')
+        goal = DietaryGoal.objects.create(user=user, country='CZ')
+        recipe = Recipe.objects.create(
+            meal_identifier=f'g{goal.id}:1:lunch:0', dietary_goal=goal,
+            name='Kaše', servings=1, is_public=True,
+            ingredients=[
+                {'name': 'sůl', 'quantity': None, 'unit': 'špetka'},
+                {'name': 'pepř', 'quantity': None, 'unit': None},
+                {'name': 'mléko', 'quantity': 0.25, 'unit': 'l'},
+            ],
+            instructions=['Uvařte.'],
+        )
+        with patch('llm_diet_planner_project.views._get_index_template',
+                   return_value=_TEMPLATE):
+            body = self.client.get(recipe.get_absolute_url()).content.decode()
+        self.assertNotIn('None', body)
+        self.assertIn('"špetka sůl"', body)
+        self.assertIn('"pepř"', body)
+        self.assertIn('"0.25 l mléko"', body)

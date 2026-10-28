@@ -22,6 +22,9 @@ side dish, basis/servings keys and all) against the slot's DEFAULT calorie
 target, not the plan's own stored calories — those are the stale data being
 repaired.
 
+Rows whose numbers are consistent but were cached before the nutrition table
+(no basis / nutrition_source) are only labelled, never re-portioned.
+
 Dry-run by default; prints a table and changes nothing:
 
     python manage.py refresh_stale_recipe_cache
@@ -80,12 +83,37 @@ def expected_calories(rebuilt: Dict[str, Any], servings) -> Optional[float]:
 def is_stale(row: Recipe, rebuilt: Dict[str, Any], tolerance: float = TOLERANCE) -> bool:
     """True when the row's nutrition can't be explained by the current corpus
     as `rebuild_meal` renders it (side included). Rows with no stored or no
-    rebuilt calories are left alone — absent data is not evidence of drift."""
+    stored calories are left alone — absent data is not evidence of drift."""
     expected = expected_calories(rebuilt, row.servings)
     stored = (row.nutritional_info or {}).get('calories')
-    if expected is None or not isinstance(stored, (int, float)) or stored <= 0:
+    if not isinstance(stored, (int, float)) or stored <= 0:
         return False
+    if expected is None:
+        # A number the corpus cannot back (e.g. a side's kcal posing as the
+        # dish's when the main has no nutrition) is drift, not absent data.
+        return True
     return abs(stored - expected) > max(2.0, tolerance * expected)
+
+
+_PROVENANCE_KEYS = ('basis', 'servings', 'nutrition_source')
+
+
+def lacks_provenance(row: Recipe) -> bool:
+    """A row cached before the nutrition table: numbers but no basis /
+    nutrition_source, so the page falls back to guessing the basis."""
+    info = row.nutritional_info or {}
+    return bool(info.get('calories')) and any(k not in info for k in _PROVENANCE_KEYS)
+
+
+def with_provenance(row: Recipe, rebuilt: Dict[str, Any]) -> Dict[str, Any]:
+    """The row's own (consistent) numbers, labelled. Passing `is_stale` means
+    they are the total for `row.servings`, so no re-portioning is needed."""
+    return {
+        **(row.nutritional_info or {}),
+        'basis': 'total',
+        'servings': row.servings,
+        'nutrition_source': (rebuilt.get('nutritional_info') or {}).get('nutrition_source') or 'estimated',
+    }
 
 
 def slot_key_for(meal_type: str) -> str:
@@ -138,7 +166,7 @@ class Command(BaseCommand):
             slug__in=rows.values_list('curated_recipe_slug', flat=True))}
 
         table = nutrition_table()  # once per run: side nutrients
-        checked = stale = repaired = orphaned = unparseable = moved = 0
+        checked = stale = repaired = orphaned = unparseable = moved = labelled = 0
 
         for row in rows.select_related('dietary_goal').order_by('id'):
             checked += 1
@@ -160,6 +188,13 @@ class Command(BaseCommand):
             # Rebuilt once: the staleness yardstick AND what --apply writes.
             meal = rebuild_meal(curated, row, ref.slot, table)
             if not is_stale(row, meal):
+                if lacks_provenance(row):
+                    labelled += 1
+                    self.stdout.write(f'  label   {row.meal_identifier}  "{row.name}"  '
+                                      f'-> {with_provenance(row, meal)["nutrition_source"]}')
+                    if apply_changes:
+                        Recipe.objects.filter(pk=row.pk).update(
+                            nutritional_info=with_provenance(row, meal))
                 continue
 
             stale += 1
@@ -207,7 +242,8 @@ class Command(BaseCommand):
 
         summary = (f'checked {checked}, stale {stale}, '
                    f'{"repaired" if apply_changes else "repairable"} {repaired}, '
-                   f'orphaned {orphaned}, unparseable {unparseable}, moved {moved}')
+                   f'orphaned {orphaned}, unparseable {unparseable}, moved {moved}, '
+                   f'{"labelled" if apply_changes else "unlabelled"} {labelled}')
         self.stdout.write(self.style.SUCCESS(summary) if apply_changes else summary)
-        if not apply_changes and repaired:
+        if not apply_changes and (repaired or labelled):
             self.stdout.write('Dry run — re-run with --apply to write these repairs.')
