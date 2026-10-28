@@ -17,7 +17,7 @@ export const About = () => (
 
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-12">
         <img
-          src="/founder.jpg"
+          src="/static/founder.jpg"
           alt="Robert Soroka"
           width={128}
           height={128}
