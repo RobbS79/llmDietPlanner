@@ -16,10 +16,13 @@ export const About = () => (
       </h1>
 
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-12">
-        {/* TODO: nahradit iniciály skutečnou fotkou (frontend/public/founder.jpg) — Robert se rozhodne, jak veřejné chce být */}
-        <div className="shrink-0 w-32 h-32 rounded-2xl bg-green-soft flex items-center justify-center shadow-md">
-          <span className="text-4xl font-black font-display text-green">RS</span>
-        </div>
+        <img
+          src="/founder.jpg"
+          alt="Robert Soroka"
+          width={128}
+          height={128}
+          className="shrink-0 w-32 h-32 rounded-2xl object-cover shadow-md"
+        />
         <div>
           <h2 className="font-display text-2xl font-black tracking-tight text-ink mb-1">Robert Soroka</h2>
           <p className="text-sm font-bold uppercase tracking-wide text-muted mb-4">Zakladatel</p>
@@ -46,6 +49,17 @@ export const About = () => (
         <p>
           Byl jsem svým prvním uživatelem, a po měsících, kdy jsem se na něj sám spoléhal,
           ho teď otevírám všem.
+        </p>
+        <p>
+          Najdete mě i na{' '}
+          <a
+            href="https://www.linkedin.com/in/robertsoroka/"
+            rel="noopener me"
+            className="font-bold text-ink underline hover:text-green transition-colors"
+          >
+            LinkedInu
+          </a>
+          .
         </p>
       </div>
 
