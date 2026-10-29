@@ -138,6 +138,9 @@ SITE_ID = 1
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=config('VITE_GOOGLE_CLIENT_ID', default=None))
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default=None)
 FRONTEND_URL = config('FRONTEND_URL', default='')
+# Public domain for SEO output (canonical, og:url, JSON-LD). FRONTEND_URL can be
+# the DO default hostname, which must never reach search engines.
+PUBLIC_SITE_URL = config('PUBLIC_SITE_URL', default='https://eatalnicek.eu')
 
 # --- Analytics / Meta Pixel + CAPI ---
 ANALYTICS_ENABLED = config('ANALYTICS_ENABLED', default=False, cast=bool)

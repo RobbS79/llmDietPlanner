@@ -24,7 +24,10 @@ PRERENDERED_ROUTES = {
     '/forgot-password': 'forgot-password/index.html',
 }
 
-SITE_URL = getattr(settings, 'FRONTEND_URL', 'https://eatalnicek.eu').rstrip('/')
+def _site_url():
+    # Canonical/og:url host for SEO output. Not FRONTEND_URL: on prod that is the
+    # DO default hostname, which told Google our recipes live there.
+    return settings.PUBLIC_SITE_URL.rstrip('/')
 
 
 def _get_index_template():
@@ -140,7 +143,7 @@ def public_recipe_view(request, pk, slug=None):
         "@type": "Recipe",
         "name": recipe.name,
         "description": recipe.description or "",
-        "image": img_url,
+        "image": f"{_site_url()}{img_url}",
         "recipeIngredient": [
             f"{_ingredient_amount(ing)} {ing.get('name') or ''}".strip()
             if isinstance(ing, dict) else str(ing)
@@ -194,7 +197,7 @@ def public_recipe_view(request, pk, slug=None):
     html = template.replace('<!--ssr-outlet-->', recipe_html)
     title = f'{recipe.name} — Recept | Vařto'
     desc = (recipe.description or recipe.name)[:160]
-    canonical = f'{SITE_URL}/recepty/{recipe.pk}/{recipe.slug}/'
+    canonical = f'{_site_url()}/recepty/{recipe.pk}/{recipe.slug}/'
     html = _replace_meta(html, title, desc, canonical)
 
     return HttpResponse(html, content_type="text/html")
@@ -241,7 +244,7 @@ def public_recipe_index_view(request):
     html = template.replace('<!--ssr-outlet-->', index_html)
     title = 'Recepty — Vařto'
     desc = 'Prozkoumejte naše recepty s nutričními hodnotami a podrobnými postupy. Každý recept obsahuje ingredience, postup a nutriční hodnoty.'
-    canonical = f'{SITE_URL}/recepty/'
+    canonical = f'{_site_url()}/recepty/'
     html = _replace_meta(html, title, desc, canonical)
 
     return HttpResponse(html, content_type="text/html")
