@@ -1179,7 +1179,11 @@ class PublicRecipeListView(APIView):
         recipes = canonical_public_recipes().select_related('dietary_goal').order_by('-created_at')
         paginator = Paginator(recipes, 24)
         page = paginator.get_page(page_num)
-        serializer = RecipeSerializer(page.object_list, many=True)
+        from diet_planner.serializers import PublicRecipeListSerializer
+        from diet_planner.services.recipe_deals import active_deal_index
+        serializer = PublicRecipeListSerializer(
+            page.object_list, many=True, context={'deal_index': active_deal_index()},
+        )
         return Response({
             "status": "success",
             "data": {
