@@ -100,8 +100,8 @@ class RecipeSitemap(Sitemap):
     limit = 1000
 
     def items(self):
-        from diet_planner.models import Recipe
-        return Recipe.objects.filter(is_public=True).order_by('-created_at')
+        from diet_planner.services.public_recipes import canonical_public_recipes
+        return canonical_public_recipes().order_by('-created_at')
 
     def location(self, obj):
         return obj.get_absolute_url()

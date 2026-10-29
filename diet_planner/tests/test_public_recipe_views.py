@@ -1,4 +1,4 @@
-"""Public showcase list: newest-per-name dedupe and slug/name consistency."""
+"""Public showcase list: one-row-per-recipe dedupe and slug/name consistency."""
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -30,7 +30,9 @@ class PublicRecipeListDedupeTest(TestCase):
             ingredients=[{'name': 'kuřecí prsa', 'quantity': 400, 'unit': 'g'}],
         )
 
-    def test_duplicate_names_collapse_to_newest_row(self):
+    def test_duplicate_names_collapse_to_oldest_row(self):
+        # Oldest, not newest: its URL is the stable one search engines know
+        # (see test_public_recipe_canonical).
         older = self._recipe('Kuřecí parmigiana', 'g:1:lunch:0')
         newer = self._recipe('Kuřecí parmigiana', 'g:2:lunch:0')
         other = self._recipe('Hovězí guláš', 'g:3:lunch:0')
@@ -40,9 +42,9 @@ class PublicRecipeListDedupeTest(TestCase):
         ids = {r['id'] for r in results}
 
         self.assertEqual(len(results), 2)
-        self.assertIn(newer.pk, ids)
+        self.assertIn(older.pk, ids)
         self.assertIn(other.pk, ids)
-        self.assertNotIn(older.pk, ids)
+        self.assertNotIn(newer.pk, ids)
         self.assertEqual(resp.data['data']['count'], 2)
 
     def test_slug_follows_a_renamed_recipe(self):

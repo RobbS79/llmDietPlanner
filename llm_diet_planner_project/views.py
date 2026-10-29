@@ -102,6 +102,12 @@ def public_recipe_view(request, pk, slug=None):
     except Recipe.DoesNotExist:
         raise Http404
 
+    from diet_planner.services.public_recipes import canonical_map
+    canonical_pk = canonical_map().get(recipe.pk, recipe.pk)
+    if canonical_pk != recipe.pk:
+        # Same recipe published again from another user's plan: one page per dish.
+        return redirect(Recipe.objects.get(pk=canonical_pk).get_absolute_url(), permanent=True)
+
     if slug != recipe.slug:
         return redirect(recipe.get_absolute_url(), permanent=True)
 
@@ -212,8 +218,10 @@ def public_recipe_index_view(request):
     from diet_planner.models import Recipe
     from django.core.paginator import Paginator
 
+    from diet_planner.services.public_recipes import canonical_public_recipes
+
     page_num = request.GET.get('page', 1)
-    recipes = Recipe.objects.filter(is_public=True).order_by('-created_at')
+    recipes = canonical_public_recipes().order_by('-created_at')
     paginator = Paginator(recipes, 24)
     page = paginator.get_page(page_num)
 
