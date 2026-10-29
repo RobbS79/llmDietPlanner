@@ -154,3 +154,11 @@ class PublicRecipeSSRCanonicalTest(TestCase):
         self.assertIn(
             '<link rel="canonical" href="https://eatalnicek.eu/recepty/" />', body)
         self.assertNotIn('ondigitalocean.app', body)
+
+
+    def test_dish_photo_preferred_over_category_image(self):
+        with patch('diet_planner.food_images.has_dish_image', return_value=True):
+            body = self._body(self.recipe.get_absolute_url())
+        self.assertIn(
+            f'"image": "https://eatalnicek.eu/static/food-images/dishes/{self.recipe.slug}.webp"',
+            body)

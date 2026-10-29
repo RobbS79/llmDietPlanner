@@ -135,8 +135,13 @@ def public_recipe_view(request, pk, slug=None):
     )
 
     from diet_planner.food_categories import DEFAULT_CATEGORY, FOOD_CATEGORIES
-    img_category = recipe.food_category if recipe.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
-    img_url = f'/static/food-images/{img_category}.webp'
+    from diet_planner.food_images import dish_image_url, has_dish_image
+    # Same picture the API (and so the React hero + its JSON-LD) uses.
+    if has_dish_image(recipe.slug):
+        img_url = dish_image_url(recipe.slug)
+    else:
+        img_category = recipe.food_category if recipe.food_category in FOOD_CATEGORIES else DEFAULT_CATEGORY
+        img_url = f'/static/food-images/{img_category}.webp'
 
     schema_ld = {
         "@context": "https://schema.org",
