@@ -30,6 +30,11 @@ export const PublicRecipePage = () => {
       '@type': 'Recipe',
       name: recipe.name,
       description: recipe.description || '',
+      // Required for Recipe rich results; same picture as the hero, absolute.
+      image: new URL(
+        recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name),
+        window.location.origin,
+      ).href,
       recipeIngredient: (recipe.ingredients || []).map((ing: any) =>
         typeof ing === 'string' ? ing : `${ing.quantity || ''} ${ing.unit || ''} ${ing.name}`.trim()
       ),
