@@ -1173,18 +1173,10 @@ class PublicRecipeListView(APIView):
         from django.core.paginator import Paginator
         page_num = request.query_params.get('page', 1)
         # Many users generate the same meal, producing near-identical public
-        # rows ("Kuřecí parmigiana" ×5 on one page). Show only the newest row
-        # per name. Python-side dedupe keeps this portable across DB backends;
-        # the public corpus is small (hundreds, not millions).
-        seen_names = set()
-        ids = []
-        for pk, name in Recipe.objects.filter(is_public=True).order_by('-created_at').values_list('id', 'name'):
-            key = (name or '').strip().lower()
-            if key in seen_names:
-                continue
-            seen_names.add(key)
-            ids.append(pk)
-        recipes = Recipe.objects.filter(pk__in=ids).select_related('dietary_goal').order_by('-created_at')
+        # rows ("Kuřecí parmigiana" ×5 on one page). Same rule as the sitemap
+        # and SSR pages: one row per recipe, the oldest.
+        from diet_planner.services.public_recipes import canonical_public_recipes
+        recipes = canonical_public_recipes().select_related('dietary_goal').order_by('-created_at')
         paginator = Paginator(recipes, 24)
         page = paginator.get_page(page_num)
         serializer = RecipeSerializer(page.object_list, many=True)
