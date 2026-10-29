@@ -94,6 +94,7 @@ INSTALLED_APPS = [
 
 # --- 5. MIDDLEWARE ---
 MIDDLEWARE = [
+    "llm_diet_planner_project.middleware.WwwRedirectMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "llm_diet_planner_project.middleware.SecurityHeadersMiddleware",

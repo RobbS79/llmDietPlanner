@@ -1,3 +1,31 @@
+from urllib.parse import urlparse
+
+from django.conf import settings
+from django.http import HttpResponsePermanentRedirect
+
+
+class WwwRedirectMiddleware:
+    """
+    Send www.<public domain> to the bare public domain so search engines see a
+    single host. 301 for GET/HEAD, 308 otherwise so form posts keep their method.
+    Other hostnames (DO health checks, dev box) pass through untouched.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.public_host = (urlparse(settings.PUBLIC_SITE_URL).hostname or '').lower()
+
+    def __call__(self, request):
+        host = request.get_host().split(':')[0].lower()
+        if self.public_host and host == f'www.{self.public_host}':
+            response = HttpResponsePermanentRedirect(
+                settings.PUBLIC_SITE_URL.rstrip('/') + request.get_full_path())
+            if request.method not in ('GET', 'HEAD'):
+                response.status_code = 308
+            return response
+        return self.get_response(request)
+
+
 class SecurityHeadersMiddleware:
     """
     Add Content-Security-Policy and Permissions-Policy headers to every
