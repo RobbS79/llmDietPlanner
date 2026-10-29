@@ -8,7 +8,7 @@ drift.
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from diet_planner.models import DietaryGoal, Recipe
 from diet_planner.services.canonical_lookup import clear_cache
@@ -108,3 +108,49 @@ class PublicRecipeSSRQuantitylessLineTest(TestCase):
         self.assertIn('"špetka sůl"', body)
         self.assertIn('"pepř"', body)
         self.assertIn('"0.25 l mléko"', body)
+
+
+_META_TEMPLATE = (
+    '<html><head><title>x</title>'
+    '<link rel="canonical" href="https://eatalnicek.eu/" />'
+    '<meta property="og:url" content="https://eatalnicek.eu/" />'
+    '</head><body><!--ssr-outlet--></body></html>'
+)
+
+
+@override_settings(FRONTEND_URL='https://squid-app-6avsy.ondigitalocean.app')
+class PublicRecipeSSRCanonicalTest(TestCase):
+    """Prod 2026-10-29: canonical/og:url came from FRONTEND_URL, which on prod
+    is the DO default hostname, so Google was told the recipe lives there."""
+
+    def setUp(self):
+        user = get_user_model().objects.create_user('can', password='x')
+        goal = DietaryGoal.objects.create(user=user, country='CZ')
+        self.recipe = Recipe.objects.create(
+            meal_identifier=f'g{goal.id}:1:lunch:0', dietary_goal=goal,
+            name='Kulajda', servings=2, is_public=True,
+            ingredients=['houby'], instructions=['Uvařte.'],
+        )
+
+    def _body(self, url):
+        with patch('llm_diet_planner_project.views._get_index_template',
+                   return_value=_META_TEMPLATE):
+            resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        return resp.content.decode()
+
+    def test_recipe_canonical_is_public_domain(self):
+        body = self._body(self.recipe.get_absolute_url())
+        expected = (f'https://eatalnicek.eu/recepty/{self.recipe.pk}/'
+                    f'{self.recipe.slug}/')
+        self.assertIn(f'<link rel="canonical" href="{expected}" />', body)
+        self.assertIn(f'<meta property="og:url" content="{expected}" />', body)
+        # Recipe rich results need an absolute image URL
+        self.assertIn('"image": "https://eatalnicek.eu/static/food-images/', body)
+        self.assertNotIn('ondigitalocean.app', body)
+
+    def test_recipe_index_canonical_is_public_domain(self):
+        body = self._body('/recepty/')
+        self.assertIn(
+            '<link rel="canonical" href="https://eatalnicek.eu/recepty/" />', body)
+        self.assertNotIn('ondigitalocean.app', body)
