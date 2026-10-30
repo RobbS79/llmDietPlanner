@@ -308,6 +308,41 @@ def build_deals(ingredients):
     return recipe_deals(ingredients or [])
 
 
+class PublicRecipeListSerializer(serializers.ModelSerializer):
+    """/recepty card rows: only what the cards render. The full RecipeSerializer
+    prices every row (price_range, shopping_list) and was 9-11 s per page.
+    Pass `deal_index` in context so a page builds the deal index once; the
+    page also shares one ingredient-name -> canonical cache."""
+    image_url = serializers.SerializerMethodField()
+    deals = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Recipe
+        fields = [
+            'id',
+            'name',
+            'slug',
+            'description',
+            'food_category',
+            'image_url',
+            'deals',
+            'preparation_time',
+            'servings',
+        ]
+        read_only_fields = fields
+
+    def get_image_url(self, obj):
+        return RecipeSerializer.get_image_url(self, obj)
+
+    def get_deals(self, obj):
+        from .services.recipe_deals import recipe_deals
+        return recipe_deals(
+            obj.ingredients or [],
+            index=self.context.get('deal_index'),
+            slug_cache=self.context.setdefault('slug_cache', {}),
+        )
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for Recipe model."""
     dietary_goal_id = serializers.IntegerField(source='dietary_goal.id', read_only=True)

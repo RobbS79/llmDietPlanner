@@ -13,13 +13,20 @@ from diet_planner.services.canonical_lookup import (
 )
 
 
-def _ingredient_slug(ingredient):
+def _ingredient_slug(ingredient, slug_cache=None):
     slug = (ingredient.get('canonical') or '').strip()
     if slug:
         return slug
     name = (ingredient.get('name') or '').strip()
-    canonical = resolve_canonical(name) if name else None
-    return canonical.slug if canonical else None
+    if not name:
+        return None
+    if slug_cache is not None and name in slug_cache:
+        return slug_cache[name]
+    canonical = resolve_canonical(name)
+    slug = canonical.slug if canonical else None
+    if slug_cache is not None:
+        slug_cache[name] = slug
+    return slug
 
 
 def active_deal_index():
@@ -65,7 +72,7 @@ def active_deal_index():
 _active_deal_index = active_deal_index
 
 
-def recipe_deals(ingredients, index=None):
+def recipe_deals(ingredients, index=None, slug_cache=None):
     """Active deals for a recipe's ingredient list.
 
     Returns {matched, total, deals}: `total` counts non-optional ingredients,
@@ -75,7 +82,9 @@ def recipe_deals(ingredients, index=None):
     Accepts both the curated dict shape and the plain strings generated meals
     emit — see `normalize_ingredient_entries`. Pass `index` to reuse one
     `active_deal_index()` across a batch of recipes instead of re-querying per
-    recipe; omit it and one is built for this call.
+    recipe; omit it and one is built for this call. Pass `slug_cache` (a
+    dict) to resolve each ingredient name once across a batch — each
+    resolve_canonical is several queries.
     """
     index = index if index is not None else active_deal_index()
     deals = []
@@ -85,7 +94,9 @@ def recipe_deals(ingredients, index=None):
         if ingredient.get('optional'):
             continue
         total += 1
-        slug = _ingredient_slug(ingredient)
+        if not index:                          # no active deals: nothing to match
+            continue
+        slug = _ingredient_slug(ingredient, slug_cache)
         if not slug or slug in seen:
             continue
         deal = index.get(slug)
