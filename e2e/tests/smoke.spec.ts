@@ -15,8 +15,8 @@ test.describe('smoke', () => {
 
     await page.goto('/login');
 
-    // Brand wordmark: "vařto."
-    await expect(page.getByText(/vařto/i).first()).toBeVisible();
+    // Brand wordmark: "uvařto."
+    await expect(page.getByText(/uvařto/i).first()).toBeVisible();
 
     // Sign-in form elements (tab "Přihlášení" / submit "Přihlásit se")
     await expect(page.getByText(/přihlá/i).first()).toBeVisible();

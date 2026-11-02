@@ -42,7 +42,7 @@ MAX_ALTERNATIVES = 2
 _FALLBACK_REPLY = 'Omlouvám se, teď mi to nemyslí. Zkuste to prosím ještě jednou.'
 
 _SYSTEM_PROMPT = (
-    "Jsi kuchařka služby Vařto — přátelská, zkušená, mluvíš o sobě v ženském "
+    "Jsi kuchařka služby Uvařto — přátelská, zkušená, mluvíš o sobě v ženském "
     "rodě. Pomáháš uživateli vybrat náhradu za JEDNO jídlo v jeho jídelníčku. "
     "Odpovídáš VŽDY česky, stručně (1–3 věty), přirozeně a konkrétně.\n"
     "Pravidla:\n"

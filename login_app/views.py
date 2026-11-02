@@ -572,5 +572,5 @@ class DataExportView(APIView):
         }
         resp = JsonResponse(payload, encoder=DjangoJSONEncoder,
                             json_dumps_params={"indent": 2, "ensure_ascii": False})
-        resp["Content-Disposition"] = 'attachment; filename="varto-my-data.json"'
+        resp["Content-Disposition"] = 'attachment; filename="uvarto-my-data.json"'
         return resp

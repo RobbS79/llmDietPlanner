@@ -31,7 +31,7 @@ PALETTE = {
 }
 FONT_DIR = Path(__file__).parent / 'fonts'
 MARGIN = 72
-WORDMARK = 'Vařto'
+WORDMARK = 'Uvařto'
 FOOTER_BAND = 110        # bottom strip the wordmark and footer line own
 RECIPE_BADGE_BAND = 110  # strip the deals card keeps free for its recipe badge
 
@@ -247,7 +247,7 @@ def _showcase_card(facts: dict) -> bytes:
     font, lines = _fit_text(draw, f'„{facts["prompt"]}“', 'display',
                             CANVAS[0] - 2 * MARGIN, 4, 56, 40, 600)
     y = _draw_lines(draw, lines, font, MARGIN, y, PALETTE['ink'], 1.12) + 40
-    draw.text((MARGIN, y), 'VAŘTO SESTAVILO', font=_font('body', 28, 600), fill=PALETTE['green'])
+    draw.text((MARGIN, y), 'UVAŘTO SESTAVILO', font=_font('body', 28, 600), fill=PALETTE['green'])
     y += 56
 
     label_font, meal_font, kcal_font = _font('body', 26, 600), _font('display', 40, 600), _font('body', 28, 500)

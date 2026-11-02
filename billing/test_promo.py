@@ -24,12 +24,12 @@ from .models import (
 def _plans():
     SubscriptionPlan.objects.get_or_create(
         tier=Tier.STANDARD, defaults=dict(
-            name='Vařto Standard', price_czk=99, monthly_plan_quota=7,
+            name='Uvařto Standard', price_czk=99, monthly_plan_quota=7,
             edits_per_plan=10, allow_multi_store=False, sort_order=1),
     )
     SubscriptionPlan.objects.get_or_create(
         tier=Tier.PREMIUM, defaults=dict(
-            name='Vařto Premium', price_czk=199, monthly_plan_quota=30,
+            name='Uvařto Premium', price_czk=199, monthly_plan_quota=30,
             edits_per_plan=5, allow_multi_store=True, sort_order=2),
     )
 

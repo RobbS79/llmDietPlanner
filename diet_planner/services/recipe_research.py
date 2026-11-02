@@ -170,7 +170,7 @@ def _canonicalize_url(url: str) -> str:
     try:
         resp = requests.get(
             url, allow_redirects=True, timeout=10, stream=True,
-            headers={'User-Agent': 'Mozilla/5.0 (compatible; VartoBot/1.0)'},
+            headers={'User-Agent': 'Mozilla/5.0 (compatible; UvartoBot/1.0)'},
         )
         final = str(resp.url or '')
         resp.close()

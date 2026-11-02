@@ -18,12 +18,12 @@ export const Terms = () => (
       <div className="prose max-w-none space-y-8 text-sm text-ink leading-relaxed">
         <section>
           <h2 className="font-display text-lg font-black text-ink uppercase tracking-tight mb-4">1. Základní ustanovení</h2>
-          <p className="text-muted">Tyto obchodní podmínky upravují práva a povinnosti uživatelů služby Vařto. Použitím služby souhlasíte s těmito podmínkami.</p>
+          <p className="text-muted">Tyto obchodní podmínky upravují práva a povinnosti uživatelů služby Uvařto. Použitím služby souhlasíte s těmito podmínkami.</p>
         </section>
 
         <section>
           <h2 className="font-display text-lg font-black text-ink uppercase tracking-tight mb-4">2. Popis služby</h2>
-          <p className="text-muted">Vařto je webová aplikace, která generuje personalizované jídelníčky, recepty a nákupní seznamy a zobrazuje přehled aktuálních slev na suroviny.</p>
+          <p className="text-muted">Uvařto je webová aplikace, která generuje personalizované jídelníčky, recepty a nákupní seznamy a zobrazuje přehled aktuálních slev na suroviny.</p>
         </section>
 
         <section>

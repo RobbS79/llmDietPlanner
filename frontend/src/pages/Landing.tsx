@@ -329,7 +329,7 @@ export const Landing = () => {
           <div className="flex flex-col gap-8">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <span className="font-display font-extrabold text-2xl tracking-tight lowercase text-paper">vařto<span className="text-paprika">.</span></span>
+                <span className="font-display font-extrabold text-2xl tracking-tight lowercase text-paper">uvařto<span className="text-paprika">.</span></span>
                 <span className="text-sm font-semibold text-paper/80">Vařte chytře, nakupujte s přehledem.</span>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-6">
@@ -342,7 +342,7 @@ export const Landing = () => {
                 <a href="mailto:admin@kentakin.eu" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Kontakt</a>
               </div>
             </div>
-            <p className="text-xs text-paper/80 text-center sm:text-left">&copy; {new Date().getFullYear()} Vařto. Všechna práva vyhrazena.</p>
+            <p className="text-xs text-paper/80 text-center sm:text-left">&copy; {new Date().getFullYear()} Uvařto. Všechna práva vyhrazena.</p>
           </div>
         </div>
       </footer>

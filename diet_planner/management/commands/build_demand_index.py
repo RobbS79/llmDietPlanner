@@ -23,7 +23,7 @@ from diet_planner.services.demand_index import enrich_term, parse_ranking
 
 DEFAULT_PATH = Path(settings.BASE_DIR) / 'diet_planner' / 'data' / 'demand_index_cz.yaml'
 
-USER_AGENT = 'Mozilla/5.0 (compatible; VartoResearch/1.0; +https://eatalnicek.eu)'
+USER_AGENT = 'Mozilla/5.0 (compatible; UvartoResearch/1.0; +https://eatalnicek.eu)'
 
 #: (url, source, category). Categories map to meal slots in
 #: demand_index.CATEGORY_SLOTS.
