@@ -18,10 +18,14 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--apply', action='store_true', help='Write the changes (default: dry run).')
+        parser.add_argument('--public-only', action='store_true', help='Only process recipes with is_public=True.')
+        # Kept so old invocations still parse; dry run is now the default anyway.
+        parser.add_argument('--dry-run', action='store_true', help='No-op (dry run is the default).')
 
-    def handle(self, *args, apply=False, **opts):
+    def handle(self, *args, apply=False, public_only=False, **opts):
         changed = 0
-        for r in Recipe.objects.only('id', 'name', 'food_category', 'ingredients').iterator():
+        qs = Recipe.objects.filter(is_public=True) if public_only else Recipe.objects.all()
+        for r in qs.only('id', 'name', 'food_category', 'ingredients').iterator():
             new = guess_category(r.name, r.ingredients or [])
             if new and new != r.food_category:
                 changed += 1
