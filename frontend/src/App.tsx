@@ -1,5 +1,5 @@
 import { Component, useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Dashboard } from '@/pages/Dashboard';
@@ -49,8 +49,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
 const queryClient = new QueryClient();
 
-function HomeRoute() {
+export function HomeRoute() {
+  const { search } = useLocation();
   if (!isAccessTokenValid() && !localStorage.getItem('refresh_token')) return <Landing />;
+  // Signed-in users keep the Dashboard at /; a search link takes them to /hledat.
+  if (new URLSearchParams(search).get('q')) return <Navigate to={`/hledat${search}`} replace />;
   return <AuthenticatedHome />;
 }
 
@@ -89,6 +92,7 @@ export default function App() {
           <Route path="/recepty" element={<RecipeIndexPage />} />
           <Route path="/recepty/:id/:slug" element={<PublicRecipePage />} />
           <Route path="/nakup" element={<ShoppingList />} />
+          <Route path="/hledat" element={<Landing />} />
           <Route path="/" element={<HomeRoute />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />

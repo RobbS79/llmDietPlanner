@@ -12,7 +12,8 @@ import { DealsStrip } from '@/components/discover/DealsStrip';
 import { BasketTray } from '@/components/discover/BasketTray';
 import { TurnstileGate } from '@/components/discover/TurnstileGate';
 import { PlanSheet } from '@/components/plan/PlanSheet';
-import { captureAttribution, trackAddToList, trackSearch, trackViewRecipe } from '@/lib/analytics';
+import { captureAttribution, trackAddToList, trackSearch, trackViewRecipe, type SearchSource } from '@/lib/analytics';
+import { isAccessTokenValid } from '@/lib/auth';
 import { searchRecipes, type DiscoverResult } from '@/lib/discover';
 import { setQuery, toggleRecipe } from '@/lib/basket';
 import { useBasket } from '@/lib/useBasket';
@@ -32,30 +33,46 @@ export const Landing = () => {
   const [loading, setLoading] = useState(false);
   const [challenge, setChallenge] = useState(false);
   const [limited, setLimited] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
+  // Back from login after starting a plan signed out: the prompt is the saved search.
+  const [planFromLogin, setPlanFromLogin] = useState(false);
 
   useEffect(() => { captureAttribution(window.location.search); }, []);
 
-  const run = useCallback(async (q: string, p = 0, token?: string) => {
-    setLoading(true); setChallenge(false); setLimited(false);
+  // `source` is only for the Meta Search event; URL-driven re-runs and paging send none.
+  const run = useCallback(async (q: string, p = 0, token?: string, source?: SearchSource) => {
+    setLoading(true); setChallenge(false); setLimited(false); setFailed(false);
     try {
       const r = await searchRecipes(q, p, token);
       setResult(r); setQ(q); setPage(p); setQuery(q);
-      if (p === 0) trackSearch(q);
+      if (p === 0 && source) trackSearch(source);
     } catch (err: unknown) {
       const e = err as { response?: { status?: number; data?: { code?: string } } };
       if (e.response?.data?.code === 'CHALLENGE_REQUIRED') { setQ(q); setPage(p); setChallenge(true); }
       else if (e.response?.status === 429) { setResult(null); setLimited(true); }
+      else { setResult(null); setFailed(true); }
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { const q = params.get('q'); if (q) run(q); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const q = params.get('q');
+    if (q) run(q);
+    if (params.get('plan') === '1') {
+      if (isAccessTokenValid() || localStorage.getItem('refresh_token')) { setPlanFromLogin(true); setPlanOpen(true); }
+      const next = new URLSearchParams(params);
+      next.delete('plan');
+      setParams(next, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // TurnstileGate re-renders the widget whenever onToken changes, so keep it stable.
   const onToken = useCallback((t: string) => { run(query, page, t); }, [run, query, page]);
 
-  const submit = (q: string) => { const t = q.trim(); if (!t) return; setText(t); setParams({ q: t }, { replace: true }); run(t); };
+  const submit = (q: string, source: SearchSource) => {
+    const t = q.trim(); if (!t) return; setText(t); setParams({ q: t }, { replace: true }); run(t, 0, undefined, source);
+  };
   const toggle = (id: number) => { if (!basket.recipeIds.includes(id)) trackAddToList(id); toggleRecipe(id); };
   const open = (id: number) => { trackViewRecipe(id); setOpenId(id); };
 
@@ -70,7 +87,7 @@ export const Landing = () => {
           <h1 className="font-display text-5xl font-extrabold leading-none tracking-tight sm:text-7xl">Co dnes uvařit?</h1>
           {/* EN: Type what you feel like or what you have at home. You'll see recipes right away, plus what's on sale right now. */}
           <p className="mb-6 mt-4 max-w-prose text-xl text-muted">Napiš, na co máš chuť nebo co máš doma. Hned uvidíš recepty i to, co je zrovna v akci.</p>
-          <form onSubmit={(e) => { e.preventDefault(); submit(text); }} className="flex gap-2 rounded-2xl border-2 border-ink bg-white p-1.5">
+          <form onSubmit={(e) => { e.preventDefault(); submit(text, 'typed'); }} className="flex gap-2 rounded-2xl border-2 border-ink bg-white p-1.5">
             {/* EN: What do you want to cook */}
             <label htmlFor="discover-q" className="sr-only">Co chceš uvařit</label>
             {/* EN: For example: something quick from chicken breasts */}
@@ -81,19 +98,21 @@ export const Landing = () => {
           </form>
           <div className="mt-3.5 flex flex-wrap gap-2">
             {EXAMPLES.map((c) => (
-              <button key={c} type="button" onClick={() => submit(c)}
+              <button key={c} type="button" onClick={() => submit(c, 'chip')}
                 className="rounded-full border border-kraft bg-white px-3.5 py-1.5 text-[15px] hover:border-ink">{c}</button>
             ))}
           </div>
           {/* EN: Want the whole week sorted? Put a plan together for me */}
           <p className="mt-4 text-muted">Chceš mít jasno na celý týden?{' '}
-            <button type="button" onClick={() => setPlanOpen(true)} className="font-semibold text-green underline underline-offset-2">Poskládej mi plán</button></p>
+            <button type="button" onClick={() => { setPlanFromLogin(false); setPlanOpen(true); }} className="font-semibold text-green underline underline-offset-2">Poskládej mi plán</button></p>
         </section>
 
         {challenge && <TurnstileGate onToken={onToken} />}
 
-        {/* EN: You've searched a lot today. Try again tomorrow. */}
-        {limited && <p className="py-6">Dnes už jsi hledal hodně. Zkus to zase zítra.</p>}
+        {/* EN: That's been a lot of searching today. Try again tomorrow. */}
+        {limited && <p className="py-6">Dnes už toho bylo hledání hodně. Zkus to zase zítra.</p>}
+        {/* EN: Something went wrong. Please try again. */}
+        {failed && <p role="alert" className="py-6">Něco se nepovedlo. Zkus to prosím znovu.</p>}
 
         <section aria-live="polite" className={loading || result ? 'pt-6' : undefined}>
           {/* EN: Searching the collection… */}
@@ -132,11 +151,12 @@ export const Landing = () => {
         </section>
 
         <BasketTray />
-        <DealsStrip onPick={submit} />
+        <DealsStrip onPick={(q) => submit(q, 'deal')} />
       </main>
 
       {openId !== null && <RecipeSheet id={openId} picked={basket.recipeIds.includes(openId)} onToggle={toggle} onClose={() => setOpenId(null)} />}
-      {planOpen && <PlanSheet understood={result?.understood ?? []} prompt={query} onClose={() => setPlanOpen(false)} />}
+      {planOpen && <PlanSheet understood={planFromLogin ? [] : result?.understood ?? []} prompt={planFromLogin ? basket.query : query}
+        onClose={() => setPlanOpen(false)} />}
     </div>
   );
 };

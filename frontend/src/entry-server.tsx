@@ -29,6 +29,7 @@ export function render(url: string): string {
             <Route path="/o-nas" element={<About />} />
             <Route path="/jak-to-funguje" element={<HowToPrompt />} />
             <Route path="/nakup" element={<ShoppingList />} />
+            <Route path="/hledat" element={<Landing />} />
             <Route path="/" element={<Landing />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -3,9 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import * as analytics from '@/lib/analytics';
+import * as apiMod from '@/lib/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as client from '@/lib/discover';
-import { readBasket } from '@/lib/basket';
+import { readBasket, setQuery, toggleRecipe } from '@/lib/basket';
 import { Landing } from './Landing';
 
 const card = (id: number, name: string) => ({ id, slug: String(id), name, image_url: '/x.webp', minutes: 20, kcal: 500,
@@ -14,8 +16,9 @@ const card = (id: number, name: string) => ({ id, slug: String(id), name, image_
 const result = (over: Partial<client.DiscoverResult>): client.DiscoverResult => ({
   understood: [], exact: true, fallback: false, medical_note: false, has_more: false, recipes: [], ...over });
 
-const renderLanding = () => render(
-  <QueryClientProvider client={new QueryClient()}><MemoryRouter><Landing /></MemoryRouter></QueryClientProvider>);
+const renderLanding = (path = '/') => render(
+  <QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}><Landing /></MemoryRouter></QueryClientProvider>);
+const jwt = () => `h.${btoa(JSON.stringify({ exp: Date.now() / 1000 + 600 }))}.s`;
 
 describe('Landing', () => {
   beforeEach(() => {
@@ -52,7 +55,7 @@ describe('Landing', () => {
     renderLanding();
     await userEvent.click(screen.getByRole('button', { name: 'Bez masa' }));
     expect(await screen.findByText(/Na tohle jsme nic nenašli/)).toBeInTheDocument();
-    expect(screen.queryByText(/hledal hodně/)).toBeNull();
+    expect(screen.queryByText(/hledání hodně/)).toBeNull();
   });
 
   it('is honest when nothing matched exactly', async () => {
@@ -76,6 +79,41 @@ describe('Landing', () => {
     vi.spyOn(client, 'searchRecipes').mockRejectedValue({ response: { status: 429, data: {} } });
     renderLanding();
     await userEvent.click(screen.getByRole('button', { name: 'Bez masa' }));
-    expect(await screen.findByText('Dnes už jsi hledal hodně. Zkus to zase zítra.')).toBeInTheDocument();
+    expect(await screen.findByText('Dnes už toho bylo hledání hodně. Zkus to zase zítra.')).toBeInTheDocument();
+  });
+
+  it('says something went wrong on any other search failure', async () => {
+    vi.spyOn(client, 'searchRecipes').mockRejectedValue({ response: { status: 500, data: {} } });
+    renderLanding();
+    await userEvent.click(screen.getByRole('button', { name: 'Bez masa' }));
+    expect(await screen.findByText('Něco se nepovedlo. Zkus to prosím znovu.')).toBeInTheDocument();
+  });
+
+  it('tells Meta where a search came from, never what was typed', async () => {
+    vi.spyOn(client, 'searchRecipes').mockResolvedValue(result({}));
+    const search = vi.spyOn(analytics, 'trackSearch');
+    renderLanding();
+    await userEvent.click(screen.getByRole('button', { name: 'Lehčí jídla na hubnutí' }));
+    await userEvent.type(screen.getByLabelText('Co chceš uvařit'), '{selectall}cukrovka');
+    await userEvent.click(screen.getByRole('button', { name: 'Najít recepty' }));
+    expect(search.mock.calls).toEqual([['chip'], ['typed']]);
+  });
+
+  it('reopens the plan sheet after login with the search from the basket', async () => {
+    localStorage.setItem('access_token', jwt());
+    setQuery('kuřecí prsa na víkend');
+    toggleRecipe(5);
+    vi.spyOn(apiMod.api, 'get').mockResolvedValue({ data: { subscription: null } });
+    const post = vi.spyOn(apiMod.api, 'post').mockResolvedValue({ status: 201, data: { data: { goal_id: 9 } } });
+    renderLanding('/hledat?plan=1');
+    expect(await screen.findByRole('heading', { name: 'Plán na celý týden' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Sestavit můj plán' }));
+    expect(post).toHaveBeenCalledWith('/goals/', expect.objectContaining({ prompt: 'kuřecí prsa na víkend', pinned_recipe_ids: [5] }));
+  });
+
+  it('does not open the plan sheet from the URL when signed out', () => {
+    vi.spyOn(client, 'searchRecipes').mockResolvedValue(result({}));
+    renderLanding('/hledat?plan=1');
+    expect(screen.queryByRole('heading', { name: 'Plán na celý týden' })).toBeNull();
   });
 });
