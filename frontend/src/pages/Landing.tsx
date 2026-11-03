@@ -1,360 +1,144 @@
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { ShoppingCart, UtensilsCrossed, BarChart3, ArrowRight, Check, ChefHat, Heart, Target, Wallet, Lightbulb, Search, SlidersHorizontal } from 'lucide-react';
+// frontend/src/pages/Landing.tsx
+// The landing page IS the product (spec 2026-11-03): ask, see real recipes,
+// pick, get one shopping list. Copy: docs copy deck, informal "ty".
+// SSR: entry-server.tsx prerenders this page, so window/localStorage are only
+// touched in effects and event handlers, never during render.
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PublicHeader } from '@/components/layout/PublicHeader';
-import { Receipt } from '@/components/ui/Receipt';
-import { captureAttribution } from '@/lib/analytics';
+import { RecipeCard } from '@/components/discover/RecipeCard';
+import { RecipeSheet } from '@/components/discover/RecipeSheet';
+import { DealsStrip } from '@/components/discover/DealsStrip';
+import { BasketTray } from '@/components/discover/BasketTray';
+import { TurnstileGate } from '@/components/discover/TurnstileGate';
+import { PlanSheet } from '@/components/plan/PlanSheet';
+import { captureAttribution, trackAddToList, trackSearch, trackViewRecipe } from '@/lib/analytics';
+import { searchRecipes, type DiscoverResult } from '@/lib/discover';
+import { setQuery, toggleRecipe } from '@/lib/basket';
+import { useBasket } from '@/lib/useBasket';
 
-const SAMPLE_PLAN = {
-  sections: [
-    { label: 'Snídaně', meals: ['Ovesná kaše s ovocem'] },
-    { label: 'Obědy', meals: ['Kuřecí wok s rýží', 'Treščí filé s brambory'] },
-    { label: 'Večeře', meals: ['Losos s brokolicí', 'Hovězí guláš s knedlíkem'] },
-  ],
-  recipe: {
-    name: 'Kuřecí wok s rýží',
-    portions: '4 porce',
-    ingredients: [
-      { name: 'Kuřecí prsa', unit: '300 g', deal: false },
-      { name: 'Rýže basmati', unit: '240 g', deal: false },
-      { name: 'Paprika', unit: '2 ks', deal: true },
-      { name: 'Brokolice', unit: '1/2 ks', deal: true },
-      { name: 'Sójová omáčka', unit: '40 ml', deal: false },
-    ],
-    dealsHeadline: '2 z 5 surovin ve slevě tento týden',
-    dealsFooter: 'Ušetříte na tom, co je zrovna v akci',
-  },
-};
-
-const RECEIPT_ITEMS = SAMPLE_PLAN.recipe.ingredients.map((item) => ({
-  name: item.name,
-  meta: item.unit,
-  deal: item.deal,
-}));
+// EN: Quick dinner under 30 minutes / What to cook from minced meat / I have potatoes and eggs at home /
+//     Something with chicken / Lighter meals for weight loss / Meat-free
+const EXAMPLES = ['Rychlá večeře do 30 minut', 'Co uvařit z mletého masa', 'Mám doma brambory a vajíčka',
+  'Něco s kuřecím masem', 'Lehčí jídla na hubnutí', 'Bez masa'];
 
 export const Landing = () => {
-  const navigate = useNavigate();
-  const [showStickyCta, setShowStickyCta] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const basket = useBasket();
+  const [text, setText] = useState(params.get('q') ?? '');
+  const [query, setQ] = useState(params.get('q') ?? '');
+  const [page, setPage] = useState(0);
+  const [result, setResult] = useState<DiscoverResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [challenge, setChallenge] = useState(false);
+  const [limited, setLimited] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
 
-  useEffect(() => {
-    // loadPixel() (called on App mount) already fires the init-time
-    // fbq('track', 'PageView'), which serves as the landing-view signal.
-    // We intentionally do NOT call trackLandingView() here — doing so would
-    // fire a second PageView for the same visit and double-count landings.
-    captureAttribution(window.location.search);
+  useEffect(() => { captureAttribution(window.location.search); }, []);
 
-    const onScroll = () => setShowStickyCta(window.scrollY > 600);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+  const run = useCallback(async (q: string, p = 0, token?: string) => {
+    setLoading(true); setChallenge(false); setLimited(false);
+    try {
+      const r = await searchRecipes(q, p, token);
+      setResult(r); setQ(q); setPage(p); setQuery(q);
+      if (p === 0) trackSearch(q);
+    } catch (err: unknown) {
+      const e = err as { response?: { status?: number; data?: { code?: string } } };
+      if (e.response?.data?.code === 'CHALLENGE_REQUIRED') { setQ(q); setPage(p); setChallenge(true); }
+      else if (e.response?.status === 429) { setResult(null); setLimited(true); }
+    } finally { setLoading(false); }
   }, []);
 
+  useEffect(() => { const q = params.get('q'); if (q) run(q); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // TurnstileGate re-renders the widget whenever onToken changes, so keep it stable.
+  const onToken = useCallback((t: string) => { run(query, page, t); }, [run, query, page]);
+
+  const submit = (q: string) => { const t = q.trim(); if (!t) return; setText(t); setParams({ q: t }, { replace: true }); run(t); };
+  const toggle = (id: number) => { if (!basket.recipeIds.includes(id)) trackAddToList(id); toggleRecipe(id); };
+  const open = (id: number) => { trackViewRecipe(id); setOpenId(id); };
+
   return (
-    <div className="min-h-screen bg-paper text-ink font-body overflow-hidden pb-20 sm:pb-0">
-      <a href="#main-content" className="skip-to-content">
-        Přejít na obsah
-      </a>
+    <div className="min-h-screen bg-paper font-body text-ink">
+      {/* EN: Skip to content */}
+      <a href="#main-content" className="skip-to-content">Přejít na obsah</a>
       <PublicHeader />
-
-      {/* Hero */}
-      <section id="main-content" className="px-6 sm:px-12 pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-14 items-center">
-          {/* Left: copy */}
-          <div>
-            <div className="inline-flex items-center gap-2 bg-green-soft rounded-full px-4 py-1.5 mb-8">
-              <span className="w-2 h-2 bg-green rounded-full" />
-              <span className="text-[10px] font-bold text-green uppercase tracking-widest">Jídelníček podle vašeho cíle</span>
-            </div>
-
-            <h1 className="font-display text-5xl sm:text-7xl font-extrabold tracking-tight leading-[0.95] mb-8">
-              Zhubnout, nabrat, nebo jen jíst líp?<br />
-              {/* EN: Tell us how many lunches and dinners you want. */}
-              <span className="text-paprika">Řekněte si, kolik obědů a večeří chcete.</span>
-            </h1>
-
-            {/* EN: Describe your goal in your own words, choose how many breakfasts, lunches and dinners, and get finished recipes with nutrition and a shopping list for each. Some ingredients also show current leaflet deals. */}
-            <p className="text-lg sm:text-xl text-muted max-w-xl mb-4 leading-relaxed">
-              Popíšete svůj cíl vlastními slovy, zvolíte počet snídaní, obědů a večeří — a dostanete <strong className="text-ink">hotové recepty s nutričními hodnotami (kalorie a makra) a nákupním seznamem ke každému z nich.</strong> U některých surovin navíc rovnou vidíte aktuální slevy z letáků.
-            </p>
-
-            <p className="text-sm text-muted mb-10">Bez kreditní karty. Hotovo za méně než 60 sekund.</p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-bold text-base shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-3">
-                Vytvořit jídelníček zdarma <ArrowRight size={18} />
-              </button>
-              <a href="#how-it-works" className="border border-line text-ink px-10 py-4 rounded-2xl font-bold text-base hover:bg-kraft transition-all text-center">
-                Jak to funguje
-              </a>
-            </div>
-          </div>
-
-          {/* Right: receipt signature */}
-          <div className="lg:pl-6">
-            <Receipt
-              title={SAMPLE_PLAN.recipe.name}
-              subtitle={`Ukázkový recept · ${SAMPLE_PLAN.recipe.portions}`}
-              source="Nákupní seznam"
-              items={RECEIPT_ITEMS}
-              footnote={SAMPLE_PLAN.recipe.dealsHeadline}
-              totalLabel={SAMPLE_PLAN.recipe.dealsFooter}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Honest stat band */}
-      <section className="bg-kraft border-y border-line">
-        <div className="px-6 sm:px-12 py-12 max-w-7xl mx-auto">
-          <div className="flex flex-wrap gap-8 sm:gap-16 text-center sm:text-left">
-            {[
-              { value: '300+', label: 'Prověřených receptů' },
-              { value: 'Kalorie a makra', label: 'U každého jídla' },
-              { value: 'Nákupní seznam', label: 'Ke každému receptu' },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="font-display text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{stat.value}</p>
-                <p className="text-xs font-semibold text-muted mt-1">{stat.label}</p>
-              </div>
+      <main id="main-content" className="mx-auto max-w-[1080px] px-5">
+        <section className="max-w-3xl pb-2 pt-8 sm:pt-12">
+          {/* EN: What to cook today? */}
+          <h1 className="font-display text-5xl font-extrabold leading-none tracking-tight sm:text-7xl">Co dnes uvařit?</h1>
+          {/* EN: Type what you feel like or what you have at home. You'll see recipes right away, plus what's on sale right now. */}
+          <p className="mb-6 mt-4 max-w-prose text-xl text-muted">Napiš, na co máš chuť nebo co máš doma. Hned uvidíš recepty i to, co je zrovna v akci.</p>
+          <form onSubmit={(e) => { e.preventDefault(); submit(text); }} className="flex gap-2 rounded-2xl border-2 border-ink bg-white p-1.5">
+            {/* EN: What do you want to cook */}
+            <label htmlFor="discover-q" className="sr-only">Co chceš uvařit</label>
+            {/* EN: For example: something quick from chicken breasts */}
+            <input id="discover-q" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" maxLength={300}
+              placeholder="Třeba: něco rychlého z kuřecích prsou" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-lg outline-none" />
+            {/* EN: Find recipes */}
+            <button type="submit" className="whitespace-nowrap rounded-xl bg-green px-5 font-bold text-white">Najít recepty</button>
+          </form>
+          <div className="mt-3.5 flex flex-wrap gap-2">
+            {EXAMPLES.map((c) => (
+              <button key={c} type="button" onClick={() => submit(c)}
+                className="rounded-full border border-kraft bg-white px-3.5 py-1.5 text-[15px] hover:border-ink">{c}</button>
             ))}
           </div>
-        </div>
-      </section>
+          {/* EN: Want the whole week sorted? Put a plan together for me */}
+          <p className="mt-4 text-muted">Chceš mít jasno na celý týden?{' '}
+            <button type="button" onClick={() => setPlanOpen(true)} className="font-semibold text-green underline underline-offset-2">Poskládej mi plán</button></p>
+        </section>
 
-      {/* Who is this for */}
-      <section className="bg-kraft border-y border-line">
-        <div className="px-6 sm:px-12 py-20 max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Pro koho je to</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">Vytvořeno pro lidi, kteří…</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: Heart, title: 'Chtějí jíst zdravěji', desc: 'Ale neví, kde začít a co vařit' },
-              { icon: Target, title: 'Sledují makra a kalorie', desc: 'Ale nenávidí plánování jídel' },
-              { icon: Wallet, title: 'Hlídají si rozpočet', desc: 'A chtějí nakupovat chytře — u každého receptu vidí, co je zrovna ve slevě' },
-              { icon: Lightbulb, title: 'Vaří doma', desc: 'Ale dochází jim nápady na recepty' },
-            ].map((item) => (
-              <div key={item.title} className="bg-card border border-line rounded-2xl p-8 text-center hover:border-green/40 transition-all">
-                <item.icon size={28} className="text-green mx-auto mb-4" />
-                <h4 className="font-display font-bold text-base mb-2">{item.title}</h4>
-                <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        {challenge && <TurnstileGate onToken={onToken} />}
 
-      {/* How it works */}
-      <section id="how-it-works" className="bg-paper">
-        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Jak to funguje</p>
-            <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight">Tři kroky k vašemu jídelníčku.</h2>
-          </div>
+        {/* EN: You've searched a lot today. Try again tomorrow. */}
+        {limited && <p className="py-6">Dnes už jsi hledal hodně. Zkus to zase zítra.</p>}
 
-          <div className="grid sm:grid-cols-3 gap-8">
-            {[
-              {
-                step: '1',
-                icon: UtensilsCrossed,
-                title: 'Popište své cíle',
-                desc: 'Řekněte nám vlastními slovy, co chcete — vysokoproteinová, levná, veganská, keto. Žádné dotazníky, žádné tabulky.',
-              },
-              {
-                step: '2',
-                icon: ChefHat,
-                title: 'Sestavíme váš plán',
-                // EN: We pick recipes for your request, as many breakfasts/lunches/dinners as you ask, with method and nutrition.
-                desc: 'Vybereme recepty podle vašeho zadání — tolik snídaní, obědů a večeří, kolik si řeknete — s postupem a nutričními hodnotami.',
-              },
-              {
-                step: '3',
-                icon: ShoppingCart,
-                title: 'Nakupujte s přehledem',
-                desc: 'Ke každému receptu dostanete nákupní seznam. A hned vidíte, které suroviny jsou tento týden ve slevě — a ve kterém obchodě.',
-              },
-            ].map((item) => (
-              <div key={item.step} className="bg-card border border-line rounded-3xl p-10 hover:border-green/40 transition-all">
-                <div className="w-12 h-12 rounded-xl bg-green flex items-center justify-center text-2xl font-display font-extrabold text-white mb-8 shadow-lg">
-                  {item.step}
-                </div>
-                <item.icon size={32} className="text-green mb-6" />
-                <h3 className="font-display text-xl font-bold mb-4">{item.title}</h3>
-                <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-12">
-            <a href="/jak-to-funguje" className="inline-flex items-center gap-2 text-sm font-bold text-green hover:text-green-mid transition-colors">
-              Průvodce: jak napsat zadání, ze kterého vznikne dobrý jídelníček →
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* How the plan is made */}
-      <section className="bg-kraft border-y border-line">
-        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Jak vzniká váš jídelníček</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">Transparentně a pod vaší kontrolou.</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: Search, title: 'Analyzuje vaše cíle', desc: 'Pochopí vaše stravovací potřeby, omezení i rozpočet' },
-              { icon: ChefHat, title: 'Vytvoří vyvážená jídla', desc: 'Každý plán splňuje nutriční doporučení pro vaše cíle' },
-              { icon: ShoppingCart, title: 'Najde slevy na suroviny', desc: 'Suroviny každého receptu porovná s aktuálními letáky velkých českých obchodů a ukáže, co je tento týden v akci' },
-              { icon: SlidersHorizontal, title: 'Vy máte kontrolu', desc: 'Upravte, regenerujte nebo změňte cokoliv kdykoliv' },
-            ].map((item) => (
-              <div key={item.title} className="text-center">
-                <div className="w-12 h-12 rounded-xl bg-green-soft flex items-center justify-center mx-auto mb-4">
-                  <item.icon size={22} className="text-green" />
-                </div>
-                <h4 className="font-display font-bold text-base mb-2">{item.title}</h4>
-                <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Sample plan preview */}
-      <section className="bg-paper">
-        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <p className="text-[10px] font-bold text-green uppercase tracking-[0.3em] mb-4">Ukázka</p>
-            <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight">Podívejte se, co dostanete.</h2>
-          </div>
-
-          <div className="grid lg:grid-cols-12 gap-8">
-            {/* Plan preview */}
-            <div className="lg:col-span-7 bg-card border border-line rounded-3xl p-8 sm:p-10">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="px-3 py-1 bg-green-soft rounded-lg text-[10px] font-bold text-green uppercase tracking-widest">Ukázkový plán</div>
-                {/* EN: 5 meals · Prague */}
-                <span className="text-xs font-semibold text-muted">5 jídel · Praha</span>
-              </div>
-
-              <div className="space-y-6">
-                {SAMPLE_PLAN.sections.map((section) => (
-                  <div key={section.label} className="flex gap-3 items-start">
-                    <span className="text-[10px] font-bold text-muted uppercase tracking-widest leading-5 w-20 shrink-0">{section.label}</span>
-                    <div className="flex-1 space-y-2">
-                      {section.meals.map((meal) => (
-                        <div key={meal} className="flex items-center gap-3">
-                          <span className="text-sm font-semibold text-ink">{meal}</span>
-                        </div>
-                      ))}
-                    </div>
+        <section aria-live="polite" className={loading || result ? 'pt-6' : undefined}>
+          {/* EN: Searching the collection… */}
+          {loading && <p className="text-muted">Hledám ve sbírce…</p>}
+          {result && !loading && (
+            <>
+              <p className="flex flex-wrap items-center gap-2 text-[15px] text-muted">
+                {/* EN: Looking for: <tags> */}
+                {result.exact && result.understood.length > 0 && <>Hledám: {result.understood.map((u) => (
+                  <span key={u} className="rounded-full bg-green-soft px-3 py-1 font-semibold text-green">{u}</span>))}</>}
+                {/* EN: We picked a few popular recipes. Try typing an ingredient, e.g. "from zucchini". */}
+                {!result.understood.length && result.exact && 'Vybrali jsme pár oblíbených receptů. Zkus napsat surovinu, třeba „z cukety“.'}
+                {/* EN: We found nothing exact for that in the collection. Here's what's closest. */}
+                {!result.exact && result.recipes.length > 0 && 'Na tohle jsme ve sbírce nic přesného nenašli. Tady je, co je nejblíž.'}
+              </p>
+              {/* EN: Uvařto is a kitchen helper, not medical advice. Discuss eating with an illness with your doctor. */}
+              {result.medical_note && (
+                <p className="mt-2 text-sm text-muted">Uvařto je pomocník do kuchyně, ne zdravotní rada. Jídelníček při nemoci probírej s lékařem.</p>
+              )}
+              {result.recipes.length === 0
+                // EN: We couldn't find anything for that. Try writing it differently, e.g. a single ingredient: "from potatoes" or "with rice".
+                ? <p className="py-6">Na tohle jsme nic nenašli. Zkus to napsat jinak, třeba jednu surovinu: „z brambor“ nebo „s rýží“.</p>
+                : (
+                  <div className="my-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5">
+                    {result.recipes.map((r) => (
+                      <RecipeCard key={r.id} recipe={r} picked={basket.recipeIds.includes(r.id)} onToggle={toggle} onOpen={open} />))}
                   </div>
-                ))}
-              </div>
-            </div>
+                )}
+              {result.has_more && (
+                // EN: Show me something else
+                <button type="button" onClick={() => run(query, page + 1)} className="rounded-xl border border-kraft bg-white px-4 py-3 font-semibold">
+                  Ukaž mi něco jiného</button>
+              )}
+            </>
+          )}
+        </section>
 
-            {/* Shopping list preview */}
-            <div className="lg:col-span-5 bg-card border border-line rounded-3xl p-8 sm:p-10">
-              <div className="flex items-center gap-3 mb-2">
-                <ShoppingCart size={18} className="text-green" />
-                <h3 className="font-display text-lg font-bold">Nákupní seznam k receptu</h3>
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest ml-auto">Suroviny</span>
-              </div>
-              <p className="text-xs font-semibold text-muted mb-8">{SAMPLE_PLAN.recipe.name} · {SAMPLE_PLAN.recipe.portions}</p>
+        <BasketTray />
+        <DealsStrip onPick={submit} />
+      </main>
 
-              <div className="space-y-4 mb-8">
-                {SAMPLE_PLAN.recipe.ingredients.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between border-b border-line pb-3">
-                    <div>
-                      <p className="text-sm font-semibold text-ink">
-                        {item.name}
-                        {item.deal && <span className="ml-2 bg-paprika-soft text-paprika-strong font-bold text-[10px] px-1.5 py-0.5 rounded-md align-middle">ve slevě</span>}
-                      </p>
-                    </div>
-                    <p className="font-price text-[13px] font-medium text-muted">{item.unit}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="pt-6 border-t-2 border-dashed border-line text-center">
-                <p className="font-display text-xl font-bold text-paprika-strong mb-1">{SAMPLE_PLAN.recipe.dealsHeadline}</p>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{SAMPLE_PLAN.recipe.dealsFooter}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="bg-kraft border-y border-line">
-        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: BarChart3, title: 'Nutriční hodnoty', desc: 'Kalorie, bílkoviny, sacharidy a tuky u každého jídla' },
-              { icon: Wallet, title: 'Slevy u každého receptu', desc: 'U každého receptu vidíte, které suroviny jsou tento týden ve slevě a kde — podle aktuálních letáků českých obchodů' },
-              { icon: ChefHat, title: 'Kompletní recepty', desc: 'Postup přípravy krok za krokem se všemi ingrediencemi' },
-              { icon: Check, title: 'Interaktivní seznam', desc: 'Odškrtávejte položky přímo v telefonu při nákupu' },
-            ].map((f) => (
-              <div key={f.title} className="bg-card border border-line rounded-2xl p-8 hover:border-green/40 transition-all">
-                <f.icon size={24} className="text-green mb-4" />
-                <h4 className="font-display font-bold text-base mb-2">{f.title}</h4>
-                <p className="text-muted text-sm leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="bg-paper">
-        <div className="px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-          <div className="bg-green-soft border border-line rounded-3xl p-12 sm:p-20 text-center">
-            {/* EN: Ready to cook your own way? */}
-            <h2 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
-              Připraveni vařit po svém?
-            </h2>
-            <p className="text-muted text-lg mb-10 max-w-md mx-auto">
-              Začněte se 2 jídelníčky zdarma. Bez kreditní karty.
-            </p>
-            <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-12 py-5 rounded-2xl font-bold text-base shadow-lg transition-all active:scale-[0.98] inline-flex items-center gap-3">
-              Vytvořit můj první plán <ArrowRight size={18} />
-            </button>
-            <p className="text-muted text-xs font-semibold mt-6">Dostupné v Česku a na Slovensku</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-ink text-paper">
-        <div className="px-6 sm:px-12 py-14 max-w-7xl mx-auto">
-          <div className="flex flex-col gap-8">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="font-display font-extrabold text-2xl tracking-tight lowercase text-paper">uvařto<span className="text-paprika">.</span></span>
-                <span className="text-sm font-semibold text-paper/80">Vařte chytře, nakupujte s přehledem.</span>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-6">
-                <a href="/recepty" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Recepty</a>
-                <a href="/pricing" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Ceník</a>
-                <a href="/jak-to-funguje" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Jak to funguje</a>
-                <a href="/o-nas" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">O nás</a>
-                <a href="/privacy" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Zásady ochrany soukromí</a>
-                <a href="/terms" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Obchodní podmínky</a>
-                <a href="mailto:admin@kentakin.eu" className="text-xs font-semibold text-paper/80 hover:text-paper transition-colors">Kontakt</a>
-              </div>
-            </div>
-            <p className="text-xs text-paper/80 text-center sm:text-left">&copy; {new Date().getFullYear()} Uvařto. Všechna práva vyhrazena.</p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Sticky mobile CTA */}
-      {showStickyCta && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-paper/95 backdrop-blur-lg border-t border-line sm:hidden">
-          <button onClick={() => navigate('/login')} className="w-full bg-green hover:bg-green-mid text-white py-4 rounded-xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-            Vytvořit jídelníček zdarma <ArrowRight size={16} />
-          </button>
-        </div>
-      )}
+      {openId !== null && <RecipeSheet id={openId} picked={basket.recipeIds.includes(openId)} onToggle={toggle} onClose={() => setOpenId(null)} />}
+      {planOpen && <PlanSheet understood={result?.understood ?? []} prompt={query} onClose={() => setPlanOpen(false)} />}
     </div>
   );
 };
+
+export default Landing;
