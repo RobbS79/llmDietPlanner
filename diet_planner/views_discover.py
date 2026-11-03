@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from billing.entitlements import saved_list_allowance
+from diet_planner.client_ip import client_ip
 from diet_planner.models import CuratedRecipe, SavedShoppingList
 from diet_planner.services.discover import discover
 from diet_planner.services.discover_cards import recipe_card, recipe_sheet
@@ -30,9 +31,7 @@ def _err(code, message, http):
 
 
 def _ident(request):
-    # Prod sits behind DigitalOcean's proxy: the client is the first X-Forwarded-For hop.
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    return (forwarded.split(',')[0].strip() if forwarded else request.META.get('REMOTE_ADDR', '')) or 'unknown'
+    return client_ip(request)
 
 
 def _int(value, default):

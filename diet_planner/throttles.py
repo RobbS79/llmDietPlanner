@@ -6,8 +6,15 @@ one and on the client IP otherwise.
 """
 from rest_framework.throttling import SimpleRateThrottle
 
+from diet_planner.client_ip import client_ip
+
 
 class _EveryoneThrottle(SimpleRateThrottle):
+    def get_ident(self, request):
+        # Not DRF's get_ident: with NUM_PROXIES unset it keys on the whole,
+        # client-forgeable X-Forwarded-For string.
+        return client_ip(request)
+
     def get_cache_key(self, request, view):
         user = getattr(request, 'user', None)
         if user is not None and getattr(user, 'is_authenticated', False):
