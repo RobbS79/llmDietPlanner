@@ -95,7 +95,7 @@ Reference material:
 | No exact match | "Na tohle jsme ve sbírce nic přesného nenašli. Tady je, co je nejblíž." plus nearest recipes. For signed-in users, a link to a plan where Gemini can write the missing dish. |
 | Nothing understood | "Vybrali jsme pár oblíbených receptů. Zkus napsat surovinu, třeba „z cukety“." |
 | LLM slow, failing or over budget | Silent text-search fallback. Never an error screen. |
-| Rate limit or bot check | A Turnstile challenge in place. On a hard limit: "Dnes už jsi hledal hodně. Zkus to zase zítra." |
+| Rate limit or bot check | A Turnstile challenge in place. On a hard limit: "Dnes už toho bylo hledání hodně. Zkus to zase zítra." |
 | Deals empty or stale | Strip and badges hidden. |
 | No kcal for a recipe | Line hidden, never 0. |
 | Free list limit reached | 402 → the paywall sheet with the copy above and a link to /pricing. The list is still shown, only not saved. |
@@ -121,7 +121,10 @@ Reference material:
 
 ## Owner actions (outside the repo)
 
-- Create a Cloudflare Turnstile widget for the site and put its site key and secret in the DO app env (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`). Without them, the bot check is skipped and only the throttles apply.
+- Create a Cloudflare Turnstile widget for the site and put its keys in the DO app env:
+  - `TURNSTILE_SITE_KEY` (runtime, backend) and `VITE_TURNSTILE_SITE_KEY` (BUILD-TIME env in DigitalOcean, baked into the frontend bundle by `Dockerfile.prod`) must both be set, to the same site key.
+  - `TURNSTILE_SECRET_KEY` (runtime).
+  - The backend asks for the challenge only when both `TURNSTILE_SECRET_KEY` and `TURNSTILE_SITE_KEY` are set. Without them the bot check is skipped and only the throttles apply. If the build-time key is missing while the runtime keys are set, visitors past the free searches see "Teď to nejde ověřit. Zkus to prosím za chvíli." instead of a widget.
 - Rename the Stripe products, the Facebook Page and the Pinterest board to Uvařto.
 - Set `DISCOVER_DAILY_LLM_BUDGET` in the DO app env. It defaults to 500 calls/day.
 

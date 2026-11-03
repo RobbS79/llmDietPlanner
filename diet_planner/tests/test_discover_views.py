@@ -140,7 +140,7 @@ class DiscoverViewsTest(TestCase):
         self.assertTrue(stored['medical_note'])
         self.assertLessEqual(len(stored['ids']), 60)
 
-    @override_settings(TURNSTILE_SECRET_KEY='s', DISCOVER_FREE_SEARCHES_BEFORE_CHALLENGE=1)
+    @override_settings(TURNSTILE_SECRET_KEY='s', TURNSTILE_SITE_KEY='k', DISCOVER_FREE_SEARCHES_BEFORE_CHALLENGE=1)
     def test_challenge_required_after_free_searches(self):
         self.client.post('/api/discover/', {'q': 'a1'}, format='json')
         resp = self.client.post('/api/discover/', {'q': 'a2'}, format='json')

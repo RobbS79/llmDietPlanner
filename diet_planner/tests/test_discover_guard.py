@@ -29,7 +29,15 @@ class GuardTest(TestCase):
         for _ in range(10):
             self.assertFalse(g.challenge_needed('1.2.3.4'))
 
-    @override_settings(TURNSTILE_SECRET_KEY='secret', DISCOVER_FREE_SEARCHES_BEFORE_CHALLENGE=3)
+    @override_settings(TURNSTILE_SECRET_KEY='secret', TURNSTILE_SITE_KEY='',
+                       DISCOVER_FREE_SEARCHES_BEFORE_CHALLENGE=1)
+    def test_challenge_not_needed_without_site_key(self):
+        # A secret alone would 403 visitors whose bundle has no widget to show.
+        for _ in range(5):
+            self.assertFalse(g.challenge_needed('5.5.5.5'))
+
+    @override_settings(TURNSTILE_SECRET_KEY='secret', TURNSTILE_SITE_KEY='site',
+                       DISCOVER_FREE_SEARCHES_BEFORE_CHALLENGE=3)
     def test_challenge_after_free_searches_until_verified(self):
         for _ in range(3):
             self.assertFalse(g.challenge_needed('9.9.9.9'))

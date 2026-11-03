@@ -1,8 +1,8 @@
 """Abuse limits for /api/discover/: daily LLM budget, result cache, Turnstile.
 
 Everything lives in the shared Django cache (Redis on prod via CACHE_URL), so
-limits hold across Gunicorn workers. Without TURNSTILE_SECRET_KEY the bot
-check is off and only the throttles apply.
+limits hold across Gunicorn workers. Without both TURNSTILE_SECRET_KEY and
+TURNSTILE_SITE_KEY the bot check is off and only the throttles apply.
 """
 import hashlib
 import logging
@@ -88,7 +88,9 @@ def _siteverify(token: str, ip: str) -> bool:
 
 def challenge_needed(ident: str) -> bool:
     """Count one search; True once past the free searches and not verified."""
-    if not getattr(settings, 'TURNSTILE_SECRET_KEY', ''):
+    # Both keys or no challenge: a secret without a site key would 403 visitors
+    # whose page has no widget to answer it with.
+    if not (getattr(settings, 'TURNSTILE_SECRET_KEY', '') and getattr(settings, 'TURNSTILE_SITE_KEY', '')):
         return False
     if cache.get(f'discover:verified:{ident}'):
         return False

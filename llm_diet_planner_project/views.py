@@ -288,6 +288,14 @@ def robots_txt_view(request):
 
 
 def react_app_view(request):
+    response = _react_app_response(request)
+    # /nakup is a personal shopping list: keep it out of search indexes.
+    if request.path == '/nakup' or request.path.startswith('/nakup/'):
+        response['X-Robots-Tag'] = 'noindex, nofollow'
+    return response
+
+
+def _react_app_response(request):
     path_str = request.path.lstrip('/')
 
     if path_str and '.' in path_str and not path_str.endswith('.html'):
