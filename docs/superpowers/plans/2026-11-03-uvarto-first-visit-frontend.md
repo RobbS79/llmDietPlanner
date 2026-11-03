@@ -1043,6 +1043,7 @@ describe('plan sheet mapping', () => {
   it('builds the prompt from the goal chip and the search', () => {
     expect(goalPrompt('Chci zhubnout', 'kuřecí prsa')).toBe('Chci zhubnout. kuřecí prsa');
     expect(goalPrompt(null, '')).toBe('Jen ať nemusím vymýšlet');
+    expect(goalPrompt(null, 'keto')).toBe('keto. Jen ať nemusím vymýšlet');
   });
 });
 ```
@@ -1067,8 +1068,12 @@ export function countsFor(answer: string): Counts | null {
   return null;
 }
 
+// The plan API requires a prompt of at least 10 characters (DietaryGoalCreateRequest).
+const FALLBACK = 'Jen ať nemusím vymýšlet';
 export function goalPrompt(goal: string | null, search: string): string {
-  return [goal, search.trim()].filter(Boolean).join('. ') || 'Jen ať nemusím vymýšlet';
+  const text = [goal, search.trim()].filter(Boolean).join('. ');
+  if (!text) return FALLBACK;
+  return text.length >= 10 ? text : `${text}. ${FALLBACK}`;
 }
 ```
 
