@@ -2,8 +2,9 @@
 // The visitor's picks before signup (spec 2026-11-03). Lives in localStorage so
 // the Google round-trip and email verification never lose it.
 import { api } from './api';
+import { BASKET_KEY } from './storageKeys';
 
-export const BASKET_KEY = 'uvarto.basket.v1';
+export { BASKET_KEY };
 export const MAX_RECIPES = 12;
 export type Basket = { v: 1; recipeIds: number[]; people: number; atHome: string[]; query: string };
 

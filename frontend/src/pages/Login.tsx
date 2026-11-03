@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound, Tag } from 'lucide-react';
 import axios from 'axios';
 import { getStoredAttribution, getConsent, syncConsentToServer, CONSENT_VERSION, readCookie, type UtmParams } from '@/lib/analytics';
 import { getPendingPromo, clearPendingPromo } from '@/lib/promo';
+import { afterLoginPath, clearReturnIntent, isReturnPath, setReturnIntent } from '@/lib/returnIntent';
 
 type Attribution = UtmParams & {
   fbp: string;
@@ -30,6 +31,15 @@ export const Login = () => {
 
   const urlError = searchParams.get('error');
   const [pendingPromo, setPendingPromo] = useState<string | null>(() => getPendingPromo());
+  // Only allowlisted return paths are honoured, so `next` can't be an open redirect.
+  const next = searchParams.get('next');
+  const returnTo = isReturnPath(next) ? next : null;
+
+  // Arriving with an allowlisted `next` keeps that intent for the Google button
+  // too; arriving without one drops any stale intent left on this device.
+  useEffect(() => {
+    if (returnTo) setReturnIntent(returnTo); else clearReturnIntent();
+  }, [returnTo]);
 
   const loginMutation = useMutation({
     mutationFn: (data: { username: string; password: string }) => axios.post('/api/auth/login/', data),
@@ -38,8 +48,8 @@ export const Login = () => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       syncConsentToServer();
-      // Only the literal /nakup is honoured, so this can't be an open redirect.
-      navigate(getPendingPromo() ? '/pricing' : (searchParams.get('next') === '/nakup' ? '/nakup?vitej=1' : '/'), { replace: true });
+      clearReturnIntent();
+      navigate(getPendingPromo() ? '/pricing' : afterLoginPath(returnTo), { replace: true });
     },
     onError: (err: any) => {
       const msg = err.response?.data?.error;

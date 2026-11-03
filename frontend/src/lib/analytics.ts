@@ -114,7 +114,9 @@ export const trackLandingView = () => track('PageView');
 export const trackQuizStarted = () => trackCustom('QuizStarted');
 export const trackCheckoutStarted = () => track('InitiateCheckout');
 
-export const trackSearch = (q: string) => track('Search', { search_string: q.slice(0, 100) });
+// Never the query text: people type health conditions ("cukrovka") into search.
+export type SearchSource = 'chip' | 'typed' | 'deal';
+export const trackSearch = (source: SearchSource) => track('Search', { source });
 export const trackViewRecipe = (id: number) => track('ViewContent', { content_ids: [String(id)], content_type: 'product' });
 export const trackAddToList = (id: number) => track('AddToCart', { content_ids: [String(id)], content_type: 'product' });
 export const trackOpenList = (n: number) => track('InitiateCheckout', { num_items: n });
