@@ -55,7 +55,7 @@ describe('Landing', () => {
     renderLanding();
     await userEvent.click(screen.getByRole('button', { name: 'Bez masa' }));
     expect(await screen.findByText(/Na tohle jsme nic nenašli/)).toBeInTheDocument();
-    expect(screen.queryByText(/hledání hodně/)).toBeNull();
+    expect(screen.queryByText(/hledání dost/)).toBeNull();
   });
 
   it('is honest when nothing matched exactly', async () => {
@@ -79,7 +79,7 @@ describe('Landing', () => {
     vi.spyOn(client, 'searchRecipes').mockRejectedValue({ response: { status: 429, data: {} } });
     renderLanding();
     await userEvent.click(screen.getByRole('button', { name: 'Bez masa' }));
-    expect(await screen.findByText('Dnes už toho bylo hledání hodně. Zkus to zase zítra.')).toBeInTheDocument();
+    expect(await screen.findByText('Na dnešek už je hledání dost. Zkus to zase zítra.')).toBeInTheDocument();
   });
 
   it('says something went wrong on any other search failure', async () => {

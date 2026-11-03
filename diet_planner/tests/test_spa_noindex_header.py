@@ -6,7 +6,7 @@ from django.test import TestCase
 
 class SpaNoindexHeaderTest(TestCase):
     def test_nakup_is_noindex(self):
-        for path in ('/nakup', '/nakup/', '/nakup?vitej=1'):
+        for path in ('/nakup', '/nakup/', '/nakup?vitej=1', '/hledat', '/hledat?q=kure'):
             resp = self.client.get(path)
             self.assertEqual(resp.headers.get('X-Robots-Tag'), 'noindex, nofollow', path)
 

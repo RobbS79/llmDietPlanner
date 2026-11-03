@@ -109,8 +109,8 @@ export const Landing = () => {
 
         {challenge && <TurnstileGate onToken={onToken} />}
 
-        {/* EN: That's been a lot of searching today. Try again tomorrow. */}
-        {limited && <p className="py-6">Dnes už toho bylo hledání hodně. Zkus to zase zítra.</p>}
+        {/* EN: That's enough searching for today. Try again tomorrow. */}
+        {limited && <p className="py-6">Na dnešek už je hledání dost. Zkus to zase zítra.</p>}
         {/* EN: Something went wrong. Please try again. */}
         {failed && <p role="alert" className="py-6">Něco se nepovedlo. Zkus to prosím znovu.</p>}
 

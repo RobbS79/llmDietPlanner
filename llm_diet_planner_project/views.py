@@ -287,10 +287,15 @@ def robots_txt_view(request):
     return HttpResponse(body, content_type="text/plain")
 
 
+_NOINDEX_SPA_PATHS = ('/nakup', '/hledat')
+
+
 def react_app_view(request):
     response = _react_app_response(request)
-    # /nakup is a personal shopping list: keep it out of search indexes.
-    if request.path == '/nakup' or request.path.startswith('/nakup/'):
+    # /nakup is a personal shopping list and /hledat duplicates the landing
+    # page (it exists so signed-in users can reach search): keep both out of
+    # search indexes.
+    if any(request.path == p or request.path.startswith(p + '/') for p in _NOINDEX_SPA_PATHS):
         response['X-Robots-Tag'] = 'noindex, nofollow'
     return response
 

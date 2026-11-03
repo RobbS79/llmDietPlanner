@@ -95,7 +95,7 @@ Reference material:
 | No exact match | "Na tohle jsme ve sbírce nic přesného nenašli. Tady je, co je nejblíž." plus nearest recipes. For signed-in users, a link to a plan where Gemini can write the missing dish. |
 | Nothing understood | "Vybrali jsme pár oblíbených receptů. Zkus napsat surovinu, třeba „z cukety“." |
 | LLM slow, failing or over budget | Silent text-search fallback. Never an error screen. |
-| Rate limit or bot check | A Turnstile challenge in place. On a hard limit: "Dnes už toho bylo hledání hodně. Zkus to zase zítra." |
+| Rate limit or bot check | A Turnstile challenge in place. On a hard limit: "Na dnešek už je hledání dost. Zkus to zase zítra." |
 | Deals empty or stale | Strip and badges hidden. |
 | No kcal for a recipe | Line hidden, never 0. |
 | Free list limit reached | 402 → the paywall sheet with the copy above and a link to /pricing. The list is still shown, only not saved. |
