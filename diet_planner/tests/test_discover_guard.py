@@ -23,7 +23,7 @@ class GuardTest(TestCase):
         alert.assert_called_once()
 
     def test_result_cache_key_ignores_case_and_accents(self):
-        self.assertEqual(g.result_key('Kuřecí  Prsa', 0), g.result_key('kureci prsa', 0))
+        self.assertEqual(g.result_key('Kuřecí  Prsa'), g.result_key('kureci prsa'))
 
     def test_challenge_not_needed_without_turnstile_keys(self):
         for _ in range(10):

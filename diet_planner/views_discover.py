@@ -12,13 +12,19 @@ from diet_planner.models import CuratedRecipe, SavedShoppingList
 from diet_planner.services.discover import discover
 from diet_planner.services.discover_cards import recipe_card, recipe_sheet
 from diet_planner.services.discover_guard import (
-    challenge_needed, result_key, take_llm_slot, verify_challenge,
+    challenge_needed, result_key, verify_challenge,
 )
 from diet_planner.services.recipe_deals import active_deal_index
 from diet_planner.services.shopping_compose import compose_shopping_list
 from diet_planner.throttles import ComposeThrottle, DiscoverBurstThrottle, DiscoverDayThrottle
 
 _RESULT_TTL = 60 * 60 * 24
+# A fallback (LLM failed or budget spent) is a worse answer than the next
+# request may get: keep it briefly.
+_FALLBACK_TTL = 60 * 5
+_PAGE_SIZE = 4
+_MAX_PAGE = 14
+_MAX_CACHED_IDS = (_MAX_PAGE + 1) * _PAGE_SIZE  # 60
 _MAX_LIST_RECIPES = 12
 
 
@@ -50,13 +56,25 @@ def _published(ids):
     return [by_id[i] for i in ids if i in by_id]
 
 
+def _published_in_order(ids):
+    """PUBLISHED recipes for ids, in the given order (unpublished ones drop out)."""
+    by_id = {r.id: r for r in CuratedRecipe.objects.filter(
+        id__in=ids, status=CuratedRecipe.Status.PUBLISHED)}
+    return [by_id[i] for i in ids if i in by_id]
+
+
+def _ids_page(ids, page):
+    start = page * _PAGE_SIZE
+    return ids[start:start + _PAGE_SIZE]
+
+
 class DiscoverView(APIView):
     permission_classes = []
     throttle_classes = [DiscoverBurstThrottle, DiscoverDayThrottle]
 
     def post(self, request):
         q = str(request.data.get('q', '') or '')[:300]
-        page = max(_int(request.data.get('page', 0) or 0, 0), 0)
+        page = min(max(_int(request.data.get('page', 0) or 0, 0), 0), _MAX_PAGE)
         ident = _ident(request)
         token = request.data.get('turnstile_token', '')
         if token:
@@ -64,19 +82,29 @@ class DiscoverView(APIView):
         if challenge_needed(ident):
             return _err('CHALLENGE_REQUIRED', 'Potvrď prosím, že nejsi robot.', status.HTTP_403_FORBIDDEN)
 
-        key = result_key(q, page)
+        # Only the search OUTPUT is cached (labels, flags, ranked ids); cards
+        # are built per request so deals are always this week's and paging
+        # costs no LLM call. The LLM budget is enforced inside discover().
+        key = result_key(q)
         cached = cache.get(key)
-        if cached is not None:
-            return _ok(cached)
+        if cached is None:
+            result = discover(q, 0, llm_allowed=bool(q), page_size=_PAGE_SIZE)
+            cached = {'understood': result['understood'], 'exact': result['exact'],
+                      'fallback': result['fallback'], 'medical_note': result['medical_note'],
+                      'ids': list(result['ranked_ids'])[:_MAX_CACHED_IDS]}
+            cache.set(key, cached, _FALLBACK_TTL if (q and cached['fallback']) else _RESULT_TTL)
 
         # An empty recipes list with exact=False (nothing meets the restrictions)
         # is a valid answer and passes through as is.
-        result = discover(q, page, llm_allowed=bool(q) and take_llm_slot())
+        ids = cached['ids']
         index, slugs = active_deal_index(), {}
-        data = {**result, 'recipes': [recipe_card(r, deal_index=index, slug_cache=slugs)
-                                      for r in result['recipes']]}
-        cache.set(key, data, _RESULT_TTL)
-        return _ok(data)
+        recipes = _published_in_order(_ids_page(ids, page))
+        return _ok({
+            'understood': cached['understood'], 'exact': cached['exact'],
+            'fallback': cached['fallback'], 'medical_note': cached['medical_note'],
+            'recipes': [recipe_card(r, deal_index=index, slug_cache=slugs) for r in recipes],
+            'has_more': len(ids) > (page + 1) * _PAGE_SIZE,
+        })
 
 
 class DiscoverRecipeView(APIView):

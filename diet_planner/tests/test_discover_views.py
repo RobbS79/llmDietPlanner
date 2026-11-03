@@ -24,14 +24,18 @@ class DiscoverViewsTest(TestCase):
         self.client = APIClient()
         self.a = _recipe('a', 'Kuře s rýží', 'kuřecí prsa')
         self.b = _recipe('b', 'Čočková polévka', 'čočka')
-        for target, kwargs in (
-            ('diet_planner.views_discover.active_deal_index', {'return_value': {}}),
+        self.mocks = {}
+        for name, target, kwargs in (
+            ('deals', 'diet_planner.views_discover.active_deal_index', {'return_value': {}}),
             # No real Gemini call from any test: the LLM read fails, text fallback runs.
-            ('diet_planner.services.discover.extract_prompt_facets',
+            ('extract', 'diet_planner.services.discover.extract_prompt_facets',
              {'side_effect': Exception('no llm in tests')}),
+            # Belt and braces: even an unpatched extraction never reaches Gemini.
+            ('generate', 'diet_planner.services.prompt_facets._default_generate',
+             {'side_effect': AssertionError('real Gemini call in a test')}),
         ):
             patcher = mock.patch(target, **kwargs)
-            patcher.start()
+            self.mocks[name] = patcher.start()
             self.addCleanup(patcher.stop)
 
     def test_discover_returns_cards(self):
@@ -50,18 +54,91 @@ class DiscoverViewsTest(TestCase):
 
     def test_empty_restricted_result_passes_through(self):
         empty = {'understood': ['bez masa'], 'exact': False, 'fallback': False,
-                 'recipes': [], 'has_more': False}
+                 'medical_note': False, 'ranked_ids': [], 'recipes': [], 'has_more': False}
         with mock.patch('diet_planner.views_discover.discover', return_value=empty):
             resp = self.client.post('/api/discover/', {'q': 'bez masa'}, format='json')
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json(), {'status': 'success', 'data': empty})
+        self.assertEqual(resp.json(), {'status': 'success', 'data': {
+            'understood': ['bez masa'], 'exact': False, 'fallback': False,
+            'medical_note': False, 'recipes': [], 'has_more': False}})
 
-    def test_over_budget_disables_llm(self):
-        with mock.patch('diet_planner.views_discover.take_llm_slot', return_value=False), \
-             mock.patch('diet_planner.views_discover.discover', return_value={
-                 'understood': [], 'exact': True, 'fallback': True, 'recipes': [], 'has_more': False}) as d:
+    def test_view_leaves_the_llm_budget_to_the_service(self):
+        with mock.patch('diet_planner.views_discover.discover', wraps=discover_mod.discover) as d:
             self.client.post('/api/discover/', {'q': 'něco'}, format='json')
-        self.assertFalse(d.call_args.kwargs['llm_allowed'])
+            self.client.post('/api/discover/', {'q': ''}, format='json')
+        self.assertEqual([c.kwargs['llm_allowed'] for c in d.call_args_list], [True, False])
+
+    def _many(self, n):
+        for i in range(n):
+            _recipe(f'k{i}', f'Kuře {i}', 'kuřecí prsa')
+
+    def test_second_page_costs_no_llm_call(self):
+        self._many(6)
+        with mock.patch('diet_planner.views_discover.discover', wraps=discover_mod.discover) as d:
+            first = self.client.post('/api/discover/', {'q': 'kuře', 'page': 0}, format='json').json()
+            second = self.client.post('/api/discover/', {'q': 'kuře', 'page': 1}, format='json').json()
+        self.assertEqual(d.call_count, 1)
+        self.assertEqual(self.mocks['extract'].call_count, 1)
+        self.assertEqual(len(first['data']['recipes']), 4)
+        self.assertTrue(first['data']['has_more'])
+        self.assertEqual(len(second['data']['recipes']), 3)
+        self.assertFalse(second['data']['has_more'])
+        ids = [r['id'] for r in first['data']['recipes'] + second['data']['recipes']]
+        self.assertEqual(len(set(ids)), 7)
+
+    def test_page_is_capped(self):
+        with mock.patch('diet_planner.views_discover.discover', wraps=discover_mod.discover):
+            resp = self.client.post('/api/discover/', {'q': '', 'page': 10_000}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['data']['recipes'], [])
+        with mock.patch('diet_planner.views_discover._ids_page', wraps=lambda ids, page: []) as p:
+            self.client.post('/api/discover/', {'q': '', 'page': 99}, format='json')
+        self.assertEqual(p.call_args.args[1], 14)
+
+    def test_unpublished_since_caching_is_dropped(self):
+        self.client.post('/api/discover/', {'q': 'čočka'}, format='json')
+        CuratedRecipe.objects.filter(pk=self.b.pk).update(status=CuratedRecipe.Status.DRAFT)
+        resp = self.client.post('/api/discover/', {'q': 'čočka'}, format='json')
+        self.assertNotIn(self.b.id, [r['id'] for r in resp.json()['data']['recipes']])
+
+    def test_cached_result_gets_a_fresh_deal_index(self):
+        deal = {'canonical': 'čočka', 'shop': 'Tesco', 'display_name': 'Čočka',
+                'source_url': '', 'valid_until': '2026-11-04T05:59:59+00:00'}
+        self.mocks['deals'].side_effect = [{}, {'čočka': deal}]
+        with mock.patch('diet_planner.services.recipe_deals._ingredient_slug',
+                        side_effect=lambda ing, cache=None: ing.get('canonical')):
+            first = self.client.post('/api/discover/', {'q': 'čočka'}, format='json').json()
+            second = self.client.post('/api/discover/', {'q': 'čočka'}, format='json').json()
+        self.assertEqual(first['data']['recipes'][0]['deals']['matched'], 0)
+        self.assertEqual(second['data']['recipes'][0]['deals']['matched'], 1)
+
+    def _ttl_for(self, q):
+        fake = mock.MagicMock()
+        fake.get.return_value = None
+        with mock.patch('diet_planner.views_discover.cache', fake):
+            self.client.post('/api/discover/', {'q': q}, format='json')
+        return fake.set.call_args.args[2]
+
+    def test_fallback_result_expires_quickly(self):
+        # setUp makes every LLM read fail, so a non-empty q is a fallback.
+        self.assertEqual(self._ttl_for('čočka'), 5 * 60)
+
+    def test_exact_and_empty_results_keep_a_day(self):
+        self.assertEqual(self._ttl_for(''), 24 * 60 * 60)
+        exact = {'understood': [], 'exact': True, 'fallback': False, 'medical_note': False,
+                 'ranked_ids': [self.a.id], 'recipes': [], 'has_more': False}
+        with mock.patch('diet_planner.views_discover.discover', return_value=exact):
+            self.assertEqual(self._ttl_for('kuře'), 24 * 60 * 60)
+
+    def test_cached_output_is_ids_not_cards(self):
+        fake = mock.MagicMock()
+        fake.get.return_value = None
+        with mock.patch('diet_planner.views_discover.cache', fake):
+            self.client.post('/api/discover/', {'q': 'cukrovka'}, format='json')
+        stored = fake.set.call_args.args[1]
+        self.assertEqual(set(stored), {'understood', 'exact', 'fallback', 'medical_note', 'ids'})
+        self.assertTrue(stored['medical_note'])
+        self.assertLessEqual(len(stored['ids']), 60)
 
     @override_settings(TURNSTILE_SECRET_KEY='s', DISCOVER_FREE_SEARCHES_BEFORE_CHALLENGE=1)
     def test_challenge_required_after_free_searches(self):

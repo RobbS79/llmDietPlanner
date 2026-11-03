@@ -52,9 +52,10 @@ def _fold(q: str) -> str:
     return ' '.join(''.join(c for c in q if not unicodedata.combining(c)).split())
 
 
-def result_key(q: str, page: int) -> str:
+def result_key(q: str) -> str:
+    """One key per normalised query; pages are sliced from the cached ranking."""
     digest = hashlib.sha256(_fold(q).encode()).hexdigest()[:32]
-    return f'discover:result:{digest}:{int(page)}'
+    return f'discover:result:v2:{digest}'
 
 
 def _siteverify(token: str, ip: str) -> bool:
