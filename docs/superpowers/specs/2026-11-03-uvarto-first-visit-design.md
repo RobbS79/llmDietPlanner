@@ -133,3 +133,4 @@ Reference material:
 - Refine chat on the landing page. It stays inside saved plans.
 - Aisle grouping of the shopping list (there is no ingredient category data yet).
 - Editable servings on a single recipe. The people count applies only to the combined list.
+- Deferred from v1 to keep the build small: the "Z naší sbírky" recipe row on the landing page, and the "Pamatovat si „bez masa“ i příště?" card after signup. The chips and the deals strip already give a zero-typing start, and dietary preferences stay editable in Settings.
