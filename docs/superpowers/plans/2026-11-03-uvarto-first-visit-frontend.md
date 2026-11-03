@@ -747,6 +747,14 @@ describe('Landing', () => {
     expect(screen.getByRole('button', { name: 'Nákupní seznam' })).toBeInTheDocument();
   });
 
+  it('says so when nothing in the collection meets the restrictions', async () => {
+    vi.spyOn(client, 'searchRecipes').mockResolvedValue({ understood: ['bez masa'], exact: false, fallback: false, has_more: false, recipes: [] });
+    renderLanding();
+    await userEvent.click(screen.getByRole('button', { name: 'Bez masa' }));
+    expect(await screen.findByText(/Na tohle jsme nic nenašli/)).toBeInTheDocument();
+    expect(screen.queryByText(/hledal hodně/)).toBeNull();
+  });
+
   it('is honest when nothing matched exactly', async () => {
     vi.spyOn(client, 'searchRecipes').mockResolvedValue({ understood: ['kachna'], exact: false, fallback: false, has_more: false, recipes: [card(3, 'Guláš')] });
     renderLanding();
@@ -795,13 +803,14 @@ export const Landing = () => {
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [challenge, setChallenge] = useState(false);
+  const [limited, setLimited] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
 
   useEffect(() => { captureAttribution(window.location.search); }, []);
 
   const run = useCallback(async (q: string, p = 0, token?: string) => {
-    setLoading(true); setChallenge(false);
+    setLoading(true); setChallenge(false); setLimited(false);
     try {
       const r = await searchRecipes(q, p, token);
       setResult(r); setQ(q); setPage(p); setQuery(q);
@@ -809,7 +818,7 @@ export const Landing = () => {
     } catch (err: unknown) {
       const e = err as { response?: { status?: number; data?: { code?: string } } };
       if (e.response?.data?.code === 'CHALLENGE_REQUIRED') { setQ(q); setPage(p); setChallenge(true); }
-      else if (e.response?.status === 429) setResult({ understood: [], exact: false, fallback: true, has_more: false, recipes: [] });
+      else if (e.response?.status === 429) { setResult(null); setLimited(true); }
     } finally { setLoading(false); }
   }, []);
 
@@ -847,6 +856,9 @@ export const Landing = () => {
 
         {challenge && <TurnstileGate onToken={(t) => run(query, page, t)} />}
 
+        {/* EN: You've searched a lot today. Try again tomorrow. */}
+        {limited && <p className="py-6">Dnes už jsi hledal hodně. Zkus to zase zítra.</p>}
+
         {(loading || result) && (
           <section aria-live="polite" className="pt-6">
             {loading && <p className="text-muted">Hledám ve sbírce…</p>}
@@ -859,7 +871,8 @@ export const Landing = () => {
                   {!result.exact && 'Na tohle jsme ve sbírce nic přesného nenašli. Tady je, co je nejblíž.'}
                 </p>
                 {result.recipes.length === 0
-                  ? <p className="py-6">Dnes už jsi hledal hodně. Zkus to zase zítra.</p>
+                  // EN: We couldn't find anything for that. Try writing it differently, e.g. a single ingredient: "from potatoes" or "with rice".
+                  ? <p className="py-6">Na tohle jsme nic nenašli. Zkus to napsat jinak, třeba jednu surovinu: „z brambor“ nebo „s rýží“.</p>
                   : (
                     <div className="my-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5">
                       {result.recipes.map((r) => (
@@ -895,7 +908,7 @@ The "Z naší sbírky" row is dropped from v1 (YAGNI). The deals strip and the c
 - [ ] **Step 4: Run the checks and confirm they pass**
 
 Run: `npx vitest run src/pages/Landing.test.tsx && npx tsc --noEmit`
-Expected: 3 passed. Then run `npm run test` for the whole suite. If an old Landing test asserts the removed copy (`grep -rn "Landing" src --include=*.test.tsx`), delete those assertions. They tested the page this task replaces.
+Expected: 4 passed. Then run `npm run test` for the whole suite. If an old Landing test asserts the removed copy (`grep -rn "Landing" src --include=*.test.tsx`), delete those assertions. They tested the page this task replaces.
 
 - [ ] **Step 5: Commit**
 
