@@ -2,7 +2,8 @@
 """Public payloads for CuratedRecipe on the first-visit landing (spec 2026-11-03).
 
 Per-portion everywhere: base_nutrition is the whole recipe for base_servings.
-Unknown nutrition is None, never 0, so the UI can hide the line.
+Unknown nutrition is None so the UI can hide the line. For kcal 0 also
+means unknown (no dish has 0 kcal); a macro of 0 is a real value.
 """
 from typing import Any, Dict, Optional
 
@@ -16,9 +17,11 @@ def _servings(recipe) -> int:
     return max(int(recipe.base_servings or 1), 1)
 
 
-def _per_portion(recipe, key: str) -> Optional[int]:
+def _per_portion(recipe, key: str, *, zero_is_unknown: bool = False) -> Optional[int]:
     value = (recipe.base_nutrition or {}).get(key)
-    if not isinstance(value, (int, float)) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value != value:
+        return None
+    if value < 0 or (zero_is_unknown and value == 0):
         return None
     return int(round(value / _servings(recipe)))
 
@@ -47,7 +50,7 @@ def recipe_card(recipe, *, deal_index, slug_cache) -> Dict[str, Any]:
         'name': recipe.name_cs,
         'image_url': image_url(recipe),
         'minutes': recipe.total_time or None,
-        'kcal': _per_portion(recipe, 'calories'),
+        'kcal': _per_portion(recipe, 'calories', zero_is_unknown=True),
         'deals': _deals(recipe, deal_index, slug_cache),
     }
 

@@ -16,7 +16,9 @@ from diet_planner.services.discover_guard import (
 )
 from diet_planner.services.recipe_deals import active_deal_index
 from diet_planner.services.shopping_compose import compose_shopping_list
-from diet_planner.throttles import ComposeThrottle, DiscoverBurstThrottle, DiscoverDayThrottle
+from diet_planner.throttles import (
+    ComposeThrottle, DiscoverBurstThrottle, DiscoverDayThrottle, DiscoverSheetThrottle,
+)
 
 _RESULT_TTL = 60 * 60 * 24
 # A fallback (LLM failed or budget spent) is a worse answer than the next
@@ -50,7 +52,7 @@ def _int(value, default):
 def _published(ids):
     if not isinstance(ids, list):
         return []
-    ids = [int(i) for i in ids if str(i).isdigit()][:_MAX_LIST_RECIPES]
+    ids = list(dict.fromkeys(int(i) for i in ids if str(i).isdigit()))[:_MAX_LIST_RECIPES]
     by_id = {r.id: r for r in CuratedRecipe.objects.filter(
         id__in=ids, status=CuratedRecipe.Status.PUBLISHED)}
     return [by_id[i] for i in ids if i in by_id]
@@ -68,7 +70,10 @@ def _ids_page(ids, page):
     return ids[start:start + _PAGE_SIZE]
 
 
+# Public endpoints authenticate nothing: a stale JWT in the header must not
+# 401 an anonymous call. Throttles then key by client IP for everyone.
 class DiscoverView(APIView):
+    authentication_classes = []
     permission_classes = []
     throttle_classes = [DiscoverBurstThrottle, DiscoverDayThrottle]
 
@@ -108,8 +113,9 @@ class DiscoverView(APIView):
 
 
 class DiscoverRecipeView(APIView):
+    authentication_classes = []
     permission_classes = []
-    throttle_classes = [ComposeThrottle]
+    throttle_classes = [DiscoverSheetThrottle]
 
     def get(self, request, pk: int):
         recipe = get_object_or_404(CuratedRecipe, pk=pk, status=CuratedRecipe.Status.PUBLISHED)
@@ -117,6 +123,7 @@ class DiscoverRecipeView(APIView):
 
 
 class DealsThisWeekView(APIView):
+    authentication_classes = []
     permission_classes = []
 
     def get(self, request):
@@ -128,6 +135,7 @@ class DealsThisWeekView(APIView):
 
 
 class ShoppingListComposeView(APIView):
+    authentication_classes = []
     permission_classes = []
     throttle_classes = [ComposeThrottle]
 

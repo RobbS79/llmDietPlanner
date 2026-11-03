@@ -34,3 +34,7 @@ class DiscoverBurstThrottle(_EveryoneThrottle):
 
 class ComposeThrottle(_EveryoneThrottle):
     scope = 'compose'
+
+
+class DiscoverSheetThrottle(_EveryoneThrottle):
+    scope = 'discover_sheet'

@@ -50,3 +50,16 @@ class RecipeCardTest(TestCase):
         self.assertEqual(len(sheet['steps']), 3)
         self.assertEqual(sheet['source'], {'name': 'Toprecepty.cz', 'url': 'https://example.com/wok'})
         self.assertEqual(sheet['ingredients'][0]['name'], 'kuřecí prsa')
+
+    def test_zero_macro_is_real_zero_kcal_zero_is_unknown(self):
+        r = _recipe(slug='z', base_nutrition={'calories': 0, 'protein': 20, 'carbs': 0, 'fat': 4})
+        sheet = recipe_sheet(r, deal_index={}, slug_cache={})
+        self.assertIsNone(sheet['kcal'])
+        self.assertEqual(sheet['macros'], {'protein': 10, 'carbs': 0, 'fat': 2})
+
+    def test_missing_or_non_numeric_macro_hides_macros(self):
+        for nutrition in ({'calories': 500, 'protein': 20, 'fat': 4},
+                          {'calories': 500, 'protein': 20, 'carbs': 'n/a', 'fat': 4},
+                          {'calories': 500, 'protein': True, 'carbs': 1, 'fat': 4}):
+            r = _recipe(slug=f's{len(str(nutrition))}', base_nutrition=nutrition)
+            self.assertIsNone(recipe_sheet(r, deal_index={}, slug_cache={})['macros'], nutrition)

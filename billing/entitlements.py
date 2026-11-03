@@ -37,13 +37,16 @@ def allow_generation(user: User) -> bool:
 def saved_list_allowance(user) -> dict:
     """Free accounts: FREE_SAVED_LISTS_PER_MONTH per calendar month.
     An entitled subscription: unlimited (limit None)."""
+    from zoneinfo import ZoneInfo
+
     from django.conf import settings
     from django.utils import timezone
 
     from diet_planner.models import SavedShoppingList
 
     sub = active_subscription(user)
-    now = timezone.localtime()
+    # Calendar months in Prague time; settings.TIME_ZONE is left as is.
+    now = timezone.now().astimezone(ZoneInfo('Europe/Prague'))
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     used = SavedShoppingList.objects.filter(user=user, created_at__gte=month_start).count()
     if sub is not None and sub.is_entitled():

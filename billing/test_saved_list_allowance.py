@@ -41,3 +41,14 @@ class SavedListAllowanceTest(TestCase):
             allowance = saved_list_allowance(self.user)
         self.assertTrue(allowance['can_save'])
         self.assertIsNone(allowance['limit'])
+
+    def test_month_boundary_is_prague_time(self):
+        from datetime import datetime, timezone as tz
+        now = datetime(2026, 11, 30, 23, 30, tzinfo=tz.utc)  # already 1 December in Prague
+        for _ in range(3):
+            self._save(when=datetime(2026, 11, 30, 22, 0, tzinfo=tz.utc))  # 23:00 30 Nov Prague
+        self._save(when=datetime(2026, 11, 30, 23, 10, tzinfo=tz.utc))  # 00:10 1 Dec Prague
+        with mock.patch('django.utils.timezone.now', return_value=now):
+            allowance = saved_list_allowance(self.user)
+        self.assertEqual(allowance['used'], 1)
+        self.assertTrue(allowance['can_save'])

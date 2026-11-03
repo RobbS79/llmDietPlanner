@@ -186,6 +186,8 @@ def _default_generate(system_prompt: str, user_text: str) -> str:
             temperature=0.0,
             response_mime_type='application/json',
         ),
+        # A hung Gemini request must not hold a worker thread indefinitely.
+        request_options={'timeout': 10},
     )
     return getattr(resp, 'text', '') or ''
 

@@ -167,6 +167,24 @@ class DiscoverViewsTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()['data']['lines']), 2)
 
+    def test_compose_dedupes_ids_keeping_order(self):
+        resp = self.client.post('/api/shopping-list/compose/',
+                                {'recipe_ids': [self.b.id, self.a.id, self.b.id]}, format='json')
+        self.assertEqual([r['id'] for r in resp.json()['data']['recipes']], [self.b.id, self.a.id])
+
+    def test_public_endpoints_ignore_an_expired_token(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer expired.or.garbage')
+        self.assertEqual(self.client.post('/api/discover/', {'q': 'čočka'}, format='json').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/discover/recipe/{self.a.id}/').status_code, 200)
+        self.assertEqual(self.client.get('/api/deals/this-week/').status_code, 200)
+        self.assertEqual(self.client.post('/api/shopping-list/compose/',
+                                          {'recipe_ids': [self.a.id]}, format='json').status_code, 200)
+        self.assertEqual(self.client.get('/api/shopping-lists/').status_code, 401)
+
+    def test_recipe_sheet_has_its_own_throttle_scope(self):
+        from diet_planner.views_discover import DiscoverRecipeView
+        self.assertEqual([t.scope for t in DiscoverRecipeView.throttle_classes], ['discover_sheet'])
+
     def test_save_list_requires_login_and_enforces_free_limit(self):
         # JWTAuthentication sends a WWW-Authenticate header, so DRF answers 401, not 403.
         self.assertEqual(self.client.post('/api/shopping-lists/', {}, format='json').status_code, 401)
