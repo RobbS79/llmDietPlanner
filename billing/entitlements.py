@@ -32,3 +32,21 @@ def allow_generation(user: User) -> bool:
     if sub and sub.within_monthly_quota():
         return True
     return user.profile.has_free_generations()
+
+
+def saved_list_allowance(user) -> dict:
+    """Free accounts: FREE_SAVED_LISTS_PER_MONTH per calendar month.
+    An entitled subscription: unlimited (limit None)."""
+    from django.conf import settings
+    from django.utils import timezone
+
+    from diet_planner.models import SavedShoppingList
+
+    sub = active_subscription(user)
+    now = timezone.localtime()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    used = SavedShoppingList.objects.filter(user=user, created_at__gte=month_start).count()
+    if sub is not None and sub.is_entitled():
+        return {'can_save': True, 'used': used, 'limit': None}
+    limit = int(getattr(settings, 'FREE_SAVED_LISTS_PER_MONTH', 3))
+    return {'can_save': used < limit, 'used': used, 'limit': limit}
