@@ -1,42 +1,34 @@
 // frontend/src/components/discover/RecipeSheet.tsx
-import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getRecipeSheet, formatAmount, formatDealDate } from '@/lib/discover';
+import { getRecipeSheet, formatAmount, formatDealDate, roundSheetAmount } from '@/lib/discover';
+import { useDialog } from '@/lib/useDialog';
 
 type Props = { id: number; picked: boolean; onToggle: (id: number) => void; onClose: () => void };
 
 export function RecipeSheet({ id, picked, onToggle, onClose }: Props) {
-  const { data: r } = useQuery({ queryKey: ['recipe-sheet', id], queryFn: () => getRecipeSheet(id) });
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  // Return focus to whatever opened the sheet once it goes away.
-  useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    return () => { opener?.focus?.(); };
-  }, []);
-
-  // The close button only exists once the recipe has loaded.
-  const loaded = !!r;
-  useEffect(() => { if (loaded) closeRef.current?.focus(); }, [loaded]);
+  const { data: r, isError } = useQuery({ queryKey: ['recipe-sheet', id], queryFn: () => getRecipeSheet(id) });
+  // The close button sits outside the loading/error/loaded branches, so it is
+  // the first focus target and stays put while the recipe loads.
+  const panel = useDialog(onClose);
 
   const dealCanon = new Set(r?.deals.items.map((d) => d.canonical));
   return (
     <div role="dialog" aria-modal="true" aria-label={r?.name ?? 'Recept'}
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="max-h-[92%] w-full max-w-[680px] overflow-auto rounded-t-3xl bg-paper pb-6 sm:rounded-3xl">
-        {!r ? <p className="p-6 text-muted">Načítám recept…</p> : (
+      <div ref={panel} tabIndex={-1} className="relative max-h-[92%] w-full max-w-[680px] overflow-auto rounded-t-3xl bg-paper pb-6 outline-none sm:rounded-3xl">
+        {/* EN: Close */}
+        <button type="button" onClick={onClose} aria-label="Zavřít"
+          className="absolute right-4 top-4 z-10 h-9 w-9 rounded-full border border-kraft bg-white">✕</button>
+        {/* EN: The recipe couldn't be loaded. */}
+        {!r && isError && <p className="p-6 pr-16 text-ink">Recept se nepodařilo načíst.</p>}
+        {/* EN: Loading the recipe… */}
+        {!r && !isError && <p className="p-6 pr-16 text-muted">Načítám recept…</p>}
+        {r && (
           <>
             <div className="aspect-video"><img src={r.image_url} alt="" className="h-full w-full object-cover" /></div>
             <div className="flex flex-col gap-4 px-5 pt-4">
               <div>
-                <button ref={closeRef} type="button" onClick={onClose} aria-label="Zavřít" className="float-right h-9 w-9 rounded-full border border-kraft bg-white">✕</button>
                 <h2 className="font-display text-3xl font-bold leading-tight text-ink">{r.name}</h2>
                 <p className="mt-1 text-sm text-muted tabular-nums">
                   {[r.minutes && `${r.minutes} min`, r.kcal && `${r.kcal} kcal na porci`,
@@ -58,7 +50,7 @@ export function RecipeSheet({ id, picked, onToggle, onClose }: Props) {
                 <p className="font-display text-lg font-bold">Suroviny na 1 porci</p>
                 <ul className="list-disc pl-5">
                   {r.ingredients.map((i) => (
-                    <li key={i.name}>{i.name} <span className="text-sm text-muted">{formatAmount(i.quantity && Math.round(i.quantity * 10) / 10, i.unit)}</span>
+                    <li key={i.name}>{i.name} <span className="text-sm text-muted">{formatAmount(roundSheetAmount(i.quantity, i.unit), i.unit)}</span>
                       {dealCanon.has(i.canonical) && <span className="ml-1 rounded bg-yellow-300 px-1.5 text-xs font-semibold">v akci</span>}</li>
                   ))}
                 </ul>

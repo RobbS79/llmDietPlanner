@@ -1,18 +1,24 @@
 // Signup only at the moment of keeping (spec 2026-11-03). The basket is
-// already in localStorage; LoginSuccess sends the user back to /nakup.
+// already in localStorage; LoginSuccess sends the user back to `returnTo`.
 import { Link } from 'react-router-dom';
+import { useDialog } from '@/lib/useDialog';
+import { setReturnIntent, type ReturnPath } from '@/lib/returnIntent';
+import { RETURN_KEY } from '@/lib/storageKeys';
 
-export const RETURN_KEY = 'uvarto.return.v1';
+export { RETURN_KEY };
 
-export function SignupSheet({ thumbs, onClose }: { thumbs: string[]; onClose: () => void }) {
+type Props = { thumbs: string[]; onClose: () => void; returnTo?: ReturnPath };
+
+export function SignupSheet({ thumbs, onClose, returnTo = '/nakup' }: Props) {
+  const panel = useDialog(onClose);
   const google = () => {
-    try { localStorage.setItem(RETURN_KEY, '/nakup'); } catch { /* ignore */ }
+    setReturnIntent(returnTo);
     window.location.href = `${import.meta.env.VITE_API_URL || ''}/api/auth/google/login/`;
   };
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="signup-h" className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="flex w-full max-w-[480px] flex-col gap-4 rounded-t-3xl bg-paper p-6 sm:rounded-3xl">
+      <div ref={panel} tabIndex={-1} className="flex w-full max-w-[480px] flex-col gap-4 rounded-t-3xl bg-paper p-6 outline-none sm:rounded-3xl">
         <h2 id="signup-h" className="font-display text-3xl font-bold">Uložit si to</h2>
         {/* EN: So your picked recipes and shopping list don't get lost. */}
         <p>Ať ti vybrané recepty a nákupní seznam neutečou.</p>
@@ -25,7 +31,7 @@ export function SignupSheet({ thumbs, onClose }: { thumbs: string[]; onClose: ()
           Pokračovat přes Google
         </button>
         {/* EN: Or by email */}
-        <Link to="/login?mode=register&next=/nakup" className="self-center font-semibold text-green underline">Nebo e-mailem</Link>
+        <Link to={`/login?mode=register&next=${encodeURIComponent(returnTo)}`} className="self-center font-semibold text-green underline">Nebo e-mailem</Link>
         {/* EN: Free, no card. Your first 2 plans are on us. */}
         <p className="text-center text-xs text-muted">Zdarma, bez karty. První 2 plány máš u nás zadarmo.</p>
         {/* EN: Not now */}

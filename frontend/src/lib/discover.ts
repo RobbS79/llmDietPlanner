@@ -40,3 +40,12 @@ export function formatAmount(amount: number | null, unit: string): string {
   if (amount == null) return '';
   return `${String(amount).replace('.', ',')} ${unit}`.trim();
 }
+
+/** Per-portion amount for the recipe sheet: whole g/ml, otherwise one decimal.
+ *  A positive quantity never shows as 0; it shows the smallest step instead. */
+export function roundSheetAmount(q: number | null, unit: string): number | null {
+  if (q == null || !(q > 0)) return q;
+  const step = ['g', 'ml'].includes(unit.trim().toLowerCase()) ? 1 : 0.1;
+  const rounded = Math.round(q / step) * step;
+  return rounded > 0 ? Math.round(rounded * 10) / 10 : step;
+}

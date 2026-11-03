@@ -12,7 +12,8 @@ const sheet = { id: 1, slug: 's', name: 'Kulajda', image_url: '/k.webp', minutes
   ingredients: [{ name: 'česnek', canonical: 'garlic', quantity: 1, unit: 'stroužky' }],
   steps: ['a', 'b', 'c', 'd'] };
 
-const wrap = (ui: React.ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+const wrap = (ui: React.ReactNode) => render(
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
 
 describe('RecipeSheet', () => {
   it('shows macros, source, deal line, first two steps', async () => {
@@ -51,5 +52,47 @@ describe('RecipeSheet', () => {
     unmount();
     expect(opener).toHaveFocus();
     opener.remove();
+  });
+
+  it('can be closed while the recipe is still loading', async () => {
+    vi.spyOn(client, 'getRecipeSheet').mockReturnValue(new Promise(() => {}));
+    const onClose = vi.fn();
+    wrap(<RecipeSheet id={1} picked={false} onToggle={() => {}} onClose={onClose} />);
+    expect(screen.getByText('Načítám recept…')).toBeInTheDocument();
+    const close = screen.getByRole('button', { name: 'Zavřít' });
+    expect(close).toHaveFocus();
+    await userEvent.click(close);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('says so when the recipe fails to load, and can still be closed', async () => {
+    vi.spyOn(client, 'getRecipeSheet').mockRejectedValue(new Error('500'));
+    wrap(<RecipeSheet id={1} picked={false} onToggle={() => {}} onClose={() => {}} />);
+    expect(await screen.findByText('Recept se nepodařilo načíst.')).toBeInTheDocument();
+    expect(screen.queryByText('Načítám recept…')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Zavřít' })).toBeInTheDocument();
+  });
+
+  it('never shows a tiny positive amount as 0', async () => {
+    vi.spyOn(client, 'getRecipeSheet').mockResolvedValue({ ...sheet, ingredients: [
+      { name: 'sůl', canonical: 'salt', quantity: 0.02, unit: 'lžička' },
+      { name: 'olej', canonical: 'oil', quantity: 0.3, unit: 'ml' },
+      { name: 'pepř', canonical: 'pepper', quantity: 0.4, unit: 'g' },
+      { name: 'mouka', canonical: 'flour', quantity: 12.345, unit: 'g' },
+    ] });
+    wrap(<RecipeSheet id={1} picked={false} onToggle={() => {}} onClose={() => {}} />);
+    expect(await screen.findByText('0,1 lžička')).toBeInTheDocument();
+    expect(screen.getByText('1 ml')).toBeInTheDocument();
+    expect(screen.getByText('1 g')).toBeInTheDocument();
+    expect(screen.getByText('12 g')).toBeInTheDocument();
+  });
+
+  it('keeps Tab inside the sheet', async () => {
+    vi.spyOn(client, 'getRecipeSheet').mockResolvedValue(sheet);
+    wrap(<RecipeSheet id={1} picked={false} onToggle={() => {}} onClose={() => {}} />);
+    await screen.findByText('Kulajda');
+    screen.getByRole('button', { name: 'Chci tohle' }).focus();
+    await userEvent.tab();
+    expect(screen.getByRole('button', { name: 'Zavřít' })).toHaveFocus();
   });
 });
