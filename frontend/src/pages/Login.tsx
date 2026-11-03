@@ -20,7 +20,7 @@ const GoogleIcon = () => (
 export const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register'>(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [showPassword, setShowPassword] = useState(false);
   // verify-email endpoint redirects here with ?verified=1 (success) or ?verified=0 (bad/expired link)
   const verifiedParam = searchParams.get('verified');
@@ -38,7 +38,8 @@ export const Login = () => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       syncConsentToServer();
-      navigate(getPendingPromo() ? '/pricing' : '/', { replace: true });
+      // Only the literal /nakup is honoured, so this can't be an open redirect.
+      navigate(getPendingPromo() ? '/pricing' : (searchParams.get('next') === '/nakup' ? '/nakup?vitej=1' : '/'), { replace: true });
     },
     onError: (err: any) => {
       const msg = err.response?.data?.error;

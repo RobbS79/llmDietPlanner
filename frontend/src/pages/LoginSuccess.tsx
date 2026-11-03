@@ -15,7 +15,9 @@ export const LoginSuccess = () => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       syncConsentToServer();
-      navigate(getPendingPromo() ? '/pricing' : '/', { replace: true });
+      const back = localStorage.getItem('uvarto.return.v1');
+      localStorage.removeItem('uvarto.return.v1');
+      navigate(getPendingPromo() ? '/pricing' : (back === '/nakup' ? '/nakup?vitej=1' : '/'), { replace: true });
     } else {
       navigate('/login?error=auth_failed');
     }
