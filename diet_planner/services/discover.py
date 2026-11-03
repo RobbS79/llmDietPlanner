@@ -42,11 +42,15 @@ class LLMBudgetSpent(Exception):
 
 
 def _budgeted(generate: Callable[[str, str], str]) -> Callable[[str, str], str]:
-    """Each REAL LLM call takes one budget slot first (extract_prompt_facets
-    retries once, so one request may cost two). No slot: raise, and the
-    extraction failure falls back to text search."""
+    """The caller already took the slot for the FIRST real call, so that one
+    is free. extract_prompt_facets retries once; that second call takes its own
+    slot here. No slot: raise, and the failure falls back to text search."""
+    calls = 0
+
     def call(system_prompt: str, user_text: str) -> str:
-        if not take_llm_slot():
+        nonlocal calls
+        calls += 1
+        if calls > 1 and not take_llm_slot():
             raise LLMBudgetSpent()
         return generate(system_prompt, user_text)
     return call
@@ -99,6 +103,10 @@ def _mains(pool: List[CuratedRecipe]) -> List[CuratedRecipe]:
 def _read_request(q: str, pool, generate) -> Optional[PromptFacets]:
     """Facets, or None when the LLM failed, timed out or found nothing usable."""
     timeout = getattr(settings, 'DISCOVER_LLM_TIMEOUT_SECONDS', 5)
+    # First slot in the calling thread: one cache connection, and the daily
+    # Slack alert runs outside the timeout window. Spent: no thread, no LLM.
+    if not take_llm_slot():
+        return None
     vocab = published_cuisine_vocab(pool=pool)
     # Looked up at call time so tests can patch prompt_facets._default_generate.
     kwargs = {'language': 'cs', 'cuisine_vocab': vocab,

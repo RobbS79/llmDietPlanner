@@ -1,3 +1,4 @@
+import threading
 from unittest import mock
 
 from django.core.cache import cache
@@ -153,6 +154,26 @@ class DiscoverOutputTest(TestCase):
         self.assertEqual(calls, [])
         self.assertTrue(out['fallback'])
         self.assertEqual(out['recipes'][0].id, self.a.id)
+
+    def test_spent_budget_spawns_no_thread_and_never_generates(self):
+        generate = mock.Mock(return_value='{}')
+        with mock.patch.object(discover_mod, 'take_llm_slot', return_value=False), \
+                mock.patch.object(discover_mod.concurrent.futures, 'ThreadPoolExecutor') as pool:
+            out = discover('kuřecí prsa', 0, llm_allowed=True, generate=generate)
+        generate.assert_not_called()
+        pool.assert_not_called()
+        self.assertTrue(out['fallback'])
+
+    def test_first_slot_is_taken_in_the_calling_thread(self):
+        threads = []
+
+        def record():
+            threads.append(threading.current_thread())
+            return True
+        with mock.patch.object(discover_mod, 'take_llm_slot', side_effect=record):
+            discover('něco dobrého na večer', 0, llm_allowed=True,
+                     generate=lambda s, u: '{"wanted_ingredients": ["čočka"]}')
+        self.assertEqual(threads, [threading.current_thread()])
 
     def test_default_generate_is_the_wrapped_one(self):
         with mock.patch('diet_planner.services.prompt_facets._default_generate',
