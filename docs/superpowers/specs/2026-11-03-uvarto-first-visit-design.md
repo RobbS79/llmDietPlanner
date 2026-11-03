@@ -45,12 +45,12 @@ Reference material:
 - Reads the request with `extract_prompt_facets` (existing; one Gemini call). It has a hard 5 s timeout; on timeout, error or an exhausted daily budget, it falls back to a plain text match over names and ingredients (`fallback: true`).
 - Selects from published `CuratedRecipe` main-dish candidates using the existing hard gate (`recipe_matches_facets` plus dietary and time gates) and `score_recipe`, with no Gemini gap filling.
 - With no exact match, it returns the nearest popular recipes with `exact: false`.
-- Cards use a new compact serializer for `CuratedRecipe`: id, slug, name, image (dish image else category image, same rule as `serializers.py` `get_image_url`), time, kcal and macros when computed, source name and url, and the deals summary from `recipe_deals` with one `active_deal_index()` per request.
+- Cards use a new compact serializer for `CuratedRecipe`: id, slug, name, image (dish image else category image, same rule as `serializers.py` `get_image_url`), time, kcal when computed, and the deals summary from `recipe_deals` with one `active_deal_index()` per request. Macros and the source credit are on the recipe sheet only.
 - `understood` is built from facets as Czech display labels (e.g. `low_carb` → "méně sacharidů", with a not-medical note flag when the prompt mentions diabetes).
 
 **`GET /api/discover/recipe/<id>/`**. Full sheet data for one published recipe: ingredients (via `ingredient_display`), steps, nutrition, source and deals.
 
-**`GET /api/deals/this-week/`**. The top N active deals from `active_deal_index()`, with display name, shop, valid_until and a search phrase. It returns an empty list when nothing is active or nothing is still valid. The frontend then hides the strip. A stale deal is never shown.
+**`GET /api/deals/this-week/`**. The top N active deals from `active_deal_index()`, with canonical, display name, shop and valid_until. The frontend builds the search phrase ("Co uvařit z …") from the canonical. It returns an empty list when nothing is active or nothing is still valid. The frontend then hides the strip. A stale deal is never shown.
 
 **`POST /api/shopping-list/compose/`** (anonymous allowed). Input `{recipe_ids: [int], people: int}`. Output: the merged lines.
 - Lines merge only when canonical and unit both match; otherwise they stay as separate lines.
@@ -65,7 +65,7 @@ Reference material:
 - **Rate limit:** a DRF `ScopedRateThrottle` scope `discover` at 20/day per visitor, plus a burst scope at 6/minute.
 - **Bot check:** a Cloudflare Turnstile token is required on `/api/discover/` after the first 3 searches of a session. Verification happens server-side.
 - **Daily Gemini budget:** a counter for discover calls is kept in Redis, through Django's cache. Past `DISCOVER_DAILY_LLM_BUDGET`, search uses only the text fallback.
-- **Caching:** identical normalised queries are cached for 24 h, and the six chip queries are warmed at deploy. Django `CACHES` is configured to the existing Redis.
+- **Caching:** the discover output (understood labels, flags, ranked recipe ids) is cached per normalised query for 24 h, or 5 minutes when it came from the text fallback. Pages are sliced from it, and cards and deals are built fresh per request, so an expired deal is never served from cache. Chip queries are not pre-warmed; the first visitor's search fills the cache. Django `CACHES` is configured to the existing Redis, on a separate DB index from the Celery broker.
 - **Spend alert:** a Slack alert fires when the daily discover LLM count crosses 80% of the budget. It reuses the `check_llm_health` Slack plumbing.
 - **One free allowance per person:**
   - Registration normalises email (lowercase; for gmail.com and googlemail.com, drop dots and the `+tag`) and rejects a normalised duplicate.
