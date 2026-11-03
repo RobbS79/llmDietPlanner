@@ -22,9 +22,9 @@ const routes = [
   {
     path: '/',
     outFile: 'index.html',
-    title: 'Uvařto — Jídelníček na míru podle vašeho cíle',
-    // EN: Describe your goal, choose how many breakfasts, lunches and dinners, and get tailored recipes with calories, macros and a shopping list. Some ingredients also show leaflet deals. 2 plans free.
-    description: 'Popište svůj cíl, zvolte počet snídaní, obědů a večeří — a dostanete recepty na míru s kaloriemi, makry i nákupním seznamem. U některých surovin navíc slevy z letáků. 2 jídelníčky zdarma.',
+    title: 'Co dnes uvařit? Recepty a co je v akci | Uvařto',
+    // EN: Type what you feel like or what you have at home. You'll see recipes right away, with a shopping list and which ingredients are on sale this week.
+    description: 'Napiš, na co máš chuť nebo co máš doma. Hned uvidíš recepty, nákupní seznam a které suroviny jsou tento týden v akci.',
     canonical: '/',
   },
   {

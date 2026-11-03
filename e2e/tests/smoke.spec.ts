@@ -38,7 +38,9 @@ test.describe('smoke', () => {
     // of bouncing to /login.
     await page.goto('/');
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText(/Řekněte si, kolik obědů a večeří chcete/i).first()).toBeVisible();
+    // Search-first hero (spec 2026-11-03)
+    await expect(page.getByRole('heading', { level: 1, name: 'Co dnes uvařit?' })).toBeVisible();
+    await expect(page.getByLabel('Co chceš uvařit')).toBeVisible();
   });
 
   test('unauthenticated users are bounced from /create to /login', async ({ page }) => {
@@ -49,7 +51,9 @@ test.describe('smoke', () => {
   test('unknown routes redirect to / (the public landing page when anon)', async ({ page }) => {
     await page.goto('/this-route-does-not-exist');
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText(/Řekněte si, kolik obědů a večeří chcete/i).first()).toBeVisible();
+    // Search-first hero (spec 2026-11-03)
+    await expect(page.getByRole('heading', { level: 1, name: 'Co dnes uvařit?' })).toBeVisible();
+    await expect(page.getByLabel('Co chceš uvařit')).toBeVisible();
   });
 
   test('Google button triggers the backend OAuth redirect endpoint', async ({ page }) => {
