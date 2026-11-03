@@ -89,6 +89,17 @@ describe('Landing', () => {
     expect(await screen.findByText('Něco se nepovedlo. Zkus to prosím znovu.')).toBeInTheDocument();
   });
 
+  it('keeps the shown recipes when loading the next page fails', async () => {
+    vi.spyOn(client, 'searchRecipes')
+      .mockResolvedValueOnce({ understood: [], exact: true, fallback: false, medical_note: false, has_more: true, recipes: [card(1, 'Kuře s rýží')] })
+      .mockRejectedValueOnce({ response: { status: 500, data: {} } });
+    renderLanding();
+    await userEvent.click(screen.getByRole('button', { name: 'Bez masa' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Ukaž mi něco jiného' }));
+    expect(await screen.findByText('Něco se nepovedlo. Zkus to prosím znovu.')).toBeInTheDocument();
+    expect(screen.getByText('Kuře s rýží')).toBeInTheDocument();
+  });
+
   it('tells Meta where a search came from, never what was typed', async () => {
     vi.spyOn(client, 'searchRecipes').mockResolvedValue(result({}));
     const search = vi.spyOn(analytics, 'trackSearch');

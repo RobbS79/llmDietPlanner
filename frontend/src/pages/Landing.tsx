@@ -52,7 +52,7 @@ export const Landing = () => {
       const e = err as { response?: { status?: number; data?: { code?: string } } };
       if (e.response?.data?.code === 'CHALLENGE_REQUIRED') { setQ(q); setPage(p); setChallenge(true); }
       else if (e.response?.status === 429) { setResult(null); setLimited(true); }
-      else { setResult(null); setFailed(true); }
+      else { if (p === 0) setResult(null); setFailed(true); }
     } finally { setLoading(false); }
   }, []);
 
