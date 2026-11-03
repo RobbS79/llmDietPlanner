@@ -38,3 +38,7 @@ class ComposeThrottle(_EveryoneThrottle):
 
 class DiscoverSheetThrottle(_EveryoneThrottle):
     scope = 'discover_sheet'
+
+
+class SignupThrottle(_EveryoneThrottle):
+    scope = 'signup'

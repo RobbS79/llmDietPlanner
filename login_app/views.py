@@ -29,6 +29,7 @@ from pydantic import ValidationError
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 
+from diet_planner.throttles import SignupThrottle
 from .email_rules import is_disposable, normalised_email_taken
 from .models import UserProfile
 from .schemas import RegistrationRequest, LoginRequest, PasswordResetRequestSchema, PasswordResetConfirmSchema
@@ -151,8 +152,7 @@ class RegistrationView(APIView):
     """
     permission_classes = [AllowAny]
     authentication_classes = []
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'signup'
+    throttle_classes = [SignupThrottle]
 
     def post(self, request) -> Response:
         # Validate input FIRST so field errors (weak password, mismatch, bad

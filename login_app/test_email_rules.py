@@ -48,3 +48,20 @@ class RegistrationRulesTest(TestCase):
         for i in range(5):
             self.assertNotEqual(self._register(f'u{i}', f'u{i}@seznam.cz').status_code, 429)
         self.assertEqual(self._register('u6', 'u6@seznam.cz').status_code, 429)
+
+
+class SignupThrottleIdentityTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+    def test_forged_xff_does_not_dodge_the_signup_limit(self):
+        def register(i):
+            return self.client.post('/api/auth/register/', {
+                'username': f'f{i}', 'email': f'f{i}@seznam.cz',
+                'password': 'heslo1234', 'passwordConfirm': 'heslo1234'}, format='json',
+                HTTP_DO_CONNECTING_IP='203.0.113.9',
+                HTTP_X_FORWARDED_FOR=f'10.0.0.{i}, 203.0.113.9')
+        for i in range(5):
+            self.assertNotEqual(register(i).status_code, 429)
+        self.assertEqual(register(6).status_code, 429)

@@ -125,6 +125,7 @@ class DiscoverRecipeView(APIView):
 class DealsThisWeekView(APIView):
     authentication_classes = []
     permission_classes = []
+    throttle_classes = [DiscoverSheetThrottle]
 
     def get(self, request):
         deals = sorted(active_deal_index().values(), key=lambda d: d['valid_until'])
