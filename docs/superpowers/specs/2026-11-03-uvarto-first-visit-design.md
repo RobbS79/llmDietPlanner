@@ -57,7 +57,7 @@ Reference material:
 - Amounts are scaled by `people` and rounded for shopping: pieces and cloves round up to whole numbers, g/ml to a sensible step, and spoon or "to taste" units show no amount.
 - Each line says how many dishes need it and carries its deal.
 
-**Saved lists:** a new model `SavedShoppingList(user, recipe_ids JSON, people, at_home JSON, created_at)` with `POST/GET /api/shopping-lists/`. Creating one enforces the entitlement: free accounts get 3 per calendar month, and an active subscription is unlimited. Over the limit the endpoint returns 402 `LIST_LIMIT` with the copy "Tento měsíc máš 3 seznamy za sebou. S předplatným bez omezení."
+**Saved lists:** a new model `SavedShoppingList(user, recipe_ids JSON, people, at_home JSON, created_at)` with `POST/GET /api/shopping-lists/`. Creating one enforces the entitlement: free accounts get 3 per calendar month, and an active subscription is unlimited. Over the limit the endpoint returns 402 `LIST_LIMIT` with the copy "Tento měsíc už máš uložené 3 seznamy. S předplatným bez omezení."
 
 **Plan creation:** `DietaryGoalCreateRequest.city` becomes optional (default ""), `country` defaults to CZ and `language_code` defaults to `cs`. The plan sheet maps its answers to the pool counts: "5 večeří" → dinners 5; "5 obědů a 5 večeří" → lunches 5, dinners 5; "Nastavím si sám" → the existing steppers. Picked recipe ids are passed through and pre-fill pool slots before selection.
 

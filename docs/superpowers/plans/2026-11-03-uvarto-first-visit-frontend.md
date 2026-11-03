@@ -1277,7 +1277,7 @@ export function ShoppingList() {
         )}
         {saved === 'limit' && (
           <div className="mt-4 rounded-2xl border border-kraft bg-white p-4">
-            <p>Tento měsíc máš 3 seznamy za sebou. S předplatným bez omezení.</p>
+            <p>Tento měsíc už máš uložené 3 seznamy. S předplatným bez omezení.</p>
             <Link to="/pricing" className="mt-2 inline-block font-semibold text-green underline">Podívat se na předplatné</Link>
           </div>
         )}

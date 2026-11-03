@@ -1409,7 +1409,7 @@ class SavedShoppingListView(APIView):
         allowance = saved_list_allowance(request.user)
         if not allowance['can_save']:
             return _err('LIST_LIMIT',
-                        f"Tento měsíc máš {allowance['limit']} seznamy za sebou. S předplatným bez omezení.",
+                        f"Tento měsíc už máš uložené {allowance['limit']} seznamy. S předplatným bez omezení.",
                         status.HTTP_402_PAYMENT_REQUIRED)
         recipes = _published(request.data.get('recipe_ids') or [])
         if not recipes:
