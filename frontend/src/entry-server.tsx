@@ -11,6 +11,7 @@ import { Terms } from '@/pages/Terms';
 import { ForgotPassword } from '@/pages/ForgotPassword';
 import { About } from '@/pages/About';
 import { HowToPrompt } from '@/pages/HowToPrompt';
+import { ShoppingList } from '@/pages/ShoppingList';
 
 export function render(url: string): string {
   const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ export function render(url: string): string {
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/o-nas" element={<About />} />
             <Route path="/jak-to-funguje" element={<HowToPrompt />} />
+            <Route path="/nakup" element={<ShoppingList />} />
             <Route path="/" element={<Landing />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
