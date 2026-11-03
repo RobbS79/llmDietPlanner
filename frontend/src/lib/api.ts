@@ -15,7 +15,9 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     // Paywall: a 402 from the generation gate means the user is out of
     // entitlement — send them to the pricing page to subscribe.
-    if (error.response?.status === 402) {
+    // LIST_LIMIT is answered in place by a paywall sheet (spec 2026-11-03);
+    // only the plan-generation 402 jumps to /pricing.
+    if (error.response?.status === 402 && error.response?.data?.code !== 'LIST_LIMIT') {
       if (window.location.pathname !== '/pricing') {
         window.location.href = '/pricing?reason=quota';
       }
