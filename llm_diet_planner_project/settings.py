@@ -169,6 +169,10 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'account_delete': '5/hour',
         'resend_verification': '5/hour',
+        'discover': '20/day',
+        'discover_burst': '6/min',
+        'compose': '60/hour',
+        'signup': '5/day',
     },
 }
 
@@ -490,3 +494,21 @@ LOGGING = {
         },
     },
 }
+
+# --- First-visit discover (spec 2026-11-03) ---------------------------------
+# Shared cache: throttles, the daily LLM budget and discover results must be
+# shared across Gunicorn workers, so prod points CACHE_URL at Redis. Tests and
+# local runs without it use per-process LocMem.
+CACHE_URL = config('CACHE_URL', default='')
+if CACHE_URL:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+                          'LOCATION': CACHE_URL, 'TIMEOUT': 60 * 60 * 24}}
+else:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+
+DISCOVER_DAILY_LLM_BUDGET = config('DISCOVER_DAILY_LLM_BUDGET', default=500, cast=int)
+DISCOVER_FREE_SEARCHES_BEFORE_CHALLENGE = 3
+DISCOVER_LLM_TIMEOUT_SECONDS = 5
+TURNSTILE_SITE_KEY = config('TURNSTILE_SITE_KEY', default='')
+TURNSTILE_SECRET_KEY = config('TURNSTILE_SECRET_KEY', default='')
+FREE_SAVED_LISTS_PER_MONTH = 3
