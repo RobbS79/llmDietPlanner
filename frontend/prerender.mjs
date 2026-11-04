@@ -38,7 +38,7 @@ const routes = [
     path: '/pricing',
     outFile: 'pricing/index.html',
     title: 'Ceník — Uvařto',
-    description: 'Uvařto je zdarma pro 2 jidelnicky. Placene tarify Standard (99 CZK) a Premium (199 CZK) s vice jidelnicky a prehledem akci.',
+    description: 'Recepty a přehled akcí v Uvařto jsou zdarma, k tomu 2 plány. Standard (99 Kč) a Premium (199 Kč) přidají plány každý měsíc a nákupní seznamy bez omezení.',
     canonical: '/pricing',
   },
   {

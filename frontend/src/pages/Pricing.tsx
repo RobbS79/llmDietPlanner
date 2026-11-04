@@ -12,79 +12,98 @@ import {
   PROMO_REASON_TEXT, TERMINAL_REASONS, type PromoValidation, type PromoReason,
 } from '@/lib/promo';
 
+// Only limits the product enforces: plans (2 free for life; 7 / 30 a month paid)
+// and saved shopping lists (3 a month free; unlimited paid). Deals are free on
+// every tier and are never prices or savings. Copy: informal "ty".
+const COMMON = [
+  // EN: What's on sale right now / Nutrition values
+  { text: 'Co je zrovna v akci', included: true },
+  { text: 'Nutriční hodnoty', included: true },
+];
+
 const PLANS = [
   {
     name: 'Zdarma',
     price: 0,
-    description: 'Pro vyzkoušení',
-    cta: 'Začít zdarma',
+    // EN: To try it out
+    description: 'Na vyzkoušení',
+    // EN: Find recipes
+    cta: 'Najít recepty',
     highlighted: false,
     features: [
-      { text: '2 jídelníčky', included: true },
-      { text: '3 úpravy každého jídelníčku', included: true },
-      { text: 'Nákupní seznam', included: true },
-      { text: 'Nutriční hodnoty', included: true },
-      { text: 'Akční ceny z obchodů', included: false },
-      { text: 'Akční ceny ze všech obchodů', included: false },
+      // EN: 2 free plans / 3 saved shopping lists a month
+      { text: '2 plány zdarma', included: true },
+      { text: '3 uložené nákupní seznamy měsíčně', included: true },
+      ...COMMON,
     ],
   },
   {
     name: 'Standard',
     tier: 'standard' as const,
     price: 99,
-    description: 'Pro aktivní plánování',
+    // EN: A plan for every week
+    description: 'Plán na každý týden',
     cta: 'Vybrat Standard',
     highlighted: true,
     features: [
-      { text: '7 jídelníčků', included: true },
-      { text: '10 úprav jídelníčku', included: true },
-      { text: 'Nákupní seznam', included: true },
-      { text: 'Nutriční hodnoty', included: true },
-      { text: 'Akční ceny z jednoho obchodu', included: true },
-      { text: 'Akční ceny ze všech obchodů', included: false },
+      // EN: 7 plans a month / Unlimited shopping lists
+      { text: '7 plánů měsíčně', included: true },
+      { text: 'Nákupní seznamy bez omezení', included: true },
+      ...COMMON,
     ],
   },
   {
     name: 'Premium',
     tier: 'premium' as const,
     price: 199,
-    description: 'Pro maximum úspor',
+    // EN: When you plan often
+    description: 'Když plánuješ často',
     cta: 'Vybrat Premium',
     highlighted: false,
     features: [
-      { text: '30 jídelníčků', included: true },
-      { text: '5 úprav u každého jídelníčku', included: true },
-      { text: 'Nákupní seznam', included: true },
-      { text: 'Nutriční hodnoty', included: true },
-      { text: 'Akční ceny z jednoho obchodu', included: true },
-      { text: 'Akční ceny ze všech obchodů', included: true },
+      // EN: 30 plans a month / Unlimited shopping lists
+      { text: '30 plánů měsíčně', included: true },
+      { text: 'Nákupní seznamy bez omezení', included: true },
+      ...COMMON,
     ],
   },
 ];
 
 const FAQ = [
   {
-    q: 'Kolik jídelníčků mohu zdarma vygenerovat?',
-    // EN: On the free tier you create 2 jídelníčky, each with 3 edits. A jídelníček is a set of recipes for your request, each recipe with nutrition and a shopping list.
-    a: 'V bezplatném tarifu vytvoříte 2 jídelníčky, každý s možností 3 úprav. Jídelníček je sada receptů podle vašeho zadání — každý recept s nutričními hodnotami a nákupním seznamem.',
+    // EN: What do I get for free?
+    q: 'Co mám zdarma?',
+    // EN: Searching recipes, what's on sale and nutrition are free. With an account you save 3 shopping lists a month and build 2 week plans. A plan is a set of recipes for your request, each with nutrition and a shopping list.
+    a: 'Hledání receptů, přehled akcí a nutriční hodnoty jsou zdarma. S účtem si uložíš 3 nákupní seznamy měsíčně a sestavíš si 2 plány na týden. Plán je sada receptů podle tvého zadání, každý recept s nutričními hodnotami a nákupním seznamem.',
   },
   {
-    q: 'Jak přesné jsou ceny z obchodů?',
-    a: 'Ceny vycházejí z reálných cen v českých e-shopech a pravidelně je aktualizujeme. U akčních nabídek a podle aktuální dostupnosti se mohou drobně lišit.',
+    // EN: Do you show prices?
+    q: 'Ukazujete ceny?',
+    // EN: No. Shop prices change and we don't want to show you guesses. We show which ingredients are on sale right now, in which shop and until when.
+    a: 'Ne. Ceny v obchodech se mění a nechceme ti ukazovat odhady. Ukážeme ti, které suroviny jsou zrovna v akci, v jakém obchodě a do kdy akce platí.',
   },
   {
-    q: 'Mohu plán kdykoliv zrušit?',
-    a: 'Ano, předplatné můžete zrušit kdykoliv. Přístup k placeným funkcím vám zůstane do konce zaplaceného období.',
+    // EN: Where do the deals come from?
+    q: 'Odkud berete akce?',
+    // EN: From current leaflets of shops in Czechia. We never show a deal that has already ended.
+    a: 'Z aktuálních letáků obchodů v Česku. Akci, která už skončila, nezobrazíme.',
   },
   {
-    q: 'Podporujete dietní omezení?',
-    a: 'Ano, zohledníme veškerá omezení — bezlepkové, veganské, keto, vysoko proteinové, alergie a další. Stačí je popsat při vytváření plánu.',
+    // EN: Can I cancel any time?
+    q: 'Můžu předplatné kdykoliv zrušit?',
+    // EN: Yes. Paid features stay until the end of the period you paid for.
+    a: 'Ano, kdykoliv. Placené funkce ti zůstanou do konce zaplaceného období.',
   },
   {
-    q: 'V jakých obchodech jsou dostupné ceny?',
-    a: 'Aktuálně podporujeme Rohlík.cz, Košík.cz, Kaufland a další obchody v Česku a na Slovensku. Postupně přidáváme další.',
+    // EN: Do you handle dietary restrictions?
+    q: 'Hlídáte dietní omezení?',
+    // EN: Meat-free, vegan, gluten-free and lactose-free are checked on every recipe. Write them into the search or save them in settings. We leave out allergens like nuts or eggs by ingredient, but with an allergy always check the ingredients yourself.
+    a: 'Bez masa, vegan, bez lepku a bez laktózy hlídáme u každého receptu. Stačí je napsat do hledání nebo si je uložit v nastavení. Alergeny jako ořechy nebo vejce vyřadíme podle surovin, ale při alergii si složení vždy zkontroluj.',
   },
 ];
+
+// Search lives at / for visitors; signed-in users have the Dashboard there.
+const searchPath = () => (isAccessTokenValid() ? '/hledat' : '/');
 
 export const Pricing = () => {
   const navigate = useNavigate();
@@ -93,6 +112,8 @@ export const Pricing = () => {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  // Sent here by the plan paywall (api.ts interceptor on a 402).
+  const [fromQuota] = useState(() => searchParams.get('reason') === 'quota');
   const [promoInput, setPromoInput] = useState(
     () => searchParams.get('promo')?.toUpperCase() || getPendingPromo() || '',
   );
@@ -139,7 +160,7 @@ export const Pricing = () => {
   // and bounce back here to buy.
   const handleSelectPlan = async (tier?: BillingTier) => {
     if (!tier) {
-      navigate('/login');
+      navigate(searchPath());
       return;
     }
     if (!isAccessTokenValid()) {
@@ -173,7 +194,8 @@ export const Pricing = () => {
           setPromo({ valid: false, reason });
         }
       } else {
-        setCheckoutError('Platbu se nepodařilo zahájit. Zkuste to prosím znovu.');
+        // EN: Couldn't start the payment. Please try again.
+        setCheckoutError('Platbu se nepodařilo zahájit. Zkus to prosím znovu.');
       }
       setCheckoutTier(null);
     }
@@ -210,14 +232,22 @@ export const Pricing = () => {
         </Link>
 
         <header className="text-center mb-16 space-y-6">
-          <p className="text-[10px] font-black text-green uppercase tracking-[1em]">Ceník</p>
+          <p className="text-sm font-semibold text-green">Ceník</p>
           <h1 className="font-display text-5xl sm:text-6xl font-extrabold tracking-tight leading-tight text-ink">
             Jednoduchý <span className="text-paprika">ceník.</span>
           </h1>
           <p className="text-muted text-lg max-w-md mx-auto">
-            Začněte zdarma. Upgradujte, až budete připraveni.
+            {/* EN: Start for free. Take a subscription once Uvařto is useful to you. */}
+            Začni zdarma. Předplatné si vezmi, až ti Uvařto bude k užitku.
           </p>
         </header>
+
+        {fromQuota && (
+          <div role="status" className="max-w-md mx-auto mb-8 rounded-xl border border-line bg-card px-5 py-3 text-center text-ink">
+            {/* EN: The next plan doesn't fit in your current plan. Pick a subscription below and carry on. */}
+            Další plán už se do tvého tarifu nevejde. Vyber si předplatné níže a pokračuj.
+          </div>
+        )}
 
         {checkoutError && (
           <div className="max-w-md mx-auto mb-8 rounded-xl border border-paprika/40 bg-paprika-soft px-5 py-3 text-center text-sm text-paprika-strong">
@@ -238,7 +268,7 @@ export const Pricing = () => {
               {/* Card header zone */}
               <div className={`rounded-t-3xl px-8 pt-8 pb-6 ${plan.highlighted ? 'bg-green-soft' : ''}`}>
                 {plan.highlighted && (
-                  <div className="inline-block px-3 py-1 bg-green text-white rounded-lg text-[10px] font-bold uppercase tracking-wide mb-4">
+                  <div className="inline-block px-3 py-1 bg-green text-white rounded-lg text-xs font-semibold mb-4">
                     Doporučeno
                   </div>
                 )}
@@ -327,14 +357,15 @@ export const Pricing = () => {
 
         <div className="text-center mb-16">
           <p className="text-muted text-sm">
-            Stojí méně než jedno kafe týdně. Za to dostanete <strong className="text-ink">recepty na míru vašemu cíli</strong> — s nutričními hodnotami a nákupním seznamem, ve kterém rovnou vidíte suroviny aktuálně ve slevě.
+            {/* EN: Standard costs less than one coffee a week. For that you get a plan for your goal every week, with nutrition and a shopping list that shows what's on sale right away. */}
+            Standard stojí méně než jedno kafe týdně. Za to máš každý týden <strong className="text-ink">plán podle svého cíle</strong>, s nutričními hodnotami a nákupním seznamem, ve kterém rovnou vidíš suroviny v akci.
           </p>
         </div>
 
         {/* FAQ */}
         <section className="max-w-3xl mx-auto mb-24">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-black text-green uppercase tracking-[1em] mb-4">FAQ</p>
+            <p className="text-sm font-semibold text-green mb-4">FAQ</p>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink">Časté dotazy</h2>
           </div>
 
@@ -365,14 +396,17 @@ export const Pricing = () => {
         <section className="text-center pb-12">
           <div className="bg-green-soft border border-green/20 rounded-3xl p-12 sm:p-16">
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink mb-4">
-              Připraveni šetřit čas i peníze?
+              {/* EN: Want to try it? */}
+              Chceš to zkusit?
             </h2>
-            <p className="text-muted mb-8">Začněte se 2 jídelníčky zdarma. Bez kreditní karty.</p>
+            {/* EN: Type what you feel like and you'll see recipes right away. No signup, no card. */}
+            <p className="text-muted mb-8">Napiš, na co máš chuť, a hned uvidíš recepty. Bez registrace, bez karty.</p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate(searchPath())}
               className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] inline-flex items-center gap-3"
             >
-              Vytvořit jídelníček zdarma <ArrowRight size={18} />
+              {/* EN: Find recipes */}
+              Najít recepty <ArrowRight size={18} />
             </button>
           </div>
         </section>
