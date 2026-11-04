@@ -162,6 +162,9 @@ class DietaryGoalCreateView(APIView):
                 'dinners': schema.dinners,
                 'small_meals': schema.small_meals,
                 'snacks': schema.snacks,
+                # Validated ints only; select_recipes_for_pool drops any id
+                # that is not a published CuratedRecipe.
+                'pinned_recipe_ids': schema.pinned_recipe_ids,
                 # Null the legacy day-grid shape so finalising an existing
                 # draft/legacy goal never leaves both shapes populated.
                 'num_days': None,

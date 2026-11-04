@@ -24,7 +24,7 @@ export const PublicHeader = () => {
     <header className="relative z-50">
       <nav className="flex items-center justify-between px-6 sm:px-12 py-6 max-w-7xl mx-auto">
         <Link to="/" className="flex items-center gap-3" onClick={close}>
-          <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">vařto<span className="text-paprika">.</span></span>
+          <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">uvařto<span className="text-paprika">.</span></span>
         </Link>
 
         {/* Desktop nav */}

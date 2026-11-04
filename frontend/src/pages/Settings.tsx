@@ -18,7 +18,7 @@ export const Settings = () => {
   });
   const { data: billing } = useQuery<BillingMe>({ queryKey: ['billing-me'], queryFn: fetchBillingMe });
 
-  useEffect(() => { document.title = 'Nastavení — Vařto'; }, []);
+  useEffect(() => { document.title = 'Nastavení — Uvařto'; }, []);
 
   if (isLoading || !profile) return <LoadingScreen message="Načítání…" />;
 

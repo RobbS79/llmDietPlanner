@@ -41,7 +41,8 @@ export const CreatePlan = () => {
   const [error, setError] = useState('');
   const [protocolExpanded, setProtocolExpanded] = useState(false);
   const [formData, setFormData] = useState({
-    prompt: '',
+    // PlanSheet's "Nastavím si sám" hands its prompt over as ?prompt=.
+    prompt: new URLSearchParams(location.search).get('prompt') ?? '',
     dietary_restrictions: '',
     country: 'CZ',
     city: '',
@@ -108,7 +109,7 @@ export const CreatePlan = () => {
   const totalMeals = COUNT_FIELDS.reduce((s, f) => s + formData[f.field], 0);
 
   const canAdvance = () => {
-    if (step === 0) return formData.prompt.trim().length > 0 && formData.city.trim().length > 0;
+    if (step === 0) return formData.prompt.trim().length > 0;
     return totalMeals > 0;
   };
 
@@ -176,7 +177,7 @@ export const CreatePlan = () => {
                   className="px-4 py-2.5 bg-paper border border-line rounded-xl text-xs font-bold text-ink hover:bg-kraft hover:border-green/40 transition-all truncate max-w-[220px]"
                   title={goal.prompt}
                 >
-                  {goal.city} · {goalChipCount(goal)} — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
+                  {goal.city ? `${goal.city} · ` : ''}{goalChipCount(goal)} — {goal.prompt?.slice(0, 30)}{goal.prompt?.length > 30 ? '...' : ''}
                 </button>
               ))}
             </div>
@@ -205,27 +206,7 @@ export const CreatePlan = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted">Země</label>
-                  <select
-                    className="w-full bg-paper border border-line rounded-xl h-14 px-5 text-xs font-black text-ink uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
-                    value={formData.country}
-                    onChange={e => {
-                      const c = e.target.value;
-                      update('country', c);
-                      update('language_code', c === 'CZ' ? 'cs' : 'sk');
-                    }}
-                  >
-                    <option value="CZ">Česko (CZK)</option>
-                    <option value="SK">Slovensko (EUR)</option>
-                  </select>
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted">Město</label>
-                  <input type="text" className="w-full bg-paper border border-line rounded-xl h-14 px-5 text-sm font-black text-ink placeholder:text-muted focus:outline-none" placeholder="např. Praha" value={formData.city} onChange={e => update('city', e.target.value)} />
-                </div>
-              </div>
+              {/* Country and city no longer asked: deals are national (spec 2026-11-03). */}
 
               {/* Protocol upload section */}
               <div className="pt-8 border-t border-line">

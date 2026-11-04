@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, MapPin, ChevronRight, Box, ArrowRight, Sparkles, Trash2, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -86,6 +86,10 @@ export const Dashboard = () => {
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto px-6 py-12 w-full">
+        {/* EN: What to cook today? Find recipes */}
+        <Link to="/hledat" className="mb-10 inline-flex items-center gap-2 rounded-xl border border-kraft bg-white px-4 py-2.5 font-semibold text-ink hover:border-ink">
+          Co dnes uvařit? <span className="text-green underline underline-offset-2">Najdi recepty</span> <ArrowRight size={16} className="text-green" />
+        </Link>
         <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-16 text-left">
           <div className="space-y-3">
             <h1 className="text-5xl font-black font-display text-ink tracking-tighter uppercase italic leading-none">

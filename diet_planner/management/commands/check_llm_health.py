@@ -34,7 +34,7 @@ class Command(BaseCommand):
                 f'[llm_health] OK model={model} reply={result.detail!r}'))
             return
 
-        text = (f':rotating_light: Vařto prod: LLM probe FAILED\n'
+        text = (f':rotating_light: Uvařto prod: LLM probe FAILED\n'
                 f'model=`{model}` error=`{result.error_type}`\n'
                 f'```{result.detail[:800]}```')
         delivered = notify_slack(

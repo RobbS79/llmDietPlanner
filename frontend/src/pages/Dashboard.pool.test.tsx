@@ -41,5 +41,7 @@ describe('Dashboard badges', () => {
     );
     expect(await screen.findByText('4 jídla')).toBeInTheDocument();
     expect(screen.getByText('7 dní')).toBeInTheDocument();
+    // The search is one click away for signed-in users too.
+    expect(screen.getByRole('link', { name: /Co dnes uvařit\? Najdi recepty/ })).toHaveAttribute('href', '/hledat');
   });
 });

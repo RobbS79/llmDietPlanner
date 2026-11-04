@@ -252,10 +252,10 @@ export const PublicRecipePage = () => {
         </div>
 
         <div className="mt-20 bg-green-soft border border-line rounded-3xl p-8 sm:p-16 text-center">
-          {/* EN: Want more recipes like this, with a shopping list? / Say how many lunches and dinners you want and Vařto picks the recipes; for each you'll see what is on sale this week. */}
+          {/* EN: Want more recipes like this, with a shopping list? / Say how many lunches and dinners you want and Uvařto picks the recipes; for each you'll see what is on sale this week. */}
           <h2 className="font-display text-2xl sm:text-4xl font-extrabold text-ink tracking-tight mb-4">Chcete víc takových receptů s nákupním seznamem?</h2>
           <p className="text-muted text-lg mb-8 max-w-md mx-auto">
-            Řeknete, kolik obědů a večeří chcete, a Vařto vybere recepty — u každého uvidíte, co je tento týden ve slevě.
+            Řeknete, kolik obědů a večeří chcete, a Uvařto vybere recepty — u každého uvidíte, co je tento týden ve slevě.
           </p>
           <button onClick={() => navigate('/login')} className="bg-green hover:bg-green-mid text-white px-10 py-4 rounded-2xl font-body font-bold text-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:ring-offset-2 inline-flex items-center gap-3">
             Vytvořte si jídelníček zdarma <ArrowRight size={18} />
@@ -267,7 +267,7 @@ export const PublicRecipePage = () => {
       <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-line mt-12">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-display font-extrabold text-lg tracking-tight text-ink lowercase">vařto<span className="text-paprika">.</span></span>
+            <span className="font-display font-extrabold text-lg tracking-tight text-ink lowercase">uvařto<span className="text-paprika">.</span></span>
           </div>
           <div className="flex items-center gap-6">
             <Link to="/recepty" className="text-xs font-semibold text-muted hover:text-ink transition-colors">Recepty</Link>

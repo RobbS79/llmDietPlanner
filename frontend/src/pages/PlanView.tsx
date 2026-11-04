@@ -11,6 +11,7 @@ import { DayCard } from '@/components/plan/DayCard';
 import { WeekStrip } from '@/components/plan/WeekStrip';
 import { SlotSection } from '@/components/plan/SlotSection';
 import { SlotStrip } from '@/components/plan/SlotStrip';
+import { PlanUpsell } from '@/components/plan/PlanUpsell';
 import { mealsLabel, poolSummary, type PoolCounts } from '@/lib/poolCounts';
 import { normalizeNutrition, nutritionBasisFor } from '@/lib/nutrition';
 import { AdRail } from '@/components/ads/AdRail';
@@ -270,6 +271,7 @@ export const PlanView = () => {
             </div>
           </>
         )}
+        <PlanUpsell />
       </div>
       <AdRail slot="plan-right" />
       </div>
