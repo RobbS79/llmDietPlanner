@@ -6,6 +6,7 @@ import axios from 'axios';
 import * as analytics from '@/lib/analytics';
 import { toggleRecipe } from '@/lib/basket';
 import { PlanSheet } from './PlanSheet';
+import { PENDING_PLAN_KEY } from '@/lib/storageKeys';
 
 const post = vi.fn();
 vi.mock('@/lib/api', () => ({ api: { post: (u: string, b: unknown) => post(u, b) } }));
@@ -38,6 +39,57 @@ describe('PlanSheet', () => {
     expect(screen.getByRole('heading', { name: 'Uložit si to' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Nebo e-mailem' })).toHaveAttribute('href', '/login?mode=register&next=%2Fhledat%3Fplan%3D1');
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it('remembers the answers when it asks for signup', async () => {
+    mount({ prompt: 'kuřecí prsa', pinnedIds: [7] });
+    await userEvent.click(screen.getByRole('button', { name: 'Vařím pro rodinu' }));
+    await userEvent.click(screen.getByRole('button', { name: '5 obědů a 5 večeří' }));
+    await build();
+    const saved = JSON.parse(localStorage.getItem(PENDING_PLAN_KEY)!);
+    expect(saved).toMatchObject({ goal: 'Vařím pro rodinu', count: '5 obědů a 5 večeří', prompt: 'kuřecí prsa', pinned: [7] });
+  });
+
+  it('builds straight away after login with the answers given before signup', async () => {
+    localStorage.setItem(PENDING_PLAN_KEY, JSON.stringify({
+      goal: 'Vařím pro rodinu', count: '5 obědů a 5 večeří', prompt: 'kuřecí prsa', pinned: [7], ts: Date.now() }));
+    signIn();
+    post.mockResolvedValue({ status: 201, data: { data: { goal_id: 42 } } });
+    mount({ prompt: '' });
+    expect(await screen.findByText('PLAN PAGE')).toBeInTheDocument();
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith('/goals/', expect.objectContaining({
+      prompt: 'Vařím pro rodinu. kuřecí prsa', lunches: 5, dinners: 5, pinned_recipe_ids: [7] }));
+    expect(localStorage.getItem(PENDING_PLAN_KEY)).toBeNull();
+  });
+
+  it('keeps the remembered answers on screen when the automatic build fails', async () => {
+    localStorage.setItem(PENDING_PLAN_KEY, JSON.stringify({
+      goal: 'Chci zhubnout', count: '5 obědů a 5 večeří', prompt: '', pinned: [], ts: Date.now() }));
+    signIn();
+    post.mockRejectedValue({ response: { status: 403, data: { error: 'Potvrď prosím e-mail.' } } });
+    mount();
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Potvrď prosím e-mail.'));
+    expect(screen.getByRole('button', { name: 'Chci zhubnout' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '5 obědů a 5 večeří' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('ignores remembered answers that are stale or belong to a signed-out visitor', async () => {
+    localStorage.setItem(PENDING_PLAN_KEY, JSON.stringify({
+      goal: null, count: '5 večeří', prompt: '', pinned: [], ts: Date.now() - 16 * 60 * 1000 }));
+    signIn();
+    mount();
+    await waitFor(() => expect(billingMe).toHaveBeenCalled());
+    expect(post).not.toHaveBeenCalled();
+    expect(localStorage.getItem(PENDING_PLAN_KEY)).toBeNull();
+  });
+
+  it('does not build automatically for a signed-out visitor', () => {
+    localStorage.setItem(PENDING_PLAN_KEY, JSON.stringify({
+      goal: null, count: '5 večeří', prompt: '', pinned: [], ts: Date.now() }));
+    mount();
+    expect(post).not.toHaveBeenCalled();
+    expect(localStorage.getItem(PENDING_PLAN_KEY)).not.toBeNull();
   });
 
   it('asks for signup instead of posting when the session is dead', async () => {

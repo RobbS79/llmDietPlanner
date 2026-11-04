@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import axios from 'axios';
 import { clearAuthTokens, confirmSession, tryRefreshToken } from './auth';
 import { readBasket, toggleRecipe } from './basket';
-import { RETURN_KEY } from './storageKeys';
+import { PENDING_PLAN_KEY, RETURN_KEY } from './storageKeys';
+import { savePendingPlan } from './pendingPlan';
 import { setReturnIntent } from './returnIntent';
 
 const jwt = (expSec: number) => `h.${btoa(JSON.stringify({ exp: expSec }))}.s`;
@@ -11,15 +12,17 @@ describe('auth', () => {
   beforeEach(() => { localStorage.clear(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it('logout clears the basket and the return intent with the tokens', () => {
+  it('logout clears the basket, the return intent and a pending plan with the tokens', () => {
     localStorage.setItem('access_token', 'a');
     localStorage.setItem('refresh_token', 'r');
     toggleRecipe(7);
     setReturnIntent('/nakup');
+    savePendingPlan({ goal: null, count: '5 večeří', prompt: '', pinned: [] });
     clearAuthTokens();
     expect(localStorage.getItem('refresh_token')).toBeNull();
     expect(readBasket().recipeIds).toEqual([]);
     expect(localStorage.getItem(RETURN_KEY)).toBeNull();
+    expect(localStorage.getItem(PENDING_PLAN_KEY)).toBeNull();
   });
 
   it('a dead refresh token drops the session but keeps the basket to save after signing in', async () => {

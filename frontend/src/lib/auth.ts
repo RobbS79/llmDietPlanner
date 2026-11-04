@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BASKET_KEY, RETURN_KEY } from './storageKeys';
+import { BASKET_KEY, PENDING_PLAN_KEY, RETURN_KEY } from './storageKeys';
 
 const TOKEN_KEYS = ['access_token', 'refresh_token'] as const;
 
@@ -8,12 +8,12 @@ export function clearSessionTokens() {
   TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
 }
 
-/** Logout or account deletion: also forget the basket and the return intent, so
+/** Logout or account deletion: also forget the basket, the return intent and a pending plan, so
  *  the next person on this device can't attach them to their own account.
  *  Removes the keys directly (not via basket.ts) to avoid an import cycle. */
 export function clearAuthTokens() {
   clearSessionTokens();
-  [BASKET_KEY, RETURN_KEY].forEach((key) => { try { localStorage.removeItem(key); } catch { /* ignore */ } });
+  [BASKET_KEY, RETURN_KEY, PENDING_PLAN_KEY].forEach((key) => { try { localStorage.removeItem(key); } catch { /* ignore */ } });
 }
 
 export function isAccessTokenValid(): boolean {

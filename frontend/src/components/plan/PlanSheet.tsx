@@ -7,6 +7,7 @@ import { readBasket } from '@/lib/basket';
 import { fetchBillingMe } from '@/lib/billing';
 import { trackPlanStarted } from '@/lib/analytics';
 import { useDialog } from '@/lib/useDialog';
+import { savePendingPlan, takePendingPlan, type PendingPlan } from '@/lib/pendingPlan';
 import { COUNT_OPTIONS, GOALS, countsFor, goalPrompt } from '@/lib/planSheet';
 import { SignupSheet } from '@/components/auth/SignupSheet';
 
@@ -29,23 +30,26 @@ export function PlanSheet({ understood, prompt, onClose, pinnedIds }: Props) {
   useEffect(() => {
     const signedIn = isAccessTokenValid() || !!localStorage.getItem('refresh_token');
     if (!signedIn) { setFree(true); return; }
+    // Back from signup: they already pressed "Sestavit můj plán", so build without asking twice.
+    const pending = takePendingPlan();
+    if (pending) { setGoal(pending.goal); setCount(pending.count); build(pending); }
     // Only with a live access token, so a dead session can't trip the api 401 → /login redirect.
     if (!isAccessTokenValid()) return;
     let live = true;
     fetchBillingMe().then((b) => { if (live) setFree(!b?.subscription?.entitled); }).catch(() => { /* stay silent */ });
     return () => { live = false; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const build = async () => {
-    const counts = countsFor(count);
-    const text = goalPrompt(goal, prompt);
+  const build = async (answers: PendingPlan = { goal, count, prompt, pinned }) => {
+    const counts = countsFor(answers.count);
+    const text = goalPrompt(answers.goal, answers.prompt);
     if (!counts) { navigate(`/create?prompt=${encodeURIComponent(text)}`); return; }
     if (busy) return;
     setBusy(true);
     setError('');
     try {
-      if (!(await confirmSession())) { setNeedSignup(true); return; }
-      const res = await api.post('/goals/', { prompt: text, ...counts, pinned_recipe_ids: pinned });
+      if (!(await confirmSession())) { savePendingPlan(answers); setNeedSignup(true); return; }
+      const res = await api.post('/goals/', { prompt: text, ...counts, pinned_recipe_ids: answers.pinned });
       if (res.status === 201) trackPlanStarted();
       navigate(`/plan/${res.data.data.goal_id}`);
     } catch (e) {
@@ -79,7 +83,7 @@ export function PlanSheet({ understood, prompt, onClose, pinnedIds }: Props) {
         {understood.length > 0 && <p className="text-sm text-muted">Z hledání si bereme: {understood.join(', ')}</p>}
         {error && <p role="alert" className="text-sm font-semibold text-paprika">{error}</p>}
         {/* EN: Build my plan */}
-        <button type="button" disabled={busy} onClick={build} className="w-full rounded-xl bg-green p-3.5 text-[17px] font-bold text-white disabled:opacity-60">
+        <button type="button" disabled={busy} onClick={() => build()} className="w-full rounded-xl bg-green p-3.5 text-[17px] font-bold text-white disabled:opacity-60">
           Sestavit můj plán</button>
         {/* EN: Collection recipes are instant. What we don't have, Uvařto writes, which takes a few minutes. [Uses 1 of your 2 free plans: free users only.] */}
         <p className="text-xs text-muted">Recepty ze sbírky jsou hned. Co ve sbírce nemáme, Uvařto dopíše, to trvá pár minut.{free && ' Spotřebuje se 1 ze 2 plánů zdarma.'}</p>
