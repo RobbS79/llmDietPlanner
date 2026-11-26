@@ -274,25 +274,10 @@ export const RecipePage = () => {
           )}
         </header>
 
-        {/* Conversational replace-recipe swap */}
-        <div className="mb-12">
-          {!panelOpen ? (
-            <RefineInviteCard onOpen={openChat} />
-          ) : (
-            <RecipeRefineChat
-              mealId={mealId!}
-              seedMessage={chatSeed}
-              webResearch={Boolean(recipe.refine_web_research)}
-              onAccepted={handleAccepted}
-              onClose={closeChat}
-            />
-          )}
-        </div>
-
         {getRecipeDeals(recipe) && (() => {
           const d = getRecipeDeals(recipe)!;
           return (
-            <div className="mt-3 rounded-lg bg-green-soft p-3">
+            <div className="mb-12 rounded-lg bg-green-soft p-3">
               <p className="text-sm font-medium text-green">
                 {d.matched} z {d.total} surovin ve slevě tento týden
               </p>
@@ -309,6 +294,21 @@ export const RecipePage = () => {
             </div>
           );
         })()}
+
+        {/* Conversational replace-recipe swap */}
+        <div className="mb-12">
+          {!panelOpen ? (
+            <RefineInviteCard onOpen={openChat} />
+          ) : (
+            <RecipeRefineChat
+              mealId={mealId!}
+              seedMessage={chatSeed}
+              webResearch={Boolean(recipe.refine_web_research)}
+              onAccepted={handleAccepted}
+              onClose={closeChat}
+            />
+          )}
+        </div>
 
         <div className="grid md:grid-cols-5 gap-10">
           {/* Ingredients sidebar — scaled "shopping list" with portion stepper */}
