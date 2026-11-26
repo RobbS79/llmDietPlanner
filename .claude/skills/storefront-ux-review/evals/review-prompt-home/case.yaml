@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: review-prompt-home
+expected_outcome: |
+  The review gives a verdict for the prompt home, checks that the deals strip is not the only retail cue and that the main input is the one primary action, and flags any prompt example that is not a phrasing users really type.

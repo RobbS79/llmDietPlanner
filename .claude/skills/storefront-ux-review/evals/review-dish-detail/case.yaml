@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: review-dish-detail
+expected_outcome: |
+  The review checks the deal headline wording against the 'N z M surovin ve slevě' form, checks where the deal appears on the page relative to ingredients, and flags the 'oceněno' (priced) wording in RecipeIngredients.tsx as a possible implied-price problem.
