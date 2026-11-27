@@ -88,6 +88,29 @@ class DiscoverServiceTest(TestCase):
         self.assertFalse(out['exact'])
         self.assertTrue(out['recipes'])
 
+    def test_text_fallback_keeps_a_typed_meatless_rule(self):
+        # LLM down or slow: the keyword fallback must still apply "bez masa",
+        # never return the chicken and pork mains.
+        out = discover('bez masa', 0, llm_allowed=False)
+        self.assertTrue(out['fallback'])
+        self.assertEqual([r.id for r in out['recipes']], [self.lentil.id])
+
+    def test_text_fallback_lighter_query_caps_kcal_per_portion(self):
+        # "lehčí jídla na hubnutí" must not offer 1000 kcal dishes.
+        heavy = _recipe('tezke', 'Těžké jídlo', [('vepřová kýta', 'pork-leg')],
+                        base_servings=2, base_nutrition={'calories': 2000})
+        light = _recipe('lehke', 'Lehké jídlo', [('čočka', 'lentils')],
+                        base_servings=2, base_nutrition={'calories': 1000})
+        out = discover('lehčí jídla na hubnutí', 0, llm_allowed=False)
+        ids = [r.id for r in out['recipes']]
+        self.assertNotIn(heavy.id, ids)
+        self.assertIn(light.id, ids)
+
+    def test_text_fallback_with_typed_rule_and_no_match_is_empty(self):
+        out = discover('bez masa kachna', 0, llm_allowed=False)
+        self.assertNotIn(self.chicken.id, [r.id for r in out['recipes']])
+        self.assertNotIn(self.pork.id, [r.id for r in out['recipes']])
+
     def test_dietary_rule_survives_no_exact_fallback(self):
         # Nothing vegetarian fits 5 minutes: the nearest list may relax the
         # time limit, never the dietary rule.

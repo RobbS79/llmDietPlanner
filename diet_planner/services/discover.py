@@ -18,8 +18,8 @@ from diet_planner.services import prompt_facets
 from diet_planner.services.discover_guard import take_llm_slot
 from diet_planner.services.prompt_facets import PromptFacets, extract_prompt_facets
 from diet_planner.services.recipe_retrieval import (
-    _avoided_matcher, _role_allowed, published_cuisine_vocab, published_pool, recipe_matches_facets,
-    score_recipe, wanted_matcher,
+    _avoided_matcher, _role_allowed, parse_dietary_tags, published_cuisine_vocab, published_pool,
+    recipe_matches_facets, score_recipe, wanted_matcher,
 )
 
 _LABELS_DIETARY = {'vegetarian': 'bez masa', 'vegan': 'veganské', 'gluten_free': 'bez lepku',
@@ -161,6 +161,20 @@ def _passes_restrictions(r: CuratedRecipe, facets: PromptFacets, relaxed: Prompt
             and recipe_matches_facets(r, relaxed))
 
 
+LIGHT_KCAL_PER_PORTION = 600
+_LIGHT_STEMS = ('lehc', 'hubnut', 'kalori', 'dietn')
+
+
+def _is_lighter(q: str) -> bool:
+    folded = _fold(q)
+    return any(stem in folded for stem in _LIGHT_STEMS)
+
+
+def _kcal_per_portion(recipe) -> Optional[int]:
+    from diet_planner.services.discover_cards import _per_portion
+    return _per_portion(recipe, 'calories', zero_is_unknown=True)
+
+
 def _is_medical(q: str) -> bool:
     folded = _fold(q)
     return any(stem in folded for stem in _MEDICAL_STEMS)
@@ -189,9 +203,16 @@ def discover(q: str, page: int, *, llm_allowed: bool,
         if not ranked:
             ranked = _rank(gated or allowed, None)
     else:
-        matched = _text_match(q, mains) if q else []
+        # No LLM read: keep the restrictions the keywords can see ("bez masa")
+        # as a hard gate, so the fallback never offers what the query excluded.
+        typed = parse_dietary_tags(q) if q else set()
+        base = [r for r in mains if typed <= set(r.dietary_tags or [])] if typed else mains
+        if q and _is_lighter(q):
+            base = [r for r in base if _kcal_per_portion(r) is not None
+                    and _kcal_per_portion(r) <= LIGHT_KCAL_PER_PORTION]
+        matched = _text_match(q, base) if q else []
         exact = bool(matched) or not q
-        ranked = _rank(matched or mains, None)
+        ranked = _rank(matched or base, None)
 
     start = max(page, 0) * page_size
     return {

@@ -26,6 +26,17 @@ def _per_portion(recipe, key: str, *, zero_is_unknown: bool = False) -> Optional
     return int(round(value / _servings(recipe)))
 
 
+def _step_texts(instructions) -> list:
+    """Curated steps are stored as {text, time_min, tip} dicts; the sheet contract is string[]."""
+    out = []
+    for step in instructions or []:
+        text = step.get('text') if isinstance(step, dict) else step
+        text = str(text or '').strip()
+        if text:
+            out.append(text)
+    return out
+
+
 def image_url(recipe) -> str:
     if has_dish_image(recipe.slug):
         return dish_image_url(recipe.slug)
@@ -75,6 +86,6 @@ def recipe_sheet(recipe, *, deal_index, slug_cache) -> Dict[str, Any]:
         'macros': ({'protein': protein, 'carbs': carbs, 'fat': fat}
                    if None not in (protein, carbs, fat) else None),
         'ingredients': ingredients,
-        'steps': list(recipe.instructions or []),
+        'steps': _step_texts(recipe.instructions),
         'source': {'name': recipe.source_name, 'url': recipe.source_url},
     }

@@ -20,7 +20,7 @@ const JOURNEY = [
   {
     step: '2',
     title: 'Zadání',
-    desc: 'Krok „Cíle“: jedno textové pole. Napište vlastními slovy, co chcete. Zvolíte zemi a město kvůli slevovým letákům.',
+    desc: 'Krok „Cíle“: jedno textové pole. Napište vlastními slovy, co chcete. Hledání funguje i bez přihlášení.',
   },
   {
     step: '3',

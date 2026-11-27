@@ -44,7 +44,7 @@ export const About = () => (
         <p>
           Procházet e-shopy a rozhodovat se, co týden co týden vařit, mi ukrajovalo hodiny, které
           jsem neměl. Tak jsem si postavil nástroj, který mi pořád chyběl — takový, co naplánuje
-          opravdová výživná jídla a ukáže přesně, kolik budou stát v obchodech kolem mě.
+          opravdová výživná jídla a ukáže, kde jsou v akci suroviny, které už stejně kupuju.
         </p>
         <p>
           Byl jsem svým prvním uživatelem, a po měsících, kdy jsem se na něj sám spoléhal,

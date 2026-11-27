@@ -119,5 +119,6 @@ export type SearchSource = 'chip' | 'typed' | 'deal';
 export const trackSearch = (source: SearchSource) => track('Search', { source });
 export const trackViewRecipe = (id: number) => track('ViewContent', { content_ids: [String(id)], content_type: 'product' });
 export const trackAddToList = (id: number) => track('AddToCart', { content_ids: [String(id)], content_type: 'product' });
-export const trackOpenList = (n: number) => track('InitiateCheckout', { num_items: n });
+// Opening the basket is not a checkout: a custom event keeps InitiateCheckout meaningful for ads.
+export const trackOpenList = (n: number) => trackCustom('ShoppingListOpened', { num_items: n });
 export const trackPlanStarted = () => track('Lead');

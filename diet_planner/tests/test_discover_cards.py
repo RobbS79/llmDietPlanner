@@ -51,6 +51,15 @@ class RecipeCardTest(TestCase):
         self.assertEqual(sheet['source'], {'name': 'Toprecepty.cz', 'url': 'https://example.com/wok'})
         self.assertEqual(sheet['ingredients'][0]['name'], 'kuřecí prsa')
 
+    def test_sheet_steps_are_plain_text_even_when_stored_as_objects(self):
+        # Curated recipes store steps as {text, time_min, tip}; the sheet contract is string[].
+        r = _recipe(slug='obj-steps', instructions=[
+            {'text': 'Nakrájej maso.', 'time_min': 5, 'tip': None},
+            {'text': 'Orestuj.', 'time_min': None, 'tip': 'Nepřepal.'},
+        ])
+        sheet = recipe_sheet(r, deal_index={}, slug_cache={})
+        self.assertEqual(sheet['steps'], ['Nakrájej maso.', 'Orestuj.'])
+
     def test_zero_macro_is_real_zero_kcal_zero_is_unknown(self):
         r = _recipe(slug='z', base_nutrition={'calories': 0, 'protein': 20, 'carbs': 0, 'fat': 4})
         sheet = recipe_sheet(r, deal_index={}, slug_cache={})
