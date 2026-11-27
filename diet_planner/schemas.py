@@ -61,20 +61,23 @@ class DietaryGoalCreateRequest(BaseModel):
         description="Optional dietary restrictions or allergies"
     )
     country: CountryEnum = Field(
-        ...,
+        default=CountryEnum.CZ,
         description="Country code where user wants to buy ingredients"
     )
     city: str = Field(
-        ...,
-        min_length=1,
+        default="",
         max_length=100,
-        description="City where user wants to buy ingredients"
+        description="Optional; leaflet deals are national, so the plan no longer asks"
     )
     language_code: str = Field(
-        default="pl",
+        default="cs",
         min_length=2,
         max_length=5,
         description="Language code (ISO 639-1) for i18n support"
+    )
+    pinned_recipe_ids: list[int] = Field(
+        default_factory=list, max_length=12,
+        description="CuratedRecipe ids the visitor picked before signup; filled first"
     )
     breakfasts: int = Field(default=0, ge=0, le=14, description="Breakfast recipes wanted")
     lunches: int = Field(default=0, ge=0, le=14, description="Lunch recipes wanted")

@@ -45,7 +45,7 @@ def _photo():
 REPLIES = {
     'deals': {'caption': 'Cibule v Lidlu v akci.', 'group_variant': 'Stavím appku.'},
     'recipe': {'caption': 'Svíčková, hotová za 60 minut. #recept #vareni'},
-    'showcase': {'caption': 'Někdo napsal: chci zhubnout. Vařto poskládalo den kolem rizota.'},
+    'showcase': {'caption': 'Někdo napsal: chci zhubnout. Uvařto poskládalo den kolem rizota.'},
 }
 
 

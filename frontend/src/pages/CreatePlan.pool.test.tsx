@@ -23,9 +23,9 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/components/layout/MainLayout', () => ({ MainLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock('@/components/ProtocolUpload', () => ({ ProtocolUpload: () => null }));
 
-const mount = () => {
+const mount = (path = '/create') => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={qc}><MemoryRouter><CreatePlan /></MemoryRouter></QueryClientProvider>);
+  render(<QueryClientProvider client={qc}><MemoryRouter initialEntries={[path]}><CreatePlan /></MemoryRouter></QueryClientProvider>);
 };
 
 describe('CreatePlan (pool)', () => {
@@ -34,7 +34,7 @@ describe('CreatePlan (pool)', () => {
   it('defaults to the working-week preset and submits counts, no day fields', async () => {
     mount();
     await userEvent.type(screen.getByPlaceholderText(/Vysoko proteinová/), 'večeře');
-    await userEvent.type(screen.getByPlaceholderText('např. Praha'), 'Praha');
+    // Země/Město fields removed: step 0 needs only the prompt (spec 2026-11-03).
     await userEvent.click(screen.getAllByRole('button', { name: /Další krok/ })[0]);
     expect(screen.getByLabelText('Snídaně')).toHaveValue(5);
     expect(screen.getByLabelText('Drobné snacky')).toHaveValue(0);
@@ -48,7 +48,7 @@ describe('CreatePlan (pool)', () => {
   it('presets and steppers change counts; all-zero blocks submit', async () => {
     mount();
     await userEvent.type(screen.getByPlaceholderText(/Vysoko proteinová/), 'x');
-    await userEvent.type(screen.getByPlaceholderText('např. Praha'), 'Praha');
+    // Země/Město fields removed: step 0 needs only the prompt (spec 2026-11-03).
     await userEvent.click(screen.getAllByRole('button', { name: /Další krok/ })[0]);
     await userEvent.click(screen.getByRole('button', { name: 'Víkend' }));
     expect(screen.getByLabelText('Večeře')).toHaveValue(2);
@@ -65,7 +65,7 @@ describe('CreatePlan (pool)', () => {
   it('prefills counts from a previous goal', async () => {
     mount();
     await userEvent.click(await screen.findByRole('button', { name: /Brno · 10 jídel/ }));
-    await userEvent.type(screen.getByPlaceholderText('např. Praha'), 'x');
+    // Země/Město fields removed: step 0 needs only the prompt (spec 2026-11-03).
     await userEvent.click(screen.getAllByRole('button', { name: /Další krok/ })[0]);
     expect(screen.getByLabelText('Drobné snacky')).toHaveValue(4);
     expect(screen.getByLabelText('Obědy')).toHaveValue(2);
@@ -74,5 +74,15 @@ describe('CreatePlan (pool)', () => {
   it('legacy goal chip shows its day count instead of 0 meals', async () => {
     mount();
     expect(await screen.findByRole('button', { name: /Ostrava · 7 dní/ })).toBeInTheDocument();
+  });
+
+  it('asks no country or city and takes the prompt from ?prompt=', async () => {
+    // spec 2026-11-03: Země/Město are gone; PlanSheet hands the prompt over in the URL.
+    mount('/create?prompt=' + encodeURIComponent('hubnutí, večeře'));
+    expect(screen.getByPlaceholderText(/Vysoko proteinová/)).toHaveValue('hubnutí, večeře');
+    expect(screen.queryByText('Země')).not.toBeInTheDocument();
+    expect(screen.queryByText('Město')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('např. Praha')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Další krok/ })[0]).toBeEnabled();
   });
 });

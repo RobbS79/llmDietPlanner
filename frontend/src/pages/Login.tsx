@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle, CheckCircle2, Mail, Eye, EyeOff, UserPlus, KeyRound, Tag } from 'lucide-react';
 import axios from 'axios';
 import { getStoredAttribution, getConsent, syncConsentToServer, CONSENT_VERSION, readCookie, type UtmParams } from '@/lib/analytics';
 import { getPendingPromo, clearPendingPromo } from '@/lib/promo';
+import { afterLoginPath, clearReturnIntent, isReturnPath, setReturnIntent } from '@/lib/returnIntent';
 
 type Attribution = UtmParams & {
   fbp: string;
@@ -20,7 +21,7 @@ const GoogleIcon = () => (
 export const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register'>(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [showPassword, setShowPassword] = useState(false);
   // verify-email endpoint redirects here with ?verified=1 (success) or ?verified=0 (bad/expired link)
   const verifiedParam = searchParams.get('verified');
@@ -30,6 +31,15 @@ export const Login = () => {
 
   const urlError = searchParams.get('error');
   const [pendingPromo, setPendingPromo] = useState<string | null>(() => getPendingPromo());
+  // Only allowlisted return paths are honoured, so `next` can't be an open redirect.
+  const next = searchParams.get('next');
+  const returnTo = isReturnPath(next) ? next : null;
+
+  // Arriving with an allowlisted `next` keeps that intent for the Google button
+  // too; arriving without one drops any stale intent left on this device.
+  useEffect(() => {
+    if (returnTo) setReturnIntent(returnTo); else clearReturnIntent();
+  }, [returnTo]);
 
   const loginMutation = useMutation({
     mutationFn: (data: { username: string; password: string }) => axios.post('/api/auth/login/', data),
@@ -38,7 +48,8 @@ export const Login = () => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       syncConsentToServer();
-      navigate(getPendingPromo() ? '/pricing' : '/', { replace: true });
+      clearReturnIntent();
+      navigate(getPendingPromo() ? '/pricing' : afterLoginPath(returnTo), { replace: true });
     },
     onError: (err: any) => {
       const msg = err.response?.data?.error;
@@ -90,7 +101,7 @@ export const Login = () => {
       <div className="max-w-md w-full relative z-10 bg-card border border-line rounded-3xl shadow-deep-full p-12">
         <div className="text-center mb-10">
           <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">
-            vařto<span className="text-paprika">.</span>
+            uvařto<span className="text-paprika">.</span>
           </span>
         </div>
 

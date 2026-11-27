@@ -116,3 +116,6 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 social_dry_run/
+
+# storefront-ux-review test runs (scratch, not tracked)
+.claude/skills/storefront-ux-review-workspace/

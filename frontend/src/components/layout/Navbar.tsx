@@ -33,7 +33,7 @@ export const Navbar = () => {
       <div className="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
         <Link to="/" className="flex items-center gap-3 group">
           <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">
-            vařto<span className="text-paprika">.</span>
+            uvařto<span className="text-paprika">.</span>
           </span>
         </Link>
 

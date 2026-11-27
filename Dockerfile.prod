@@ -10,6 +10,8 @@
     ARG VITE_FB_PIXEL_ID
     # Ad rail switch — unset/empty until an ad contract exists (components/ads/AdRail.tsx)
     ARG VITE_ADS_ENABLED
+    # Turnstile widget key; must equal the runtime TURNSTILE_SITE_KEY (discover_guard)
+    ARG VITE_TURNSTILE_SITE_KEY
 
     # Copy package files first to optimize layer caching
     COPY frontend/package*.json ./
@@ -23,6 +25,7 @@
     RUN VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
         VITE_FB_PIXEL_ID=$VITE_FB_PIXEL_ID \
         VITE_ADS_ENABLED=$VITE_ADS_ENABLED \
+        VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY \
         npm run build:prod
     
     # --- STAGE 2: Python / Django ---

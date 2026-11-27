@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: review-results-cards
+expected_outcome: |
+  The review counts the facts shown on each results card against the three-fact limit and flags the card if it shows more than three, and it checks whether results beyond about six are collapsed behind a control.

@@ -139,7 +139,7 @@ export const RecipeIndexPage = () => {
       <footer className="px-6 sm:px-12 py-12 max-w-7xl mx-auto border-t border-line mt-12">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="font-display font-extrabold text-xl tracking-tight text-ink lowercase">
-            vařto<span className="text-paprika">.</span>
+            uvařto<span className="text-paprika">.</span>
           </span>
           <div className="flex items-center gap-6">
             <Link to="/recepty" className="text-xs font-semibold text-muted hover:text-ink transition-colors">Recepty</Link>

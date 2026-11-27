@@ -684,6 +684,13 @@ def select_recipes_for_pool(
     meals: List[Dict[str, Any]] = []
     gaps: List[Dict[str, Any]] = []
     filled = total = 0
+    # Recipes the visitor picked before signup fill the pool first. Only ids
+    # in `pool` (published rows) count, and the hard dietary gate still
+    # applies; duplicates collapse because a placed pin is in used_recipe_ids.
+    pool_by_id = {r.id: r for r in pool}
+    pinned = [pool_by_id[pid] for pid in (getattr(goal, 'pinned_recipe_ids', None) or [])
+              if pid in pool_by_id
+              and required_tags.issubset(set(pool_by_id[pid].dietary_tags or []))]
 
     def record_gap(slot: str, index: int, reason: str) -> None:
         gap = {
@@ -701,6 +708,20 @@ def select_recipes_for_pool(
             total += 1
             if slot in skip_slots:
                 record_gap(slot, index, 'slot_skipped')
+                continue
+            meal_type = _SLOT_TO_MEAL_TYPE.get(slot, slot)
+            pin = next((r for r in pinned if r.id not in used_recipe_ids
+                        and meal_type in (r.meal_types or [])), None)
+            if pin is not None:
+                meals.append({'slot': slot, 'index': index, 'recipe': pin})
+                used_recipe_ids.add(pin.id)
+                if pin.dish_family:
+                    used_families.add(pin.dish_family)
+                    used_families_count[pin.dish_family] += 1
+                if pin.cuisine:
+                    used_cuisines.append(pin.cuisine)
+                used_canonicals |= _recipe_canonicals(pin)
+                filled += 1
                 continue
             # exclude_ids on every call: a recipe never repeats in the pool,
             # so score_recipe's -100 repeat branch never fires here.

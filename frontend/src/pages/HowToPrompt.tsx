@@ -15,7 +15,7 @@ const JOURNEY = [
   {
     step: '1',
     title: 'Profil',
-    desc: 'Jednou při registraci: stravovací styl (vegetarián, vegan, bezlepkové, keto, vysokoproteinové), alergie, počet osob, čas na vaření a úroveň vaření. Vařto to bere v potaz u každého plánu — nemusíte to psát znovu.',
+    desc: 'Jednou při registraci: stravovací styl (vegetarián, vegan, bezlepkové, keto, vysokoproteinové), alergie, počet osob, čas na vaření a úroveň vaření. Uvařto to bere v potaz u každého plánu — nemusíte to psát znovu.',
   },
   {
     step: '2',
@@ -51,7 +51,7 @@ const FORMULA = [
 const TIPS = [
   {
     title: 'Pište „chci vařit z…“, ne jen „mám v lednici…“.',
-    desc: 'Vařto hledá v zadání suroviny, které chcete použít. „Mám kýtu“ je pro něj informace; „chci uvařit z kýty“ je pokyn.',
+    desc: 'Uvařto hledá v zadání suroviny, které chcete použít. „Mám kýtu“ je pro něj informace; „chci uvařit z kýty“ je pokyn.',
   },
   {
     title: 'Alergie a stravovací styl patří do profilu, ne do zadání.',
@@ -104,7 +104,7 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
   },
   {
     title: '„Bez masa, bez lepku“',
-    intro: 'Styl nastavte v profilu (Vegetarián, Vegan, Bezlepkové) — pak Vařto nenabídne maso ani při výměně receptu. V zadání řekněte, co vás na bezmasé kuchyni nudí.',
+    intro: 'Styl nastavte v profilu (Vegetarián, Vegan, Bezlepkové) — pak Uvařto nenabídne maso ani při výměně receptu. V zadání řekněte, co vás na bezmasé kuchyni nudí.',
     prompts: [
       'Vegetariánský jídelníček. Ne pořád tofu a čočka — chci i klasiku jako smažený sýr, bramborák, halušky.',
       'Bezlepkové obědy a večeře pro dítě (8 let), jednoduché, česká kuchyně.',
@@ -128,15 +128,15 @@ const SITUATIONS: { title: string; intro?: string; prompts: string[]; tip?: stri
 const LIMITS = [
   {
     title: 'Léčebné diety',
-    desc: 'Jídelníček při cukrovce, vysokém cholesterolu, na žlučník nebo při refluxu patří k nejhledanějším — Vařto ale není zdravotnický nástroj a takové zadání zohlední jen jako obecné přání. Máte-li dietní protokol od lékaře nebo nutričního specialisty, nahrajte ho v kroku „Cíle“ a plán se od něj odvine. Léčbu vždy konzultujte s lékařem.',
+    desc: 'Jídelníček při cukrovce, vysokém cholesterolu, na žlučník nebo při refluxu patří k nejhledanějším — Uvařto ale není zdravotnický nástroj a takové zadání zohlední jen jako obecné přání. Máte-li dietní protokol od lékaře nebo nutričního specialisty, nahrajte ho v kroku „Cíle“ a plán se od něj odvine. Léčbu vždy konzultujte s lékařem.',
   },
   {
     title: 'Cena na porci',
-    desc: 'Vařto neukazuje odhad ceny („do 100 Kč na porci“ nesplní). Ukazuje, které suroviny jsou tento týden ve slevě v českých obchodech.',
+    desc: 'Uvařto neukazuje odhad ceny („do 100 Kč na porci“ nesplní). Ukazuje, které suroviny jsou tento týden ve slevě v českých obchodech.',
   },
   {
     title: 'Alergie na ořechy, vejce, ryby a sóju',
-    desc: 'Jsou v profilu, ale Vařto je zatím nedokáže stoprocentně vyloučit. Vždy zkontrolujte seznam ingrediencí.',
+    desc: 'Jsou v profilu, ale Uvařto je zatím nedokáže stoprocentně vyloučit. Vždy zkontrolujte seznam ingrediencí.',
   },
   {
     title: 'Jazyk',
@@ -237,7 +237,7 @@ export const HowToPrompt = () => (
       {/* 4. Limits */}
       <section className="mb-16 border-t border-line pt-12">
         <SectionLabel>Na rovinu</SectionLabel>
-        <h2 className="font-display text-2xl font-black tracking-tight mb-8">Co Vařto zatím neumí</h2>
+        <h2 className="font-display text-2xl font-black tracking-tight mb-8">Co Uvařto zatím neumí</h2>
         <div className="space-y-6">
           {LIMITS.map((l) => (
             <div key={l.title}>

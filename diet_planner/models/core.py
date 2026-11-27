@@ -409,6 +409,9 @@ class DietaryGoal(models.Model):
         help_text="LEGACY: snacks per day",
     )
 
+    pinned_recipe_ids = models.JSONField(default=list, blank=True,
+                                         help_text='CuratedRecipe ids picked before signup; fill first')
+
     #: Slot key -> the count field that holds it. The single source of truth
     #: for "which fields make up the pool" — serializers, schemas and the
     #: selector all iterate this.

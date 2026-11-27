@@ -47,3 +47,5 @@ from .curated import (  # noqa: F401
     CuratedRecipe,
     RecipeResearchJob,
 )
+
+from .shopping import SavedShoppingList  # noqa: E402,F401

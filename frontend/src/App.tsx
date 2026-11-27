@@ -1,5 +1,5 @@
 import { Component, useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Dashboard } from '@/pages/Dashboard';
@@ -19,6 +19,7 @@ import { About } from '@/pages/About';
 import { HowToPrompt } from '@/pages/HowToPrompt';
 import { RecipeIndexPage } from '@/pages/RecipeIndexPage';
 import { PublicRecipePage } from '@/pages/PublicRecipePage';
+import { ShoppingList } from '@/pages/ShoppingList';
 import { Onboarding } from '@/pages/Onboarding';
 import { Settings } from '@/pages/Settings';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -48,19 +49,22 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
 const queryClient = new QueryClient();
 
-function HomeRoute() {
+export function HomeRoute() {
+  const { search } = useLocation();
   if (!isAccessTokenValid() && !localStorage.getItem('refresh_token')) return <Landing />;
+  // Signed-in users keep the Dashboard at /; a search link takes them to /hledat.
+  if (new URLSearchParams(search).get('q')) return <Navigate to={`/hledat${search}`} replace />;
   return <AuthenticatedHome />;
 }
 
+// No forced /onboarding redirect any more (spec 2026-11-03); the route stays reachable.
 function AuthenticatedHome() {
-  const { data: profile, isLoading } = useQuery({
+  const { isLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: () => api.get('/auth/profile/').then(res => res.data.data),
   });
 
   if (isLoading) return <LoadingScreen message="Nacitani..." />;
-  if (profile && !profile.onboarding_completed) return <Navigate to="/onboarding" replace />;
   return <Dashboard />;
 }
 
@@ -87,6 +91,8 @@ export default function App() {
           <Route path="/jak-to-funguje" element={<HowToPrompt />} />
           <Route path="/recepty" element={<RecipeIndexPage />} />
           <Route path="/recepty/:id/:slug" element={<PublicRecipePage />} />
+          <Route path="/nakup" element={<ShoppingList />} />
+          <Route path="/hledat" element={<Landing />} />
           <Route path="/" element={<HomeRoute />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
