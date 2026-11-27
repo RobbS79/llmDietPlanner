@@ -22,7 +22,7 @@ export function DealsStrip({ onPick }: { onPick: (q: string) => void }) {
         {data.map((d) => (
           <button key={d.canonical} type="button" onClick={() => onPick(dealSearch(d))}
             className="min-w-[150px] flex-none rounded-xl bg-yellow-300 px-3.5 py-2.5 text-left">
-            <b className="block text-[17px] text-ink">{d.name.split(' ').slice(0, 2).join(' ')}</b>
+            <b className="block text-[17px] leading-snug text-ink">{d.name}</b>
             <span className="text-[13px] text-ink">{d.shop} · do {formatDealDate(d.valid_until)}</span>
           </button>
         ))}

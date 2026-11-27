@@ -24,6 +24,22 @@ class ShoppingAmountTest(TestCase):
         self.assertEqual(shopping_amount(None, 'g'), (None, 'g'))
 
 
+class SaltFamilyTest(TestCase):
+    def test_one_recipe_never_lists_salt_and_sea_salt_together(self):
+        a = _r('a', [('sůl', 'salt', 5, 'g'), ('mořská sůl', 'sea-salt', 3, 'g'),
+                     ('cibule', 'onion', 1, 'ks')])
+        lines = compose_shopping_list([a], people=1, deal_index={})
+        salts = [l for l in lines if l['canonical'] in ('salt', 'sea-salt', 'table-salt')]
+        self.assertEqual(len(salts), 1)
+        self.assertEqual(salts[0]['canonical'], 'salt')   # plain salt wins
+        self.assertEqual(len(lines), 2)                   # onion untouched
+
+    def test_sea_salt_alone_is_kept(self):
+        a = _r('b', [('mořská sůl', 'sea-salt', 3, 'g')])
+        lines = compose_shopping_list([a], people=1, deal_index={})
+        self.assertEqual([l['canonical'] for l in lines], ['sea-salt'])
+
+
 class ComposeTest(TestCase):
     def test_merges_same_canonical_and_unit_and_scales_by_people(self):
         a = _r('a', [('česnek', 'garlic', 2, 'stroužky'), ('rýže', 'rice', 200, 'g')], servings=2)

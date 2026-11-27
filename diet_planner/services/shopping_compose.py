@@ -24,12 +24,29 @@ def shopping_amount(quantity: Optional[float], unit: str) -> Tuple[Optional[floa
     return round(quantity + 1e-9, 1), unit
 
 
+# One recipe never shows two salts: "sůl" and "mořská sůl" in the same dish are
+# a duplicate, not two ingredients. Plain salt wins when both are listed.
+SALT_FAMILY = ('salt', 'table-salt', 'sea-salt')
+
+
+def _canonical_of(ing: dict) -> str:
+    return (ing.get('canonical') or ing.get('name') or '').strip().lower()
+
+
+def _one_salt_per_recipe(ingredients) -> list:
+    family = [i for i in ingredients if _canonical_of(i) in SALT_FAMILY]
+    if len(family) <= 1:
+        return list(ingredients)
+    keep = next((i for i in family if _canonical_of(i) == 'salt'), family[0])
+    return [i for i in ingredients if _canonical_of(i) not in SALT_FAMILY or i is keep]
+
+
 def compose_shopping_list(recipes, *, people: int, deal_index: Dict[str, dict]) -> List[Dict[str, Any]]:
     people = min(max(int(people or 2), PEOPLE_MIN), PEOPLE_MAX)
     merged: Dict[Tuple[str, str], Dict[str, Any]] = {}
     for recipe in recipes:
         servings = max(int(recipe.base_servings or 1), 1)
-        for ing in recipe.ingredients or []:
+        for ing in _one_salt_per_recipe(recipe.ingredients or []):
             if ing.get('optional'):
                 continue
             canonical = (ing.get('canonical') or ing.get('name') or '').strip().lower()
