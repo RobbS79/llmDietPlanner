@@ -57,6 +57,17 @@ describe('RecipePage deal headline position', () => {
     expect(headline.compareDocumentPosition(refineCta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('shows one total time chip when prep and cook times are both known', async () => {
+    const timed = { ...RECIPE, preparation_time: 10, cooking_time: 25 };
+    vi.mocked(api.get).mockImplementation(async (url: string) => ({
+      data: { data: url.startsWith('/recipes/') ? timed : {} },
+    }) as any);
+    renderPage();
+    expect(await screen.findByText(/35 min celkem/)).toBeInTheDocument();
+    expect(screen.queryByText(/min příprava/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/min vaření/)).not.toBeInTheDocument();
+  });
+
   it('shows the deal headline after the recipe title', async () => {
     renderPage();
     const headline = await screen.findByText('2 z 5 surovin ve slevě tento týden');
