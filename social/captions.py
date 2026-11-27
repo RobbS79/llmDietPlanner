@@ -219,7 +219,7 @@ def _numbers_free_strings(value, key: str) -> set:
     return out
 
 
-HOUSE_RULES = """Jsi copywriter české aplikace Vařto (jídelníčky na míru s recepty a přehledem slev z letáků).
+HOUSE_RULES = """Jsi copywriter české aplikace Uvařto (jídelníčky na míru s recepty a přehledem slev z letáků).
 Piš česky, neformálně, jako člověk, ne jako reklama. Žádné vykřičníky v každé větě, max 2 emoji.
 POUŽIJ JEN FAKTA Z JSONU NÍŽE. Nevymýšlej ceny, procenta, úspory ani obchody, které v datech nejsou.
 Neslibuj úspory ("ušetříte"), nepiš "exkluzivní", "nejlevnější", "zaručeně".
@@ -232,8 +232,8 @@ KIND_BRIEF = {
              '\'stavím appku…\', bez hashtagů, pro vložení do facebookové skupiny>"}.',
     'recipe': 'Středeční recept: jméno, kcal na porci, čas, kde je zdroj, a kolik surovin je v akci '
               '(je-li deals_matched 0, o akcích se vůbec nezmiňuj). '
-              'Vrať {"caption": "<max 600 znaků, na konci 3–5 hashtagů, jeden z nich #varto>"}.',
-    'showcase': 'Páteční ukázka: co uživatel napsal (pole "prompt") a jaká jídla mu Vařto vybralo (pole "meals" — bez dnů, uživatel si vaří, kdy chce). '
+              'Vrať {"caption": "<max 600 znaků, na konci 3–5 hashtagů, jeden z nich #uvarto>"}.',
+    'showcase': 'Páteční ukázka: co uživatel napsal (pole "prompt") a jaká jídla mu Uvařto vybralo (pole "meals" — bez dnů, uživatel si vaří, kdy chce). '
                 'Vrať {"caption": "<max 600 znaků>"}.',
 }
 

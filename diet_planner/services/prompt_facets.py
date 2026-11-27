@@ -118,7 +118,9 @@ _SYSTEM_PROMPT_TEMPLATE = (
     'gluten_free, "bez mléka" -> dairy_free); a passing wish is NOT a rule — '
     '"chci méně sacharidů" belongs in emphases, only "jím nízkosacharidově" '
     "is low_carb here; [] when the user states no rule;\n"
-    '  "styles": e.g. quick, comfort, light;\n'
+    '  "styles": e.g. quick, comfort, light, meal_prep — use meal_prep when the '
+    'user cooks ahead or into lunchboxes ("krabičky", "krabičková", "do práce", '
+    '"na celý týden dopředu", "meal prep");\n'
     '  "emphases": choose from high_protein, low_carb, low_calorie, budget;\n'
     '  "max_time_minutes": integer — ONLY if the user states an explicit cooking '
     'time limit (e.g. "max 30 minut" -> 30), else null.\n'
@@ -184,6 +186,8 @@ def _default_generate(system_prompt: str, user_text: str) -> str:
             temperature=0.0,
             response_mime_type='application/json',
         ),
+        # A hung Gemini request must not hold a worker thread indefinitely.
+        request_options={'timeout': 10},
     )
     return getattr(resp, 'text', '') or ''
 

@@ -184,7 +184,7 @@ export const RecipePage = () => {
       <div className="max-w-4xl mx-auto px-6 py-12 w-full">
         <button
           onClick={() => navigate(`/plan/${id}`)}
-          className="flex items-center gap-2 text-muted hover:text-ink text-xs font-black uppercase tracking-widest mb-12 transition-colors"
+          className="flex items-center gap-2 text-muted hover:text-ink text-xs font-black uppercase tracking-widest mb-8 transition-colors"
         >
           <ArrowLeft size={16} /> Zpět na plán
         </button>
@@ -218,18 +218,8 @@ export const RecipePage = () => {
           </div>
         )}
 
-        {(() => {
-          const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);
-          return imgUrl ? (
-            <div className="relative h-64 sm:h-80 rounded-3xl overflow-hidden mb-12">
-              <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent" />
-            </div>
-          ) : null;
-        })()}
-
-        <header className="mb-16 text-left">
-          <div className="flex items-center gap-2">
+        <header className="mb-8 text-center">
+          <div className="flex items-center justify-center gap-2">
             <Badge variant="emerald">Recept</Badge>
             {recipe.source_url && <Badge variant="emerald">Ověřený recept</Badge>}
           </div>
@@ -237,19 +227,27 @@ export const RecipePage = () => {
             {recipe.name}<span className="text-paprika not-italic">.</span>
           </h1>
           {recipe.description && (
-            <p className="text-muted text-lg font-medium italic mt-6 max-w-2xl leading-relaxed">"{recipe.description}"</p>
+            <p className="text-muted text-lg font-medium italic mt-6 max-w-2xl mx-auto leading-relaxed">"{recipe.description}"</p>
           )}
 
-          <div className="flex flex-wrap gap-4 mt-8">
-            {recipe.preparation_time && (
+          <div className="flex flex-wrap justify-center gap-4 mt-8">
+            {recipe.preparation_time && recipe.cooking_time ? (
               <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
-                <Clock size={14} className="text-green" /> {recipe.preparation_time} min prep
+                <Clock size={14} className="text-green" /> {recipe.preparation_time + recipe.cooking_time} min celkem
               </div>
-            )}
-            {recipe.cooking_time && (
-              <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
-                <Clock size={14} className="text-green" /> {recipe.cooking_time} min cook
-              </div>
+            ) : (
+              <>
+                {recipe.preparation_time && (
+                  <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                    <Clock size={14} className="text-green" /> {recipe.preparation_time} min příprava
+                  </div>
+                )}
+                {recipe.cooking_time && (
+                  <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                    <Clock size={14} className="text-green" /> {recipe.cooking_time} min vaření
+                  </div>
+                )}
+              </>
             )}
             {recipe.servings && (
               <div className="flex items-center gap-2 bg-card border border-line px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted">
@@ -274,25 +272,10 @@ export const RecipePage = () => {
           )}
         </header>
 
-        {/* Conversational replace-recipe swap */}
-        <div className="mb-12">
-          {!panelOpen ? (
-            <RefineInviteCard onOpen={openChat} />
-          ) : (
-            <RecipeRefineChat
-              mealId={mealId!}
-              seedMessage={chatSeed}
-              webResearch={Boolean(recipe.refine_web_research)}
-              onAccepted={handleAccepted}
-              onClose={closeChat}
-            />
-          )}
-        </div>
-
         {getRecipeDeals(recipe) && (() => {
           const d = getRecipeDeals(recipe)!;
           return (
-            <div className="mt-3 rounded-lg bg-green-soft p-3">
+            <div className="mb-8 rounded-lg bg-green-soft p-3">
               <p className="text-sm font-medium text-green">
                 {d.matched} z {d.total} surovin ve slevě tento týden
               </p>
@@ -309,6 +292,31 @@ export const RecipePage = () => {
             </div>
           );
         })()}
+
+        {(() => {
+          const imgUrl = recipe.image_url || getFoodImageUrl(recipe.food_category, recipe.name);
+          return imgUrl ? (
+            <div className="relative h-44 sm:h-80 rounded-3xl overflow-hidden mb-8">
+              <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent" />
+            </div>
+          ) : null;
+        })()}
+
+        {/* Conversational replace-recipe swap */}
+        <div className="mb-8">
+          {!panelOpen ? (
+            <RefineInviteCard onOpen={openChat} />
+          ) : (
+            <RecipeRefineChat
+              mealId={mealId!}
+              seedMessage={chatSeed}
+              webResearch={Boolean(recipe.refine_web_research)}
+              onAccepted={handleAccepted}
+              onClose={closeChat}
+            />
+          )}
+        </div>
 
         <div className="grid md:grid-cols-5 gap-10">
           {/* Ingredients sidebar — scaled "shopping list" with portion stepper */}

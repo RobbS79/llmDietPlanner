@@ -68,3 +68,18 @@ describe('syncConsentToServer', () => {
     await expect(syncConsentToServer()).resolves.toBeUndefined();
   });
 });
+
+describe('trackSearch', () => {
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { delete window.fbq; });
+
+  it('never sends the query text to Meta, only where the search came from', async () => {
+    const { trackSearch } = await import('./analytics');
+    setConsent(true);
+    const fbq = vi.fn();
+    window.fbq = fbq;
+    trackSearch('typed');
+    expect(fbq).toHaveBeenCalledWith('track', 'Search', { source: 'typed' });
+    expect(JSON.stringify(fbq.mock.calls)).not.toContain('search_string');
+  });
+});

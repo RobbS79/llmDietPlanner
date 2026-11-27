@@ -1,6 +1,7 @@
 """
 Test suite for login_app authentication endpoints.
 """
+from django.core.cache import cache
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
@@ -19,6 +20,7 @@ class RegistrationTestCase(TestCase):
     
     def setUp(self):
         """Set up test client."""
+        cache.clear()  # signup throttle (5/day) counts in the cache
         self.client = APIClient()
         self.register_url = reverse('login_app:register')
     
@@ -384,6 +386,7 @@ class AuthenticationFlowTestCase(TestCase):
     
     def setUp(self):
         """Set up test client."""
+        cache.clear()  # signup throttle (5/day) counts in the cache
         self.client = APIClient()
         self.register_url = reverse('login_app:register')
         self.verify_url = reverse('login_app:verify-email')
@@ -494,6 +497,7 @@ class RegistrationAttributionTests(TestCase):
     attribution payload."""
 
     def setUp(self):
+        cache.clear()  # signup throttle (5/day) counts in the cache
         self.client = APIClient()
         self.register_url = reverse('login_app:register')
         # The verification email is sent via Celery .delay(); mock it so these

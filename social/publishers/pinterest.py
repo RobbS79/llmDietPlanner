@@ -1,4 +1,4 @@
-"""Pinterest API v5: create a pin on the Vařto board from image bytes.
+"""Pinterest API v5: create a pin on the Uvařto board from image bytes.
 Trial access (granted to new apps on request) is enough to pin to your own account."""
 import base64
 

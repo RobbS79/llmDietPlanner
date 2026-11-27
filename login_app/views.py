@@ -29,6 +29,8 @@ from pydantic import ValidationError
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 
+from diet_planner.throttles import SignupThrottle
+from .email_rules import is_disposable, normalised_email_taken
 from .models import UserProfile
 from .schemas import RegistrationRequest, LoginRequest, PasswordResetRequestSchema, PasswordResetConfirmSchema
 from .utils import generate_email_verification_token, verify_email_token
@@ -150,7 +152,8 @@ class RegistrationView(APIView):
     """
     permission_classes = [AllowAny]
     authentication_classes = []
-    
+    throttle_classes = [SignupThrottle]
+
     def post(self, request) -> Response:
         # Validate input FIRST so field errors (weak password, mismatch, bad
         # email) surface as a 400 with the real message instead of being caught
@@ -169,7 +172,13 @@ class RegistrationView(APIView):
             if User.objects.filter(username=schema.username).exists():
                 return Response({"status": "error", "data": None, "error": "Toto uživatelské jméno už existuje."}, status=400)
 
-            if User.objects.filter(email=schema.email).exists():
+            if is_disposable(schema.email):
+                return Response(
+                    {"status": "error", "data": None,
+                     "error": "Na tenhle e-mail se registrovat nedá. Použij prosím svůj běžný e-mail."},
+                    status=400)
+
+            if User.objects.filter(email=schema.email).exists() or normalised_email_taken(schema.email):
                 return Response({"status": "error", "data": None, "error": "Tento e-mail je už zaregistrovaný."}, status=400)
 
             # Active immediately so the user can log in and explore. Email
@@ -572,5 +581,5 @@ class DataExportView(APIView):
         }
         resp = JsonResponse(payload, encoder=DjangoJSONEncoder,
                             json_dumps_params={"indent": 2, "ensure_ascii": False})
-        resp["Content-Disposition"] = 'attachment; filename="varto-my-data.json"'
+        resp["Content-Disposition"] = 'attachment; filename="uvarto-my-data.json"'
         return resp

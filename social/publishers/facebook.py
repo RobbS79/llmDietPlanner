@@ -1,4 +1,4 @@
-"""Meta Graph API: publish a photo post to the Vařto Page.
+"""Meta Graph API: publish a photo post to the Uvařto Page.
 Needs a long-lived Page access token with pages_show_list, pages_manage_posts, and
 pages_read_engagement; the token owner needs the CREATE_CONTENT task on the Page."""
 import requests

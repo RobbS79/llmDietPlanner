@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: review-shopping-list
+expected_outcome: |
+  The review checks whether the shopping list is grouped and whether the deal count sits at the top, and checks that any savings or total figure on the list is computed from data on that screen rather than invented.

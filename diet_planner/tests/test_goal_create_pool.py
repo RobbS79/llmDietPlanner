@@ -59,6 +59,19 @@ class GoalCreatePoolTest(_PoolCreateBase):
         self.assertEqual(goal.breakfasts, 0)
         self.assertEqual(goal.dinners, 3)
 
+    def test_no_city_or_country_needed_and_pins_stored(self):
+        resp = self.client.post('/api/goals/', {'prompt': 'Rychlé večeře z kuřecího.', 'dinners': 3,
+                                                'pinned_recipe_ids': [7, 9]}, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        goal = DietaryGoal.objects.get(id=resp.json()['data']['goal_id'])
+        self.assertEqual((goal.country, goal.city, goal.language_code), ('CZ', '', 'cs'))
+        self.assertEqual(goal.pinned_recipe_ids, [7, 9])
+
+    def test_non_int_pins_rejected(self):
+        resp = self.client.post('/api/goals/', self._payload(pinned_recipe_ids=['x']), format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(DietaryGoal.objects.exists())
+
 
 class GoalCreatePoolValidationTest(_PoolCreateBase):
     """Error codes, draft path, finalise, and no side effects on a 400."""

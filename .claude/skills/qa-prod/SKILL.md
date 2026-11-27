@@ -1,11 +1,11 @@
 ---
 name: qa-prod
-description: Post-deploy production verification. Run after deploying Vařto to prod — dispatches the Fable-5 qa-tester agent to browser-test eatalnicek.eu and returns a GO/NO-GO report.
+description: Post-deploy production verification. Run after deploying Uvařto to prod — dispatches the Fable-5 qa-tester agent to browser-test eatalnicek.eu and returns a GO/NO-GO report.
 ---
 
 # /qa-prod — post-deploy production verification
 
-Use this after a production deploy to verify eatalnicek.eu (Vařto) still works.
+Use this after a production deploy to verify eatalnicek.eu (Uvařto) still works.
 It dispatches the committed `qa-tester` subagent (Fable 5) to drive a real
 browser through public + authed flows and write a GO/NO-GO report.
 

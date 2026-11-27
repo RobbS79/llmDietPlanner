@@ -34,7 +34,7 @@ export const ForgotPassword = () => {
       <div className="max-w-md w-full relative z-10 bg-card border border-line rounded-3xl shadow-deep-full p-12">
         <div className="text-center mb-10">
           <span className="font-display font-extrabold text-2xl tracking-tight text-ink lowercase">
-            vařto<span className="text-paprika">.</span>
+            uvařto<span className="text-paprika">.</span>
           </span>
           <h1 className="text-3xl font-black text-ink tracking-tighter leading-none uppercase italic mb-3 mt-6">
             Obnova <span className="text-green not-italic">hesla.</span>
